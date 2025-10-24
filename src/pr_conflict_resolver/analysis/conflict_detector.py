@@ -45,6 +45,11 @@ class ConflictDetector:
         if not (end1 < start2 or end2 < start1):
             overlap_size = min(end1, end2) - max(start1, start2) + 1
             total_size = max(end1, end2) - min(start1, start2) + 1
+            
+            # Conservative default for degenerate case: avoid division by zero
+            if total_size == 0:
+                return "major"
+            
             overlap_percentage = (overlap_size / total_size) * 100
 
             if overlap_percentage >= 80:
