@@ -3,6 +3,7 @@
 from typing import Any
 from unittest.mock import patch
 
+import pytest
 from pr_conflict_resolver import Change, ConflictResolver, FileType
 from pr_conflict_resolver.utils.text import normalize_content
 
@@ -154,7 +155,11 @@ class TestConflictResolver:
         change2 = Change("test.py", 12, 18, "content2", {}, "fp2", FileType.PYTHON)
 
         percentage = resolver._calculate_overlap_percentage(change1, [change2])
-        assert 0 <= percentage <= 100
+
+        # Calculate expected: intersection=4 lines (12-15), union=9 lines (10-18)
+        # Expected percentage: (4/9) * 100 ≈ 44.444%
+        expected_percentage = (4 / 9) * 100
+        assert percentage == pytest.approx(expected_percentage, rel=0.01)
 
     @patch("pr_conflict_resolver.core.resolver.GitHubCommentExtractor")
     def test_resolve_pr_conflicts(self, mock_extractor: Any) -> None:

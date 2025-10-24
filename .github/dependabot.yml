@@ -1,10 +1,9 @@
 version: 2
 updates:
-  # Production dependencies
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
       time: "09:00"
     open-pull-requests-limit: 5
     assignees:
@@ -14,23 +13,6 @@ updates:
       include: "scope"
     labels:
       - "dependencies"
-      - "production"
-
-  # Development dependencies
-  - package-ecosystem: "pip"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      time: "09:00"
-    open-pull-requests-limit: 3
-    assignees:
-      - "VirtualAgentics"
-    commit-message:
-      prefix: "deps-dev"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "development"
     groups:
       linting:
         patterns:

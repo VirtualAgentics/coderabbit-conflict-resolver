@@ -12,6 +12,7 @@ An intelligent, automated conflict resolution system for GitHub PR comments, spe
    configuration
    conflict-types
    resolution-strategies
+   github-actions-sha-management
    api-reference
    contributing
 
@@ -96,4 +97,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-

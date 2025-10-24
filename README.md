@@ -202,6 +202,23 @@ pre-commit install
 pytest tests/ --cov=src --cov-report=html
 ```
 
+### GitHub Actions SHA Management
+
+This project includes tools to manage GitHub Actions SHAs in workflow files:
+
+```bash
+# Verify all workflow SHAs
+./scripts/verify-workflow-shas.sh
+
+# Get correct SHA for any action
+./scripts/get-action-sha.sh actions/checkout v5.0.0
+
+# Automatically fix malformed SHAs
+./scripts/verify-workflow-shas.sh -f
+```
+
+See [scripts/README.md](scripts/README.md) and [docs/github-actions-sha-management.md](docs/github-actions-sha-management.md) for detailed usage.
+
 ## 📜 License
 
 MIT License - see [LICENSE](LICENSE) for details.

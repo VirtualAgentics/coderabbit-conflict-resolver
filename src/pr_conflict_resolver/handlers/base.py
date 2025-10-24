@@ -79,7 +79,20 @@ class BaseHandler(ABC):
         """
 
     def backup_file(self, path: str) -> str:
-        """Create a backup of the file."""
+        """Create a backup of the file before modifications.
+
+        Args:
+            path: The path to the file to backup.
+
+        Returns:
+            The path to the created backup file with .backup extension.
+
+        Raises:
+            OSError: If filesystem access fails during backup creation (e.g.,
+                insufficient permissions, disk full, or path resolution errors).
+            IOError: If I/O operations fail during file copying (e.g., source
+                file cannot be read or backup file cannot be written).
+        """
         import shutil
         from pathlib import Path
 

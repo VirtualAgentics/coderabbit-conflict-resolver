@@ -5,9 +5,14 @@ on:
     - cron: "0 0 * * 0" # Weekly on Sunday at midnight UTC
   workflow_dispatch: # Allow manual trigger
 
+concurrency:
+  group: stale-workflow-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   stale:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       issues: write
       pull-requests: write

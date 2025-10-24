@@ -9,7 +9,7 @@ on:
     - cron: "0 2 * * 1" # Weekly on Monday at 2 AM
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
       actions: read
 
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfac47a2899e69799 # v5.0.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Set up Python 3.12
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
@@ -81,12 +81,12 @@ jobs:
 
           # Check pip-audit for CRITICAL vulnerabilities
           if [ -f pip-audit-report.json ]; then
-            # Parse JSON for vulnerabilities with aliases containing "CRITICAL" or high CVSS scores
-            CRITICAL_PIP_VULNS=$(jq '[.dependencies[].vulns[] | select(.aliases[] | contains("CRITICAL")) // select(.fix_versions == null)] | length' pip-audit-report.json 2>/dev/null || echo "0")
+            # Parse JSON for vulnerabilities with CRITICAL severity or high CVSS scores (>=9.0)
+            CRITICAL_PIP_VULNS=$(jq '[.dependencies[].vulns[] | select(.severity == "CRITICAL" or (.cvss_score >= 9.0) or (.cvss[0].score >= 9.0))] | length' pip-audit-report.json 2>/dev/null || echo "0")
             if [ "$CRITICAL_PIP_VULNS" -gt 0 ]; then
               echo "❌ Found $CRITICAL_PIP_VULNS CRITICAL vulnerabilities in pip-audit scan"
               echo "Critical vulnerabilities found:"
-              jq -r '.dependencies[].vulns[] | select(.aliases[] | contains("CRITICAL")) // select(.fix_versions == null) | "- \(.id): \(.description // "No description")"' pip-audit-report.json 2>/dev/null || cat pip-audit-report.txt
+              jq -r '.dependencies[].vulns[] | select(.severity == "CRITICAL" or (.cvss_score >= 9.0) or (.cvss[0].score >= 9.0)) | "- \(.id): \(.description // "No description") (Severity: \(.severity // "Unknown"), CVSS: \(.cvss_score // .cvss[0].score // "N/A"))"' pip-audit-report.json 2>/dev/null || cat pip-audit-report.txt
               exit 1
             else
               echo "✅ No CRITICAL vulnerabilities found in pip-audit scan"
@@ -106,6 +106,7 @@ jobs:
 
   codeql:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     permissions:
       actions: read
       contents: read
@@ -118,10 +119,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfac47a2899e69799 # v5.0.0
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@4e94bd11f71e507f7f87df81788dff88d1dacbfb # v4.31.0
+        uses: github/codeql-action/init@a79638c6e166cca8d437da39b8b88cae58fed1f3 # v4.31.0
         with:
           languages: ${{ matrix.language }}
 
@@ -137,6 +138,6 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@4e94bd11f71e507f7f87df81788dff88d1dacbfb # v4.31.0
+        uses: github/codeql-action/analyze@a79638c6e166cca8d437da39b8b88cae58fed1f3 # v4.31.0
         with:
           category: "/language:${{matrix.language}}"

@@ -234,19 +234,22 @@ class ConflictResolver:
         if not conflicting_changes:
             return 0.0
 
-        change2 = conflicting_changes[0]  # Use first conflicting change
-        overlap_start = max(change1.start_line, change2.start_line)
-        overlap_end = min(change1.end_line, change2.end_line)
+        # Calculate intersection across all conflicting changes
+        intersection_start = max(change1.start_line, max(c.start_line for c in conflicting_changes))
+        intersection_end = min(change1.end_line, min(c.end_line for c in conflicting_changes))
 
-        if overlap_start > overlap_end:
+        if intersection_start > intersection_end:
             return 0.0
 
-        overlap_size = overlap_end - overlap_start + 1
-        total_size = (
-            max(change1.end_line, change2.end_line)
-            - min(change1.start_line, change2.start_line)
-            + 1
-        )
+        # Calculate union across all conflicting changes
+        total_start = min(change1.start_line, min(c.start_line for c in conflicting_changes))
+        total_end = max(change1.end_line, max(c.end_line for c in conflicting_changes))
+
+        overlap_size = intersection_end - intersection_start + 1
+        total_size = total_end - total_start + 1
+
+        if total_size == 0:
+            return 0.0
 
         return (overlap_size / total_size) * 100
 
@@ -343,9 +346,11 @@ class ConflictResolver:
 
         # Apply resolutions
         result = self.apply_resolutions(resolutions)
-        result.conflicts = conflicts
 
-        return result
+        # Create new result with conflicts (since dataclass is now frozen)
+        from dataclasses import replace
+
+        return replace(result, conflicts=conflicts)
 
     def analyze_conflicts(self, owner: str, repo: str, pr_number: int) -> list[Conflict]:
         """Analyze conflicts in a pull request without applying changes."""

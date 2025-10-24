@@ -4,7 +4,9 @@ This module provides the GitHubCommentExtractor class that fetches
 PR comments from the GitHub API and extracts relevant information.
 """
 
+import logging
 import os
+import time
 from typing import Any
 
 import requests
@@ -15,6 +17,7 @@ class GitHubCommentExtractor:
 
     def __init__(self, token: str | None = None, base_url: str = "https://api.github.com") -> None:
         """Initialize the GitHub comment extractor."""
+        self.logger = logging.getLogger(__name__)
         self.token = token or os.getenv("GITHUB_TOKEN")
         self.base_url = base_url
         self.session = requests.Session()
@@ -66,13 +69,34 @@ class GitHubCommentExtractor:
         """Fetch PR metadata."""
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
 
-        try:
-            response = self.session.get(url)
-            response.raise_for_status()
-            data = response.json()
-            return data if isinstance(data, dict) else None
-        except requests.RequestException:
-            return None
+        max_retries = 3
+        base_delay = 1.0
+
+        for attempt in range(max_retries):
+            try:
+                response = self.session.get(url, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+                return data if isinstance(data, dict) else None
+            except requests.RequestException as e:
+                self.logger.error(
+                    f"Request failed for {url} (attempt {attempt + 1}/{max_retries}): {e}"
+                )
+                if hasattr(e, "response") and e.response is not None:
+                    self.logger.error(
+                        f"Response status: {e.response.status_code}, "
+                        f"Response body: {e.response.text[:500]}"
+                    )
+
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2**attempt)
+                    self.logger.debug(f"Retrying in {delay} seconds...")
+                    time.sleep(delay)
+                else:
+                    self.logger.error(f"All {max_retries} attempts failed for {url}")
+                    return None
+
+        return None
 
     def fetch_pr_files(self, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
         """Fetch files changed in the PR."""

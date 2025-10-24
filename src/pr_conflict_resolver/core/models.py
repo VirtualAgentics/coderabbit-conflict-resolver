@@ -20,7 +20,7 @@ class FileType(Enum):
     PLAINTEXT = "plaintext"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Change:
     """Represents a single change suggestion."""
 
@@ -33,7 +33,7 @@ class Change:
     file_type: FileType
 
 
-@dataclass
+@dataclass(frozen=True)
 class Conflict:
     """Represents a conflict between two or more changes."""
 
@@ -45,7 +45,7 @@ class Conflict:
     overlap_percentage: float
 
 
-@dataclass
+@dataclass(frozen=True)
 class Resolution:
     """Represents a resolution for a conflict."""
 
@@ -56,7 +56,7 @@ class Resolution:
     message: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class ResolutionResult:
     """Result of conflict resolution."""
 
