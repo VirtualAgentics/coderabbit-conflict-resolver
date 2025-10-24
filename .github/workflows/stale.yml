@@ -1,0 +1,68 @@
+name: Mark stale issues and pull requests
+
+on:
+  schedule:
+    - cron: "0 0 * * 0" # Weekly on Sunday at midnight UTC
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@5f858e3efba33a5ca4407a664cc011ad407f2008 # v10.1.0
+        with:
+          # Configuration for issues
+          days-before-stale: 60
+          days-before-close: 7
+          stale-issue-message: |
+            This issue has been automatically marked as stale because it has not had recent activity.
+
+            It will be closed in 7 days if no further activity occurs. If this issue is still relevant, please:
+
+            - Add a comment explaining why it's still important
+            - Add the `keep-open` label to prevent automatic closure
+            - Assign it to yourself or someone else
+
+            Thank you for your contribution!
+          close-issue-message: |
+            This issue has been automatically closed due to inactivity.
+
+            If you believe this was closed in error, please reopen it and add the `keep-open` label.
+
+            Thank you for your understanding.
+          stale-issue-label: "stale"
+          exempt-issue-labels: "keep-open,priority,security,bug,enhancement"
+
+          # Configuration for pull requests
+          days-before-pr-stale: 30
+          days-before-pr-close: 7
+          stale-pr-message: |
+            This pull request has been automatically marked as stale because it has not had recent activity.
+
+            It will be closed in 7 days if no further activity occurs. If this PR is still relevant, please:
+
+            - Add a comment explaining the current status
+            - Add the `keep-open` label to prevent automatic closure
+            - Request a review or assign it to someone
+
+            Thank you for your contribution!
+          close-pr-message: |
+            This pull request has been automatically closed due to inactivity.
+
+            If you believe this was closed in error, please reopen it and add the `keep-open` label.
+
+            Thank you for your understanding.
+          stale-pr-label: "stale"
+          exempt-pr-labels: "keep-open,priority,security,ready-for-review,needs-review"
+
+          # General configuration
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          remove-stale-when-updated: true
+          remove-pr-stale-when-updated: true
+          debug-only: false
+          ascending: false
+          delete-branch: false
+          start-date: ""

@@ -1,0 +1,108 @@
+# Auto-labeler configuration for CodeRabbit Conflict Resolver
+# This file defines labels to automatically apply based on changed files
+
+# Documentation changes
+documentation:
+  - README.md
+  - CONTRIBUTING.md
+  - SECURITY.md
+  - CODE_OF_CONDUCT.md
+  - CHANGELOG.md
+  - docs/**/*
+  - .github/SUPPORT.md
+
+# Core functionality changes
+core:
+  - src/pr_conflict_resolver/core/**
+
+# Conflict detection and analysis
+analysis:
+  - src/pr_conflict_resolver/analysis/**
+
+# File handlers
+handlers:
+  - src/pr_conflict_resolver/handlers/**
+
+# Resolution strategies
+strategies:
+  - src/pr_conflict_resolver/strategies/**
+
+# GitHub integration
+integration:
+  - src/pr_conflict_resolver/integrations/**
+
+# CLI interface
+cli:
+  - src/pr_conflict_resolver/cli/**
+
+# Configuration
+config:
+  - src/pr_conflict_resolver/config/**
+  - pyproject.toml
+  - .pre-commit-config.yaml
+  - setup-dev.sh
+  - setup-dev.ps1
+
+# Testing
+tests:
+  - tests/**
+  - conftest.py
+
+# CI/CD and workflows
+ci:
+  - .github/workflows/**
+  - .github/dependabot.yml
+  - Makefile
+
+# Dependencies
+dependencies:
+  - requirements*.txt
+  - pyproject.toml
+  - setup.py
+
+# Security
+security:
+  - SECURITY.md
+  - .github/ISSUE_TEMPLATE/**
+  - src/pr_conflict_resolver/integrations/github.py
+
+# CodeRabbit configuration
+coderabbit:
+  - .coderabbit.yaml
+
+# GitHub templates and automation
+github:
+  - .github/**
+  - .github/ISSUE_TEMPLATE/**
+  - .github/PULL_REQUEST_TEMPLATE.md
+  - .github/CODEOWNERS
+  - .github/labeler.yml
+# Python specific
+python:
+  - src/**/*.py
+  - tests/**/*.py
+  - conftest.py
+  - setup.py
+
+# Configuration files
+config-files:
+  - .editorconfig
+  - .gitignore
+  - .pre-commit-config.yaml
+  - pyproject.toml
+  - requirements*.txt
+
+# Setup and development
+development:
+  - setup-dev.sh
+  - setup-dev.ps1
+  - Makefile
+  - requirements-dev.txt
+
+# Release and packaging
+release:
+  - setup.py
+  - pyproject.toml
+  - CHANGELOG.md
+  - LICENSE
+
