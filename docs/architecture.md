@@ -153,7 +153,7 @@ Implement `BaseHandler` to add support for new file types:
 class CustomHandler(BaseHandler):
     def can_handle(self, file_path: str) -> bool:
         return file_path.endswith('.custom')
-    
+
     def apply_change(self, path: str, change: Change) -> bool:
         # Custom implementation
         pass

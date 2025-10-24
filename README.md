@@ -3,18 +3,20 @@
 An intelligent, automated conflict resolution system for GitHub PR comments, specifically designed for [CodeRabbit AI](https://coderabbit.ai) but extensible to other code review bots.
 
 [![CI](https://github.com/VirtualAgentics/coderabbit-conflict-resolver/workflows/CI/badge.svg)](https://github.com/VirtualAgentics/coderabbit-conflict-resolver/actions)
-[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 ## 🎯 Problem Statement
 
 When multiple PR review comments suggest overlapping changes to the same file, traditional automation tools either:
+
 - Skip all conflicting changes (losing valuable suggestions)
 - Apply changes sequentially without conflict awareness (potentially breaking code)
 - Require tedious manual resolution for every conflict
 
 **CodeRabbit Conflict Resolver** provides intelligent, semantic-aware conflict resolution that:
+
 - ✅ Understands code structure (JSON, YAML, TOML, Python, TypeScript)
 - ✅ Uses priority-based resolution (user selections, security fixes, syntax errors)
 - ✅ Supports semantic merging (combining non-conflicting changes automatically)
@@ -63,30 +65,35 @@ print(f"Success rate: {results.success_rate}%")
 ## 🎨 Features
 
 ### Intelligent Conflict Analysis
+
 - **Semantic Understanding**: Analyzes JSON, YAML, TOML structure, not just text
 - **Conflict Categorization**: Exact, major, partial, minor, disjoint-keys, semantic-duplicate
 - **Impact Assessment**: Evaluates scope, risk level, and criticality of changes
 - **Actionable Suggestions**: Provides specific guidance for each conflict
 
 ### Smart Resolution Strategies
+
 - **Priority-Based**: User selections > Security fixes > Syntax errors > Regular suggestions
 - **Semantic Merging**: Combines non-conflicting changes in structured files
 - **Sequential Application**: Applies compatible changes in optimal order
 - **Defer to User**: Escalates complex conflicts for manual review
 
 ### File-Type Handlers
+
 - **JSON**: Duplicate key detection, key-level merging
 - **YAML**: Comment preservation, structure-aware merging
 - **TOML**: Section merging, format preservation
 - **Python/TypeScript**: AST-aware analysis (planned)
 
 ### Learning & Optimization
+
 - **ML-Assisted Priority**: Learns from your resolution decisions
 - **Metrics Tracking**: Monitors success rates, resolution times, strategy effectiveness
 - **Conflict Caching**: Reuses analysis for similar conflicts
 - **Performance**: Parallel processing for large PRs
 
 ### Configuration & Presets
+
 - **Conservative**: Skip all conflicts, manual review required
 - **Balanced**: Priority system + semantic merging (default)
 - **Aggressive**: Maximize automation, user selections always win
@@ -155,18 +162,22 @@ print(f"Success rate: {results.success_rate}%")
 ## 🔧 Use Cases
 
 ### 1. CodeRabbit Multi-Option Selections
+
 **Problem**: User selects "Option 2" but it conflicts with another suggestion
 **Solution**: Priority system ensures user selections override lower-priority changes
 
 ### 2. Overlapping Configuration Changes
+
 **Problem**: Two suggestions modify different keys in `package.json`
 **Solution**: Semantic merging combines both changes automatically
 
 ### 3. Security Fix vs. Formatting
+
 **Problem**: Security fix conflicts with formatting suggestion
 **Solution**: Priority system applies security fix, skips formatting
 
 ### 4. Large PR with 50+ Comments
+
 **Problem**: Manual conflict resolution is time-consuming
 **Solution**: Parallel processing + caching resolves conflicts in seconds
 
@@ -180,7 +191,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 git clone https://github.com/VirtualAgentics/coderabbit-conflict-resolver.git
 cd coderabbit-conflict-resolver
 python -m venv .venv
-source .venv/bin/activate  # or `.venv\Scripts\activate` on Windows
+source .venv/bin/activate
 pip install -e ".[dev]"
 pre-commit install
 ```
@@ -206,6 +217,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 **Current Version**: 0.1.0 (Alpha)
 
 **Roadmap**:
+
 - ✅ Phase 0: Repository setup and architecture
 - 🔄 Phase 1: Core conflict detection and analysis
 - 📅 Phase 2: Priority system and basic strategies

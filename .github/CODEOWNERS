@@ -1,0 +1,80 @@
+# CodeRabbit Conflict Resolver - Code Owners
+
+# This file defines who has review responsibility for different parts of the repository
+
+# See: <https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners>
+
+# Global ownership - all files
+
+* @VirtualAgentics
+
+# GitHub Actions and CI/CD workflows
+
+/.github/workflows/ @VirtualAgentics
+/.github/dependabot.yml @VirtualAgentics
+/.github/CODEOWNERS @VirtualAgentics
+
+# Security-related files
+
+/SECURITY.md @VirtualAgentics
+/CODE_OF_CONDUCT.md @VirtualAgentics
+/.github/ISSUE_TEMPLATE/ @VirtualAgentics
+
+# Core configuration files
+
+/pyproject.toml @VirtualAgentics
+/requirements*.txt @VirtualAgentics
+/.pre-commit-config.yaml @VirtualAgentics
+/Makefile @VirtualAgentics
+/setup-dev.sh @VirtualAgentics
+/setup-dev.ps1 @VirtualAgentics
+
+# Core resolver and models
+
+/src/pr_conflict_resolver/core/ @VirtualAgentics
+/src/pr_conflict_resolver/core/resolver.py @VirtualAgentics
+/src/pr_conflict_resolver/core/models.py @VirtualAgentics
+
+# Conflict detection and analysis
+
+/src/pr_conflict_resolver/analysis/ @VirtualAgentics
+
+# File handlers (critical for conflict resolution)
+
+/src/pr_conflict_resolver/handlers/ @VirtualAgentics
+
+# Resolution strategies (critical business logic)
+
+/src/pr_conflict_resolver/strategies/ @VirtualAgentics
+
+# GitHub integration (security-sensitive)
+
+/src/pr_conflict_resolver/integrations/ @VirtualAgentics
+/src/pr_conflict_resolver/integrations/github.py @VirtualAgentics
+
+# CLI interface
+
+/src/pr_conflict_resolver/cli/ @VirtualAgentics
+
+# Configuration and presets
+
+/src/pr_conflict_resolver/config/ @VirtualAgentics
+
+# Documentation
+
+/docs/ @VirtualAgentics
+/README.md @VirtualAgentics
+/CONTRIBUTING.md @VirtualAgentics
+
+# Tests (require careful review for correctness)
+
+/tests/ @VirtualAgentics
+
+# CodeRabbit configuration
+
+/.coderabbit.yaml @VirtualAgentics
+
+# Release and packaging
+
+/setup.py @VirtualAgentics
+/LICENSE @VirtualAgentics
