@@ -2,13 +2,13 @@
 -r requirements.txt
 
 # Testing
-pytest>=7.4.0,<8.0.0
-pytest-cov>=4.1.0,<5.0.0
-pytest-asyncio>=0.21.0,<1.0.0
+pytest>=7.4.0,<9.0.0
+pytest-cov>=4.1.0,<8.0.0
+pytest-asyncio>=0.21.0,<2.0.0
 
 # Code quality
-black>=24.2.0,<25.0.0
-ruff>=0.1.9,<0.2.0
+black>=24.3.0,<25.0.0
+ruff>=0.1.9,<1.0.0
 mypy>=1.8.0,<2.0.0
 pre-commit>=3.6.0,<4.0.0
 
@@ -19,7 +19,7 @@ pip-audit>=2.9.0,<3.0.0
 
 # Type stubs
 types-requests>=2.31.0,<3.0.0
-types-click>=8.0.0,<9.0.0
+types-click>=7.1.0,<9.0.0
 types-PyYAML>=6.0.0,<7.0.0
 
 # Documentation

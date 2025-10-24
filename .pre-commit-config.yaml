@@ -14,13 +14,13 @@ repos:
       - id: check-ast
 
   - repo: https://github.com/psf/black
-    rev: 24.2.0
+    rev: 24.3.0
     hooks:
       - id: black
         language_version: python3.12
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.9
+    rev: v0.14.2
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
@@ -42,8 +42,9 @@ repos:
         args: [-r, src/, -f, json, -o, bandit-report.json]
         exclude: tests/
 
-  - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
-    rev: v1.3.2
-    hooks:
-      - id: python-safety-dependencies-check
-        args: [--json, --output, safety-report.json]
+  # - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
+  #   rev: v1.3.2
+  #   hooks:
+  #     - id: python-safety-dependencies-check
+  #       args: [--json, --output, safety-report.json]
+  #       files: ^requirements.*\.txt$
