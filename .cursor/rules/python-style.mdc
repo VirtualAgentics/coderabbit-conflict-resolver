@@ -1,0 +1,108 @@
+---
+title: Python Style Guidelines
+description: Code formatting, linting rules, and style conventions for Python development
+globs:
+  - "**/*.py"
+---
+
+# Python Style Guidelines
+
+## Code Formatting
+
+- **Black**: Use Black formatter with line-length=100
+- **Line Length**: Maximum 100 characters per line
+- **Indentation**: 4 spaces (no tabs)
+- **Quotes**: Use double quotes for strings, single quotes for string literals in code
+
+## Linting Rules (Ruff)
+
+Enable comprehensive linting with:
+
+```toml
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "I",      # isort (import sorting)
+    "B",      # flake8-bugbear
+    "UP",     # pyupgrade
+    "C4",     # flake8-comprehensions
+    "PIE",    # flake8-pie
+    "SIM",    # flake8-simplify
+    "T20",    # flake8-print
+    "ASYNC",  # flake8-async
+    "S",      # flake8-bandit (security)
+    "RUF",    # Ruff-specific rules
+    "ANN",    # flake8-annotations
+    "D",      # pydocstyle
+]
+```
+
+## Type Hints
+
+- **Required**: All function signatures must have type hints
+- **Return Types**: Always specify return types, use `None` for void functions
+- **Generic Types**: Use proper generic types for collections (List[str], Dict[str, Any])
+- **Optional**: Use `Optional[Type]` or `Type | None` for nullable values
+- **No Any**: Avoid `Any` type unless absolutely necessary and documented
+
+## Docstrings
+
+Use Google-style docstrings:
+
+```python
+def function_name(param1: str, param2: int) -> bool:
+    """Brief description of the function.
+
+    Longer description if needed, explaining the purpose,
+    behavior, and any important details.
+
+    Args:
+        param1: Description of the first parameter.
+        param2: Description of the second parameter.
+
+    Returns:
+        Description of what the function returns.
+
+    Raises:
+        ValueError: When invalid input is provided.
+        RuntimeError: When operation fails.
+
+    Example:
+        >>> function_name("test", 42)
+        True
+    """
+```
+
+## Import Organization
+
+1. Standard library imports
+2. Third-party imports
+3. Local application imports
+
+Use absolute imports when possible:
+
+```python
+from pr_conflict_resolver.core.resolver import ConflictResolver
+```
+
+## Naming Conventions
+
+- **Variables/Functions**: snake_case
+- **Classes**: PascalCase
+- **Constants**: UPPER_SNAKE_CASE
+- **Private**: Prefix with underscore (_private_method)
+- **Protected**: Prefix with underscore (_protected_method)
+
+## Error Handling
+
+- Use specific exception types
+- Include context in error messages
+- Use try/except blocks appropriately
+- Don't catch generic Exception unless necessary
+
+## Performance
+
+- Use list comprehensions for simple transformations
+- Use generator expressions for large datasets
+- Avoid unnecessary object creation in loops
+- Use appropriate data structures

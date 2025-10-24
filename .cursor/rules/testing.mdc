@@ -1,0 +1,185 @@
+---
+title: Testing Guidelines
+description: Test organization, pytest conventions, and coverage requirements
+globs:
+  - "tests/**/*.py"
+  - "**/test_*.py"
+  - "tests/conftest.py"
+---
+
+# Testing Guidelines
+
+## Test Organization
+
+```
+tests/
+├── unit/           # Unit tests for individual components
+├── integration/    # Integration tests for workflows
+├── fixtures/       # Test data and fixtures
+└── conftest.py     # Shared test configuration
+```
+
+## Test Structure
+
+### Unit Tests
+Test individual components in isolation:
+- Mock external dependencies
+- Test edge cases and error conditions
+- Verify expected behavior with various inputs
+- Test all public methods and properties
+
+### Integration Tests
+Test component interactions:
+- End-to-end workflows
+- Real GitHub API interactions (with test repos)
+- File system operations
+- Configuration loading and validation
+
+## Pytest Conventions
+
+### Test Naming
+- Files: `test_*.py`
+- Classes: `Test*`
+- Functions: `test_*`
+- Use descriptive names: `test_apply_change_success`, `test_detect_conflicts_multiple_files`
+
+### Fixtures
+Use fixtures from `tests/conftest.py`:
+- `sample_pr_comments`: Mock GitHub comments
+- `temp_workspace`: Temporary directory for file operations
+- `sample_json_file`: Test JSON file
+- `sample_yaml_file`: Test YAML file
+
+### Test Markers
+```python
+@pytest.mark.slow
+def test_large_pr_processing():
+    """Test processing of large PRs with many comments."""
+    pass
+
+@pytest.mark.integration
+def test_github_api_integration():
+    """Test real GitHub API integration."""
+    pass
+```
+
+## Coverage Requirements
+
+- **Minimum**: 80% test coverage
+- **Target**: 90%+ for critical components
+- **Exclude**: Test files, fixtures, and configuration files
+- **Focus**: Core business logic and error handling
+
+## Test Data
+
+### Fixtures
+Create reusable test data:
+```python
+@pytest.fixture
+def sample_conflict():
+    """Create a sample conflict for testing."""
+    return Conflict(
+        file_path="test.json",
+        line_range=(1, 3),
+        changes=[change1, change2],
+        conflict_type="exact",
+        severity="medium",
+        overlap_percentage=100.0
+    )
+```
+
+### Mocking
+Mock external dependencies:
+```python
+@patch('pr_conflict_resolver.integrations.github.GitHubCommentExtractor.fetch_pr_comments')
+def test_resolve_pr_conflicts(mock_fetch):
+    """Test PR conflict resolution with mocked GitHub API."""
+    mock_fetch.return_value = sample_comments
+    # Test implementation
+```
+
+## Assertions
+
+Use specific assertions:
+```python
+# Good
+assert result.applied_count == 5
+assert result.success_rate == 100.0
+assert "error" in str(excinfo.value)
+
+# Avoid
+assert result  # Too generic
+assert True    # Meaningless
+```
+
+## Test Isolation
+
+- Each test should be independent
+- Use fresh fixtures for each test
+- Clean up temporary files
+- Don't rely on test execution order
+
+## Performance Testing
+
+Test performance characteristics:
+```python
+@pytest.mark.slow
+def test_large_file_processing():
+    """Test processing of large files."""
+    start_time = time.time()
+    result = process_large_file()
+    duration = time.time() - start_time
+    assert duration < 5.0  # Should complete within 5 seconds
+```
+
+## Error Testing
+
+Test error conditions:
+```python
+def test_invalid_file_path():
+    """Test handling of invalid file paths."""
+    with pytest.raises(FileNotFoundError):
+        handler.apply_change("/nonexistent/file.json", "content", 1, 1)
+
+def test_malformed_json():
+    """Test handling of malformed JSON."""
+    with pytest.raises(ValueError, match="Invalid JSON"):
+        handler.apply_change("test.json", "{ invalid json", 1, 1)
+```
+
+## Parametrized Tests
+
+Use parametrized tests for multiple scenarios:
+```python
+@pytest.mark.parametrize("file_type,expected_handler", [
+    (".json", JsonHandler),
+    (".yaml", YamlHandler),
+    (".toml", TomlHandler),
+])
+def test_handler_selection(file_type, expected_handler):
+    """Test correct handler selection for file types."""
+    handler = resolver.get_handler(f"test{file_type}")
+    assert isinstance(handler, expected_handler)
+```
+
+## Test Documentation
+
+Document test purpose and expected behavior:
+```python
+def test_priority_based_resolution():
+    """Test that user selections override other changes.
+
+    When multiple changes conflict, user selections should
+    take priority over security fixes, which take priority
+    over regular suggestions.
+    """
+    # Test implementation
+```
+
+## Continuous Integration
+
+Tests must pass in CI environment:
+- Use GitHub Actions for automated testing
+- Test on Python 3.12.x
+- Include coverage reporting
+- Fail on coverage below 80%

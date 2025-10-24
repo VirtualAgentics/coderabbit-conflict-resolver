@@ -1,0 +1,102 @@
+# CodeRabbit Conflict Resolver - Cursor Rules
+
+You are working on the CodeRabbit Conflict Resolver, an intelligent conflict resolution system for GitHub PR comments.
+
+## Project Architecture
+
+This project follows a modular architecture with clear separation of concerns:
+
+- **analysis/**: Conflict detection and analysis logic
+- **handlers/**: File-type specific handlers (JSON, YAML, TOML)
+- **strategies/**: Conflict resolution strategies (priority-based, semantic merging)
+- **core/**: Main resolver and data models
+- **integrations/**: GitHub API integration
+- **config/**: Configuration presets and settings
+
+## Code Style & Standards
+
+- **Python Version**: 3.12.x
+- **Formatting**: Black with line-length=100
+- **Linting**: Ruff with comprehensive rule set
+- **Type Checking**: MyPy strict mode enabled
+- **Docstrings**: Google-style docstrings for all public functions/classes
+- **Type Hints**: Required on all function signatures
+
+## Data Models
+
+Use dataclasses for data models:
+
+- `Change`: Represents a single change suggestion
+- `Conflict`: Represents conflicts between changes
+- `Resolution`: Represents conflict resolution results
+- `ResolutionResult`: Overall resolution outcome
+
+## Handler Pattern
+
+All file handlers must inherit from `BaseHandler` and implement:
+
+- `can_handle(file_path: str) -> bool`
+- `apply_change(path, content, start_line, end_line) -> bool`
+- `validate_change(path, content, start_line, end_line) -> Tuple[bool, str]`
+- `detect_conflicts(path, changes) -> list`
+
+## Strategy Pattern
+
+Resolution strategies should implement the strategy pattern for conflict resolution:
+
+- Priority-based resolution (user selections > security > syntax > regular)
+- Semantic merging for structured files
+- Sequential application for compatible changes
+
+## Testing
+
+- Use pytest with fixtures from `tests/conftest.py`
+- Maintain >80% test coverage
+- Separate unit tests (`tests/unit/`) from integration tests (`tests/integration/`)
+- Use descriptive test names and proper assertions
+
+## Error Handling
+
+- Use specific exception types
+- Provide meaningful error messages
+- Include context in error messages (file path, line numbers, etc.)
+- Log errors appropriately for debugging
+
+## Performance
+
+- Use parallel processing for large PRs
+- Cache conflict analysis results
+- Implement lazy loading for large files
+- Optimize for memory usage
+
+## Security
+
+- Validate all file paths
+- Sanitize content before processing
+- Use secure backup mechanisms
+- Implement proper access controls
+
+## Cursor Rules Reference
+
+This project uses detailed Cursor rules (.mdc files) for specific domains. When working on:
+
+- **GitHub Workflows**: See `.cursor/rules/github-workflows.mdc`
+- **YAML Config Files**: See `.cursor/rules/yaml-config.mdc`
+- **Python Utilities**: See `.cursor/rules/python-utilities.mdc`
+- **Documentation**: See `.cursor/rules/docstrings.mdc`
+- **Calculations**: See `.cursor/rules/calculations.mdc`
+- **Control Flow**: See `.cursor/rules/control-flow.mdc`
+- **Cross-Platform**: See `.cursor/rules/cross-platform.mdc`
+
+Always consult the relevant .mdc rules before making changes in these areas.
+
+## Examples
+
+When suggesting code changes:
+
+1. Include proper type hints
+2. Add comprehensive docstrings
+3. Follow the established patterns
+4. Consider error handling
+5. Think about testability
+6. Maintain consistency with existing code style

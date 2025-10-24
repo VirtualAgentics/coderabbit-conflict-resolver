@@ -1,0 +1,58 @@
+---
+description: "Control flow best practices for priority systems using if/elif chains to prevent priority overwriting"
+globs: ["src/**/*.py"]
+alwaysApply: false
+---
+
+# Control Flow Best Practices
+
+## Priority Systems
+
+### Use if/elif Chains for Mutually Exclusive Priorities
+
+When implementing priority systems, use if/elif chains to prevent lower priorities from overriding higher ones:
+
+❌ WRONG (sequential ifs allow overwriting):
+```python
+priority = base_priority
+
+if is_user_selection():
+    priority = 100  # Highest
+    
+if is_security_fix():
+    priority = 90  # Could override user selection!
+    
+if is_formatting():
+    priority = 10  # Could override everything!
+```
+
+✅ CORRECT (if/elif prevents overwriting):
+```python
+priority = base_priority
+
+if is_user_selection():
+    priority = 100  # Highest, cannot be overridden
+elif is_security_fix():
+    priority = 90  # Only if not user selection
+elif is_syntax_fix():
+    priority = 80
+elif is_formatting():
+    priority = 10
+
+# Apply adjustments AFTER priority determination
+priority += author_adjustment()
+```
+
+### Priority System Rules
+1. Order conditions from highest to lowest priority
+2. Use if/elif/else chain (not sequential ifs)
+3. Apply modifiers AFTER base priority determination
+4. Document priority values clearly
+5. Test boundary cases
+
+### Review Checklist
+- [ ] Priority conditions use if/elif chain
+- [ ] Conditions ordered highest to lowest
+- [ ] No sequential ifs that could overwrite
+- [ ] Adjustments applied after base determination
+- [ ] Tests verify priority ordering

@@ -10,46 +10,125 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 
 ### Development Setup
 
+#### Prerequisites
+
+- **Python 3.12.x** (required)
+- **Git** for version control
+- **Make** (optional, for convenience commands)
+
+#### Quick Setup (Recommended)
+
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
+
    ```bash
    git clone https://github.com/your-username/coderabbit-conflict-resolver.git
    cd coderabbit-conflict-resolver
    ```
 
-3. **Set up development environment**:
+3. **Run the automated setup script**:
+
+   ```bash
+   ./setup-dev.sh
+   ```
+
+4. **Activate the virtual environment**:
+
+   ```bash
+   source .venv/bin/activate
+   ```
+
+#### Manual Setup
+
+If you prefer manual setup:
+
+1. **Install Python 3.12.x**:
+
+   ```bash
+   # Using pyenv (recommended)
+   pyenv install 3.12.8
+   pyenv local 3.12.8
+
+   # Or download from https://www.python.org/downloads/
+   ```
+
+2. **Create virtual environment**:
+
    ```bash
    python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   source .venv/bin/activate
+   ```
+
+3. **Install dependencies**:
+
+   ```bash
+   pip install --upgrade pip
    pip install -e ".[dev]"
    pre-commit install
    ```
 
-4. **Run tests** to ensure everything works:
+4. **Verify setup**:
+
    ```bash
+   make check-all  # Run all checks
+   # or
    pytest tests/ --cov=src --cov-report=html
+   mypy src/
+   black --check src/ tests/
+   ruff check src/ tests/
    ```
 
 ### Development Workflow
 
 1. **Create a feature branch**:
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
 
 2. **Make your changes** following the coding standards below
 
-3. **Run tests and linting**:
+3. **Run all checks**:
+
    ```bash
-   pytest tests/
-   black src/ tests/
-   ruff check src/ tests/
-   mypy src/
+   make check-all  # Runs lint, test, and security checks
+   # or individually:
+   make lint        # Run all linters
+   make test        # Run tests with coverage
+   make security    # Run security checks
    ```
 
-4. **Commit your changes** with a clear commit message
+4. **Auto-format code** (if needed):
 
-5. **Push to your fork** and create a pull request
+   ```bash
+   make format      # Auto-format with Black and Ruff
+   ```
+
+5. **Commit your changes** with a clear commit message:
+
+   ```bash
+   git add .
+   git commit -m "feat: add new conflict resolution strategy"
+   ```
+
+6. **Push to your fork** and create a pull request:
+
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+### Available Commands
+
+Use `make help` to see all available commands:
+
+- `make setup` - Complete development setup
+- `make test` - Run tests with coverage
+- `make lint` - Run all linters (Black, Ruff, MyPy)
+- `make format` - Auto-format code
+- `make security` - Run security checks (Bandit, Safety)
+- `make docs` - Build documentation
+- `make clean` - Clean build artifacts
+- `make check-all` - Run all checks (lint + test + security)
 
 ## Coding Standards
 
@@ -85,11 +164,11 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 
 ### Before Submitting
 
-1. **Run all tests**: `pytest tests/`
-2. **Check code quality**: `black --check src/ tests/` and `ruff check src/ tests/`
-3. **Type checking**: `mypy src/`
-4. **Update documentation** if needed
-5. **Add tests** for new functionality
+1. **Run all checks**: `make check-all`
+2. **Update documentation** if needed
+3. **Add tests** for new functionality
+4. **Update CHANGELOG.md** with your changes
+5. **Ensure all CI checks pass** (automatically checked on PR)
 
 ### Pull Request Template
 

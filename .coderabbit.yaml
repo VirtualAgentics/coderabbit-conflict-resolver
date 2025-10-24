@@ -1,0 +1,169 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit AI Configuration for CodeRabbit Conflict Resolver
+
+tone_instructions: "Be concise and professional. Prioritize conflict resolution correctness, GitHub API integration, type safety, handler patterns, and code quality."
+
+language: en-US
+
+reviews:
+  profile: assertive
+  request_changes_workflow: true
+  high_level_summary: true
+  review_status: true
+  commit_status: true
+  fail_commit_status: true
+  collapse_walkthrough: true
+  changed_files_summary: true
+  suggested_labels: true
+  suggested_reviewers: true
+  related_issues: true
+  related_prs: true
+  poem: false
+
+  # Focus the reviewer signal; keep your existing excludes but add positive includes
+  path_filters:
+    # --- include sets (repo-critical) ---
+    - "src/**"
+    - "tests/**"
+    - ".github/**"
+    - "Makefile"
+    - "pyproject.toml"
+    - "requirements*.txt"
+    - "setup-dev.sh"
+    - "setup-dev.ps1"
+    - ".editorconfig"
+    - ".pre-commit-config.yaml"
+    - "docs/conf.py"
+    - "docs/requirements.txt"
+    # docs that define rules/security
+    - "CONTRIBUTING.md"
+    - "SECURITY.md"
+    - "README.md"
+    # --- global excludes (noise) ---
+    - "!**/*.pyc"
+    - "!**/__pycache__/**"
+    - "!**/.pytest_cache/**"
+    - "!**/node_modules/**"
+    - "!**/.venv/**"
+    - "!**/venv/**"
+    - "!**/data/**"
+    - "!**/logs/**"
+    - "!**/*.log"
+    - "!**/bandit-report.json"
+    - "!**/safety-report.json"
+    - "!**/.coverage"
+    - "!**/coverage.xml"
+    - "!**/htmlcov/**"
+    - "!**/dist/**"
+    - "!**/build/**"
+    - "!**/.mypy_cache/**"
+    - "!**/.ruff_cache/**"
+    - "!**/*.egg-info/**"
+    - "!**/.DS_Store"
+    - "!**/.git/**"
+    # de-noise prose unless they are the only changes
+    - "!docs/_build/**"
+    - "!docs/build/**"
+    - "!**/*.md"
+
+  # Repo-aware instructions
+  path_instructions:
+    - path: "src/pr_conflict_resolver/**/*.py"
+      instructions: |
+        Enforce Python 3.12+ best practices, strict type hints, and Google-style docstrings.
+        Verify handler pattern implementation (BaseHandler inheritance) for file type handlers.
+        Verify strategy pattern implementation (ResolutionStrategy) for conflict resolution.
+        Ensure dataclasses are used for data models (Change, Conflict, Resolution, ResolutionResult).
+        Check for proper error handling with specific exception types and context.
+        Validate GitHub API integration correctness, timeout handling, and retry logic.
+        Flag potential issues with conflict detection algorithms, fingerprinting, and overlap calculations.
+        Ensure priority-based resolution logic is deterministic and well-tested.
+        Prefer Ruff rules; flag performance pitfalls in conflict analysis loops.
+
+    - path: "src/pr_conflict_resolver/handlers/**/*.py"
+      instructions: |
+        Verify handler correctly implements BaseHandler interface (can_handle, apply_change, validate_change, detect_conflicts).
+        Check file-type specific logic (JSON key merging, YAML comment preservation, TOML section handling).
+        Ensure proper backup and rollback mechanisms are in place.
+        Validate change application is atomic and safe (no partial writes).
+        Flag missing validation or error handling for malformed files.
+
+    - path: "src/pr_conflict_resolver/strategies/**/*.py"
+      instructions: |
+        Verify strategy implements ResolutionStrategy interface correctly.
+        Check priority calculation logic is deterministic and documented.
+        Ensure semantic merging logic handles edge cases (overlapping ranges, nested changes).
+        Validate conflict resolution decisions are well-reasoned and traceable.
+        Flag potential infinite loops or performance issues in resolution algorithms.
+
+    - path: "src/pr_conflict_resolver/integrations/**/*.py"
+      instructions: |
+        Verify GitHub API usage follows best practices (authentication, rate limiting, pagination).
+        Check proper timeout and retry configuration for API calls.
+        Ensure comment parsing handles different formats (suggestions, diffs, multi-options).
+        Validate error handling for API failures, network issues, and malformed responses.
+        Flag hard-coded tokens or secrets; ensure proper environment variable usage.
+
+    - path: "tests/**/*.py"
+      instructions: |
+        Enforce pytest conventions (test_*, Test*, fixtures from conftest.py).
+        Verify 80%+ test coverage for new code, focus on critical paths.
+        Check proper use of fixtures, mocking, and parametrized tests.
+        Ensure test isolation (no shared state, proper cleanup).
+        Validate edge cases and error conditions are tested.
+        Flag missing tests for new handlers, strategies, or conflict detection logic.
+
+    - path: ".github/**/*"
+      instructions: |
+        Verify least-privilege permissions, pinned actions SHAs, secret usage, concurrency/cancellation.
+        Suggest caching and optimization where build times benefit.
+        Ensure CI runs linting (Black, Ruff, MyPy), tests, security checks (Bandit, Safety).
+        Validate proper matrix strategy for Python 3.12.x.
+        Check proper artifact upload and coverage reporting.
+
+    - path: "{pyproject.toml,requirements*.txt,setup-dev.sh,setup-dev.ps1}"
+      instructions: |
+        Flag vulnerable or unpinned dependencies; suggest safer alternatives.
+        Check tool configurations (ruff, mypy, pytest, coverage, bandit) for completeness.
+        Verify Python 3.12 compatibility and latest stable package versions.
+        Ensure development dependencies include all necessary type stubs.
+
+    - path: "docs/**"
+      instructions: |
+        Verify Sphinx configuration correctness (autodoc, type hints, theme).
+        Check documentation is up-to-date with code changes.
+        Ensure API reference generation from docstrings works properly.
+        Validate cross-references and links are not broken.
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+    ignore_title_keywords: ["WIP", "DRAFT", "SPIKE"]
+    labels: ["!wip"]
+    base_branches: [".*"]
+    ignore_usernames:
+      - "dependabot[bot]"
+      - "renovate[bot]"
+      - "github-actions[bot]"
+
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: true
+
+# Let CodeRabbit ingest your house rules
+knowledge_base:
+  opt_out: false
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "**/.cursorrules"
+      - ".cursor/rules/*.mdc"
+      - "CONTRIBUTING.md"
+      - "SECURITY.md"
+      - "docs/architecture.md"
+
+early_access: false
+

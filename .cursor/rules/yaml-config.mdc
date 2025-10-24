@@ -1,0 +1,41 @@
+---
+description: "YAML configuration file standards for formatting, array spacing, and duplicate prevention"
+globs: [".pre-commit-config.yaml", ".github/*.yml", ".github/dependabot.yml"]
+alwaysApply: false
+---
+
+# YAML Configuration Standards
+
+## File Formatting Rules
+
+### Array Spacing
+- No spaces after opening bracket or before closing bracket
+- ✅ CORRECT: `[main, develop]` or `["item1", "item2"]`
+- ❌ WRONG: `[ main, develop ]` or `[ "item1", "item2" ]`
+
+### File Endings
+- YAML files MUST end with exactly one newline
+- No trailing blank lines beyond the final content line
+- Verify with: `yamllint <file>`
+
+### Duplicate Prevention
+- In `.pre-commit-config.yaml`: Each hook ID must appear only once
+- In `labeler.yml`: Avoid redundant path specifications (use globs instead of explicit + glob)
+- In `dependabot.yml`: No duplicate package ecosystems with same directory
+
+## Pre-commit Hook Configuration
+
+When adding hooks to `.pre-commit-config.yaml`:
+1. Check if hook ID already exists before adding
+2. Group related hooks together
+3. Use consistent indentation (2 spaces)
+4. Verify with: `pre-commit run --all-files`
+
+## Configuration Validation
+
+Before committing YAML changes:
+```bash
+yamllint .github/workflows/*.yml
+yamllint .github/*.yml
+yamllint .pre-commit-config.yaml
+```

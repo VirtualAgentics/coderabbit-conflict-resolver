@@ -1,0 +1,155 @@
+---
+title: Architecture Guidelines
+description: Module organization, design patterns, and component responsibilities
+alwaysApply: true
+---
+
+# Architecture Guidelines
+
+## Module Organization
+
+The project follows a clear module structure:
+
+```
+src/pr_conflict_resolver/
+├── analysis/          # Conflict detection and analysis
+├── handlers/         # File-type specific handlers
+├── strategies/       # Conflict resolution strategies
+├── core/            # Main resolver and data models
+├── integrations/    # External service integrations
+├── config/         # Configuration and presets
+└── cli/           # Command-line interface
+```
+
+## Design Patterns
+
+### Handler Pattern
+
+All file handlers must inherit from `BaseHandler`:
+
+```python
+class BaseHandler(ABC):
+    @abstractmethod
+    def can_handle(self, file_path: str) -> bool:
+        """Check if this handler can process the given file."""
+        pass
+
+    @abstractmethod
+    def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
+        """Apply a change to the file."""
+        pass
+```
+
+### Strategy Pattern
+
+Resolution strategies implement different conflict resolution approaches:
+
+```python
+class ResolutionStrategy(ABC):
+    @abstractmethod
+    def resolve(self, conflict: Conflict) -> Resolution:
+        """Resolve a conflict using this strategy."""
+        pass
+```
+
+### Data Models
+
+Use dataclasses for immutable data structures:
+
+```python
+@dataclass
+class Change:
+    path: str
+    start_line: int
+    end_line: int
+    content: str
+    metadata: Dict[str, Any]
+    fingerprint: str
+    file_type: FileType
+```
+
+## Component Responsibilities
+
+### ConflictDetector
+
+- Analyzes changes for potential conflicts
+- Categorizes conflict types (exact, partial, semantic)
+- Calculates overlap percentages
+- Assesses conflict severity
+
+### File Handlers
+
+- JSON: Duplicate key detection, key-level merging
+- YAML: Comment preservation, structure-aware merging
+- TOML: Section merging, format preservation
+- Python/TypeScript: AST-aware analysis (planned)
+
+### Resolution Strategies
+
+- **Priority-based**: User selections > Security > Syntax > Regular
+- **Semantic merging**: Combines non-conflicting changes
+- **Sequential**: Applies changes in optimal order
+- **Interactive**: User-guided resolution
+
+### GitHub Integration
+
+- Fetches PR comments from GitHub API
+- Parses different comment formats
+- Extracts multi-option selections
+- Normalizes comment data
+
+## Data Flow
+
+1. **Input**: GitHub PR comments
+2. **Parse**: Extract changes and suggestions
+3. **Detect**: Identify conflicts between changes
+4. **Analyze**: Categorize and assess conflicts
+5. **Resolve**: Apply resolution strategies
+6. **Apply**: Execute changes to files
+7. **Report**: Generate results and metrics
+
+## Extension Points
+
+### Custom Handlers
+
+Implement `BaseHandler` for new file types:
+
+```python
+class CustomHandler(BaseHandler):
+    def can_handle(self, file_path: str) -> bool:
+        return file_path.endswith('.custom')
+```
+
+### Custom Strategies
+
+Implement `ResolutionStrategy` for custom logic:
+
+```python
+class CustomStrategy(ResolutionStrategy):
+    def resolve(self, conflict: Conflict) -> Resolution:
+        # Custom resolution logic
+        pass
+```
+
+## Configuration
+
+Use preset configurations for different use cases:
+
+- **Conservative**: Skip all conflicts, manual review
+- **Balanced**: Priority system + semantic merging (default)
+- **Aggressive**: Maximize automation
+- **Semantic**: Structure-aware merging for config files
+
+## Error Handling
+
+- Use specific exception types for different error conditions
+- Include context in error messages (file path, line numbers)
+- Implement proper logging for debugging
+- Provide meaningful error recovery suggestions
+
+## Performance Considerations
+
+- Cache conflict analysis results by fingerprint
+- Use parallel processing for large PRs
+- Implement lazy loading for large files
+- Optimize memory usage with streaming processing

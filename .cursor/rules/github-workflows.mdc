@@ -1,0 +1,69 @@
+---
+description: "Enforce GitHub Actions workflow best practices including concurrency, permissions, action pinning, and YAML formatting"
+globs: [".github/workflows/*.yml"]
+alwaysApply: false
+---
+
+# GitHub Workflows Best Practices
+
+## Concurrency Control (REQUIRED)
+Every workflow MUST include a concurrency block immediately after the `on:` trigger:
+
+```yaml
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+```
+
+For PR-specific workflows, use:
+```yaml
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+```
+
+## YAML Formatting Rules
+- Arrays MUST NOT have spaces after `[` or before `]`
+  - ✅ CORRECT: `branches: [main, develop]`
+  - ❌ WRONG: `branches: [ main, develop ]`
+- No trailing blank lines at end of YAML files
+
+## Action Pinning (SECURITY REQUIRED)
+- NEVER use tag-based action versions (`@v4`, `@v5`)
+- ALWAYS pin to full commit SHA with comment showing original tag
+- Example:
+  ```yaml
+  - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4
+  ```
+
+## Least-Privilege Permissions (REQUIRED)
+Every job MUST explicitly declare minimal permissions:
+
+```yaml
+jobs:
+  my-job:
+    permissions:
+      contents: read  # Only what's needed
+      # Add others as needed: checks: write, packages: write, etc.
+```
+
+## Error Handling Standards
+- NEVER use `continue-on-error: true` on critical checks (lint, type-check)
+- For non-blocking scans (security), use `continue-on-error: true` with `if: always()` on artifact upload
+
+## Job Timeouts (REQUIRED)
+Every job MUST have a timeout to prevent hanging:
+```yaml
+jobs:
+  my-job:
+    timeout-minutes: 30  # Adjust based on expected duration
+```
+
+## When Creating/Modifying Workflows
+
+1. Add concurrency control first
+2. Set explicit permissions per job
+3. Pin all actions to commit SHAs
+4. Add job-level timeouts
+5. Validate YAML formatting (no extra spaces in arrays)
+6. Test in a feature branch before merging
