@@ -145,7 +145,11 @@ class TestPriorityStrategy:
             assert strategy._is_formatting_change(change) is False
 
     def test_resolve(self) -> None:
-        """Test conflict resolution."""
+        """
+        Verify PriorityStrategy selects the highest-priority change and skips the others when resolving a conflict.
+        
+        Creates three changes implying different priorities (security, regular, formatting), constructs a Conflict containing those changes, calls Strategy.resolve, and asserts that the resolution uses the "priority" strategy, succeeds, applies exactly the highest-priority change, and marks the other two changes as skipped.
+        """
         strategy = PriorityStrategy()
 
         # Create changes with different priorities

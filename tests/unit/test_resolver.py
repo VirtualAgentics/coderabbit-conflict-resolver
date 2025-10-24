@@ -43,7 +43,9 @@ class TestConflictResolver:
         assert fp1 != fp3  # Different content should generate different fingerprint
 
     def test_normalize_content(self) -> None:
-        """Test content normalization."""
+        """
+        Verify normalize_content trims leading and trailing whitespace from each line and removes blank lines while preserving line order.
+        """
         content = "  line1  \n  line2  \n  \n  line3  "
         normalized = normalize_content(content)
         expected = "line1\nline2\nline3"
@@ -76,7 +78,11 @@ class TestConflictResolver:
         assert change.metadata["author"] == "coderabbit"
 
     def test_detect_conflicts(self) -> None:
-        """Test conflict detection."""
+        """
+        Verify that ConflictResolver groups overlapping changes in the same file into a single conflict.
+        
+        Sets up two overlapping JSON Changes on "test.json" and asserts that detect_conflicts returns a single conflict covering both changes, that the conflict's file_path is "test.json", and that the conflict_type is either "major" or "partial".
+        """
         resolver = ConflictResolver()
 
         changes = [

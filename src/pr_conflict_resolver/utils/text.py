@@ -6,12 +6,10 @@ the conflict resolver.
 
 
 def normalize_content(text: str) -> str:
-    """Normalize whitespace for comparison.
-
-    Args:
-        text: The text to normalize.
-
+    """
+    Normalize text by stripping leading and trailing whitespace from each line and removing empty lines.
+    
     Returns:
-        Normalized text with stripped lines and removed empty lines.
+        A string where each non-empty original line has been trimmed and the remaining lines are joined with a single newline character.
     """
     return "\n".join(line.strip() for line in text.splitlines() if line.strip())
