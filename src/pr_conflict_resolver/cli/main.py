@@ -4,6 +4,9 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from ..core.resolver import ConflictResolver
+from ..config.presets import PresetConfig
+
 console = Console()
 
 
@@ -24,17 +27,43 @@ def analyze(pr: int, owner: str, repo: str, config: str):
     console.print(f"Analyzing conflicts in PR #{pr} for {owner}/{repo}")
     console.print(f"Using configuration: {config}")
     
-    # TODO: Implement actual conflict analysis
-    table = Table(title="Conflict Analysis")
-    table.add_column("File", style="cyan")
-    table.add_column("Conflicts", style="red")
-    table.add_column("Type", style="yellow")
-    table.add_column("Severity", style="magenta")
+    # Get configuration preset
+    config_preset = getattr(PresetConfig, config.upper(), PresetConfig.BALANCED)
     
-    table.add_row("package.json", "2", "exact", "high")
-    table.add_row("config.yaml", "1", "partial", "medium")
+    # Initialize resolver
+    resolver = ConflictResolver(config_preset)
     
-    console.print(table)
+    try:
+        # Analyze conflicts
+        conflicts = resolver.analyze_conflicts(owner, repo, pr)
+        
+        if not conflicts:
+            console.print("✅ No conflicts detected")
+            return
+        
+        # Display results
+        table = Table(title="Conflict Analysis")
+        table.add_column("File", style="cyan")
+        table.add_column("Conflicts", style="red")
+        table.add_column("Type", style="yellow")
+        table.add_column("Severity", style="magenta")
+        table.add_column("Overlap %", style="blue")
+        
+        for conflict in conflicts:
+            table.add_row(
+                conflict.file_path,
+                str(len(conflict.changes)),
+                conflict.conflict_type,
+                conflict.severity,
+                f"{conflict.overlap_percentage:.1f}%"
+            )
+        
+        console.print(table)
+        console.print(f"\n📊 Found {len(conflicts)} conflicts")
+        
+    except Exception as e:
+        console.print(f"❌ Error analyzing conflicts: {e}")
+        raise click.Abort()
 
 
 @cli.command()
@@ -52,10 +81,32 @@ def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool):
     
     console.print(f"Using strategy: {strategy}")
     
-    # TODO: Implement actual conflict resolution
-    console.print("✅ Applied 3 suggestions")
-    console.print("⚠️  Skipped 1 conflict (requires manual review)")
-    console.print("❌ Failed 0 suggestions")
+    # Get configuration preset
+    config_preset = PresetConfig.BALANCED
+    
+    # Initialize resolver
+    resolver = ConflictResolver(config_preset)
+    
+    try:
+        if dry_run:
+            # Just analyze conflicts
+            conflicts = resolver.analyze_conflicts(owner, repo, pr)
+            console.print(f"📊 Would process {len(conflicts)} conflicts")
+        else:
+            # Resolve conflicts
+            result = resolver.resolve_pr_conflicts(owner, repo, pr)
+            
+            # Display results
+            console.print(f"✅ Applied {result.applied_count} suggestions")
+            console.print(f"⚠️  Skipped {result.conflict_count} conflicts")
+            console.print(f"📈 Success rate: {result.success_rate:.1f}%")
+            
+            if result.conflict_count > 0:
+                console.print("💡 Some conflicts require manual review")
+        
+    except Exception as e:
+        console.print(f"❌ Error applying suggestions: {e}")
+        raise click.Abort()
 
 
 @cli.command()
@@ -68,11 +119,35 @@ def simulate(pr: int, owner: str, repo: str, config: str):
     console.print(f"Simulating conflict resolution for PR #{pr}")
     console.print(f"Using configuration: {config}")
     
-    # TODO: Implement simulation
-    console.print("📊 Simulation Results:")
-    console.print("  • Would apply: 3 suggestions")
-    console.print("  • Would skip: 1 conflict")
-    console.print("  • Success rate: 75%")
+    # Get configuration preset
+    config_preset = getattr(PresetConfig, config.upper(), PresetConfig.BALANCED)
+    
+    # Initialize resolver
+    resolver = ConflictResolver(config_preset)
+    
+    try:
+        # Analyze conflicts
+        conflicts = resolver.analyze_conflicts(owner, repo, pr)
+        
+        if not conflicts:
+            console.print("✅ No conflicts detected")
+            return
+        
+        # Simulate resolution
+        total_changes = sum(len(conflict.changes) for conflict in conflicts)
+        would_apply = sum(1 for conflict in conflicts if conflict.severity != "high")
+        would_skip = len(conflicts) - would_apply
+        success_rate = (would_apply / len(conflicts)) * 100 if conflicts else 0
+        
+        console.print("📊 Simulation Results:")
+        console.print(f"  • Total changes: {total_changes}")
+        console.print(f"  • Would apply: {would_apply}")
+        console.print(f"  • Would skip: {would_skip}")
+        console.print(f"  • Success rate: {success_rate:.1f}%")
+        
+    except Exception as e:
+        console.print(f"❌ Error simulating resolution: {e}")
+        raise click.Abort()
 
 
 if __name__ == "__main__":
