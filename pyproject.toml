@@ -2,19 +2,24 @@
 name = "pr-conflict-resolver"
 version = "0.1.0"
 description = "Intelligent conflict resolution for CodeRabbit and GitHub PR comments"
-authors = [{name = "VirtualAgentics", email = "contact@virtualagentics.com"}]
-license = {text = "MIT"}
+authors = [{ name = "VirtualAgentics", email = "contact@virtualagentics.com" }]
+license = { text = "MIT" }
 readme = "README.md"
-requires-python = ">=3.10"
-keywords = ["github", "coderabbit", "conflict-resolution", "pr-automation", "code-review"]
+requires-python = ">=3.12"
+keywords = [
+    "github",
+    "coderabbit",
+    "conflict-resolution",
+    "pr-automation",
+    "code-review",
+]
 
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Version Control :: Git",
     "Topic :: Software Development :: Quality Assurance",
@@ -39,12 +44,15 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0.0",
     "pre-commit>=3.0.0",
+    "types-requests>=2.31.0",
+    "types-PyYAML>=6.0.0",
+    "types-click>=7.1.0",
+    "bandit[toml]>=1.7.5",
+    "safety>=3.6.2",
+    "pip-audit>=2.9.0",
 ]
 
-ml = [
-    "scikit-learn>=1.0.0",
-    "numpy>=1.24.0",
-]
+ml = ["scikit-learn>=1.0.0", "numpy>=1.24.0"]
 
 [project.urls]
 Homepage = "https://github.com/VirtualAgentics/coderabbit-conflict-resolver"
@@ -57,24 +65,78 @@ pr-resolve = "pr_conflict_resolver.cli.main:cli"
 
 [tool.black]
 line-length = 100
-target-version = ['py310', 'py311', 'py312']
+target-version = ['py312']
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "C4", "PIE", "SIM", "T20", "ASYNC", "S", "RUF"]
-ignore = []
+select = [
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "I",     # isort
+    "B",     # flake8-bugbear
+    "UP",    # pyupgrade
+    "C4",    # flake8-comprehensions
+    "PIE",   # flake8-pie
+    "SIM",   # flake8-simplify
+    "T20",   # flake8-print
+    "ASYNC", # flake8-async
+    "S",     # flake8-bandit (security)
+    "RUF",   # Ruff-specific rules
+    "ANN",   # flake8-annotations
+    "D",     # pydocstyle
+]
+ignore = ["D203", "D213"] # Conflicting docstring rules
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "ANN", "D"]
+"conftest.py" = ["S101", "ANN", "D"]
+"src/pr_conflict_resolver/handlers/*.py" = ["T201"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+disallow_any_unimported = true
+disallow_any_explicit = false   # Allow explicit Any with justification
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = ["ruamel.*", "tomli.*", "tomli_w.*", "pytest.*", "rich.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--cov=src/pr_conflict_resolver",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+    "--cov-fail-under=60",
+]
+markers = [
+    "slow: marks tests as slow",
+    "integration: marks tests as integration tests",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests/", "docs/"]
+skips = ["B101"]                   # Skip assert_used in tests
