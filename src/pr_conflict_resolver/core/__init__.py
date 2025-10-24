@@ -1,0 +1,1 @@
+"""Core conflict resolution logic."""

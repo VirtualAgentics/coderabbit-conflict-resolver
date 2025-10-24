@@ -1,0 +1,80 @@
+[project]
+name = "pr-conflict-resolver"
+version = "0.1.0"
+description = "Intelligent conflict resolution for CodeRabbit and GitHub PR comments"
+authors = [{name = "VirtualAgentics", email = "contact@virtualagentics.com"}]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["github", "coderabbit", "conflict-resolution", "pr-automation", "code-review"]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Version Control :: Git",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
+dependencies = [
+    "click>=8.0.0",
+    "requests>=2.28.0",
+    "pydantic>=2.0.0",
+    "ruamel.yaml>=0.17.0",
+    "tomli>=2.0.0",
+    "tomli-w>=1.0.0",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+]
+
+ml = [
+    "scikit-learn>=1.0.0",
+    "numpy>=1.24.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/VirtualAgentics/coderabbit-conflict-resolver"
+Documentation = "https://github.com/VirtualAgentics/coderabbit-conflict-resolver/blob/main/docs/"
+Repository = "https://github.com/VirtualAgentics/coderabbit-conflict-resolver"
+Issues = "https://github.com/VirtualAgentics/coderabbit-conflict-resolver/issues"
+
+[project.scripts]
+pr-resolve = "pr_conflict_resolver.cli.main:cli"
+
+[tool.black]
+line-length = 100
+target-version = ['py310', 'py311', 'py312']
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "C4", "PIE", "SIM", "T20", "ASYNC", "S", "RUF"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

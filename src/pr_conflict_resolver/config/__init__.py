@@ -1,0 +1,1 @@
+"""Configuration management and presets."""
