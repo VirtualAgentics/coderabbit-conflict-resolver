@@ -5,6 +5,7 @@ for potential conflicts and categorizes them by type and severity.
 """
 
 import hashlib
+import logging
 from typing import Any
 
 from ..core.models import Change, Conflict
@@ -15,8 +16,7 @@ class ConflictDetector:
     """Detects and analyzes conflicts between changes."""
 
     def __init__(self) -> None:
-        """
-        Create a ConflictDetector instance and initialize its internal cache.
+        """Create a ConflictDetector instance and initialize its internal cache.
 
         The instance starts with an empty `conflict_cache` dictionary used to store
         cached analysis results keyed by conflict fingerprints.
@@ -28,11 +28,14 @@ class ConflictDetector:
         change1: Change,
         change2: Change,
     ) -> str | None:
-        """
-        Determine the overlap category between two Change objects based on their start and end lines.
+        """Determine the overlap category between two Change objects.
+
+        Based on their start and end lines.
 
         Returns:
-            "exact" if start and end lines are identical; "major" if overlap covers at least 80% of the combined range; "partial" if overlap is at least 50% but less than 80%; "minor" if ranges overlap but less than 50%; `None` if ranges do not overlap.
+            "exact" if start and end lines are identical; "major" if overlap covers at least 80%
+            of the combined range; "partial" if overlap is at least 50% but less than 80%;
+            "minor" if ranges overlap but less than 50%; `None` if ranges do not overlap.
         """
         start1, end1 = change1.start_line, change1.end_line
         start2, end2 = change2.start_line, change2.end_line
@@ -45,9 +48,13 @@ class ConflictDetector:
         if not (end1 < start2 or end2 < start1):
             overlap_size = min(end1, end2) - max(start1, start2) + 1
             total_size = max(end1, end2) - min(start1, start2) + 1
-
             # Conservative default for degenerate case: avoid division by zero
             if total_size == 0:
+                # Log unexpected condition for debugging
+                logging.warning(
+                    f"Degenerate overlap: total_size=0 for ranges "
+                    f"[{start1}-{end1}] and [{start2}-{end2}]"
+                )
                 return "major"
 
             overlap_percentage = (overlap_size / total_size) * 100
@@ -66,11 +73,10 @@ class ConflictDetector:
         change1: Change,
         change2: Change,
     ) -> bool:
-        """
-        Determine whether two changes contain equivalent semantic content.
+        """Determine whether two changes contain equivalent semantic content.
 
-        Compares normalized text contents; if the raw contents appear to be structured (JSON/YAML) for both changes,
-        compares their parsed structures for semantic equivalence.
+        Compares normalized text contents; if the raw contents appear to be structured
+        (JSON/YAML) for both changes, compares their parsed structures for semantic equivalence.
 
         Returns:
             True if the changes are semantically equivalent, False otherwise.
@@ -93,10 +99,10 @@ class ConflictDetector:
         return False
 
     def _is_structured_content(self, content: str) -> bool:
-        """
-        Detect whether a string likely contains structured data such as JSON or YAML.
+        """Detect whether a string likely contains structured data such as JSON or YAML.
 
-        Uses simple heuristics: detects JSON-like bracing (starts with `{` or `[` and ends with `}` or `]`) or YAML-like indicators (contains `:` and either `-` or `|`).
+        Uses simple heuristics: detects JSON-like bracing (starts with `{` or `[` and ends with
+        `}` or `]`) or YAML-like indicators (contains `:` and either `-` or `|`).
 
         Returns:
             True if content likely represents structured data, False otherwise.
@@ -107,10 +113,10 @@ class ConflictDetector:
         )
 
     def _compare_structured_content(self, content1: str, content2: str) -> bool:
-        """
-        Determine whether two structured-content strings are semantically equivalent.
+        """Determine whether two structured-content strings are semantically equivalent.
 
-        Attempts to parse the inputs as JSON, then YAML; if parsing succeeds for both inputs, compares the resulting data structures for equality.
+        Attempts to parse the inputs as JSON, then YAML; if parsing succeeds for both inputs,
+        compares the resulting data structures for equality.
 
         Parameters:
             content1 (str): First content string, expected to contain JSON or YAML.
@@ -142,19 +148,22 @@ class ConflictDetector:
         return False
 
     def analyze_conflict_impact(self, conflict: dict[str, Any]) -> dict[str, Any]:
-        """
-        Estimate the impact and severity of a conflict based on its constituent changes.
+        """Estimate the impact and severity of a conflict based on its constituent changes.
 
         Parameters:
-            conflict (dict[str, Any]): A conflict object containing a "changes" list where each change is a dict that may include "content" (str) and optional "metadata".
+            conflict (dict[str, Any]): A conflict object containing a "changes" list where each
+                change is a dict that may include "content" (str) and optional "metadata".
 
         Returns:
             dict[str, Any]: Analysis including:
                 - impact (str): One of "none", "low", "medium", or "high".
                 - severity (str): One of "low", "medium", "high", or "critical".
-                - change_types (list[str]): Detected change kinds (e.g., "code_block", "diff", "text").
-                - security_related (bool): True if any change content contains security-related keywords.
-                - syntax_related (bool): True if any change content contains syntax/bug-related keywords.
+                - change_types (list[str]): Detected change kinds
+                    (e.g., "code_block", "diff", "text").
+                - security_related (bool): True if any change content contains security-related
+                    keywords.
+                - syntax_related (bool): True if any change content contains syntax/bug-related
+                    keywords.
                 - change_count (int): Number of changes analyzed.
         """
         changes = conflict.get("changes", [])
@@ -212,14 +221,18 @@ class ConflictDetector:
         }
 
     def generate_conflict_fingerprint(self, conflict: dict[str, Any]) -> str:
-        """
-        Compute a stable, order-independent fingerprint for a conflict built from its constituent changes.
+        """Compute a stable, order-independent fingerprint for a conflict.
+
+        Built from its constituent changes.
 
         Parameters:
-            conflict (dict[str, Any]): Conflict dictionary containing a "changes" key with an iterable of change dicts. Each change should include identifying fields (e.g., path, start_line, end_line, content) used to derive per-change fingerprints.
+            conflict (dict[str, Any]): Conflict dictionary containing a "changes" key with an
+                iterable of change dicts. Each change should include identifying fields (e.g., path,
+                start_line, end_line, content) used to derive per-change fingerprints.
 
         Returns:
-            str: A 16-character hexadecimal fingerprint derived from the sorted per-change fingerprints, or an empty string if the conflict has no changes.
+            str: A 16-character hexadecimal fingerprint derived from the sorted per-change
+                fingerprints, or an empty string if the conflict has no changes.
         """
         changes = conflict.get("changes", [])
         if not changes:
@@ -238,8 +251,7 @@ class ConflictDetector:
         return hashlib.sha256(combined.encode()).hexdigest()[:16]
 
     def _generate_change_fingerprint(self, change: dict[str, Any]) -> str:
-        """
-        Produce a stable 16-character fingerprint for a single change.
+        """Produce a stable 16-character fingerprint for a single change.
 
         Parameters:
             change (dict[str, Any]): Change dictionary with keys used to form the fingerprint:
@@ -249,7 +261,8 @@ class ConflictDetector:
                 - "content" (str): change content (optional).
 
         Returns:
-            str: 16-character hexadecimal fingerprint representing the change's path, range, and normalized content.
+            str: 16-character hexadecimal fingerprint representing the change's path, range, and
+                normalized content.
         """
         path = change.get("path", "")
         start = change.get("start_line", 0)
@@ -262,21 +275,23 @@ class ConflictDetector:
         return hashlib.sha256(content_str.encode()).hexdigest()[:16]
 
     def detect_conflict_patterns(self, conflicts: list[Conflict]) -> dict[str, Any]:
-        """
-        Analyze a list of conflicts and extract summary statistics and common patterns.
+        """Analyze a list of conflicts and extract summary statistics and common patterns.
 
         Parameters:
-            conflicts (list[Conflict]): List of Conflict objects (expected to expose `file_path`, `conflict_type`, and `severity` attributes).
+            conflicts (list[Conflict]): List of Conflict objects (expected to expose `file_path`,
+                `conflict_type`, and `severity` attributes).
 
         Returns:
             dict[str, Any]: Summary dictionary with keys:
                 - total_conflicts (int): Total number of conflicts processed.
-                - file_conflicts (dict[str, int]): Mapping from file path to number of conflicts in that file.
+                - file_conflicts (dict[str, int]): Mapping from file path to number of conflicts
+                    in that file.
                 - conflict_types (dict[str, int]): Counts of conflicts grouped by conflict type.
                 - severity_distribution (dict[str, int]): Counts of conflicts grouped by severity.
                 - common_patterns (list[str]): Detected high-level patterns; may include
                     - "high_exact_overlap" when a majority of conflicts are exact overlaps,
-                    - "high_severity_conflicts" when a substantial portion of conflicts are high severity.
+                    - "high_severity_conflicts" when a substantial portion of conflicts are
+                        high severity.
         """
         patterns: dict[str, Any] = {
             "total_conflicts": len(conflicts),

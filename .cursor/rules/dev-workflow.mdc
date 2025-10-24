@@ -1,0 +1,286 @@
+---
+title: Development Workflow
+description: Virtual environment usage, tool execution, and development workflow standards
+alwaysApply: true
+---
+
+# Development Workflow Standards
+
+## Virtual Environment Usage (MANDATORY)
+
+### Always Use `.venv`
+
+This project uses a virtual environment (`.venv`) for all Python operations. **NEVER** install packages system-wide.
+
+✅ **CORRECT** - Always activate virtual environment first:
+```bash
+source .venv/bin/activate && pip install -e ".[dev]"
+source .venv/bin/activate && python -m mypy src/
+source .venv/bin/activate && pytest tests/
+source .venv/bin/activate && black src/ tests/
+source .venv/bin/activate && ruff check src/ tests/
+```
+
+❌ **WRONG** - Never install system-wide:
+```bash
+pip install -e ".[dev]"  # Missing venv activation
+pip install --break-system-packages  # Never use this flag
+python -m mypy src/  # Missing venv activation
+```
+
+### Command Execution Pattern
+
+**ALWAYS** prefix Python-related commands with virtual environment activation:
+
+```bash
+# Development setup
+source .venv/bin/activate && pip install -e ".[dev]"
+
+# Code quality tools
+source .venv/bin/activate && mypy src/
+source .venv/bin/activate && ruff check src/ tests/
+source .venv/bin/activate && black --check src/ tests/
+
+# Testing
+source .venv/bin/activate && pytest tests/
+source .venv/bin/activate && pytest tests/ --cov=src
+
+# Package management
+source .venv/bin/activate && pip install package-name
+source .venv/bin/activate && pip install -r requirements-dev.txt
+```
+
+## Make Commands Reference
+
+Use the project's Makefile for common operations:
+
+```bash
+make help          # Show all available commands
+make setup         # Create virtual environment
+make install-dev   # Install development dependencies
+make test          # Run tests with coverage
+make test-fast     # Run tests without coverage
+make lint          # Run linters (ruff, black)
+make format        # Auto-format code
+make type-check    # Run MyPy type checking
+make check-all      # Run all checks
+make clean         # Clean build artifacts
+```
+
+## Development Setup
+
+### Quick Setup (Recommended)
+```bash
+./setup-dev.sh
+source .venv/bin/activate
+```
+
+### Manual Setup
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+pre-commit install
+```
+
+## Tool Execution Requirements
+
+### Required Tools in Virtual Environment
+
+These tools **MUST** run within the activated virtual environment:
+
+- `pip` - Package installation
+- `mypy` - Type checking
+- `pytest` - Testing
+- `black` - Code formatting
+- `ruff` - Linting
+- `pre-commit` - Git hooks
+- `sphinx` - Documentation
+- `bandit` - Security scanning
+- `safety` - Vulnerability checking
+- `pip-audit` - Dependency auditing
+
+### Environment Verification
+
+Before running any Python tools, verify the virtual environment is active:
+
+```bash
+# Check if venv is active (should show .venv path)
+which python
+which pip
+
+# Should show: /path/to/project/.venv/bin/python
+# Should show: /path/to/project/.venv/bin/pip
+```
+
+## File References
+
+- **Setup script**: `setup-dev.sh` - Automated development environment setup
+- **Makefile**: `Makefile` - Common development commands
+- **Contributing guide**: `CONTRIBUTING.md` - Detailed setup instructions
+- **Requirements**: `requirements-dev.txt` - Development dependencies
+
+## Common Workflows
+
+### Daily Development
+```bash
+source .venv/bin/activate
+make check-all  # Run all quality checks
+# Make changes
+make format     # Auto-format code
+make test       # Run tests
+```
+
+### Adding Dependencies
+```bash
+source .venv/bin/activate
+pip install new-package
+# Update requirements.txt if needed
+```
+
+### Running Specific Tools
+```bash
+source .venv/bin/activate
+mypy src/pr_conflict_resolver/analysis/conflict_detector.py
+pytest tests/unit/test_conflict_detector.py -v
+black --check src/
+ruff check src/ --fix
+```
+
+## Error Prevention
+
+### What NOT to Do
+
+❌ **Never install system-wide**:
+```bash
+pip install --break-system-packages
+sudo pip install package-name
+```
+
+❌ **Never run tools without venv**:
+```bash
+python -m mypy src/  # Missing venv activation
+pytest tests/       # Missing venv activation
+```
+
+❌ **Never use system Python directly**:
+```bash
+python3 -m pip install package  # Should use venv pip
+```
+
+### What TO Do
+
+✅ **Always use venv**:
+```bash
+source .venv/bin/activate && python -m mypy src/
+source .venv/bin/activate && pytest tests/
+source .venv/bin/activate && pip install package-name
+```
+
+✅ **Use make commands when available**:
+```bash
+make test
+make lint
+make format
+```
+
+## Troubleshooting
+
+### Virtual Environment Not Found
+```bash
+# Check if .venv exists
+ls -la .venv/
+
+# If missing, recreate
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+### Package Installation Issues
+```bash
+# Ensure venv is active
+source .venv/bin/activate
+
+# Upgrade pip first
+pip install --upgrade pip
+
+# Install in editable mode
+pip install -e ".[dev]"
+```
+
+### Tool Not Found
+```bash
+# Check if tool is installed in venv
+source .venv/bin/activate
+which mypy
+which pytest
+
+# If missing, install
+pip install mypy pytest
+```
+
+## Quality Checks (MANDATORY - NEVER BYPASS)
+
+### Pre-commit Hooks (REQUIRED)
+
+This project uses pre-commit hooks that **MUST NOT** be bypassed:
+
+```bash
+# Install pre-commit hooks (REQUIRED)
+source .venv/bin/activate && pre-commit install
+
+# Run all hooks manually
+source .venv/bin/activate && pre-commit run --all-files
+```
+
+### NEVER Use --no-verify
+
+❌ **FORBIDDEN** - Never bypass quality checks:
+```bash
+git commit --no-verify  # NEVER DO THIS
+git push --no-verify    # NEVER DO THIS
+```
+
+✅ **CORRECT** - Always let checks run:
+```bash
+git commit -m "fix: resolve conflict detection issues"
+git push
+```
+
+### Mandatory Quality Checks
+
+These checks are **MANDATORY** and must pass before any commit:
+
+1. **Black formatting** - Code must be properly formatted
+2. **Ruff linting** - No linting errors allowed
+3. **MyPy type checking** - No type errors allowed (--strict mode)
+4. **Bandit security** - No security issues allowed
+5. **Safety checks** - No vulnerable dependencies
+6. **AST validation** - Code must be syntactically valid
+7. **YAML/JSON validation** - Config files must be valid
+
+### Fix Before Commit
+
+If quality checks fail:
+
+1. **Fix the issues** - Don't bypass them
+2. **Re-run checks** - `make lint` or `pre-commit run --all-files`
+3. **Commit only when clean** - All checks must pass
+
+### CI/CD Enforcement
+
+Quality checks are also enforced in CI:
+- GitHub Actions will fail if checks don't pass
+- PRs cannot be merged with failing checks
+- Security scans are mandatory
+
+### Emergency Override (RARE EXCEPTIONS)
+
+Only in extreme emergencies, with explicit approval:
+```bash
+# EMERGENCY ONLY - Document why this was necessary
+git commit --no-verify -m "EMERGENCY: [reason] - will fix in next commit"
+```
+
+**Document the emergency override immediately in the next commit.**
