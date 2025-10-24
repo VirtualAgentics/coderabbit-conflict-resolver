@@ -1,0 +1,125 @@
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.env/
+
+# Python bytecode and cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# Build and distribution
+dist/
+build/
+.eggs/
+*.egg-info/
+
+# Coverage and testing
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+test-results/
+
+# Documentation builds
+docs/_build/
+docs/build/
+site/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+*.log
+*.backup
+*.bak
+*.orig
+
+# IDE and editor files
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Security reports
+bandit-report.json
+safety-report.json
+
+# Local development
+.cr/
+.cursor/
+
+# Jupyter
+.ipynb_checkpoints/
+profile_default/
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+pdm.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath
+*.sage.py
+
+# Spyder
+.spyderproject
+.spyproject
+
+# Rope
+.ropeproject
+
+# mkdocs
+/site
+
+# Pyre
+.pyre/
+
+# pytype
+.pytype/
+
+# Cython
+cython_debug/
+
+# Pre-commit
+.pre-commit-config.yaml.bak

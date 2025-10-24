@@ -1,0 +1,58 @@
+---
+description: "Python code organization and DRY principle enforcement for utility extraction and dataclass usage"
+globs: ["src/**/*.py", "tests/**/*.py"]
+alwaysApply: false
+---
+
+# Python Code Organization & DRY Principle
+
+## Utility Functions Policy
+
+### Extract Common Logic
+When the same logic appears in 2+ files, extract to a utility module:
+
+1. **Create utility module:** `src/pr_conflict_resolver/utils/<domain>.py`
+2. **Module structure:**
+   ```python
+   """Brief module description.
+   
+   Detailed explanation of utilities provided.
+   """
+   
+   def utility_function(param: Type) -> ReturnType:
+       """Function docstring with Args, Returns, Raises."""
+       pass
+   ```
+
+3. **Common utility categories:**
+   - `utils/text.py`: Text manipulation (normalization, parsing)
+   - `utils/validation.py`: Input validation helpers
+   - `utils/file_operations.py`: File system operations
+   - `utils/comparison.py`: Comparison and similarity functions
+
+### When to Extract
+- Function duplicated in 2+ files → Extract immediately
+- Similar logic with minor variations → Parameterize and extract
+- Helper methods used by single class → Keep as private method
+- Complex validation/normalization → Extract for testing
+
+### Refactoring Checklist
+- [ ] Create utility module with proper docstrings
+- [ ] Add type hints to all parameters and returns
+- [ ] Import utility in all locations using duplicated code
+- [ ] Update tests to cover utility function
+- [ ] Remove old duplicated code
+- [ ] Verify no regressions with test suite
+
+## Data Model Usage
+
+### Prefer Dataclasses Over Tuples
+- ❌ WRONG: `def process(item: tuple[int, int, str, dict]) -> None`
+- ✅ CORRECT: `def process(item: Change) -> None`
+
+### When Refactoring
+1. Identify tuple usage in function signatures
+2. Replace with appropriate dataclass (Change, Conflict, etc.)
+3. Update unpacking to attribute access
+4. Update all callers to pass dataclass instances
+5. Run type checker: `mypy src/`

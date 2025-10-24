@@ -1,0 +1,56 @@
+---
+description: "Google-style docstring standards for all public functions, methods, and classes"
+globs: ["src/**/*.py"]
+alwaysApply: false
+---
+
+# Docstring Standards
+
+## Google-Style Docstrings (REQUIRED)
+
+All public functions, methods, and classes MUST have Google-style docstrings.
+
+### Abstract Method Documentation
+
+Abstract methods MUST document:
+1. Purpose of the method
+2. All parameters with types
+3. Return value with type and meaning
+4. Exceptions that may be raised
+
+Example:
+```python
+@abstractmethod
+def validate_change(
+    self, path: str, content: str, start_line: int, end_line: int
+) -> tuple[bool, str]:
+    """Validate a change without applying it.
+    
+    Args:
+        path: File path to validate the change against.
+        content: The new content to validate.
+        start_line: Starting line number (1-indexed).
+        end_line: Ending line number (1-indexed).
+        
+    Returns:
+        A tuple of (is_valid, message) where is_valid indicates
+        whether the change is valid, and message provides details
+        about validation (error message if invalid, success if valid).
+        
+    Raises:
+        IOError: If the file cannot be read.
+        ValueError: If line numbers are invalid.
+    """
+```
+
+### Required Sections
+- **Args:** Document every parameter
+- **Returns:** Describe return value structure and meaning
+- **Raises:** Document exceptions (optional if none raised)
+
+### Validation
+Run docstring validation:
+```bash
+ruff check src/ --select D
+mypy src/ --strict
+```

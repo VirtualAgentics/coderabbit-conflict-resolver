@@ -1,0 +1,316 @@
+---
+title: Type Safety Guidelines
+description: MyPy configuration, type annotations, and type checking best practices
+globs:
+  - "**/*.py"
+---
+
+# Type Safety Guidelines
+
+## MyPy Configuration
+
+Enable strict type checking with:
+
+```toml
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_any_unimported = true
+disallow_any_explicit = false  # Allow explicit Any with justification
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+```
+
+## Type Annotations
+
+### Function Signatures
+
+All functions must have complete type annotations:
+
+```python
+def process_changes(changes: List[Change]) -> List[Conflict]:
+    """Process changes and return conflicts."""
+    pass
+
+def apply_resolution(resolution: Resolution) -> bool:
+    """Apply a resolution and return success status."""
+    pass
+```
+
+### Class Attributes
+
+Use type annotations for class attributes:
+
+```python
+class ConflictResolver:
+    config: Dict[str, Any]
+    handlers: Dict[FileType, BaseHandler]
+    strategy: ResolutionStrategy
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+        self.config = config or {}
+```
+
+### Generic Types
+
+Use proper generic types for collections:
+
+```python
+from typing import List, Dict, Optional, Union, Tuple, Set
+
+# Good
+def get_conflicts(changes: List[Change]) -> List[Conflict]:
+    pass
+
+def process_files(files: Dict[str, str]) -> Dict[str, bool]:
+    pass
+
+# Avoid
+def get_conflicts(changes):  # No type hints
+    pass
+```
+
+## Type Aliases
+
+Create type aliases for complex types:
+
+```python
+from typing import TypeAlias
+
+# Type aliases for better readability
+ChangeList: TypeAlias = List[Change]
+ConflictMap: TypeAlias = Dict[str, List[Conflict]]
+ResolutionResult: TypeAlias = Tuple[int, int, float]
+```
+
+## Optional Types
+
+Use `Optional` or union syntax for nullable values:
+
+```python
+from typing import Optional
+
+def find_handler(file_path: str) -> Optional[BaseHandler]:
+    """Find handler for file type, return None if not found."""
+    pass
+
+# Or using union syntax (Python 3.10+)
+def find_handler(file_path: str) -> BaseHandler | None:
+    """Find handler for file type, return None if not found."""
+    pass
+```
+
+## Protocol Types
+
+Use protocols for structural typing:
+
+```python
+from typing import Protocol
+
+class FileHandler(Protocol):
+    def can_handle(self, file_path: str) -> bool: ...
+    def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool: ...
+
+def process_with_handler(handler: FileHandler, file_path: str) -> bool:
+    """Process file with any handler implementing FileHandler protocol."""
+    pass
+```
+
+## Dataclass Types
+
+Use proper typing in dataclasses:
+
+```python
+from dataclasses import dataclass
+from typing import List, Dict, Any, Tuple
+
+@dataclass
+class Change:
+    path: str
+    start_line: int
+    end_line: int
+    content: str
+    metadata: Dict[str, Any]
+    fingerprint: str
+    file_type: FileType
+
+@dataclass
+class Conflict:
+    file_path: str
+    line_range: Tuple[int, int]
+    changes: List[Change]
+    conflict_type: str
+    severity: str
+    overlap_percentage: float
+```
+
+## Enum Types
+
+Use enums for type-safe constants:
+
+```python
+from enum import Enum
+
+class FileType(Enum):
+    PYTHON = "python"
+    TYPESCRIPT = "typescript"
+    JSON = "json"
+    YAML = "yaml"
+    TOML = "toml"
+    PLAINTEXT = "plaintext"
+
+class ConflictSeverity(Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+```
+
+## Type Guards
+
+Use type guards for runtime type checking:
+
+```python
+from typing import TypeGuard
+
+def is_json_file(file_path: str) -> TypeGuard[str]:
+    """Type guard to check if file is JSON."""
+    return file_path.endswith('.json')
+
+def process_file(file_path: str) -> None:
+    if is_json_file(file_path):
+        # MyPy knows file_path is JSON here
+        json_handler.process(file_path)
+```
+
+## Any Type Usage
+
+Avoid `Any` type unless absolutely necessary:
+
+```python
+# Bad - too permissive
+def process_data(data: Any) -> Any:
+    pass
+
+# Good - specific types
+def process_data(data: Dict[str, Union[str, int]]) -> List[str]:
+    pass
+
+# When Any is necessary, document why
+def handle_unknown_format(data: Any) -> bool:  # Any needed for dynamic content
+    """Handle data of unknown format from external API."""
+    pass
+```
+
+## Type Checking in Tests
+
+Use type checking in test files:
+
+```python
+from typing import List
+import pytest
+
+def test_conflict_detection(changes: List[Change]) -> None:
+    """Test conflict detection with typed parameters."""
+    conflicts = detector.detect_conflicts(changes)
+    assert isinstance(conflicts, List)
+    for conflict in conflicts:
+        assert isinstance(conflict, Conflict)
+```
+
+## Type Stubs
+
+Add type stubs for external dependencies:
+
+```python
+# requirements-dev.txt
+types-requests
+types-click
+types-PyYAML
+```
+
+## Runtime Type Checking
+
+Use runtime type checking for external data:
+
+```python
+from typing import get_type_hints, get_origin, get_args
+
+def validate_data(data: Dict[str, Any], expected_types: Dict[str, type]) -> bool:
+    """Validate data structure matches expected types."""
+    for key, expected_type in expected_types.items():
+        if key not in data:
+            return False
+        if not isinstance(data[key], expected_type):
+            return False
+    return True
+```
+
+## Type-Safe Configuration
+
+Use typed configuration classes:
+
+```python
+from dataclasses import dataclass
+from typing import Dict, Optional
+
+@dataclass
+class ResolverConfig:
+    mode: str
+    skip_all_conflicts: bool
+    manual_review_required: bool
+    semantic_merging: bool
+    priority_system: bool
+    priority_rules: Optional[Dict[str, int]] = None
+```
+
+## Error Handling Types
+
+Use specific exception types:
+
+```python
+class ConflictResolutionError(Exception):
+    """Base exception for conflict resolution errors."""
+    pass
+
+class FileHandlerError(ConflictResolutionError):
+    """Error in file handler operations."""
+    pass
+
+class ValidationError(ConflictResolutionError):
+    """Error in data validation."""
+    pass
+```
+
+## Type Checking Commands
+
+Run type checking during development:
+
+```bash
+# Check all source files
+mypy src/
+
+# Check with strict mode
+mypy --strict src/
+
+# Check specific module
+mypy src/pr_conflict_resolver/core/resolver.py
+```
+
+## Integration with CI
+
+Ensure type checking passes in CI:
+
+```yaml
+- name: Type Check
+  run: mypy src/ --strict
+```

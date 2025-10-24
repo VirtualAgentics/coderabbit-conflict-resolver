@@ -1,0 +1,44 @@
+---
+description: "Prevent hardcoded values in dynamic calculations and enforce proper overlap calculation patterns"
+globs: ["src/**/*.py"]
+alwaysApply: false
+---
+
+# Calculation and Algorithm Standards
+
+## No Hardcoded Magic Values
+
+### Dynamic Calculations Required
+Never hardcode percentages, overlaps, or metrics that should be calculated:
+
+❌ WRONG:
+```python
+overlap_percentage = 100.0  # Hardcoded!
+```
+
+✅ CORRECT:
+```python
+# Calculate actual overlap
+overlap_start = max(change1.start_line, change2.start_line)
+overlap_end = min(change1.end_line, change2.end_line)
+overlap_size = max(0, overlap_end - overlap_start + 1)
+
+total_start = min(change1.start_line, change2.start_line)
+total_end = max(change1.end_line, change2.end_line)
+total_size = total_end - total_start + 1
+
+overlap_percentage = (overlap_size / total_size * 100.0) if total_size > 0 else 0.0
+```
+
+### Overlap Calculation Pattern
+For line-based overlaps:
+1. Find intersection (max of starts, min of ends)
+2. Find union (min of starts, max of ends)
+3. Calculate percentage: `(intersection / union) * 100`
+4. Guard against division by zero
+
+### Code Review Checklist
+- [ ] No hardcoded percentages (0.0, 100.0, etc.)
+- [ ] Division operations check for zero
+- [ ] Edge cases handled (empty ranges, single line)
+- [ ] Tests verify calculation accuracy

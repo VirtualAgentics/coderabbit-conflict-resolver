@@ -1,0 +1,57 @@
+---
+description: "Cross-platform compatibility standards for Makefile and file operations"
+globs: ["Makefile", "src/**/*.py"]
+alwaysApply: false
+---
+
+# Cross-Platform Compatibility
+
+## Makefile Standards
+
+### Use Python for File Operations
+Avoid shell-specific commands (rm, find, etc.) in Makefile targets:
+
+❌ WRONG (Unix-only):
+```makefile
+clean:
+	rm -rf build/
+	find . -name "*.pyc" -delete
+```
+
+✅ CORRECT (cross-platform):
+```makefile
+clean:
+	python -c "import shutil, pathlib; \
+	    [shutil.rmtree(p, ignore_errors=True) for p in ['build', 'dist']]; \
+	    [p.unlink() for p in pathlib.Path('.').rglob('*.pyc')]"
+```
+
+### Default Target Required
+Always provide a sensible default target:
+```makefile
+.PHONY: all help ...
+
+all: lint format type-check test  ## Default target
+
+help: ## Show help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' ...
+```
+
+### Fail-Fast Linting
+Use `.ONESHELL` with `set -e` for fail-fast behavior:
+```makefile
+.ONESHELL:
+lint:
+	set -e
+	black --check src/
+	ruff check src/
+	mypy src/
+```
+
+## File Path Handling
+
+In Python code:
+- Use `pathlib.Path` for all file operations
+- Never use string concatenation for paths
+- Use `Path.resolve()` for absolute paths
+- Handle both `/` and `\` separators automatically
