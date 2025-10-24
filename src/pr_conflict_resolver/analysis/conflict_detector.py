@@ -17,7 +17,7 @@ class ConflictDetector:
     def __init__(self) -> None:
         """
         Create a ConflictDetector instance and initialize its internal cache.
-        
+
         The instance starts with an empty `conflict_cache` dictionary used to store
         cached analysis results keyed by conflict fingerprints.
         """
@@ -30,7 +30,7 @@ class ConflictDetector:
     ) -> str | None:
         """
         Determine the overlap category between two Change objects based on their start and end lines.
-        
+
         Returns:
             "exact" if start and end lines are identical; "major" if overlap covers at least 80% of the combined range; "partial" if overlap is at least 50% but less than 80%; "minor" if ranges overlap but less than 50%; `None` if ranges do not overlap.
         """
@@ -45,11 +45,11 @@ class ConflictDetector:
         if not (end1 < start2 or end2 < start1):
             overlap_size = min(end1, end2) - max(start1, start2) + 1
             total_size = max(end1, end2) - min(start1, start2) + 1
-            
+
             # Conservative default for degenerate case: avoid division by zero
             if total_size == 0:
                 return "major"
-            
+
             overlap_percentage = (overlap_size / total_size) * 100
 
             if overlap_percentage >= 80:
@@ -68,10 +68,10 @@ class ConflictDetector:
     ) -> bool:
         """
         Determine whether two changes contain equivalent semantic content.
-        
+
         Compares normalized text contents; if the raw contents appear to be structured (JSON/YAML) for both changes,
         compares their parsed structures for semantic equivalence.
-        
+
         Returns:
             True if the changes are semantically equivalent, False otherwise.
         """
@@ -95,9 +95,9 @@ class ConflictDetector:
     def _is_structured_content(self, content: str) -> bool:
         """
         Detect whether a string likely contains structured data such as JSON or YAML.
-        
+
         Uses simple heuristics: detects JSON-like bracing (starts with `{` or `[` and ends with `}` or `]`) or YAML-like indicators (contains `:` and either `-` or `|`).
-        
+
         Returns:
             True if content likely represents structured data, False otherwise.
         """
@@ -109,13 +109,13 @@ class ConflictDetector:
     def _compare_structured_content(self, content1: str, content2: str) -> bool:
         """
         Determine whether two structured-content strings are semantically equivalent.
-        
+
         Attempts to parse the inputs as JSON, then YAML; if parsing succeeds for both inputs, compares the resulting data structures for equality.
-        
+
         Parameters:
             content1 (str): First content string, expected to contain JSON or YAML.
             content2 (str): Second content string, expected to contain JSON or YAML.
-        
+
         Returns:
             bool: `True` if both inputs parse to equal data structures, `False` otherwise.
         """
@@ -144,10 +144,10 @@ class ConflictDetector:
     def analyze_conflict_impact(self, conflict: dict[str, Any]) -> dict[str, Any]:
         """
         Estimate the impact and severity of a conflict based on its constituent changes.
-        
+
         Parameters:
             conflict (dict[str, Any]): A conflict object containing a "changes" list where each change is a dict that may include "content" (str) and optional "metadata".
-        
+
         Returns:
             dict[str, Any]: Analysis including:
                 - impact (str): One of "none", "low", "medium", or "high".
@@ -214,10 +214,10 @@ class ConflictDetector:
     def generate_conflict_fingerprint(self, conflict: dict[str, Any]) -> str:
         """
         Compute a stable, order-independent fingerprint for a conflict built from its constituent changes.
-        
+
         Parameters:
             conflict (dict[str, Any]): Conflict dictionary containing a "changes" key with an iterable of change dicts. Each change should include identifying fields (e.g., path, start_line, end_line, content) used to derive per-change fingerprints.
-        
+
         Returns:
             str: A 16-character hexadecimal fingerprint derived from the sorted per-change fingerprints, or an empty string if the conflict has no changes.
         """
@@ -240,14 +240,14 @@ class ConflictDetector:
     def _generate_change_fingerprint(self, change: dict[str, Any]) -> str:
         """
         Produce a stable 16-character fingerprint for a single change.
-        
+
         Parameters:
             change (dict[str, Any]): Change dictionary with keys used to form the fingerprint:
                 - "path" (str): file path (optional).
                 - "start_line" (int): starting line number (optional).
                 - "end_line" (int): ending line number (optional).
                 - "content" (str): change content (optional).
-        
+
         Returns:
             str: 16-character hexadecimal fingerprint representing the change's path, range, and normalized content.
         """
@@ -264,10 +264,10 @@ class ConflictDetector:
     def detect_conflict_patterns(self, conflicts: list[Conflict]) -> dict[str, Any]:
         """
         Analyze a list of conflicts and extract summary statistics and common patterns.
-        
+
         Parameters:
             conflicts (list[Conflict]): List of Conflict objects (expected to expose `file_path`, `conflict_type`, and `severity` attributes).
-        
+
         Returns:
             dict[str, Any]: Summary dictionary with keys:
                 - total_conflicts (int): Total number of conflicts processed.
