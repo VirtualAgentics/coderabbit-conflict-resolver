@@ -13,73 +13,81 @@ class BaseHandler(ABC):
 
     @abstractmethod
     def can_handle(self, file_path: str) -> bool:
-        """Check if this handler can process the given file.
-
-        Args:
-            file_path: The path to the file to check.
-
+        """
+        Determine whether this handler can process the given file.
+        
         Returns:
-            True if this handler can process the file, False otherwise.
+            True if the handler can process the file, False otherwise.
         """
 
     @abstractmethod
     def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
-        """Apply a change to the file.
-
-        Args:
-            path: The file path to apply the change to.
-            content: The new content to apply.
-            start_line: The starting line number (1-indexed).
-            end_line: The ending line number (1-indexed).
-
+        """
+        Apply a replacement to a file's line range.
+        
+        Parameters:
+            path (str): Path to the target file.
+            content (str): New content to insert in place of the specified lines.
+            start_line (int): 1-indexed starting line number (inclusive).
+            end_line (int): 1-indexed ending line number (inclusive).
+        
         Returns:
-            True if the change was applied successfully, False otherwise.
-
+            bool: `True` if the change was applied successfully, `False` otherwise.
+        
         Raises:
             IOError: If the file cannot be read or written.
-            ValueError: If the line numbers are invalid.
+            ValueError: If the provided line numbers are invalid.
         """
 
     @abstractmethod
     def validate_change(
         self, path: str, content: str, start_line: int, end_line: int
     ) -> tuple[bool, str]:
-        """Validate a change without applying it.
-
-        Args:
-            path: The file path to validate the change against.
-            content: The new content to validate.
-            start_line: The starting line number (1-indexed).
-            end_line: The ending line number (1-indexed).
-
+        """
+        Validate a proposed edit to a file's specified line range without applying it.
+        
+        Parameters:
+            path (str): File path whose contents are validated against the change.
+            content (str): New content to substitute into the file for the given range.
+            start_line (int): 1-indexed starting line of the replacement range (inclusive).
+            end_line (int): 1-indexed ending line of the replacement range (inclusive).
+        
         Returns:
-            A tuple of (is_valid, message) where is_valid indicates
-            whether the change is valid, and message provides details
-            about validation (error message if invalid, success if valid).
-
+            tuple[bool, str]: (is_valid, message) where is_valid is True if the change is valid and False otherwise; message contains success details or an error description.
+        
         Raises:
             IOError: If the file cannot be read.
-            ValueError: If the line numbers are invalid.
+            ValueError: If the provided line numbers are invalid.
         """
 
     @abstractmethod
     def detect_conflicts(self, path: str, changes: list[Change]) -> list[Conflict]:
-        """Detect conflicts between changes in the same file.
-
+        """
+        Identify conflicts among proposed changes targeting the same file.
+        
         Args:
-            path: The file path to analyze for conflicts.
-            changes: List of changes to check for conflicts.
-
+            path: File path to analyze for conflicting changes.
+            changes: List of Change objects representing proposed modifications to the file.
+        
         Returns:
-            List of detected conflicts between the changes.
-
+            A list of Conflict objects representing detected conflicts between the provided changes.
+        
         Raises:
             IOError: If the file cannot be read.
-            ValueError: If the changes contain invalid data.
+            ValueError: If any change contains invalid data (e.g., invalid line ranges).
         """
 
     def backup_file(self, path: str) -> str:
-        """Create a backup of the file."""
+        """
+        Create a filesystem backup of the given file and return the backup file path.
+        
+        Parameters:
+            path (str): Path to the file to back up.
+        
+        Returns:
+            backup_path (str): Path to the created backup file.
+        
+        """
         import shutil
         from pathlib import Path
 
@@ -89,7 +97,16 @@ class BaseHandler(ABC):
         return str(backup_path)
 
     def restore_file(self, backup_path: str, original_path: str) -> bool:
-        """Restore file from backup."""
+        """
+        Restore an original file by copying it from a backup and removing the backup file.
+        
+        Parameters:
+            backup_path (str): Path to the backup file to restore from.
+            original_path (str): Path where the original file should be restored.
+        
+        Returns:
+            bool: `True` if the file was restored and the backup removed, `False` if an error occurred.
+        """
         import shutil
         from pathlib import Path
 
