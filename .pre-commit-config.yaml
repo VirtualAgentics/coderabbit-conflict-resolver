@@ -14,7 +14,7 @@ repos:
       - id: check-ast
 
   - repo: https://github.com/psf/black
-    rev: 24.3.0
+    rev: 24.10.0
     hooks:
       - id: black
         language_version: python3.12
@@ -27,15 +27,15 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
+    rev: v1.18.2
     hooks:
       - id: mypy
         language_version: python3.12
-        additional_dependencies: [types-requests, types-click, types-PyYAML]
+        additional_dependencies: [types-requests, types-click, types-PyYAML, pytest, rich, ruamel.yaml, tomli, tomli-w]
         args: [--strict]
 
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.5
+    rev: 1.8.6
     hooks:
       - id: bandit
         language_version: python3.12

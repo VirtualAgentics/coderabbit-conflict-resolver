@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def sample_pr_comments() -> dict[str, Any]:
     """
     Provide a sample pull request comments payload for tests.
@@ -41,7 +41,7 @@ def sample_pr_comments() -> dict[str, Any]:
     }
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def temp_workspace(tmp_path: Path) -> Path:
     """
     Provide a temporary workspace directory for tests.
@@ -52,7 +52,7 @@ def temp_workspace(tmp_path: Path) -> Path:
     return tmp_path
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def sample_json_file(temp_workspace: Path) -> Path:
     """
     Create a sample package.json file inside the given workspace for use in tests.
@@ -68,7 +68,7 @@ def sample_json_file(temp_workspace: Path) -> Path:
     return json_file
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def sample_yaml_file(temp_workspace: Path) -> Path:
     """
     Create a YAML file named `config.yaml` containing sample settings inside the given workspace.
