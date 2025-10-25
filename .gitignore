@@ -459,3 +459,6 @@ safety-report.json
 *.backup
 *.bak
 *.orig
+
+# Local development tools (should not be committed)
+git
