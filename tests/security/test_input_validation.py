@@ -17,6 +17,11 @@ class TestFilePathValidation:
         assert InputValidator.validate_file_path("tests/test_file.py")
         assert InputValidator.validate_file_path("docs/guide.md")
 
+        # Edge case: filenames containing literal ".." should be allowed
+        assert InputValidator.validate_file_path("my..file.txt")
+        assert InputValidator.validate_file_path("folder/..file.txt")
+        assert InputValidator.validate_file_path("test..data.json")
+
     def test_path_traversal_unix(self) -> None:
         """Test detection of Unix-style path traversal."""
         assert not InputValidator.validate_file_path("../../etc/passwd")
@@ -32,6 +37,12 @@ class TestFilePathValidation:
         """Test that absolute paths are rejected without base_dir."""
         assert not InputValidator.validate_file_path("/etc/passwd")
         assert not InputValidator.validate_file_path("/var/log/secure")
+
+        # Edge case: Windows drive absolute paths should be rejected
+        assert not InputValidator.validate_file_path("C:\\Windows\\system32")
+        assert not InputValidator.validate_file_path("C:/Windows/System32")
+        assert not InputValidator.validate_file_path("D:\\Program Files\\App")
+        assert not InputValidator.validate_file_path("E:/Users/Documents")
 
     def test_absolute_path_with_base_dir(self) -> None:
         """Test absolute paths with base directory constraint."""
@@ -272,25 +283,111 @@ class TestGitHubURLValidation:
 
     def test_valid_github_urls(self) -> None:
         """Test validation of legitimate GitHub URLs."""
-        assert InputValidator.sanitize_github_url("https://github.com/user/repo")
-        assert InputValidator.sanitize_github_url("https://api.github.com/repos/user/repo")
-        assert InputValidator.sanitize_github_url(
+        assert InputValidator.validate_github_url("https://github.com/user/repo")
+        assert InputValidator.validate_github_url("https://api.github.com/repos/user/repo")
+        assert InputValidator.validate_github_url(
             "https://raw.githubusercontent.com/user/repo/main/file.txt"
         )
 
+        # Case variations should be accepted
+        assert InputValidator.validate_github_url("https://GitHub.com/user/repo")
+        assert InputValidator.validate_github_url("HTTPS://GITHUB.COM/user/repo")
+        assert InputValidator.validate_github_url("https://API.GITHUB.COM/repos/user/repo")
+        assert InputValidator.validate_github_url(
+            "https://RAW.GITHUBUSERCONTENT.COM/user/repo/main/file.txt"
+        )
+
+    def test_github_urls_with_ports(self) -> None:
+        """Test that URLs with ports are handled correctly using hostname."""
+        # URLs with non-standard ports should still work
+        assert InputValidator.validate_github_url("https://github.com:443/user/repo")
+        assert InputValidator.validate_github_url("https://api.github.com:443/repos/user/repo")
+        assert InputValidator.validate_github_url("https://GitHub.com:443/user/repo")
+
     def test_invalid_urls(self) -> None:
         """Test rejection of non-GitHub URLs."""
-        assert not InputValidator.sanitize_github_url("https://evil.com/malicious")
-        assert not InputValidator.sanitize_github_url("http://github.com/user/repo")  # HTTP
-        assert not InputValidator.sanitize_github_url("ftp://github.com/file")
+        assert not InputValidator.validate_github_url("https://evil.com/malicious")
+        assert not InputValidator.validate_github_url("http://github.com/user/repo")  # HTTP
+        assert not InputValidator.validate_github_url("ftp://github.com/file")
 
     def test_empty_or_none_url(self) -> None:
         """Test handling of empty or None URLs."""
-        assert not InputValidator.sanitize_github_url("")
-        assert not InputValidator.sanitize_github_url(None)  # type: ignore
+        assert not InputValidator.validate_github_url("")
+        assert not InputValidator.validate_github_url(None)  # type: ignore
 
     def test_github_lookalike_domains(self) -> None:
         """Test rejection of GitHub lookalike domains."""
-        assert not InputValidator.sanitize_github_url("https://github.com.evil.com/repo")
-        assert not InputValidator.sanitize_github_url("https://fakegithub.com/repo")
-        assert not InputValidator.sanitize_github_url("https://github-evil.com/repo")
+        assert not InputValidator.validate_github_url("https://github.com.evil.com/repo")
+        assert not InputValidator.validate_github_url("https://fakegithub.com/repo")
+        assert not InputValidator.validate_github_url("https://github-evil.com/repo")
+
+    def test_explicit_allowlist_only(self) -> None:
+        """Test that only explicitly allowed domains are accepted."""
+        # Explicitly allowed domains
+        assert InputValidator.validate_github_url("https://github.com/user/repo")
+        assert InputValidator.validate_github_url("https://api.github.com/repos/user/repo")
+        assert InputValidator.validate_github_url(
+            "https://raw.githubusercontent.com/user/repo/main/file.txt"
+        )
+        assert InputValidator.validate_github_url("https://gist.github.com/user/12345")
+
+        # Subdomain spoofing attempts should be rejected
+        assert not InputValidator.validate_github_url("https://malicious.github.com/repo")
+        assert not InputValidator.validate_github_url("https://github.com.evil.com/repo")
+        assert not InputValidator.validate_github_url("https://api.github.com.attacker.com/repo")
+
+    def test_case_insensitive_allowlist(self) -> None:
+        """Test that allowlist matching is case-insensitive."""
+        assert InputValidator.validate_github_url("https://GITHUB.COM/user/repo")
+        assert InputValidator.validate_github_url("https://API.GITHUB.COM/repos/user/repo")
+        assert InputValidator.validate_github_url(
+            "https://RAW.GITHUBUSERCONTENT.COM/user/repo/main/file.txt"
+        )
+        assert InputValidator.validate_github_url("https://GIST.GITHUB.COM/user/12345")
+
+    def test_github_subdomains(self) -> None:
+        """Test explicit coverage for GitHub subdomains - legitimate vs malicious."""
+        # Test legitimate GitHub subdomains that should be allowed
+        legitimate_subdomains = [
+            "https://gist.github.com/user/12345",
+            "https://codeload.github.com/user/repo/zip/refs/heads/main",
+            "https://github.com/user/repo",  # Main domain
+            "https://api.github.com/repos/user/repo",
+            "https://raw.githubusercontent.com/user/repo/main/file.txt",
+        ]
+
+        for url in legitimate_subdomains:
+            assert InputValidator.validate_github_url(url), (
+                f"Legitimate GitHub URL should be allowed: {url}"
+            )
+
+        # Test malicious/arbitrary subdomains that should be rejected
+        malicious_subdomains = [
+            "https://evil.github.com/malicious",
+            "https://malicious.github.com/attack",
+            "https://github.com.evil.com/repo",  # Subdomain spoofing
+            "https://api.github.com.attacker.com/repo",  # Subdomain spoofing
+            "https://gist.github.com.evil.com/user/12345",  # Subdomain spoofing
+            "https://codeload.github.com.attacker.com/user/repo",  # Subdomain spoofing
+            "https://raw.githubusercontent.com.malicious.com/user/repo",  # Subdomain spoofing
+            "https://fake-github.com/repo",  # Lookalike domain
+            "https://github-evil.com/repo",  # Lookalike domain
+        ]
+
+        for url in malicious_subdomains:
+            assert not InputValidator.validate_github_url(url), (
+                f"Malicious GitHub URL should be rejected: {url}"
+            )
+
+        # Test case variations of legitimate subdomains
+        case_variations = [
+            "https://GIST.GITHUB.COM/user/12345",
+            "https://CODELOAD.GITHUB.COM/user/repo/zip/refs/heads/main",
+            "https://API.GITHUB.COM/repos/user/repo",
+            "https://RAW.GITHUBUSERCONTENT.COM/user/repo/main/file.txt",
+        ]
+
+        for url in case_variations:
+            assert InputValidator.validate_github_url(url), (
+                f"Case variation of legitimate URL should be allowed: {url}"
+            )

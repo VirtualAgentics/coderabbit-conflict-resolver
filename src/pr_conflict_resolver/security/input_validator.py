@@ -1,14 +1,18 @@
 """Input validation and sanitization for security."""
 
 import json
-import os
+import logging
 import re
 from pathlib import Path
 from typing import ClassVar
+from urllib.parse import urlparse
 
 import tomli
 import tomli_w
 import yaml
+
+# Module-level logger for structured logging
+logger = logging.getLogger(__name__)
 
 
 class InputValidator:
@@ -57,42 +61,55 @@ class InputValidator:
             False
         """
         if not path or not isinstance(path, str):
+            logger.warning("File path validation failed: path is None or not a string")
             return False
 
-        # Normalize path
-        normalized = os.path.normpath(path)
+        try:
+            # Create Path object from input
+            input_path = Path(path)
 
-        # Check for directory traversal attempts
-        if ".." in normalized:
-            return False
-
-        # Check for absolute paths (disallowed unless base_dir is specified)
-        if (
-            normalized.startswith("/")
-            or (os.name == "nt" and len(normalized) > 1 and normalized[1] == ":")
-        ) and not base_dir:
-            return False
-
-        # Check for safe characters
-        if not InputValidator.SAFE_PATH_PATTERN.match(normalized):
-            return False
-
-        # If base_dir is specified, ensure path is within it
-        if base_dir:
-            try:
-                # Resolve to absolute paths
-                abs_path = Path(normalized).resolve()
-                abs_base = Path(base_dir).resolve()
-
-                # Check if path is within base directory
-                try:
-                    abs_path.relative_to(abs_base)
-                except ValueError:
-                    # Path is not relative to base_dir
-                    return False
-            except (OSError, RuntimeError):
-                # Path resolution failed
+            # Check for directory traversal attempts by examining path parts
+            if ".." in input_path.parts:
+                logger.warning(f"Directory traversal attempt detected: {path}")
                 return False
+
+            # Check for absolute paths (disallowed unless base_dir is specified)
+            if input_path.is_absolute() and not base_dir:
+                logger.warning(f"Absolute path disallowed: {path}")
+                return False
+
+            # Check for safe characters in each path segment
+            for part in input_path.parts:
+                if part and not InputValidator.SAFE_PATH_PATTERN.match(part):
+                    logger.warning(f"Unsafe path segment detected in: {path}")
+                    return False
+
+            # If base_dir is specified, ensure path is within it
+            if base_dir:
+                try:
+                    # Resolve base directory strictly to prevent symlink escapes
+                    abs_base = Path(base_dir).resolve(strict=True)
+
+                    # Build candidate target by joining base and normalized path
+                    candidate = abs_base / input_path
+
+                    # Resolve the candidate path
+                    resolved_candidate = candidate.resolve()
+
+                    # Verify containment using is_relative_to
+                    if not resolved_candidate.is_relative_to(abs_base):
+                        raise ValueError(
+                            f"Path {resolved_candidate} is not contained within {abs_base}"
+                        )
+
+                except (OSError, RuntimeError, ValueError) as e:
+                    # Resolution error or path not contained in base
+                    logger.warning(f"Path containment check failed: {path}, error: {e}")
+                    return False
+        except (OSError, ValueError) as e:
+            # Invalid path or path resolution failed
+            logger.error(f"Path validation error for {path}: {e}")
+            return False
 
         return True
 
@@ -111,12 +128,19 @@ class InputValidator:
             OSError: If file cannot be accessed.
         """
         if not file_path.exists():
+            logger.error(f"File not found for size validation: {file_path}")
             raise FileNotFoundError(f"File not found: {file_path}")
 
         if not file_path.is_file():
+            logger.warning(f"Path is not a file: {file_path}")
             return False
 
         file_size = file_path.stat().st_size
+        if file_size > InputValidator.MAX_FILE_SIZE:
+            logger.warning(
+                f"File size exceeds limit: {file_path} "
+                f"({file_size} bytes > {InputValidator.MAX_FILE_SIZE} bytes)"
+            )
         return file_size <= InputValidator.MAX_FILE_SIZE
 
     @staticmethod
@@ -133,6 +157,8 @@ class InputValidator:
             return False
 
         ext = Path(path).suffix.lower()
+        if ext not in InputValidator.ALLOWED_FILE_EXTENSIONS:
+            logger.warning(f"File extension not allowed: {ext} in path {path}")
         return ext in InputValidator.ALLOWED_FILE_EXTENSIONS
 
     @staticmethod
@@ -163,6 +189,7 @@ class InputValidator:
 
         # Remove null bytes (common in exploits)
         if "\x00" in content:
+            logger.warning("Security threat detected: null bytes found in content (removed)")
             content = content.replace("\x00", "")
             warnings.append("Removed null bytes from content")
 
@@ -192,7 +219,8 @@ class InputValidator:
         ]
 
         for pattern, warning_msg in suspicious_patterns:
-            if re.search(pattern, content):
+            if re.search(pattern, content, re.IGNORECASE):
+                logger.warning(f"Security threat detected in content: {warning_msg}")
                 warnings.append(warning_msg)
 
         return content, warnings
@@ -217,6 +245,7 @@ class InputValidator:
             content = json.dumps(parsed, indent=2)
 
         except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON structure detected: {e}")
             warnings.append(f"Invalid JSON structure: {e}")
 
         return content, warnings
@@ -245,6 +274,7 @@ class InputValidator:
             content = yaml.safe_dump(parsed, default_flow_style=False)
 
         except yaml.YAMLError as e:
+            logger.error(f"Invalid YAML structure detected: {e}")
             warnings.append(f"Invalid YAML structure: {e}")
 
         return content, warnings
@@ -269,6 +299,7 @@ class InputValidator:
             content = tomli_w.dumps(parsed)
 
         except tomli.TOMLDecodeError as e:
+            logger.error(f"Invalid TOML structure detected: {e}")
             warnings.append(f"Invalid TOML structure: {e}")
 
         return content, warnings
@@ -287,32 +318,85 @@ class InputValidator:
         """
         # Check basic validity
         if start_line < 1 or end_line < 1:
+            logger.warning(
+                f"Invalid line range: start={start_line}, end={end_line} (lines must be >= 1)"
+            )
             return False
 
         if start_line > end_line:
+            logger.warning(f"Invalid line range: start={start_line} > end={end_line}")
             return False
 
         # Check against max_lines if provided
+        if max_lines is not None and end_line > max_lines:
+            logger.warning(f"Line range exceeds maximum: end={end_line} > max={max_lines}")
         return max_lines is None or end_line <= max_lines
 
+    # Explicit allowlist of approved GitHub domains and subdomains
+    # This prevents subdomain-spoofing attacks (e.g., github.com.evil.com)
+    ALLOWED_GITHUB_DOMAINS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "github.com",
+            "api.github.com",
+            "raw.githubusercontent.com",
+            "gist.github.com",
+            "codeload.github.com",  # For downloading repository archives
+            # GitHub Enterprise customers may add their domains here
+            # Example: "github.internal.company.com"
+        }
+    )
+
     @staticmethod
-    def sanitize_github_url(url: str) -> bool:
-        """Validate GitHub URL is legitimate.
+    def validate_github_url(url: str) -> bool:
+        """Validate GitHub URL is legitimate using an explicit allowlist.
+
+        Uses an explicit list of approved GitHub domains to prevent
+        subdomain spoofing attacks. Only exact domain matches are allowed
+        from the predefined allowlist.
 
         Args:
             url: URL to validate.
 
         Returns:
             bool: True if URL is a valid GitHub URL, False otherwise.
+
+        Example:
+            >>> InputValidator.validate_github_url("https://github.com/user/repo")
+            True
+            >>> InputValidator.validate_github_url("https://github.com.evil.com/repo")
+            False
         """
         if not url or not isinstance(url, str):
+            logger.warning("GitHub URL validation failed: URL is None or not a string")
             return False
 
-        # Check for GitHub domains
-        allowed_domains = [
-            "https://github.com/",
-            "https://api.github.com/",
-            "https://raw.githubusercontent.com/",
-        ]
+        try:
+            parsed = urlparse(url)
 
-        return any(url.startswith(domain) for domain in allowed_domains)
+            # Check scheme is https
+            if parsed.scheme != "https":
+                logger.warning(
+                    f"GitHub URL validation failed: scheme must be https, got {parsed.scheme}"
+                )
+                return False
+
+            # Use hostname instead of netloc to avoid port issues
+            hostname = parsed.hostname
+            if hostname is None:
+                logger.warning(f"GitHub URL validation failed: no hostname in {url}")
+                return False
+
+            # Normalize hostname to lowercase for case-insensitive comparison
+            normalized_hostname = hostname.lower()
+
+            # Check if hostname is in explicit allowlist (exact match only)
+            # This prevents attacks like github.com.evil.com from being accepted
+            is_allowed = normalized_hostname in InputValidator.ALLOWED_GITHUB_DOMAINS
+
+            if not is_allowed:
+                logger.warning(f"GitHub URL validation failed: hostname not allowed: {hostname}")
+            return is_allowed
+
+        except (ValueError, AttributeError) as e:
+            logger.error(f"GitHub URL validation error for {url}: {e}")
+            return False
