@@ -1,13 +1,15 @@
 """Secure file handling utilities for atomic operations and rollback."""
 
+import logging
 import os
 import shutil
 import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Final
 
-logger = __import__("logging").getLogger(__name__)
+logger: Final[logging.Logger] = logging.getLogger(__name__)
 
 
 class SecureFileHandler:
@@ -22,7 +24,7 @@ class SecureFileHandler:
 
     @staticmethod
     @contextmanager
-    def secure_temp_file(suffix: str = "", content: str | None = None) -> Iterator[str]:
+    def secure_temp_file(suffix: str = "", content: str | None = None) -> Iterator[Path]:
         """Create a secure temporary file with automatic cleanup.
 
         Args:
@@ -30,7 +32,7 @@ class SecureFileHandler:
             content: Optional content to write to the temporary file.
 
         Yields:
-            str: Path to the temporary file.
+            Path: Path to the temporary file.
 
         Example:
             >>> with SecureFileHandler.secure_temp_file() as temp_path:
@@ -39,21 +41,21 @@ class SecureFileHandler:
             # File is automatically deleted
         """
         fd, path = tempfile.mkstemp(suffix=suffix)
+        path_obj = Path(path)
 
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
-                if content:
+                if content is not None:
                     f.write(content)
 
-            yield path
+            yield path_obj
 
         finally:
             # Secure deletion
-            if os.path.exists(path):
-                try:
-                    os.remove(path)
-                except OSError as e:
-                    logger.warning(f"Failed to remove temporary file {path}: {e}")
+            try:
+                path_obj.unlink(missing_ok=True)
+            except OSError:
+                logger.exception(f"Failed to remove temporary file {path_obj}", exc_info=True)
 
     @staticmethod
     def atomic_write(file_path: Path, content: str, backup: bool = True) -> None:
@@ -78,6 +80,7 @@ class SecureFileHandler:
             ... )
         """
         backup_path: Path | None = None
+        temp_file: Path | None = None
 
         try:
             # Create backup if file exists and backup is enabled
@@ -90,15 +93,38 @@ class SecureFileHandler:
 
             with open(temp_file, "w", encoding="utf-8") as f:
                 f.write(content)
+                f.flush()  # Ensure data is written to OS buffer
+                os.fsync(f.fileno())  # Ensure data is written to disk
 
             # Atomic move (atomic on most filesystems)
             temp_file.replace(file_path)
+
+            # Ensure directory entry durability
+            dir_fd = None
+            try:
+                # Open directory descriptor with proper flags
+                dir_fd = os.open(str(file_path.parent), os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+                os.fsync(dir_fd)
+            except (OSError, NotADirectoryError, IsADirectoryError):
+                # Directory fsync may not be supported on all systems
+                # This is not critical for the atomic operation
+                pass
+            finally:
+                if dir_fd is not None:
+                    os.close(dir_fd)
 
             # Clean up backup on success
             if backup_path and backup_path.exists():
                 backup_path.unlink()
 
-        except Exception as e:
+        except OSError as e:
+            # Clean up temporary file if it exists
+            if temp_file and temp_file.exists():
+                try:
+                    temp_file.unlink()
+                except OSError as cleanup_error:
+                    logger.warning(f"Failed to remove temporary file {temp_file}: {cleanup_error}")
+
             # Restore backup on failure
             if backup_path and backup_path.exists() and backup:
                 try:
@@ -123,10 +149,13 @@ class SecureFileHandler:
             return True
 
         try:
-            if path.is_dir():
+            if path.is_symlink() or path.is_file():
+                path.unlink(missing_ok=True)
+            elif path.is_dir():
                 shutil.rmtree(path)
             else:
-                os.remove(path)
+                # Unknown type (e.g., device), attempt unlink
+                path.unlink(missing_ok=True)
 
             return True
 
@@ -145,8 +174,18 @@ class SecureFileHandler:
         Returns:
             bool: True if the copy was successful, False otherwise.
         """
-        if not source.exists():
-            logger.error(f"Source file does not exist: {source}")
+        # Ensure both parameters are Path instances
+        source = Path(source)
+        destination = Path(destination)
+
+        if not source.is_file():
+            # Provide rich diagnostic information
+            resolved_path = source.resolve() if source.exists() else "N/A"
+            logger.error(
+                f"Source is not a regular file: {source} "
+                f"(is_dir={source.is_dir()}, is_symlink={source.is_symlink()}, "
+                f"resolved={resolved_path})"
+            )
             return False
 
         try:
@@ -156,6 +195,6 @@ class SecureFileHandler:
             shutil.copy2(source, destination)
             return True
 
-        except OSError as e:
-            logger.error(f"Failed to copy {source} to {destination}: {e}")
+        except Exception as e:
+            logger.exception(f"Failed to copy {source} to {destination}: {type(e).__name__}: {e}")
             return False

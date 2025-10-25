@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -15,26 +16,31 @@ class TestSecureTempFile:
         """Test temporary file is created and cleaned up automatically."""
         with SecureFileHandler.secure_temp_file() as temp_path:
             # File should exist
-            assert Path(temp_path).exists()
+            assert temp_path.exists()
 
             # Write to file
-            Path(temp_path).write_text("test content")
+            temp_path.write_text("test content")
 
         # File should be deleted after context exits
-        assert not Path(temp_path).exists()
+        assert not temp_path.exists()
 
     def test_with_suffix(self) -> None:
         """Test temporary file with suffix."""
         with SecureFileHandler.secure_temp_file(suffix=".json") as temp_path:
-            assert temp_path.endswith(".json")
-            assert Path(temp_path).exists()
+            assert temp_path.suffix == ".json"
+            assert temp_path.exists()
 
     def test_with_content(self) -> None:
         """Test temporary file with pre-written content."""
         content = '{"key": "value"}'
 
         with SecureFileHandler.secure_temp_file(content=content) as temp_path:
-            assert Path(temp_path).read_text() == content
+            assert temp_path.read_text() == content
+
+    def test_with_empty_content(self) -> None:
+        """Test temporary file with empty string content."""
+        with SecureFileHandler.secure_temp_file(content="") as temp_path:
+            assert temp_path.read_text() == ""
 
     def test_multiple_temp_files(self) -> None:
         """Test creating multiple temporary files."""
@@ -47,7 +53,7 @@ class TestSecureTempFile:
 
         # All files should be cleaned up
         for path in paths:
-            assert not Path(path).exists()
+            assert not path.exists()
 
 
 class TestAtomicWrite:
@@ -221,7 +227,7 @@ class TestIntegration:
             # Create temp file with content
             with SecureFileHandler.secure_temp_file(content="temp content") as temp_path:
                 # Atomic write to final location
-                SecureFileHandler.atomic_write(final_file, Path(temp_path).read_text())
+                SecureFileHandler.atomic_write(final_file, temp_path.read_text())
 
             assert final_file.exists()
             assert final_file.read_text() == "temp content"
@@ -233,7 +239,7 @@ class TestIntegration:
             with SecureFileHandler.secure_temp_file(content="workflow content") as temp_path:
                 # Atomic write to intermediate file
                 intermediate = Path(tmpdir) / "intermediate.txt"
-                SecureFileHandler.atomic_write(intermediate, Path(temp_path).read_text())
+                SecureFileHandler.atomic_write(intermediate, temp_path.read_text())
 
                 # Copy to final location
                 final = Path(tmpdir) / "final.txt"
@@ -245,4 +251,174 @@ class TestIntegration:
                 # Cleanup
                 SecureFileHandler.safe_delete(intermediate)
 
-            assert not Path(tmpdir).exists() or not intermediate.exists()
+            assert not intermediate.exists()
+
+
+class TestEdgeCases:
+    """Edge case tests for secure file operations."""
+
+    @pytest.mark.parametrize("backup", [True, False])
+    def test_atomic_write_replace_failure(
+        self, backup: bool, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test atomic_write when replace/rename step fails to ensure no silent data loss."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "test.txt"
+            original_content = "original content"
+            new_content = "new content"
+
+            # Create original file if backup is enabled
+            if backup:
+                file_path.write_text(original_content)
+
+            # Mock Path.replace to raise OSError during atomic move
+            def mock_replace(self: Path, target: Path) -> None:
+                raise OSError("Simulated filesystem error during replace")
+
+            monkeypatch.setattr(Path, "replace", mock_replace)
+
+            # Should raise OSError and not lose data
+            with pytest.raises(OSError, match="Atomic write failed"):
+                SecureFileHandler.atomic_write(file_path, new_content)
+
+            # Verify original content is preserved (backup case) or file doesn't exist (no backup)
+            if backup:
+                assert file_path.read_text() == original_content
+            else:
+                assert not file_path.exists()
+
+            # Verify temp file is cleaned up
+            temp_file = file_path.with_suffix(file_path.suffix + ".tmp")
+            assert not temp_file.exists()
+
+    @pytest.mark.parametrize(
+        "target_type,target_content",
+        [
+            ("file", "file content"),
+            ("directory", None),
+        ],
+    )
+    def test_safe_delete_symlink_behavior(
+        self, target_type: str, target_content: str | None
+    ) -> None:
+        """Test safe_delete behavior on symlinks pointing to files and directories."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+
+            # Create target
+            if target_type == "file":
+                target = tmpdir_path / "target_file.txt"
+                target.write_text(target_content or "")
+            else:  # directory
+                target = tmpdir_path / "target_dir"
+                target.mkdir()
+                (target / "nested_file.txt").write_text("nested content")
+
+            # Create symlink
+            symlink = tmpdir_path / "symlink"
+            symlink.symlink_to(target)
+
+            # Verify symlink exists and points to target
+            assert symlink.is_symlink()
+            assert symlink.exists()
+            assert target.exists()
+
+            # Delete symlink (should only delete the link, not the target)
+            result = SecureFileHandler.safe_delete(symlink)
+
+            # Verify deletion was successful
+            assert result is True
+            assert not symlink.exists()  # Symlink should be gone
+            assert target.exists()  # Target should still exist
+
+            # Verify target content is preserved
+            if target_type == "file":
+                assert target.read_text() == target_content
+            else:
+                assert target.is_dir()
+                assert (target / "nested_file.txt").exists()
+
+    def test_secure_temp_file_explicit_empty_string(self) -> None:
+        """Test secure_temp_file with explicit empty string content."""
+        with SecureFileHandler.secure_temp_file(content="") as temp_path:
+            # File should be created
+            assert temp_path.exists()
+
+            # File should contain exactly empty string
+            assert temp_path.read_text() == ""
+
+            # File should be empty (0 bytes)
+            assert temp_path.stat().st_size == 0
+
+            # Should be able to write to it
+            temp_path.write_text("additional content")
+            assert temp_path.read_text() == "additional content"
+
+        # File should be cleaned up
+        assert not temp_path.exists()
+
+    def test_secure_temp_file_empty_vs_none_content(self) -> None:
+        """Test distinction between empty string and None content."""
+        # Test with None (should create empty file)
+        with SecureFileHandler.secure_temp_file(content=None) as temp_path_none:
+            assert temp_path_none.exists()
+            assert temp_path_none.read_text() == ""
+
+        # Test with empty string (should create file with empty content)
+        with SecureFileHandler.secure_temp_file(content="") as temp_path_empty:
+            assert temp_path_empty.exists()
+            assert temp_path_empty.read_text() == ""
+
+        # Both should behave the same way
+        assert not temp_path_none.exists()
+        assert not temp_path_empty.exists()
+
+    def test_safe_delete_nonexistent_symlink(self) -> None:
+        """Test safe_delete on nonexistent symlink."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            nonexistent_symlink = Path(tmpdir) / "nonexistent_symlink"
+
+            # Should return True for nonexistent path
+            result = SecureFileHandler.safe_delete(nonexistent_symlink)
+            assert result is True
+
+    def test_safe_delete_broken_symlink(self) -> None:
+        """Test safe_delete on broken symlink."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+
+            # Create a symlink to nonexistent target
+            broken_symlink = tmpdir_path / "broken_symlink"
+            broken_symlink.symlink_to("nonexistent_target")
+
+            # Verify it's a broken symlink
+            assert broken_symlink.is_symlink()
+            assert not broken_symlink.exists()  # Broken symlink
+
+            # Should successfully delete the symlink
+            result = SecureFileHandler.safe_delete(broken_symlink)
+            assert result is True
+            assert not broken_symlink.exists()
+
+    def test_atomic_write_file_write_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test atomic_write when file write fails."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "test.txt"
+
+            # Mock open to raise OSError during file write
+            original_open = open
+
+            def mock_open(*args: Any, **kwargs: Any) -> Any:
+                if len(args) > 0 and str(args[0]).endswith(".tmp"):
+                    raise OSError("Permission denied during file write")
+                return original_open(*args, **kwargs)
+
+            monkeypatch.setattr("builtins.open", mock_open)
+
+            # Should raise OSError
+            with pytest.raises(OSError, match="Atomic write failed"):
+                SecureFileHandler.atomic_write(file_path, "content")
+
+            # Verify temp file is cleaned up
+            temp_file = file_path.with_suffix(file_path.suffix + ".tmp")
+            assert not temp_file.exists()
