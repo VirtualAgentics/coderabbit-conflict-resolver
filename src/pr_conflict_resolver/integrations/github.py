@@ -33,6 +33,11 @@ class GitHubCommentExtractor:
     def fetch_pr_comments(self, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
         """Fetch all comments for a pull request.
 
+        Args:
+            owner: Repository owner.
+            repo: Repository name.
+            pr_number: Pull request number.
+
         Returns:
             comments (list[dict[str, Any]]): Combined list of review comments and issue (general)
                 comments for the specified pull request. Returns an empty list if no comments are
@@ -53,6 +58,11 @@ class GitHubCommentExtractor:
     def _fetch_review_comments(self, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
         """Fetch review comments for a pull request from the GitHub API.
 
+        Args:
+            owner: Repository owner.
+            repo: Repository name.
+            pr_number: Pull request number.
+
         Returns:
             list[dict[str, Any]]: A list of comment objects parsed from the API response; returns
                 an empty list if the request fails or the response JSON is not a list.
@@ -70,10 +80,14 @@ class GitHubCommentExtractor:
     def _fetch_issue_comments(self, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
         """Fetch issue comments for a pull request.
 
+        Args:
+            owner: Repository owner.
+            repo: Repository name.
+            pr_number: Pull request number.
+
         Returns:
-            comments (list[dict[str, Any]]): List of comment objects parsed from the GitHub API
-                response.
-                Returns an empty list if the response is not a list or if a network/error occurs.
+            List of comment objects parsed from the GitHub API response. Returns an empty list if
+            the response is not a list or if a network/error occurs.
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/issues/{pr_number}/comments"
 
@@ -88,9 +102,14 @@ class GitHubCommentExtractor:
     def fetch_pr_metadata(self, owner: str, repo: str, pr_number: int) -> dict[str, Any] | None:
         """Fetch metadata for a GitHub pull request.
 
+        Args:
+            owner: Repository owner.
+            repo: Repository name.
+            pr_number: Pull request number.
+
         Returns:
-            dict: Pull request metadata as returned by the GitHub API, or `None` if the request
-                fails or the response is not a JSON object.
+            Pull request metadata as returned by the GitHub API, or None if the request fails
+            or the response is not a JSON object.
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
 
@@ -105,8 +124,14 @@ class GitHubCommentExtractor:
     def fetch_pr_files(self, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
         """Retrieve the list of files changed in a pull request.
 
-        @returns list[dict[str, Any]]: A list of file objects as returned by the GitHub API for
-            the pull request, or an empty list if the response is not a list or the request fails.
+        Args:
+            owner: Repository owner.
+            repo: Repository name.
+            pr_number: Pull request number.
+
+        Returns:
+            A list of file objects as returned by the GitHub API for the pull request, or an empty
+            list if the response is not a list or the request fails.
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls/{pr_number}/files"
 
@@ -123,15 +148,14 @@ class GitHubCommentExtractor:
     ) -> list[dict[str, Any]]:
         """Filter a list of GitHub PR comments to those authored by specified bot accounts.
 
-        Parameters:
-            comments (list[dict[str, Any]]): List of comment objects as returned by the GitHub API.
-            bot_names (list[str] | None): Optional list of substrings to match against each
-                comment's user login (case-insensitive).
-                Defaults to ["coderabbit", "code-review", "review-bot"] when omitted.
+        Args:
+            comments: List of comment objects as returned by the GitHub API.
+            bot_names: Optional list of substrings to match against each comment's user login
+                (case-insensitive). Defaults to ["coderabbit", "code-review", "review-bot"].
 
         Returns:
-            list[dict[str, Any]]: Subset of `comments` where the comment author's login contains
-                any of the `bot_names` substrings (case-insensitive).
+            Subset of comments where the comment author's login contains any of the bot_names
+            substrings (case-insensitive).
         """
         if bot_names is None:
             bot_names = ["coderabbit", "code-review", "review-bot"]
@@ -147,24 +171,14 @@ class GitHubCommentExtractor:
         return filtered
 
     def extract_suggestion_blocks(self, comment: dict[str, Any]) -> list[dict[str, Any]]:
-        """Extracts code suggestion blocks from a comment body.
+        """Extract code suggestion blocks from a comment body.
 
-        Searches the comment's "body" for fenced suggestion blocks delimited by ```suggestion ...
-        ```, and returns a list describing each found block.
-
-        Parameters:
-            comment (dict[str, Any]): Comment object expected to contain a "body" key with the
-                comment text.
+        Args:
+            comment: Comment dict containing a "body" string.
 
         Returns:
-            list[dict[str, Any]]: A list of block dictionaries with the following keys:
-                - content (str): The text inside the suggestion fence (trailing newlines removed).
-                - option_label (str | None): If an option header like **Label** immediately
-                    precedes the block, the header text without a trailing colon; otherwise `None`.
-                - context (str): Up to 100 characters of text immediately before the block (used
-                    to provide surrounding context).
-                - position (int): The character index in the comment body where the suggestion
-                    fence begins.
+            List of dicts with keys: content (str), option_label (str|None), context (str),
+            position (int).
         """
         body = comment.get("body", "")
         if not body:

@@ -57,8 +57,8 @@ def sample_json_file(temp_workspace: Path) -> Path:
     """
     Create a sample package.json file inside the given workspace for use in tests.
 
-    Parameters:
-        temp_workspace (Path): Directory in which to create the sample file.
+    Args:
+        temp_workspace: Directory in which to create the sample file.
 
     Returns:
         Path: Path to the created "package.json" file.
@@ -73,8 +73,8 @@ def sample_yaml_file(temp_workspace: Path) -> Path:
     """
     Create a YAML file named `config.yaml` containing sample settings inside the given workspace.
 
-    Parameters:
-        temp_workspace (Path): Directory in which to create the `config.yaml` file.
+    Args:
+        temp_workspace: Directory in which to create the `config.yaml` file.
 
     Returns:
         Path: Path to the created `config.yaml` file.
