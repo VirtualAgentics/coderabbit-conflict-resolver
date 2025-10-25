@@ -51,7 +51,10 @@ type-check: ## Run type checking with MyPy
 	mypy src/
 
 security: ## Run security checks
+	set -e
+	@echo "Running Bandit..."
 	bandit -r src/ -f json -o bandit-report.json
+	@echo "Running Safety..."
 	safety check --json --save-json safety-report.json
 
 docs: ## Build documentation
