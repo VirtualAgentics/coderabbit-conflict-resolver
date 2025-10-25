@@ -37,10 +37,9 @@ jobs:
         run: bandit -r src/ -f json -o bandit-report.json
 
       - name: Run Safety vulnerability scan
-        uses: pyupio/safety-action@v1
+        uses: pyupio/safety-action@2591cf2f3e67ba68b923f4c92f0d36e281c65023 # v1.0.1
         with:
           api-key: ${{ secrets.SAFETY_API_KEY }}
-          scan: 'env'
         continue-on-error: true
 
       - name: Run pip-audit check (JSON)
