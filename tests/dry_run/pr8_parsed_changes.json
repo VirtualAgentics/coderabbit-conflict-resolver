@@ -1,0 +1,17 @@
+[
+  {
+    "path": "src/pr_conflict_resolver/core/resolver.py",
+    "start_line": 499,
+    "end_line": 501,
+    "content": "        Note:\n            Fetch errors are logged. Set `config['strict_fetch']=True` to raise on emp...",
+    "content_length": 123,
+    "fingerprint": "a22725e86a62bbd2",
+    "file_type": "python",
+    "metadata": {
+      "url": "https://github.com/VirtualAgentics/coderabbit-conflict-resolver/pull/8#discussion_r2462887331",
+      "author": "coderabbitai[bot]",
+      "source": "suggestion",
+      "option_label": null
+    }
+  }
+]
