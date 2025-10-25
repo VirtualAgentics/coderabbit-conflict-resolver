@@ -74,7 +74,7 @@ class TestFilePathValidation:
     def test_empty_or_none_path(self) -> None:
         """Test validation of empty or None paths."""
         assert not InputValidator.validate_file_path("")
-        assert not InputValidator.validate_file_path(None)  # type: ignore
+        assert not InputValidator.validate_file_path(None)
 
     def test_unicode_normalization_attack(self) -> None:
         """Test rejection of Unicode normalization attacks."""
@@ -150,7 +150,7 @@ class TestFileExtensionValidation:
     def test_empty_or_none_path(self) -> None:
         """Test handling of empty or None paths."""
         assert not InputValidator.validate_file_extension("")
-        assert not InputValidator.validate_file_extension(None)  # type: ignore
+        assert not InputValidator.validate_file_extension(None)
 
 
 class TestContentSanitization:
@@ -313,7 +313,7 @@ class TestGitHubURLValidation:
     def test_empty_or_none_url(self) -> None:
         """Test handling of empty or None URLs."""
         assert not InputValidator.validate_github_url("")
-        assert not InputValidator.validate_github_url(None)  # type: ignore
+        assert not InputValidator.validate_github_url(None)
 
     def test_github_lookalike_domains(self) -> None:
         """Test rejection of GitHub lookalike domains."""
