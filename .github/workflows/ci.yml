@@ -34,7 +34,7 @@ jobs:
         run: ruff check src/ tests/
 
       - name: Type check with MyPy
-        run: mypy src/
+        run: mypy src/ --strict
 
   test:
     runs-on: ubuntu-latest
