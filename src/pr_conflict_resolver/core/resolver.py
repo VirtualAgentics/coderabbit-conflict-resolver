@@ -38,6 +38,7 @@ class ConflictResolver:
             FileType.TOML: TomlHandler(),
         }
         self.strategy = PriorityStrategy(config)
+        self.github_extractor = GitHubCommentExtractor()
 
     def detect_file_type(self, path: str) -> FileType:
         """Determine the file type based on the file path's extension.
@@ -480,11 +481,13 @@ class ConflictResolver:
         Raises:
             RuntimeError: If fetching PR comments fails.
         """
-        extractor = GitHubCommentExtractor()
         try:
-            return extractor.fetch_pr_comments(owner, repo, pr_number)
+            return self.github_extractor.fetch_pr_comments(owner, repo, pr_number)
         except Exception as e:
-            raise RuntimeError(f"Failed to fetch PR comments: {e}") from e
+            raise RuntimeError(
+                f"Failed to fetch PR comments "
+                f"(owner={owner}, repo={repo}, pr_number={pr_number}): {e}"
+            ) from e
 
     def resolve_pr_conflicts(self, owner: str, repo: str, pr_number: int) -> ResolutionResult:
         """Orchestrates detection, resolution, and application of suggested changes.
