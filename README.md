@@ -3,6 +3,7 @@
 An intelligent, automated conflict resolution system for GitHub PR comments, specifically designed for [CodeRabbit AI](https://coderabbit.ai) but extensible to other code review bots.
 
 [![CI](https://github.com/VirtualAgentics/coderabbit-conflict-resolver/workflows/CI/badge.svg)](https://github.com/VirtualAgentics/coderabbit-conflict-resolver/actions)
+[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/VirtualAgentics/coderabbit-conflict-resolver?utm_source=oss&utm_medium=github&utm_campaign=VirtualAgentics%2Fcoderabbit-conflict-resolver&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)](https://coderabbit.ai)
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)

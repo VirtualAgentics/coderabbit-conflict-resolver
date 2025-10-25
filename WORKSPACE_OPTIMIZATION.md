@@ -24,10 +24,10 @@ Cursor workspace reloads occur frequently, causing AI assistant hangs and reduce
 - Prevents `.pyc` file generation during Python imports
 - Reduces file system events that trigger workspace reloads
 
-### 3. Cache Cleanup Scripts
+### 3. Makefile Cleanup Commands
 
-- `cleanup_caches.py`: Removes all cache directories and temporary files
-- `monitor_file_events.py`: Monitors file system events to identify triggers
+Use the project's Makefile for cache cleanup:
+- `make clean`: Removes all cache directories and temporary files
 
 ## Best Practices for File Editing
 
@@ -52,7 +52,7 @@ Cursor workspace reloads occur frequently, causing AI assistant hangs and reduce
 
 ```bash
 export PYTHONDONTWRITEBYTECODE=1
-python cleanup_caches.py
+make clean
 ```
 
 ### During Development
@@ -65,16 +65,10 @@ python cleanup_caches.py
 ### After Work Session
 
 ```bash
-python cleanup_caches.py
+make clean
 ```
 
 ## Monitoring and Debugging
-
-### Check for Cache Generation
-
-```bash
-python monitor_file_events.py
-```
 
 ### Manual Cache Cleanup
 
@@ -99,7 +93,7 @@ find . -name ".ruff_cache" -type d -exec rm -rf {} + 2>/dev/null || true
 1. Check if new cache directories are being created
 2. Verify `.cursorignore` patterns are comprehensive
 3. Ensure `PYTHONDONTWRITEBYTECODE=1` is set
-4. Monitor file events with the provided script
+4. Use `make clean` to clear all caches
 
 ### If AI assistant still hangs
 

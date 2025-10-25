@@ -473,7 +473,10 @@ class ConflictResolver:
         """
         # Extract comments from GitHub
         extractor = GitHubCommentExtractor()
-        comments = extractor.fetch_pr_comments(owner, repo, pr_number)
+        try:
+            comments = extractor.fetch_pr_comments(owner, repo, pr_number)
+        except Exception as e:
+            raise RuntimeError(f"Failed to fetch PR comments: {e}") from e
 
         # Extract changes from comments
         changes = self.extract_changes_from_comments(comments)

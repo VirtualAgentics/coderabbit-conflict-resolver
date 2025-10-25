@@ -8,8 +8,10 @@ the conflict resolver.
 def normalize_content(text: str) -> str:
     """Normalize text by stripping whitespace and removing empty lines.
 
+    Args:
+        text: Input text to normalize.
+
     Returns:
-        A string where each non-empty original line has been trimmed and the remaining
-        lines are joined with a single newline character.
+        Normalized string with trimmed, non-empty lines joined by a single newline.
     """
     return "\n".join(line.strip() for line in text.splitlines() if line.strip())

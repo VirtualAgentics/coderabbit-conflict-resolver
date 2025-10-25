@@ -95,12 +95,12 @@ class BaseHandler(ABC):
     def restore_file(self, backup_path: str, original_path: str) -> bool:
         """Restore an original file by copying it from a backup and removing the backup file.
 
-        Parameters:
-            backup_path (str): Path to the backup file to restore from.
-            original_path (str): Path where the original file should be restored.
+        Args:
+            backup_path: Path to the backup file to restore from.
+            original_path: Path where the original file should be restored.
 
         Returns:
-            bool: `True` if the file was restored and the backup removed, `False` if an error
+            `True` if the file was restored and the backup removed, `False` if an error
                 occurred.
         """
         import shutil

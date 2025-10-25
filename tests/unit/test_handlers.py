@@ -317,4 +317,4 @@ class TestTomlHandler:
         sections = handler._extract_sections(data)
 
         expected_sections = ["section1", "section2", "section2.subsection1", "section2.subsection2"]
-        assert all(section in sections for section in expected_sections)
+        assert set(expected_sections) <= set(sections)

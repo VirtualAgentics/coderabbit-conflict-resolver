@@ -227,4 +227,3 @@ class TestFullWorkflow:
 
             # All configurations should work
             assert isinstance(conflicts, list)
-            assert len(conflicts) >= 0
