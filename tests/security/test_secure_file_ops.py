@@ -1,6 +1,7 @@
 """Tests for secure file operations."""
 
 import tempfile
+import unittest.mock
 from pathlib import Path
 from typing import Any
 
@@ -105,18 +106,41 @@ class TestAtomicWrite:
             assert file_path.read_text() == "new"
 
     def test_atomic_write_rollback_on_failure(self) -> None:
-        """Test atomic write handles errors gracefully."""
+        """Test atomic write handles errors gracefully with proper rollback."""
         with tempfile.TemporaryDirectory() as tmpdir:
             file_path = Path(tmpdir) / "test.txt"
             original_content = "original content"
             file_path.write_text(original_content)
 
-            # Test with invalid path that will cause failure
-            invalid_path = Path("/root/inaccessible/file.txt")  # Will fail to write
+            # Track calls to replace method to be more specific about when to fail
+            replace_call_count = 0
+            original_replace = Path.replace
 
-            # Should raise OSError
-            with pytest.raises(OSError):
-                SecureFileHandler.atomic_write(invalid_path, "content")
+            def mock_replace(self: Path, target: Path) -> None:
+                nonlocal replace_call_count
+                replace_call_count += 1
+                # Only fail on the first call (the main atomic move), not the backup restoration
+                if replace_call_count == 1:
+                    raise OSError("Simulated filesystem error during atomic move")
+                # For backup restoration, use the original method
+                original_replace(self, target)
+
+            # Use unittest.mock.patch to avoid type issues
+            with unittest.mock.patch.object(Path, "replace", new=mock_replace):
+                # Should raise OSError
+                with pytest.raises(OSError, match="Atomic write failed"):
+                    SecureFileHandler.atomic_write(file_path, "new content")
+
+                # Verify original content is preserved (backup restored)
+                assert file_path.read_text() == original_content
+
+                # Verify no temp files remain
+                temp_files = list(Path(tmpdir).glob("*.tmp"))
+                assert len(temp_files) == 0, f"Temp files not cleaned up: {temp_files}"
+
+                # Verify backup file is cleaned up after successful restoration
+                backup_files = list(Path(tmpdir).glob("*.bak"))
+                assert len(backup_files) == 0, f"Backup files not cleaned up: {backup_files}"
 
     def test_atomic_write_empty_content(self) -> None:
         """Test atomic write with empty content."""
