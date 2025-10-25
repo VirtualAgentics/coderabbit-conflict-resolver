@@ -98,6 +98,9 @@ ignore = ["D203", "D213"] # Conflicting docstring rules
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
+[tool.ruff.lint.pycodestyle]
+max-line-length = 500
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
