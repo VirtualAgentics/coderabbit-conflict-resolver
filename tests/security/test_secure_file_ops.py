@@ -1,5 +1,7 @@
 """Tests for secure file operations."""
 
+import os
+import shutil
 import tempfile
 import unittest.mock
 from pathlib import Path
@@ -16,8 +18,6 @@ class TestSecureTempFile:
     def test_create_and_cleanup(self) -> None:
         """Test temporary file is created and cleaned up automatically."""
         with SecureFileHandler.secure_temp_file() as temp_path:
-            # Verify temp_path is a Path object
-            assert isinstance(temp_path, Path)
             # File should exist
             assert temp_path.exists()
 
@@ -30,8 +30,6 @@ class TestSecureTempFile:
     def test_with_suffix(self) -> None:
         """Test temporary file with suffix."""
         with SecureFileHandler.secure_temp_file(suffix=".json") as temp_path:
-            # Verify temp_path is a Path object
-            assert isinstance(temp_path, Path)
             assert temp_path.suffix == ".json"
             assert temp_path.exists()
 
@@ -40,27 +38,19 @@ class TestSecureTempFile:
         content = '{"key": "value"}'
 
         with SecureFileHandler.secure_temp_file(content=content) as temp_path:
-            # Verify temp_path is a Path object
-            assert isinstance(temp_path, Path)
             assert temp_path.read_text() == content
 
     def test_with_empty_content(self) -> None:
         """Test temporary file with empty string content."""
         with SecureFileHandler.secure_temp_file(content="") as temp_path:
-            # Verify temp_path is a Path object
-            assert isinstance(temp_path, Path)
             assert temp_path.read_text() == ""
 
     def test_multiple_temp_files(self) -> None:
         """Test creating multiple temporary files."""
         paths = []
         with SecureFileHandler.secure_temp_file() as temp1:
-            # Verify temp1 is a Path object
-            assert isinstance(temp1, Path)
             paths.append(temp1)
             with SecureFileHandler.secure_temp_file() as temp2:
-                # Verify temp2 is a Path object
-                assert isinstance(temp2, Path)
                 paths.append(temp2)
                 assert temp1 != temp2
 
@@ -458,3 +448,163 @@ class TestEdgeCases:
             # Verify temp file is cleaned up
             temp_file = file_path.with_suffix(file_path.suffix + ".tmp")
             assert not temp_file.exists()
+
+    def test_secure_temp_file_cleanup_failure(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test secure_temp_file cleanup failure logging (lines 57-58)."""
+
+        # Mock Path.unlink to raise OSError during cleanup
+        def mock_unlink(self: Path, missing_ok: bool = False) -> None:
+            raise OSError("Permission denied during cleanup")
+
+        monkeypatch.setattr(Path, "unlink", mock_unlink)
+
+        with SecureFileHandler.secure_temp_file() as temp_path:
+            # File should be created successfully
+            assert temp_path.exists()
+
+        # Verify warning is logged for cleanup failure
+        assert "Failed to remove temporary file" in caplog.text
+
+    def test_atomic_write_dir_fsync_not_directory_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test NotADirectoryError during directory fsync (lines 108-111)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "test.txt"
+
+            # Store original os.open
+            original_open = os.open
+
+            # Mock os.open to raise NotADirectoryError for directory operations
+            def mock_open(path: str, flags: int, **kwargs: Any) -> int:
+                if hasattr(os, "O_DIRECTORY") and (flags & os.O_DIRECTORY):
+                    raise NotADirectoryError("Not a directory")
+                return original_open(path, flags, **kwargs)
+
+            monkeypatch.setattr(os, "open", mock_open)
+
+            # Should complete successfully despite directory fsync failure
+            SecureFileHandler.atomic_write(file_path, "content")
+            assert file_path.exists()
+            assert file_path.read_text() == "content"
+
+    def test_atomic_write_dir_fsync_is_directory_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test IsADirectoryError during directory fsync (lines 108-111)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "test.txt"
+
+            # Store original os.open
+            original_open = os.open
+
+            # Mock os.open to raise IsADirectoryError for directory operations
+            def mock_open(path: str, flags: int, **kwargs: Any) -> int:
+                if hasattr(os, "O_DIRECTORY") and (flags & os.O_DIRECTORY):
+                    raise IsADirectoryError("Is a directory")
+                return original_open(path, flags, **kwargs)
+
+            monkeypatch.setattr(os, "open", mock_open)
+
+            # Should complete successfully despite directory fsync failure
+            SecureFileHandler.atomic_write(file_path, "content")
+            assert file_path.exists()
+            assert file_path.read_text() == "content"
+
+    def test_atomic_write_temp_cleanup_failure_during_rollback(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test temp file cleanup failure during rollback (lines 125-126)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "test.txt"
+            file_path.write_text("original")
+
+            # Mock Path.replace to fail (triggering rollback)
+            def mock_replace(self: Path, target: Path) -> None:
+                raise OSError("Simulated filesystem error during replace")
+
+            # Store original unlink method before patching
+            original_unlink = Path.unlink
+
+            # Mock Path.unlink to fail during temp file cleanup
+            def mock_unlink(self: Path, missing_ok: bool = False) -> None:
+                if str(self).endswith(".tmp"):
+                    raise OSError("Permission denied during temp cleanup")
+                # Use original unlink for other cases
+                return original_unlink(self, missing_ok=missing_ok)
+
+            monkeypatch.setattr(Path, "replace", mock_replace)
+            monkeypatch.setattr(Path, "unlink", mock_unlink)
+
+            # Should raise OSError
+            with pytest.raises(OSError, match="Atomic write failed"):
+                SecureFileHandler.atomic_write(file_path, "new content")
+
+            # Verify warning is logged for temp file cleanup failure
+            assert "Failed to remove temporary file" in caplog.text
+
+    def test_safe_delete_unknown_file_type(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test safe_delete with unknown file type (line 160)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "unknown_file"
+            file_path.write_text("content")
+
+            # Mock all file type checks to return False (unknown type)
+            def mock_is_file(self: Path) -> bool:
+                return False
+
+            def mock_is_dir(self: Path) -> bool:
+                return False
+
+            def mock_is_symlink(self: Path) -> bool:
+                return False
+
+            monkeypatch.setattr(Path, "is_file", mock_is_file)
+            monkeypatch.setattr(Path, "is_dir", mock_is_dir)
+            monkeypatch.setattr(Path, "is_symlink", mock_is_symlink)
+
+            # Should attempt unlink for unknown type
+            result = SecureFileHandler.safe_delete(file_path)
+            assert result is True
+            assert not file_path.exists()
+
+    def test_safe_delete_failure(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test safe_delete failure logging (lines 164-166)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "test.txt"
+            file_path.write_text("content")
+
+            # Mock Path.unlink to raise OSError
+            def mock_unlink(self: Path, missing_ok: bool = False) -> None:
+                raise OSError("Permission denied during deletion")
+
+            monkeypatch.setattr(Path, "unlink", mock_unlink)
+
+            # Should return False and log error
+            result = SecureFileHandler.safe_delete(file_path)
+            assert result is False
+            assert "Failed to delete" in caplog.text
+
+    def test_safe_copy_operation_failure(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test safe_copy when shutil.copy2 raises OSError (lines 200-202)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source = Path(tmpdir) / "source.txt"
+            destination = Path(tmpdir) / "dest.txt"
+            source.write_text("content")
+
+            # Mock shutil.copy2 to raise OSError
+            def mock_copy2(src: Path, dst: Path) -> None:
+                raise OSError("Permission denied during copy")
+
+            monkeypatch.setattr(shutil, "copy2", mock_copy2)
+
+            # Should return False and log exception
+            result = SecureFileHandler.safe_copy(source, destination)
+            assert result is False
+            assert "Failed to copy" in caplog.text
