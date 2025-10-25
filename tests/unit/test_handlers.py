@@ -190,7 +190,7 @@ class TestYamlHandler:
             "key2.nested2[0]",
             "key2.nested2[1]",
         ]
-        assert all(key in keys for key in expected_keys)
+        assert set(expected_keys) <= set(keys)
 
     def test_yaml_deeply_nested_structures(self) -> None:
         """Test deeply nested YAML structures (3+ levels)."""
@@ -224,7 +224,7 @@ class TestYamlHandler:
             "level1.level2.level3.level4.list[1]",
             "level1.level2.level3.level4.list[2]",
         ]
-        assert all(key in keys for key in expected_keys)
+        assert set(expected_keys) <= set(keys)
 
     def test_yaml_empty_dict_and_list(self) -> None:
         """Test empty dictionaries and empty lists."""
@@ -245,7 +245,7 @@ class TestYamlHandler:
         data_with_empty_nested = {"empty_dict": {}, "empty_list": [], "normal_key": "value"}
         keys = handler._extract_keys(data_with_empty_nested)
         expected_keys = ["empty_dict", "empty_list", "normal_key"]
-        assert all(key in keys for key in expected_keys)
+        assert set(expected_keys) <= set(keys)
 
     @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
     def test_yaml_anchors_and_aliases(self) -> None:

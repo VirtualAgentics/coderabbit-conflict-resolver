@@ -464,19 +464,40 @@ class ConflictResolver:
         except Exception:
             return False
 
+    def _fetch_comments_with_error_context(
+        self, owner: str, repo: str, pr_number: int
+    ) -> list[dict[str, Any]]:
+        """Fetch PR comments with proper error context.
+
+        Parameters:
+            owner (str): Repository owner.
+            repo (str): Repository name.
+            pr_number (int): Pull request number.
+
+        Returns:
+            list[dict[str, Any]]: List of PR comments.
+
+        Raises:
+            RuntimeError: If fetching PR comments fails.
+        """
+        extractor = GitHubCommentExtractor()
+        try:
+            return extractor.fetch_pr_comments(owner, repo, pr_number)
+        except Exception as e:
+            raise RuntimeError(f"Failed to fetch PR comments: {e}") from e
+
     def resolve_pr_conflicts(self, owner: str, repo: str, pr_number: int) -> ResolutionResult:
         """Orchestrates detection, resolution, and application of suggested changes.
 
         Returns:
             ResolutionResult: Summary of applied resolutions and statistics. The returned object's
                 `conflicts` attribute is populated with the list of detected conflicts for the PR.
+
+        Raises:
+            RuntimeError: If fetching PR comments fails.
         """
         # Extract comments from GitHub
-        extractor = GitHubCommentExtractor()
-        try:
-            comments = extractor.fetch_pr_comments(owner, repo, pr_number)
-        except Exception as e:
-            raise RuntimeError(f"Failed to fetch PR comments: {e}") from e
+        comments = self._fetch_comments_with_error_context(owner, repo, pr_number)
 
         # Extract changes from comments
         changes = self.extract_changes_from_comments(comments)
@@ -504,13 +525,12 @@ class ConflictResolver:
         Returns:
             list[Conflict]: List of detected Conflict objects representing overlapping or
                 incompatible suggested changes found in the pull request.
+
+        Raises:
+            RuntimeError: If fetching PR comments fails.
         """
         # Extract comments from GitHub
-        extractor = GitHubCommentExtractor()
-        try:
-            comments = extractor.fetch_pr_comments(owner, repo, pr_number)
-        except Exception as e:
-            raise RuntimeError(f"Failed to fetch PR comments: {e}") from e
+        comments = self._fetch_comments_with_error_context(owner, repo, pr_number)
 
         # Extract changes from comments
         changes = self.extract_changes_from_comments(comments)
