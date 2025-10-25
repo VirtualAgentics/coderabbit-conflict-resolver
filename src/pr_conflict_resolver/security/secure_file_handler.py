@@ -123,15 +123,17 @@ class SecureFileHandler:
                 try:
                     temp_file.unlink()
                 except OSError as cleanup_error:
-                    logger.warning(f"Failed to remove temporary file {temp_file}: {cleanup_error}")
+                    logger.warning(
+                        "Failed to remove temporary file %s: %s", temp_file, cleanup_error
+                    )
 
             # Restore backup on failure
             if backup_path and backup_path.exists() and backup:
                 try:
                     backup_path.replace(file_path)
-                    logger.info(f"Restored backup from {backup_path}")
+                    logger.info("Restored backup from %s", backup_path)
                 except OSError as restore_error:
-                    logger.error(f"Failed to restore backup: {restore_error}")
+                    logger.error("Failed to restore backup: %s", restore_error)
 
             raise OSError(f"Atomic write failed for {file_path}: {e}") from e
 
@@ -160,7 +162,7 @@ class SecureFileHandler:
             return True
 
         except OSError as e:
-            logger.error(f"Failed to delete {path}: {e}")
+            logger.error("Failed to delete %s: %s", path, e)
             return False
 
     @staticmethod
