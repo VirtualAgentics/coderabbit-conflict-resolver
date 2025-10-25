@@ -36,14 +36,13 @@ jobs:
       - name: Run Bandit security scan
         run: bandit -r src/ -f json -o bandit-report.json
 
-      - name: Run Safety check
-        run: |
-          # Try safety scan first (newer command)
-          timeout 60 safety scan --output json --output-file safety-report.json 2>/dev/null || \
-          # Fallback to safety check (deprecated but working) - filter out deprecation warning
-          timeout 60 bash -c 'safety check --output json 2>/dev/null | grep -v "DEPRECATED" | grep -v "====" | grep -v "We highly encourage" | grep -v "scan command" > safety-report.json' || \
-          # Final fallback: create empty report
-          echo '{"vulnerabilities":[]}' > safety-report.json
+      - name: Run Safety vulnerability scan
+        uses: pyupio/safety-action@v1
+        with:
+          api-key: ${{ secrets.SAFETY_API_KEY }}
+          # Output JSON report for artifact upload
+          output-format: json
+          output-file: safety-report.json
         continue-on-error: true
 
       - name: Run pip-audit check (JSON)
@@ -75,11 +74,12 @@ jobs:
           if [ -f safety-report.json ]; then
             # Validate JSON format first
             if jq empty safety-report.json 2>/dev/null; then
-              CRITICAL_VULNS=$(jq '[.vulnerabilities[]? | select(.severity == "CRITICAL")] | length' safety-report.json 2>/dev/null || echo "0")
+              # Safety Action uses 'vulnerabilities' array
+              CRITICAL_VULNS=$(jq '[.vulnerabilities[]? | select(.severity == "CRITICAL" or .severity == "critical")] | length' safety-report.json 2>/dev/null || echo "0")
               if [ "$CRITICAL_VULNS" -gt 0 ]; then
                 echo "❌ Found $CRITICAL_VULNS CRITICAL vulnerabilities in Safety scan"
                 echo "Critical vulnerabilities found:"
-                jq -r '.vulnerabilities[] | select(.severity == "CRITICAL") | "- \(.package_name): \(.vulnerability_id) - \(.advisory)"' safety-report.json 2>/dev/null
+                jq -r '.vulnerabilities[] | select(.severity == "CRITICAL" or .severity == "critical") | "- \(.package): \(.vulnerability_id) - \(.advisory)"' safety-report.json 2>/dev/null
                 exit 1
               else
                 echo "✅ No CRITICAL vulnerabilities found in Safety scan"

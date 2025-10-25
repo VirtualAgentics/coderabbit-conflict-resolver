@@ -191,6 +191,21 @@ make test       # Tests with coverage
 make security   # Security checks
 ```
 
+## Security Scanning with Safety
+
+This project uses [Safety](https://safetycli.com/) for vulnerability scanning. To run scans locally:
+
+```bash
+# Authenticate (one-time setup)
+source .venv/bin/activate
+safety auth login
+
+# Run vulnerability scan
+safety scan
+```
+
+The CI/CD pipeline automatically runs Safety scans using the [official GitHub Action](https://github.com/pyupio/safety-action). See [`.github/SAFETY_SETUP.md`](.github/SAFETY_SETUP.md) for details.
+
 ## Coding Standards
 
 ### Python Code Style
