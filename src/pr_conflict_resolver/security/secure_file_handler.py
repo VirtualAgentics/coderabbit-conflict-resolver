@@ -55,7 +55,7 @@ class SecureFileHandler:
             try:
                 path_obj.unlink(missing_ok=True)
             except OSError:
-                logger.exception(f"Failed to remove temporary file {path_obj}")
+                logger.exception("Failed to remove temporary file %s", path_obj, exc_info=True)
 
     @staticmethod
     def atomic_write(file_path: Path, content: str, backup: bool = True) -> None:
@@ -100,12 +100,12 @@ class SecureFileHandler:
             temp_file.replace(file_path)
 
             # Ensure directory entry durability
-            dir_fd = None
+            dir_fd: int | None = None
             try:
                 # Open directory descriptor with proper flags
                 dir_fd = os.open(str(file_path.parent), os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
                 os.fsync(dir_fd)
-            except (OSError, NotADirectoryError, IsADirectoryError):
+            except OSError:
                 # Directory fsync may not be supported on all systems
                 # This is not critical for the atomic operation
                 pass
@@ -197,6 +197,13 @@ class SecureFileHandler:
             shutil.copy2(source, destination)
             return True
 
-        except Exception as e:
-            logger.exception(f"Failed to copy {source} to {destination}: {type(e).__name__}: {e}")
+        except OSError as e:
+            logger.exception(
+                "Failed to copy %s to %s: %s: %s",
+                source,
+                destination,
+                type(e).__name__,
+                e,
+                exc_info=True,
+            )
             return False
