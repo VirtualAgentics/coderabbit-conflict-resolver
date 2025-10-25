@@ -10,4 +10,4 @@ TODO: Security configuration
 
 from pr_conflict_resolver.security.input_validator import InputValidator
 
-__all__ = ["InputValidator"]
+__all__ = ["InputValidator", "SecureFileHandler"]
