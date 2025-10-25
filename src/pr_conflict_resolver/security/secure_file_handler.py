@@ -55,7 +55,7 @@ class SecureFileHandler:
             try:
                 path_obj.unlink(missing_ok=True)
             except OSError:
-                logger.exception("Failed to remove temporary file %s", path_obj, exc_info=True)
+                logger.warning("Failed to remove temporary file %s", path_obj)
 
     @staticmethod
     def atomic_write(file_path: Path, content: str, backup: bool = True) -> None:
@@ -197,13 +197,6 @@ class SecureFileHandler:
             shutil.copy2(source, destination)
             return True
 
-        except OSError as e:
-            logger.exception(
-                "Failed to copy %s to %s: %s: %s",
-                source,
-                destination,
-                type(e).__name__,
-                e,
-                exc_info=True,
-            )
+        except OSError:
+            logger.exception("Failed to copy %s to %s", source, destination)
             return False
