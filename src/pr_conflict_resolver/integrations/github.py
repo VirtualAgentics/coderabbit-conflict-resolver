@@ -4,39 +4,123 @@ This module provides the GitHubCommentExtractor class that fetches
 PR comments from the GitHub API and extracts relevant information.
 """
 
+import logging
 import os
 from typing import Any
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+logger = logging.getLogger(__name__)
 
 
 class GitHubCommentExtractor:
     """Extracts comments from GitHub PRs."""
 
-    def __init__(self, token: str | None = None, base_url: str = "https://api.github.com") -> None:
+    def __init__(
+        self, token: str | None = None, base_url: str = "https://api.github.com", _timeout: int = 30
+    ) -> None:
         """Initialize the extractor with an optional GitHub token and API base URL.
 
-        Parameters:
-            token (str | None): Personal access token to authenticate GitHub API requests.
+        Args:
+            token: Personal access token to authenticate GitHub API requests.
                 If None, the value is read from the GITHUB_TOKEN environment variable.
-            base_url (str): Base URL for the GitHub API endpoints (defaults to "https://api.github.com").
+            base_url: Base URL for the GitHub API endpoints (defaults to "https://api.github.com").
+            _timeout: Request timeout in seconds (defaults to 30).
         """
         self.token = token or os.getenv("GITHUB_TOKEN")
         self.base_url = base_url
+        self._timeout = _timeout
         self.session = requests.Session()
 
+        # Configure retry strategy
+        retry_strategy = Retry(
+            total=3,
+            status_forcelist=[429, 500, 502, 503, 504],
+            backoff_factor=1,
+            allowed_methods=["GET"],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
+
+        # Set up headers
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "pr-conflict-resolver/1.0.0",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+
         if self.token:
-            self.session.headers.update(
-                {"Authorization": f"token {self.token}", "Accept": "application/vnd.github.v3+json"}
-            )
+            headers["Authorization"] = f"Bearer {self.token}"
+
+        self.session.headers.update(headers)
+
+    def _get_all_pages(
+        self, url: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        """Fetch all pages from a paginated GitHub API endpoint.
+
+        Args:
+            url: The API endpoint URL to fetch from.
+            params: Optional query parameters to include in the request.
+
+        Returns:
+            list[dict[str, Any]]: Combined results from all pages.
+
+        Raises:
+            requests.RequestException: When any API request fails.
+        """
+        all_results = []
+        current_url: str | None = url
+        params = params or {}
+
+        # Set per_page to maximum allowed by GitHub API
+        params.setdefault("per_page", 100)
+
+        while current_url:
+            logger.debug(f"Fetching page: {current_url}")
+            response = self.session.get(current_url, params=params, timeout=self._timeout)
+            response.raise_for_status()
+
+            data = response.json()
+            if isinstance(data, list):
+                all_results.extend(data)
+            elif isinstance(data, dict):
+                all_results.append(data)
+
+            # Check for next page in Link header
+            link_header = response.headers.get("Link", "")
+            next_url = None
+
+            for link in link_header.split(","):
+                link = link.strip()
+                if 'rel="next"' in link:
+                    # Extract URL from <url>; rel="next"
+                    start = link.find("<") + 1
+                    end = link.find(">")
+                    if start > 0 and end > start:
+                        next_url = link[start:end]
+                        break
+
+            current_url = next_url if next_url else None
+            # Clear params for subsequent requests since they're in the URL
+            params = {}
+
+        logger.debug(f"Fetched {len(all_results)} total items from {url}")
+        return all_results
 
     def fetch_pr_comments(self, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
         """Fetch all comments for a pull request.
 
         Returns:
             comments (list[dict[str, Any]]): Combined list of review comments and issue (general)
-                comments for the specified pull request. Returns an empty list if no comments are
-                found or if remote requests fail.
+                comments for the specified pull request.
+
+        Raises:
+            requests.RequestException: When any API request fails due to network issues,
+                authentication problems, or API errors.
         """
         comments = []
 
@@ -54,69 +138,61 @@ class GitHubCommentExtractor:
         """Fetch review comments for a pull request from the GitHub API.
 
         Returns:
-            list[dict[str, Any]]: A list of comment objects parsed from the API response; returns
-                an empty list if the request fails or the response JSON is not a list.
+            list[dict[str, Any]]: A list of comment objects parsed from the API response.
+
+        Raises:
+            requests.RequestException: When the API request fails due to network issues,
+                authentication problems, or API errors.
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls/{pr_number}/comments"
-
-        try:
-            response = self.session.get(url)
-            response.raise_for_status()
-            data = response.json()
-            return data if isinstance(data, list) else []
-        except requests.RequestException:
-            return []
+        return self._get_all_pages(url)
 
     def _fetch_issue_comments(self, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
         """Fetch issue comments for a pull request.
 
         Returns:
-            comments (list[dict[str, Any]]): List of comment objects parsed from the GitHub API
-                response.
-                Returns an empty list if the response is not a list or if a network/error occurs.
+            list[dict[str, Any]]: List of comment objects parsed from the GitHub API response.
+
+        Raises:
+            requests.RequestException: When the API request fails due to network issues,
+                authentication problems, or API errors.
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/issues/{pr_number}/comments"
+        return self._get_all_pages(url)
 
-        try:
-            response = self.session.get(url)
-            response.raise_for_status()
-            data = response.json()
-            return data if isinstance(data, list) else []
-        except requests.RequestException:
-            return []
-
-    def fetch_pr_metadata(self, owner: str, repo: str, pr_number: int) -> dict[str, Any] | None:
+    def fetch_pr_metadata(self, owner: str, repo: str, pr_number: int) -> dict[str, Any]:
         """Fetch metadata for a GitHub pull request.
 
         Returns:
-            dict: Pull request metadata as returned by the GitHub API, or `None` if the request
-                fails or the response is not a JSON object.
+            dict[str, Any]: Pull request metadata as returned by the GitHub API.
+
+        Raises:
+            requests.RequestException: When the API request fails due to network issues,
+                authentication problems, or API errors.
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
+        response = self.session.get(url, timeout=self._timeout)
+        response.raise_for_status()
+        data = response.json()
 
-        try:
-            response = self.session.get(url)
-            response.raise_for_status()
-            data = response.json()
-            return data if isinstance(data, dict) else None
-        except requests.RequestException:
-            return None
+        if not isinstance(data, dict):
+            raise ValueError(f"Expected dict response from GitHub API, got {type(data)}")
+
+        return data
 
     def fetch_pr_files(self, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
         """Retrieve the list of files changed in a pull request.
 
-        @returns list[dict[str, Any]]: A list of file objects as returned by the GitHub API for
-            the pull request, or an empty list if the response is not a list or the request fails.
+        Returns:
+            list[dict[str, Any]]: A list of file objects as returned by the GitHub API for
+                the pull request.
+
+        Raises:
+            requests.RequestException: When the API request fails due to network issues,
+                authentication problems, or API errors.
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls/{pr_number}/files"
-
-        try:
-            response = self.session.get(url)
-            response.raise_for_status()
-            data = response.json()
-            return data if isinstance(data, list) else []
-        except requests.RequestException:
-            return []
+        return self._get_all_pages(url)
 
     def filter_bot_comments(
         self, comments: list[dict[str, Any]], bot_names: list[str] | None = None

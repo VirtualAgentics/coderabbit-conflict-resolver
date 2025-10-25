@@ -1,8 +1,5 @@
 """Test the main ConflictResolver class."""
 
-from typing import Any
-from unittest.mock import patch
-
 from pr_conflict_resolver import Change, ConflictResolver, FileType
 from pr_conflict_resolver.utils.text import normalize_content
 
@@ -166,13 +163,15 @@ class TestConflictResolver:
         percentage = resolver._calculate_overlap_percentage(change1, [change2])
         assert 0 <= percentage <= 100
 
-    @patch("pr_conflict_resolver.core.resolver.GitHubCommentExtractor")
-    def test_resolve_pr_conflicts(self, mock_extractor: Any) -> None:
+    def test_resolve_pr_conflicts(self) -> None:
         """Test resolving PR conflicts."""
-        resolver = ConflictResolver()
+        from unittest.mock import Mock
 
-        # Mock GitHub extractor
-        mock_extractor.return_value.fetch_pr_comments.return_value = []
+        # Create a mock extractor
+        mock_extractor = Mock()
+        mock_extractor.fetch_pr_comments.return_value = []
+
+        resolver = ConflictResolver(extractor=mock_extractor)
 
         result = resolver.resolve_pr_conflicts("owner", "repo", 123)
 
@@ -182,13 +181,15 @@ class TestConflictResolver:
         assert result.resolutions == []
         assert result.conflicts == []
 
-    @patch("pr_conflict_resolver.core.resolver.GitHubCommentExtractor")
-    def test_analyze_conflicts(self, mock_extractor: Any) -> None:
+    def test_analyze_conflicts(self) -> None:
         """Test analyzing conflicts."""
-        resolver = ConflictResolver()
+        from unittest.mock import Mock
 
-        # Mock GitHub extractor
-        mock_extractor.return_value.fetch_pr_comments.return_value = []
+        # Create a mock extractor
+        mock_extractor = Mock()
+        mock_extractor.fetch_pr_comments.return_value = []
+
+        resolver = ConflictResolver(extractor=mock_extractor)
 
         conflicts = resolver.analyze_conflicts("owner", "repo", 123)
 

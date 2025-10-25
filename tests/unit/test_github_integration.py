@@ -21,7 +21,7 @@ class TestGitHubCommentExtractor:
         extractor = GitHubCommentExtractor(token="test_token")  # noqa: S106
         assert extractor.token == "test_token"  # noqa: S105
         assert "Authorization" in extractor.session.headers
-        assert extractor.session.headers["Authorization"] == "token test_token"
+        assert extractor.session.headers["Authorization"] == "Bearer test_token"
 
     @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
     def test_fetch_review_comments(self, mock_get: Any) -> None:
@@ -32,6 +32,7 @@ class TestGitHubCommentExtractor:
         mock_response = Mock()
         mock_response.json.return_value = [{"id": 1, "body": "test comment"}]
         mock_response.raise_for_status.return_value = None
+        mock_response.headers = {"Link": ""}  # No pagination
         mock_get.return_value = mock_response
 
         comments = extractor._fetch_review_comments("owner", "repo", 123)
@@ -50,6 +51,7 @@ class TestGitHubCommentExtractor:
         mock_response = Mock()
         mock_response.json.return_value = [{"id": 2, "body": "issue comment"}]
         mock_response.raise_for_status.return_value = None
+        mock_response.headers = {"Link": ""}  # No pagination
         mock_get.return_value = mock_response
 
         comments = extractor._fetch_issue_comments("owner", "repo", 123)
@@ -68,6 +70,7 @@ class TestGitHubCommentExtractor:
         mock_response = Mock()
         mock_response.json.return_value = [{"id": 1, "body": "review comment"}]
         mock_response.raise_for_status.return_value = None
+        mock_response.headers = {"Link": ""}  # No pagination
         mock_get.return_value = mock_response
 
         comments = extractor.fetch_pr_comments("owner", "repo", 123)
@@ -103,6 +106,7 @@ class TestGitHubCommentExtractor:
         mock_response = Mock()
         mock_response.json.return_value = [{"filename": "test.py", "status": "modified"}]
         mock_response.raise_for_status.return_value = None
+        mock_response.headers = {"Link": ""}  # No pagination
         mock_get.return_value = mock_response
 
         files = extractor.fetch_pr_files("owner", "repo", 123)

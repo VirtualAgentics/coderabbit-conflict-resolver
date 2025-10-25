@@ -37,7 +37,7 @@ class TomlHandler(BaseHandler):
     def can_handle(self, file_path: str) -> bool:
         """Determine whether the handler supports the given file path.
 
-        @returns
+        Returns:
             `True` if the file path ends with ".toml" (case-insensitive), `False` otherwise.
         """
         return file_path.lower().endswith(".toml")

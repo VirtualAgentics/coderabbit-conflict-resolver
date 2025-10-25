@@ -3,9 +3,12 @@
 This module provides the abstract base class that all file handlers must implement.
 """
 
+import logging
 from abc import ABC, abstractmethod
 
 from ..core.models import Change, Conflict
+
+logger = logging.getLogger(__name__)
 
 
 class BaseHandler(ABC):
@@ -15,19 +18,22 @@ class BaseHandler(ABC):
     def can_handle(self, file_path: str) -> bool:
         """Determine whether this handler can process the given file.
 
+        Args:
+            file_path: Filesystem path to the file being checked for compatibility.
+
         Returns:
-            True if the handler can process the file, False otherwise.
+            bool: `True` if the handler can process the file, `False` otherwise.
         """
 
     @abstractmethod
     def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
         """Apply a replacement to a file's line range.
 
-        Parameters:
-            path (str): Path to the target file.
-            content (str): New content to insert in place of the specified lines.
-            start_line (int): 1-indexed starting line number (inclusive).
-            end_line (int): 1-indexed ending line number (inclusive).
+        Args:
+            path: Path to the target file.
+            content: New content to insert in place of the specified lines.
+            start_line: 1-indexed starting line number (inclusive).
+            end_line: 1-indexed ending line number (inclusive).
 
         Returns:
             bool: `True` if the change was applied successfully, `False` otherwise.
@@ -43,11 +49,11 @@ class BaseHandler(ABC):
     ) -> tuple[bool, str]:
         """Validate a proposed edit to a file's specified line range without applying it.
 
-        Parameters:
-            path (str): File path whose contents are validated against the change.
-            content (str): New content to substitute into the file for the given range.
-            start_line (int): 1-indexed starting line of the replacement range (inclusive).
-            end_line (int): 1-indexed ending line of the replacement range (inclusive).
+        Args:
+            path: File path whose contents are validated against the change.
+            content: New content to substitute into the file for the given range.
+            start_line: 1-indexed starting line of the replacement range (inclusive).
+            end_line: 1-indexed ending line of the replacement range (inclusive).
 
         Returns:
             tuple[bool, str]: (is_valid, message) where is_valid is True if the change is valid
@@ -77,12 +83,11 @@ class BaseHandler(ABC):
     def backup_file(self, path: str) -> str:
         """Create a filesystem backup of the given file and return the backup file path.
 
-        Parameters:
-            path (str): Path to the file to back up.
+        Args:
+            path: Path to the file to back up.
 
         Returns:
-            backup_path (str): Path to the created backup file.
-
+            str: Path to the created backup file.
         """
         import shutil
         from pathlib import Path
@@ -95,9 +100,9 @@ class BaseHandler(ABC):
     def restore_file(self, backup_path: str, original_path: str) -> bool:
         """Restore an original file by copying it from a backup and removing the backup file.
 
-        Parameters:
-            backup_path (str): Path to the backup file to restore from.
-            original_path (str): Path where the original file should be restored.
+        Args:
+            backup_path: Path to the backup file to restore from.
+            original_path: Path where the original file should be restored.
 
         Returns:
             bool: `True` if the file was restored and the backup removed, `False` if an error
@@ -110,5 +115,21 @@ class BaseHandler(ABC):
             shutil.copy2(backup_path, original_path)
             Path(backup_path).unlink()  # Remove backup
             return True
-        except Exception:
+        except (FileNotFoundError, PermissionError, OSError) as e:
+            logger.error(
+                "Failed to restore file from backup: backup_path=%s, original_path=%s, error=%s",
+                backup_path,
+                original_path,
+                str(e),
+                exc_info=True,
+            )
             return False
+        except Exception as e:
+            logger.error(
+                "Unexpected error during file restore: backup_path=%s, original_path=%s, error=%s",
+                backup_path,
+                original_path,
+                str(e),
+                exc_info=True,
+            )
+            raise

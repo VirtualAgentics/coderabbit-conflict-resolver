@@ -6,6 +6,8 @@ but extensible to other code review bots.
 """
 
 import hashlib
+import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -18,17 +20,24 @@ from ..strategies.priority_strategy import PriorityStrategy
 from ..utils.text import normalize_content
 from .models import Change, Conflict, FileType, Resolution, ResolutionResult
 
+logger = logging.getLogger(__name__)
+
 
 class ConflictResolver:
     """Main conflict resolver class."""
 
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, config: dict[str, Any] | None = None, extractor: GitHubCommentExtractor | None = None
+    ) -> None:
         """Create a ConflictResolver configured with optional settings.
 
         Parameters:
             config (dict[str, Any] | None): Optional configuration dictionary used to customize
                 resolver behavior (for example, strategy parameters or handler options). If not
                 provided, defaults to an empty dict.
+            extractor (GitHubCommentExtractor | None): Optional GitHub comment extractor instance.
+                If not provided, a new instance will be created using configuration values or
+                environment variables for token, base_url, and timeout settings.
         """
         self.config = config or {}
         self.conflict_detector = ConflictDetector()
@@ -39,8 +48,20 @@ class ConflictResolver:
         }
         self.strategy = PriorityStrategy(config)
 
+        # Initialize GitHub comment extractor with dependency injection support
+        if extractor is not None:
+            self.extractor = extractor
+        else:
+            # Create extractor with config-derived values
+            token = self.config.get("github_token") or os.getenv("GITHUB_TOKEN")
+            base_url = self.config.get("github_base_url", "https://api.github.com")
+            self.extractor = GitHubCommentExtractor(token=token, base_url=base_url)
+
     def detect_file_type(self, path: str) -> FileType:
         """Determine the file type based on the file path's extension.
+
+        Parameters:
+            path (str): The file path whose extension will be used to determine the FileType.
 
         Returns:
             FileType: The FileType corresponding to the path's extension. Returns
@@ -193,6 +214,11 @@ class ConflictResolver:
     def detect_conflicts(self, changes: list[Change]) -> list[Conflict]:
         """Identify conflicts among the provided list of changes across files.
 
+        Parameters:
+            changes (list[Change]): A list of Change objects representing proposed changes
+                to analyze for conflicts. Each Change should have path, start_line, end_line,
+                and other relevant fields.
+
         Returns:
             conflicts (list[Conflict]): Detected Conflict objects for any overlapping or
                 conflicting changes.
@@ -219,6 +245,11 @@ class ConflictResolver:
         For each change that overlaps in line range with one or more other changes,
         constructs a Conflict containing the involved changes, the classified conflict
         type, assessed severity, and calculated overlap percentage.
+
+        Parameters:
+            file_path (str): Path or identifier of the file being analyzed for conflicts.
+            changes (list[Change]): A collection of proposed changes for the file. Each
+                Change should have start_line, end_line, and other relevant fields.
 
         Returns:
             list[Conflict]: A list of Conflict objects representing each detected
@@ -264,6 +295,11 @@ class ConflictResolver:
 
     def _has_line_overlap(self, change1: Change, change2: Change) -> bool:
         """Determine whether two changes overlap in their line ranges.
+
+        Parameters:
+            change1 (Change): The first change with start_line and end_line properties.
+            change2 (Change): The second change with start_line and end_line properties.
+                Line ranges are assumed to be inclusive.
 
         Returns:
             True if the line ranges overlap, False otherwise.
@@ -415,6 +451,9 @@ class ConflictResolver:
     def _apply_change(self, change: Change) -> bool:
         """Apply the provided Change to its target file.
 
+        Parameters:
+            change (Change): The Change object to apply to the target file.
+
         Returns:
             `true` if the change was successfully applied, `false` otherwise.
         """
@@ -467,13 +506,30 @@ class ConflictResolver:
     def resolve_pr_conflicts(self, owner: str, repo: str, pr_number: int) -> ResolutionResult:
         """Orchestrates detection, resolution, and application of suggested changes.
 
+        Parameters:
+            owner (str): Repository owner.
+            repo (str): Repository name.
+            pr_number (int): Pull request number.
+
         Returns:
             ResolutionResult: Summary of applied resolutions and statistics. The returned object's
                 `conflicts` attribute is populated with the list of detected conflicts for the PR.
+
+        Raises:
+            RuntimeError: When analysis cannot be performed due to failed PR comment fetching
+                or missing/invalid required data. The error message will include details
+                about the underlying failure.
         """
         # Extract comments from GitHub
-        extractor = GitHubCommentExtractor()
-        comments = extractor.fetch_pr_comments(owner, repo, pr_number)
+        try:
+            comments = self.extractor.fetch_pr_comments(owner, repo, pr_number)
+        except Exception as e:
+            # Log before wrapping for debugging
+            logger.exception("fetch_pr_comments failed for %s/%s#%s", owner, repo, pr_number)
+            raise RuntimeError(
+                f"Failed to fetch PR comments "
+                f"(owner={owner}, repo={repo}, pr_number={pr_number}): {e}"
+            ) from e
 
         # Extract changes from comments
         changes = self.extract_changes_from_comments(comments)
@@ -501,13 +557,22 @@ class ConflictResolver:
         Returns:
             list[Conflict]: List of detected Conflict objects representing overlapping or
                 incompatible suggested changes found in the pull request.
+
+        Raises:
+            RuntimeError: When analysis cannot be performed due to failed PR comment fetching
+                or missing/invalid required data. The error message will include details
+                about the underlying failure.
         """
         # Extract comments from GitHub
-        extractor = GitHubCommentExtractor()
         try:
-            comments = extractor.fetch_pr_comments(owner, repo, pr_number)
+            comments = self.extractor.fetch_pr_comments(owner, repo, pr_number)
         except Exception as e:
-            raise RuntimeError(f"Failed to fetch PR comments: {e}") from e
+            # Log before wrapping for debugging
+            logger.exception("fetch_pr_comments failed for %s/%s#%s", owner, repo, pr_number)
+            raise RuntimeError(
+                f"Failed to fetch PR comments "
+                f"(owner={owner}, repo={repo}, pr_number={pr_number}): {e}"
+            ) from e
 
         # Extract changes from comments
         changes = self.extract_changes_from_comments(comments)
