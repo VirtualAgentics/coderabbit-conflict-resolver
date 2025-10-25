@@ -7,49 +7,49 @@ license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.12"
 keywords = [
-    "github",
-    "coderabbit",
-    "conflict-resolution",
-    "pr-automation",
-    "code-review",
+  "github",
+  "coderabbit",
+  "conflict-resolution",
+  "pr-automation",
+  "code-review",
 ]
 
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Software Development :: Version Control :: Git",
-    "Topic :: Software Development :: Quality Assurance",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Version Control :: Git",
+  "Topic :: Software Development :: Quality Assurance",
 ]
 
 dependencies = [
-    "click>=8.0.0",
-    "requests>=2.28.0",
-    "pydantic>=2.0.0",
-    "ruamel.yaml>=0.17.0",
-    "tomli>=2.0.0",
-    "tomli-w>=1.0.0",
-    "rich>=13.0.0",
+  "click>=8.0.0",
+  "requests>=2.28.0",
+  "pydantic>=2.0.0",
+  "ruamel.yaml>=0.17.0",
+  "tomli>=2.0.0",
+  "tomli-w>=1.0.0",
+  "rich>=13.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.1.0,<8.0.0", # Tested: 4.1.0, 5.0.0, 6.0.0, 6.3.0, 7.0.0 all work with pytest 7.4.x
-    "pytest-asyncio>=0.21.0",
-    "black>=23.0.0",
-    "ruff>=0.1.0",
-    "mypy>=1.0.0",
-    "pre-commit>=3.0.0",
-    "types-requests>=2.31.0",
-    "types-PyYAML>=6.0.0",
-    # types-click not needed: Click 8.0+ includes built-in type annotations
-    "bandit[toml]>=1.7.5",
-    "safety>=3.6.2",
-    "pip-audit>=2.9.0",
+  "pytest>=7.0.0",
+  "pytest-cov>=4.1.0,<8.0.0", # Tested: 4.1.0, 5.0.0, 6.0.0, 6.3.0, 7.0.0 all work with pytest 7.4.x
+  "pytest-asyncio>=0.21.0",
+  "black>=23.0.0",
+  "ruff>=0.1.0",
+  "mypy>=1.0.0",
+  "pre-commit>=3.0.0",
+  "types-requests>=2.31.0",
+  "types-PyYAML>=6.0.0",
+  # types-click not needed: Click 8.0+ includes built-in type annotations
+  "bandit[toml]>=1.7.5",
+  "safety>=3.6.2",
+  "pip-audit>=2.9.0",
 ]
 
 ml = ["scikit-learn>=1.0.0", "numpy>=1.24.0"]
@@ -73,20 +73,20 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = [
-    "E",     # pycodestyle errors
-    "F",     # pyflakes
-    "I",     # isort
-    "B",     # flake8-bugbear
-    "UP",    # pyupgrade
-    "C4",    # flake8-comprehensions
-    "PIE",   # flake8-pie
-    "SIM",   # flake8-simplify
-    "T20",   # flake8-print
-    "ASYNC", # flake8-async
-    "S",     # flake8-bandit (security)
-    "RUF",   # Ruff-specific rules
-    "ANN",   # flake8-annotations
-    "D",     # pydocstyle
+  "E",     # pycodestyle errors
+  "F",     # pyflakes
+  "I",     # isort
+  "B",     # flake8-bugbear
+  "UP",    # pyupgrade
+  "C4",    # flake8-comprehensions
+  "PIE",   # flake8-pie
+  "SIM",   # flake8-simplify
+  "T20",   # flake8-print
+  "ASYNC", # flake8-async
+  "S",     # flake8-bandit (security)
+  "RUF",   # Ruff-specific rules
+  "ANN",   # flake8-annotations
+  "D",     # pydocstyle
 ]
 ignore = ["D203", "D213"] # Conflicting docstring rules
 
@@ -99,7 +99,7 @@ ignore = ["D203", "D213"] # Conflicting docstring rules
 convention = "google"
 
 [tool.ruff.lint.pycodestyle]
-max-line-length = 500
+max-line-length = 100
 
 [tool.mypy]
 python_version = "3.12"
@@ -128,16 +128,16 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
-    "--strict-markers",
-    "--strict-config",
-    "--cov=src/pr_conflict_resolver",
-    "--cov-report=html",
-    "--cov-report=term-missing",
-    "--cov-fail-under=50",
+  "--strict-markers",
+  "--strict-config",
+  "--cov=src/pr_conflict_resolver",
+  "--cov-report=html",
+  "--cov-report=term-missing",
+  "--cov-fail-under=50",
 ]
 markers = [
-    "slow: marks tests as slow",
-    "integration: marks tests as integration tests",
+  "slow: marks tests as slow",
+  "integration: marks tests as integration tests",
 ]
 
 [tool.bandit]

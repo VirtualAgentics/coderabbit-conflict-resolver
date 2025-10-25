@@ -42,7 +42,8 @@ class TestJsonHandler:
         Asserts that:
         - a well-formed JSON string produces (True, message) and the message contains "Valid JSON";
         - a malformed JSON string produces (False, message) and the message contains "Invalid JSON";
-        - re-validating a well-formed JSON string still reports valid JSON (duplicate-key behavior is tested via parsing semantics).
+        - re-validating a well-formed JSON string still reports valid JSON (duplicate-key
+            behavior is tested via parsing semantics).
         """
         handler = JsonHandler()
 
@@ -64,9 +65,13 @@ class TestJsonHandler:
 
     def test_detect_conflicts(self) -> None:
         """
-        Verify that JsonHandler.detect_conflicts identifies key conflicts among multiple JSON changes.
+        Verify that JsonHandler.detect_conflicts identifies key conflicts among multiple JSON
+            changes.
 
-        This test constructs three Change objects for the same JSON path where two changes modify the same key across different line ranges and the third changes a different key. It asserts that exactly one conflict is reported, that the conflict type is "key_conflict", and that the conflict includes the two related changes.
+        This test constructs three Change objects for the same JSON path where two changes
+            modify the same key across different line ranges and the third changes a different
+            key. It asserts that exactly one conflict is reported, that the conflict type is
+            "key_conflict", and that the conflict includes the two related changes.
         """
         handler = JsonHandler()
 

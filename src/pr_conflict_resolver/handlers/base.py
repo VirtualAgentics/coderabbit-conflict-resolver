@@ -50,7 +50,8 @@ class BaseHandler(ABC):
             end_line (int): 1-indexed ending line of the replacement range (inclusive).
 
         Returns:
-            tuple[bool, str]: (is_valid, message) where is_valid is True if the change is valid and False otherwise; message contains success details or an error description.
+            tuple[bool, str]: (is_valid, message) where is_valid is True if the change is valid
+                and False otherwise; message contains success details or an error description.
 
         Raises:
             IOError: If the file cannot be read.
@@ -99,7 +100,8 @@ class BaseHandler(ABC):
             original_path (str): Path where the original file should be restored.
 
         Returns:
-            bool: `True` if the file was restored and the backup removed, `False` if an error occurred.
+            bool: `True` if the file was restored and the backup removed, `False` if an error
+                occurred.
         """
         import shutil
         from pathlib import Path

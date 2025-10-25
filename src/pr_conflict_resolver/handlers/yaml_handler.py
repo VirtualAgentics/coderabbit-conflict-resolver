@@ -11,6 +11,9 @@ from typing import Any
 from ..core.models import Change, Conflict
 from .base import BaseHandler
 
+# Type alias for YAML values to avoid Any usage
+YAMLValue = dict[str, Any] | list[Any] | str | int | float | bool | None
+
 try:
     from ruamel.yaml import YAML
 
@@ -37,9 +40,12 @@ class YamlHandler(BaseHandler):
         return file_path.lower().endswith((".yaml", ".yml"))
 
     def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
-        """Apply a suggested YAML fragment into a file by merging it with the file's current content.
+        """Apply a suggested YAML fragment into a file by merging with current content.
 
-        Parses the target file and the provided YAML suggestion, performs a high-level merge (preserving quotes and comments where possible) guided by the given start and end line positions, and writes the merged result back to the file. If parsing or writing fails, no changes are written.
+        Parses the target file and the provided YAML suggestion, performs a high-level merge
+        (preserving quotes and comments where possible) guided by the given start and end line
+        positions, and writes the merged result back to the file. If parsing or writing fails, no
+        changes are written.
 
         Parameters:
             path (str): Filesystem path to the YAML file to update.
@@ -93,11 +99,14 @@ class YamlHandler(BaseHandler):
         Parameters:
             path (str): File path associated with the suggestion (used for context only).
             content (str): YAML text to validate.
-            start_line (int): Start line of the suggested change in the file (provided for context; not used to alter validation).
-            end_line (int): End line of the suggested change in the file (provided for context; not used to alter validation).
+            start_line (int): Start line of the suggested change in the file (provided for
+                context; not used to alter validation).
+            end_line (int): End line of the suggested change in the file (provided for context;
+                not used to alter validation).
 
         Returns:
-            tuple[bool, str]: `True` and "Valid YAML" if `content` parses as YAML; `False` and an error message otherwise.
+            tuple[bool, str]: `True` and "Valid YAML" if `content` parses as YAML; `False` and an
+                error message otherwise.
         """
         if not YAML_AVAILABLE:
             return False, "ruamel.yaml not available"
@@ -112,14 +121,20 @@ class YamlHandler(BaseHandler):
     def detect_conflicts(self, path: str, changes: list[Change]) -> list[Conflict]:
         """Identify key-level conflicts among a set of YAML changes.
 
-        Parses each change's YAML content to extract key paths, groups changes that target the same key path, and returns a Conflict for each key that is modified by more than one change.
+        Parses each change's YAML content to extract key paths, groups changes that target the
+        same key path, and returns a Conflict for each key that is modified by more than one
+        change.
 
         Parameters:
             path (str): File path the changes apply to; used as the Conflict.file_path.
-            changes (list[Change]): List of Change objects whose `.content` contains YAML snippets and which provide `start_line`/`end_line` for conflict ranges.
+            changes (list[Change]): List of Change objects whose `.content` contains YAML
+                snippets and which provide `start_line`/`end_line` for conflict ranges.
 
         Returns:
-            list[Conflict]: A list of Conflict objects describing keys modified by multiple changes. Each Conflict uses `conflict_type` "key_conflict", `severity` "medium", and `overlap_percentage` 100.0; `line_range` spans from the first change's start_line to the last change's end_line for that key.
+            list[Conflict]: A list of Conflict objects describing keys modified by multiple
+                changes. Each Conflict uses `conflict_type` "key_conflict", `severity` "medium",
+                and `overlap_percentage` 100.0; `line_range` spans from the first change's
+                start_line to the last change's end_line for that key.
         """
         conflicts: list[Conflict] = []
 
@@ -155,18 +170,22 @@ class YamlHandler(BaseHandler):
         return conflicts
 
     def _smart_merge_yaml(
-        self, original: Any, suggestion: Any, start_line: int, end_line: int
-    ) -> Any:
-        """Merge two YAML structures, giving precedence to the suggestion while preserving original data where not overridden.
+        self, original: YAMLValue, suggestion: YAMLValue, start_line: int, end_line: int
+    ) -> YAMLValue:
+        """Merge two YAML structures, giving precedence to the suggestion.
 
         Parameters:
             original (Any): The existing YAML-parsed data.
             suggestion (Any): The YAML-parsed suggestion to apply.
-            start_line (int): Start line number of the suggested change (used to indicate the targeted range).
-            end_line (int): End line number of the suggested change (used to indicate the targeted range).
+            start_line (int): Start line number of the suggested change (used to indicate the
+                targeted range).
+            end_line (int): End line number of the suggested change (used to indicate the
+                targeted range).
 
         Returns:
-            Any: The merged YAML structure. If both inputs are dicts, returns a dict where suggestion keys override original keys; if both are lists, returns the suggestion list; if types differ, returns the suggestion.
+            Any: The merged YAML structure. If both inputs are dicts, returns a dict where
+                suggestion keys override original keys; if both are lists, returns the suggestion
+                list; if types differ, returns the suggestion.
         """
         if isinstance(original, dict) and isinstance(suggestion, dict):
             # Merge dictionaries
@@ -182,13 +201,16 @@ class YamlHandler(BaseHandler):
             # Different types - use suggestion
             return suggestion
 
-    def _extract_keys(self, data: Any, prefix: str = "") -> list[str]:
+    def _extract_keys(self, data: YAMLValue, prefix: str = "") -> list[str]:
         """Recursively collect key paths from parsed YAML data.
 
-        Produces dot-separated paths for mappings and bracketed indices for sequences. For example, a mapping {"a": {"b": 1}} yields "a" and "a.b"; a sequence [1, {"x": 2}] yields "[0]" and "[1].x".
+        Produces dot-separated paths for mappings and bracketed indices for sequences. For
+        example, a mapping {"a": {"b": 1}} yields "a" and "a.b"; a sequence [1, {"x": 2}] yields
+        "[0]" and "[1].x".
 
         Parameters:
-            data (Any): Parsed YAML structure (mappings as dict, sequences as list, scalars as leaf values).
+            data (Any): Parsed YAML structure (mappings as dict, sequences as list, scalars as
+                leaf values).
             prefix (str): Optional starting path to prepend (no leading or trailing separators).
 
         Returns:

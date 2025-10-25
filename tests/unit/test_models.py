@@ -2,7 +2,7 @@
 
 from dataclasses import is_dataclass
 
-from pr_conflict_resolver import (
+from pr_conflict_resolver.core.models import (
     Change,
     Conflict,
     FileType,
@@ -21,7 +21,7 @@ def test_change_dataclass_fields_and_equality() -> None:
     """Validate Change dataclass structure and equality semantics."""
     assert is_dataclass(Change)
 
-    c1 = Change(
+    c1 = Change(  # type: ignore[call-arg]
         path="a.json",
         start_line=1,
         end_line=3,
@@ -30,7 +30,7 @@ def test_change_dataclass_fields_and_equality() -> None:
         fingerprint="fp1",
         file_type=FileType.JSON,
     )
-    c2 = Change(
+    c2 = Change(  # type: ignore[call-arg]
         path="a.json",
         start_line=1,
         end_line=3,
@@ -39,7 +39,7 @@ def test_change_dataclass_fields_and_equality() -> None:
         fingerprint="fp1",
         file_type=FileType.JSON,
     )
-    c3 = Change(
+    c3 = Change(  # type: ignore[call-arg]
         path="a.json",
         start_line=1,
         end_line=3,
@@ -51,8 +51,8 @@ def test_change_dataclass_fields_and_equality() -> None:
 
     assert c1 == c2
     assert c1 != c3
-    assert c1.file_type is FileType.JSON
-    assert isinstance(c1.metadata, dict)
+    assert c1.file_type is FileType.JSON  # type: ignore[attr-defined]
+    assert isinstance(c1.metadata, dict)  # type: ignore[attr-defined]
 
 
 def test_conflict_dataclass() -> None:

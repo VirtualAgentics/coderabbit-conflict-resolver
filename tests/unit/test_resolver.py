@@ -44,7 +44,8 @@ class TestConflictResolver:
 
     def test_normalize_content(self) -> None:
         """
-        Verify normalize_content trims leading and trailing whitespace from each line and removes blank lines while preserving line order.
+        Verify normalize_content trims leading and trailing whitespace from each line and
+            removes blank lines while preserving line order.
         """
         content = "  line1  \n  line2  \n  \n  line3  "
         normalized = normalize_content(content)
@@ -79,9 +80,12 @@ class TestConflictResolver:
 
     def test_detect_conflicts(self) -> None:
         """
-        Verify that ConflictResolver groups overlapping changes in the same file into a single conflict.
+        Verify that ConflictResolver groups overlapping changes in the same file into a single
+            conflict.
 
-        Sets up two overlapping JSON Changes on "test.json" and asserts that detect_conflicts returns a single conflict covering both changes, that the conflict's file_path is "test.json", and that the conflict_type is either "major" or "partial".
+        Sets up two overlapping JSON Changes on "test.json" and asserts that detect_conflicts
+            returns a single conflict covering both changes, that the conflict's file_path is
+            "test.json", and that the conflict_type is either "major" or "partial".
         """
         resolver = ConflictResolver()
 

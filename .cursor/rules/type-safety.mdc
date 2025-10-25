@@ -319,6 +319,7 @@ Ensure type checking passes in CI:
 ### Never Bypass Type Checking
 
 ❌ **FORBIDDEN** - Never bypass type checking:
+
 ```bash
 git commit --no-verify  # NEVER DO THIS
 mypy --ignore-errors    # NEVER DO THIS
@@ -326,6 +327,7 @@ mypy --no-error-summary # Avoid unless debugging
 ```
 
 ✅ **CORRECT** - Fix type errors properly:
+
 ```bash
 # Check types
 source .venv/bin/activate && mypy src/ --strict
@@ -341,6 +343,7 @@ git commit -m "fix: resolve type errors"
 ### Strict Type Checking (REQUIRED)
 
 This project uses **strict MyPy configuration**:
+
 - No `Any` types allowed (unless explicitly justified)
 - All functions must have complete type annotations
 - No untyped definitions allowed
@@ -350,6 +353,7 @@ This project uses **strict MyPy configuration**:
 ### Pre-commit Integration
 
 Type checking is enforced via pre-commit hooks:
+
 - **MyPy** runs on every commit with `--strict` mode
 - **Additional dependencies** include type stubs for external libraries
 - **Language version** is pinned to Python 3.12
@@ -357,6 +361,7 @@ Type checking is enforced via pre-commit hooks:
 ### Mandatory Type Standards
 
 These type safety rules are **NON-NEGOTIABLE**:
+
 1. All function signatures must have complete type hints
 2. All class attributes must be typed
 3. No `Any` types without explicit justification
@@ -367,6 +372,7 @@ These type safety rules are **NON-NEGOTIABLE**:
 ### Fix Type Errors Before Commit
 
 Type errors **MUST** be fixed before committing:
+
 ```bash
 # Check types
 source .venv/bin/activate && mypy src/ --strict

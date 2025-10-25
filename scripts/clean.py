@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Clean script for removing build artifacts and temporary files.
+"""Clean script for removing build artifacts and temporary files.
 
 This script removes:
 - Directories: build, dist, .pytest_cache, .mypy_cache, .ruff_cache, htmlcov
@@ -9,73 +8,72 @@ This script removes:
 - Removes any *.egg-info directories
 """
 
-import shutil
+import logging
 import pathlib
-import sys
-from typing import List
+import shutil
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger(__name__)
 
 
-def remove_directories(directories: List[str]) -> None:
+def remove_directories(directories: list[str]) -> None:
     """Remove specified directories if they exist."""
     for directory in directories:
         if pathlib.Path(directory).exists():
-            print(f"Removing directory: {directory}")
+            logger.info(f"Removing directory: {directory}")
             shutil.rmtree(directory, ignore_errors=True)
 
 
-def remove_files(files: List[str]) -> None:
+def remove_files(files: list[str]) -> None:
     """Remove specified files if they exist."""
     for file_path in files:
         path = pathlib.Path(file_path)
         if path.exists():
-            print(f"Removing file: {file_path}")
+            logger.info(f"Removing file: {file_path}")
             path.unlink(missing_ok=True)
 
 
 def remove_pycache_directories() -> None:
     """Recursively remove all __pycache__ directories."""
-    for pycache_dir in pathlib.Path('.').rglob('__pycache__'):
+    for pycache_dir in pathlib.Path(".").rglob("__pycache__"):
         if pycache_dir.is_dir():
-            print(f"Removing __pycache__ directory: {pycache_dir}")
+            logger.info(f"Removing __pycache__ directory: {pycache_dir}")
             shutil.rmtree(pycache_dir, ignore_errors=True)
 
 
 def remove_pyc_files() -> None:
     """Recursively remove all *.pyc files."""
-    for pyc_file in pathlib.Path('.').rglob('*.pyc'):
+    for pyc_file in pathlib.Path(".").rglob("*.pyc"):
         if pyc_file.is_file():
-            print(f"Removing .pyc file: {pyc_file}")
+            logger.info(f"Removing .pyc file: {pyc_file}")
             pyc_file.unlink()
 
 
 def remove_egg_info_directories() -> None:
     """Remove any *.egg-info directories."""
-    for egg_info_dir in pathlib.Path('.').glob('*.egg-info'):
+    for egg_info_dir in pathlib.Path(".").glob("*.egg-info"):
         if egg_info_dir.is_dir():
-            print(f"Removing .egg-info directory: {egg_info_dir}")
+            logger.info(f"Removing .egg-info directory: {egg_info_dir}")
             shutil.rmtree(egg_info_dir, ignore_errors=True)
 
 
 def main() -> None:
     """Main function to clean build artifacts and temporary files."""
-    print("Cleaning build artifacts and temporary files...")
+    logger.info("Cleaning build artifacts and temporary files...")
 
     # Directories to remove
     directories_to_remove = [
-        'build',
-        'dist',
-        '.pytest_cache',
-        '.mypy_cache',
-        '.ruff_cache',
-        'htmlcov'
+        "build",
+        "dist",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        "htmlcov",
     ]
 
     # Files to remove
-    files_to_remove = [
-        '.coverage',
-        'bandit-report.json',
-        'safety-report.json'
-    ]
+    files_to_remove = [".coverage", "bandit-report.json", "safety-report.json"]
 
     # Remove directories
     remove_directories(directories_to_remove)
@@ -92,8 +90,8 @@ def main() -> None:
     # Remove *.egg-info directories
     remove_egg_info_directories()
 
-    print("Cleanup completed!")
+    logger.info("Cleanup completed!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

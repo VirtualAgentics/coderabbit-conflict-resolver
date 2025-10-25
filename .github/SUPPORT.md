@@ -163,4 +163,3 @@ Thank you for using CodeRabbit Conflict Resolver and for helping make our commun
 
 *Last updated: [Current Date]*
 *For the most up-to-date support information, please check this file in the repository.*
-

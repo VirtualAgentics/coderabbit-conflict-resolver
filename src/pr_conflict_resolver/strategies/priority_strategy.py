@@ -40,7 +40,7 @@ class PriorityStrategy:
         )
 
     def resolve(self, conflict: Conflict) -> Resolution:
-        """Selects the highest-priority change from a conflict according to configured priority rules.
+        """Selects the highest-priority change from a conflict.
 
         Parameters:
             conflict (Conflict): The conflict containing candidate changes to resolve.
@@ -89,13 +89,16 @@ class PriorityStrategy:
         )
 
     def _calculate_priority(self, change: Change) -> int:
-        """Compute the numeric priority for a Change based on configured priority rules, the change's metadata, and author adjustments.
+        """Compute the numeric priority for a Change based on configured rules.
 
         Parameters:
-            change (Change): The change to evaluate. Uses change.metadata["option_label"] (if present) to prefer user selections and change.metadata["author"] to apply author-based adjustments.
+            change (Change): The change to evaluate. Uses change.metadata["option_label"] (if
+                present) to prefer user selections and change.metadata["author"] to apply
+                author-based adjustments.
 
         Returns:
-            int: Priority value where higher numbers indicate higher precedence when resolving conflicts.
+            int: Priority value where higher numbers indicate higher precedence when resolving
+                conflicts.
         """
         base_priority = self.priority_rules.get("regular_suggestions", 50)
 
@@ -126,10 +129,12 @@ class PriorityStrategy:
         """Determine whether a Change's content indicates a security-related modification.
 
         Parameters:
-            change (Change): Change object whose content will be inspected for security-related keywords.
+            change (Change): Change object whose content will be inspected for security-related
+                keywords.
 
         Returns:
-            bool: True if the change's content contains any security-related keywords, False otherwise.
+            bool: True if the change's content contains any security-related keywords, False
+                otherwise.
         """
         content = change.content.lower()
         security_keywords = [
@@ -173,7 +178,8 @@ class PriorityStrategy:
     def _is_formatting_change(self, change: Change) -> bool:
         """Determine whether a change is a formatting-related edit.
 
-        Scans the change's content for common formatting tool names and other formatting-related keywords.
+        Scans the change's content for common formatting tool names and other formatting-related
+            keywords.
 
         Returns:
             `true` if the change appears to be formatting-related, `false` otherwise.
@@ -216,7 +222,8 @@ class PriorityStrategy:
         """Return a copy of the current priority rules mapping.
 
         Returns:
-            dict[str, int]: A copy of the priority rules where keys are rule names and values are their integer priorities.
+            dict[str, int]: A copy of the priority rules where keys are rule names and values
+                are their integer priorities.
         """
         return dict(self.priority_rules)
 
@@ -224,9 +231,10 @@ class PriorityStrategy:
         """Update the strategy's priority rules with the provided mapping.
 
         Parameters:
-            new_rules (dict[str, int]): Mapping of priority rule names to integer priority values.
-                Keys present in this mapping override the existing rules; other rules remain unchanged.
-                The method also updates the strategy's internal configuration to reflect the new rules.
+            new_rules (dict[str, int]): Mapping of priority rule names to integer priority
+                values. Keys present in this mapping override the existing rules; other rules
+                remain unchanged. The method also updates the strategy's internal configuration
+                to reflect the new rules.
         """
         self.priority_rules.update(new_rules)
         self.config["priority_rules"] = self.priority_rules

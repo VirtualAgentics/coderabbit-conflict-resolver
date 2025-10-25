@@ -18,10 +18,10 @@ priority = base_priority
 
 if is_user_selection():
     priority = 100  # Highest
-    
+
 if is_security_fix():
     priority = 90  # Could override user selection!
-    
+
 if is_formatting():
     priority = 10  # Could override everything!
 ```
