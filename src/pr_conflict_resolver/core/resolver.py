@@ -23,9 +23,8 @@ class ConflictResolver:
     """Main conflict resolver class."""
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
-        """
-        Create a ConflictResolver configured with optional settings.
-        
+        """Create a ConflictResolver configured with optional settings.
+
         Parameters:
             config (dict[str, Any] | None): Optional configuration dictionary used to customize resolver behavior
                 (for example, strategy parameters or handler options). If not provided, defaults to an empty dict.
@@ -40,9 +39,8 @@ class ConflictResolver:
         self.strategy = PriorityStrategy(config)
 
     def detect_file_type(self, path: str) -> FileType:
-        """
-        Determine the file type based on the file path's extension.
-        
+        """Determine the file type based on the file path's extension.
+
         Returns:
             FileType: The FileType corresponding to the path's extension. Returns FileType.PLAINTEXT when the extension is unknown or missing.
         """
@@ -61,15 +59,14 @@ class ConflictResolver:
         return mapping.get(suffix, FileType.PLAINTEXT)
 
     def generate_fingerprint(self, path: str, start: int, end: int, content: str) -> str:
-        """
-        Create a short deterministic fingerprint that identifies a proposed change in a file.
-        
+        """Create a short deterministic fingerprint that identifies a proposed change in a file.
+
         Parameters:
             path (str): File path the change targets.
             start (int): Starting line number of the change.
             end (int): Ending line number of the change.
             content (str): Suggested replacement content for the specified range.
-        
+
         Returns:
             str: 16-character hexadecimal fingerprint (SHA-256 digest) derived from the path, line range, and normalized content.
         """
@@ -78,14 +75,13 @@ class ConflictResolver:
         return hashlib.sha256(content_str.encode()).hexdigest()[:16]
 
     def extract_changes_from_comments(self, comments: list[dict[str, Any]]) -> list[Change]:
-        """
-        Extracts suggested code changes from GitHub PR comment bodies.
-        
+        """Extracts suggested code changes from GitHub PR comment bodies.
+
         Parses each comment for fenced "suggestion" blocks and constructs Change objects
         for suggestions that reference a file path and a valid line range. For each
         suggestion the returned Change includes computed fingerprint, detected file type,
         and metadata about the comment.
-        
+
         Parameters:
             comments (list[dict[str, Any]]): List of GitHub comment dictionaries. Each
                 comment may contain keys used by this function:
@@ -95,7 +91,7 @@ class ConflictResolver:
                   - "line" or "original_line": ending line of the suggestion (required).
                   - "html_url": URL of the comment.
                   - "user": dict containing "login" for author username.
-        
+
         Returns:
             list[Change]: A list of Change objects representing parsed suggestions. Each
             Change contains path, start_line, end_line, content, metadata (url, author,
@@ -144,12 +140,11 @@ class ConflictResolver:
         return changes
 
     def _parse_comment_suggestions(self, body: str) -> list[dict[str, Any]]:
-        """
-        Extract suggestion blocks from a GitHub-style comment body.
-        
+        """Extract suggestion blocks from a GitHub-style comment body.
+
         Parameters:
             body (str): Raw comment text which may contain fenced suggestion code blocks.
-        
+
         Returns:
             list[dict[str, Any]]: A list of suggestion blocks where each dict contains:
                 - `content` (str): The code suggested inside the ```suggestion``` fence.
@@ -190,9 +185,8 @@ class ConflictResolver:
         return blocks
 
     def detect_conflicts(self, changes: list[Change]) -> list[Conflict]:
-        """
-        Identify conflicts among the provided list of changes across files.
-        
+        """Identify conflicts among the provided list of changes across files.
+
         Returns:
             conflicts (list[Conflict]): Detected Conflict objects for any overlapping or conflicting changes.
         """
@@ -213,11 +207,10 @@ class ConflictResolver:
         return conflicts
 
     def _detect_file_conflicts(self, file_path: str, changes: list[Change]) -> list[Conflict]:
-        """
-        Detects and returns conflicts among proposed changes within a single file.
-        
+        """Detects and returns conflicts among proposed changes within a single file.
+
         For each change that overlaps in line range with one or more other changes, constructs a Conflict containing the involved changes, the classified conflict type, assessed severity, and calculated overlap percentage.
-        
+
         Returns:
             list[Conflict]: A list of Conflict objects representing each detected overlapping change group; empty list if no conflicts are found.
         """
@@ -260,22 +253,20 @@ class ConflictResolver:
         return conflicts
 
     def _has_line_overlap(self, change1: Change, change2: Change) -> bool:
-        """
-        Determine whether two changes overlap in their line ranges.
-        
+        """Determine whether two changes overlap in their line ranges.
+
         Returns:
             True if the line ranges overlap, False otherwise.
         """
         return not (change1.end_line < change2.start_line or change2.end_line < change1.start_line)
 
     def _classify_conflict_type(self, change1: Change, conflicting_changes: list[Change]) -> str:
-        """
-        Determine the category of conflict between a primary change and one or more conflicting changes.
-        
+        """Determine the category of conflict between a primary change and one or more conflicting changes.
+
         Parameters:
             change1 (Change): The primary change to classify against other changes.
             conflicting_changes (list[Change]): Other changes that overlap with `change1`.
-        
+
         Returns:
             str: One of:
                 - "exact" — the conflicting change covers the same start and end lines as `change1`.
@@ -295,13 +286,12 @@ class ConflictResolver:
             return "multiple"
 
     def _assess_conflict_severity(self, change1: Change, conflicting_changes: list[Change]) -> str:
-        """
-        Determine conflict severity based on the contents of the involved changes.
-        
+        """Determine conflict severity based on the contents of the involved changes.
+
         Parameters:
             change1 (Change): The primary change participating in the conflict.
             conflicting_changes (list[Change]): Other changes that overlap or conflict with the primary change.
-        
+
         Returns:
             severity (str): `"high"` if any involved change contains security-related keywords,
             `"medium"` if none are security-related but any contain syntax/error-related keywords,
@@ -326,9 +316,8 @@ class ConflictResolver:
     def _calculate_overlap_percentage(
         self, change1: Change, conflicting_changes: list[Change]
     ) -> float:
-        """
-        Compute the overlap percentage between `change1` and the first conflicting change using inclusive line ranges.
-        
+        """Compute the overlap percentage between `change1` and the first conflicting change using inclusive line ranges.
+
         Returns:
             float: Percentage (0.0–100.0) of the combined span covered by the intersection; `0.0` if `conflicting_changes` is empty or there is no overlap.
         """
@@ -352,12 +341,11 @@ class ConflictResolver:
         return (overlap_size / total_size) * 100
 
     def resolve_conflicts(self, conflicts: list[Conflict]) -> list[Resolution]:
-        """
-        Resolve each provided conflict using the configured priority strategy.
-        
+        """Resolve each provided conflict using the configured priority strategy.
+
         Parameters:
             conflicts (list[Conflict]): Detected conflicts to resolve.
-        
+
         Returns:
             list[Resolution]: A list of resolution objects corresponding to each input conflict.
         """
@@ -370,12 +358,11 @@ class ConflictResolver:
         return resolutions
 
     def apply_resolutions(self, resolutions: list[Resolution]) -> ResolutionResult:
-        """
-        Apply a sequence of resolution decisions to the repository and return a summary of the outcome.
-        
+        """Apply a sequence of resolution decisions to the repository and return a summary of the outcome.
+
         Parameters:
             resolutions (list[Resolution]): Resolutions to process; entries with `success == True` will have their associated changes applied, while others are counted as conflicts.
-        
+
         Returns:
             ResolutionResult: Summary of the application run containing:
                 - `applied_count`: number of individual changes successfully applied,
@@ -413,9 +400,8 @@ class ConflictResolver:
         )
 
     def _apply_change(self, change: Change) -> bool:
-        """
-        Apply the provided Change to its target file.
-        
+        """Apply the provided Change to its target file.
+
         Returns:
             `true` if the change was successfully applied, `false` otherwise.
         """
@@ -433,14 +419,13 @@ class ConflictResolver:
         return handler.apply_change(change.path, change.content, change.start_line, change.end_line)
 
     def _apply_plaintext_change(self, change: Change) -> bool:
-        """
-        Apply a plaintext file change by replacing the specified line range with the change content.
-        
+        """Apply a plaintext file change by replacing the specified line range with the change content.
+
         The function reads the target file, replaces lines from `change.start_line` to `change.end_line` (1-based, inclusive) with `change.content`, clamps out-of-range indices to the file bounds, ensures the file ends with a newline, and writes the result back.
-        
+
         Parameters:
             change (Change): Change describing the target `path`, 1-based `start_line` and `end_line`, and the replacement `content`.
-        
+
         Returns:
             True if the file was successfully updated, False otherwise.
         """
@@ -464,9 +449,8 @@ class ConflictResolver:
             return False
 
     def resolve_pr_conflicts(self, owner: str, repo: str, pr_number: int) -> ResolutionResult:
-        """
-        Orchestrates detection, resolution, and application of suggested changes for a pull request.
-        
+        """Orchestrates detection, resolution, and application of suggested changes for a pull request.
+
         Returns:
             ResolutionResult: Summary of applied resolutions and statistics. The returned object's `conflicts` attribute is populated with the list of detected conflicts for the PR.
         """
@@ -490,20 +474,22 @@ class ConflictResolver:
         return result
 
     def analyze_conflicts(self, owner: str, repo: str, pr_number: int) -> list[Conflict]:
-        """
-        Analyze conflicts in a pull request without applying any changes.
-        
+        """Analyze conflicts in a pull request without applying any changes.
+
         Parameters:
             owner (str): Repository owner.
             repo (str): Repository name.
             pr_number (int): Pull request number.
-        
+
         Returns:
             list[Conflict]: List of detected Conflict objects representing overlapping or incompatible suggested changes found in the pull request.
         """
         # Extract comments from GitHub
         extractor = GitHubCommentExtractor()
-        comments = extractor.fetch_pr_comments(owner, repo, pr_number)
+        try:
+            comments = extractor.fetch_pr_comments(owner, repo, pr_number)
+        except Exception as e:
+            raise RuntimeError(f"Failed to fetch PR comments: {e}") from e
 
         # Extract changes from comments
         changes = self.extract_changes_from_comments(comments)

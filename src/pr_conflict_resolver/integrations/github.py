@@ -14,9 +14,8 @@ class GitHubCommentExtractor:
     """Extracts comments from GitHub PRs."""
 
     def __init__(self, token: str | None = None, base_url: str = "https://api.github.com") -> None:
-        """
-        Initialize the extractor with an optional GitHub token and API base URL.
-        
+        """Initialize the extractor with an optional GitHub token and API base URL.
+
         Parameters:
             token (str | None): Personal access token to authenticate GitHub API requests.
                 If None, the value is read from the GITHUB_TOKEN environment variable.
@@ -32,9 +31,8 @@ class GitHubCommentExtractor:
             )
 
     def fetch_pr_comments(self, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
-        """
-        Fetch all comments for a pull request.
-        
+        """Fetch all comments for a pull request.
+
         Returns:
             comments (list[dict[str, Any]]): Combined list of review comments and issue (general) comments for the specified pull request. Returns an empty list if no comments are found or if remote requests fail.
         """
@@ -51,9 +49,8 @@ class GitHubCommentExtractor:
         return comments
 
     def _fetch_review_comments(self, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
-        """
-        Fetch review comments for a pull request from the GitHub API.
-        
+        """Fetch review comments for a pull request from the GitHub API.
+
         Returns:
             list[dict[str, Any]]: A list of comment objects parsed from the API response; returns an empty list if the request fails or the response JSON is not a list.
         """
@@ -68,9 +65,8 @@ class GitHubCommentExtractor:
             return []
 
     def _fetch_issue_comments(self, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
-        """
-        Fetch issue comments for a pull request.
-        
+        """Fetch issue comments for a pull request.
+
         Returns:
             comments (list[dict[str, Any]]): List of comment objects parsed from the GitHub API response.
                 Returns an empty list if the response is not a list or if a network/error occurs.
@@ -86,9 +82,8 @@ class GitHubCommentExtractor:
             return []
 
     def fetch_pr_metadata(self, owner: str, repo: str, pr_number: int) -> dict[str, Any] | None:
-        """
-        Fetch metadata for a GitHub pull request.
-        
+        """Fetch metadata for a GitHub pull request.
+
         Returns:
             dict: Pull request metadata as returned by the GitHub API, or `None` if the request fails or the response is not a JSON object.
         """
@@ -103,9 +98,8 @@ class GitHubCommentExtractor:
             return None
 
     def fetch_pr_files(self, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
-        """
-        Retrieve the list of files changed in a pull request.
-        
+        """Retrieve the list of files changed in a pull request.
+
         @returns list[dict[str, Any]]: A list of file objects as returned by the GitHub API for the pull request, or an empty list if the response is not a list or the request fails.
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls/{pr_number}/files"
@@ -121,14 +115,13 @@ class GitHubCommentExtractor:
     def filter_bot_comments(
         self, comments: list[dict[str, Any]], bot_names: list[str] | None = None
     ) -> list[dict[str, Any]]:
-        """
-        Filter a list of GitHub PR comments to those authored by specified bot accounts.
-        
+        """Filter a list of GitHub PR comments to those authored by specified bot accounts.
+
         Parameters:
             comments (list[dict[str, Any]]): List of comment objects as returned by the GitHub API.
             bot_names (list[str] | None): Optional list of substrings to match against each comment's user login (case-insensitive).
                 Defaults to ["coderabbit", "code-review", "review-bot"] when omitted.
-        
+
         Returns:
             list[dict[str, Any]]: Subset of `comments` where the comment author's login contains any of the `bot_names` substrings (case-insensitive).
         """
@@ -146,14 +139,13 @@ class GitHubCommentExtractor:
         return filtered
 
     def extract_suggestion_blocks(self, comment: dict[str, Any]) -> list[dict[str, Any]]:
-        """
-        Extracts code suggestion blocks from a comment body.
-        
+        """Extracts code suggestion blocks from a comment body.
+
         Searches the comment's "body" for fenced suggestion blocks delimited by ```suggestion ... ```, and returns a list describing each found block.
-        
+
         Parameters:
             comment (dict[str, Any]): Comment object expected to contain a "body" key with the comment text.
-        
+
         Returns:
             list[dict[str, Any]]: A list of block dictionaries with the following keys:
                 - content (str): The text inside the suggestion fence (trailing newlines removed).
@@ -200,12 +192,11 @@ class GitHubCommentExtractor:
         return blocks
 
     def get_comment_metadata(self, comment: dict[str, Any]) -> dict[str, Any]:
-        """
-        Return metadata extracted from a GitHub comment object.
-        
+        """Return metadata extracted from a GitHub comment object.
+
         Parameters:
             comment (dict[str, Any]): Raw comment JSON returned by the GitHub API.
-        
+
         Returns:
             dict[str, Any]: Mapping containing extracted fields:
                 - id

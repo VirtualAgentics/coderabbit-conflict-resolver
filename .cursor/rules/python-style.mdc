@@ -111,6 +111,7 @@ from pr_conflict_resolver.core.resolver import ConflictResolver
 ### Never Bypass Quality Checks
 
 ❌ **FORBIDDEN** - Never use bypass flags:
+
 ```bash
 git commit --no-verify  # NEVER DO THIS
 black --skip-string-normalization  # Avoid unless absolutely necessary
@@ -119,6 +120,7 @@ mypy --ignore-errors  # Fix type errors instead
 ```
 
 ✅ **CORRECT** - Fix issues properly:
+
 ```bash
 # Fix formatting
 black src/ tests/
@@ -137,6 +139,7 @@ git commit -m "fix: resolve linting and type issues"
 ### Pre-commit Integration
 
 All Python files are automatically checked via pre-commit hooks:
+
 - **Black** - Auto-formats code
 - **Ruff** - Lints and fixes issues
 - **MyPy** - Type checking with strict mode
@@ -145,6 +148,7 @@ All Python files are automatically checked via pre-commit hooks:
 ### Mandatory Standards
 
 These standards are **NON-NEGOTIABLE**:
+
 1. All code must pass Black formatting
 2. All code must pass Ruff linting (no errors)
 3. All code must pass MyPy type checking (--strict)
@@ -155,6 +159,7 @@ These standards are **NON-NEGOTIABLE**:
 ### Fix Before Commit
 
 Quality issues **MUST** be fixed before committing:
+
 ```bash
 # Run all checks
 make lint

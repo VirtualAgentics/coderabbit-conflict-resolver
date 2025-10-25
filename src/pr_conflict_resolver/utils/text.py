@@ -6,9 +6,8 @@ the conflict resolver.
 
 
 def normalize_content(text: str) -> str:
-    """
-    Normalize text by stripping leading and trailing whitespace from each line and removing empty lines.
-    
+    """Normalize text by stripping leading and trailing whitespace from each line and removing empty lines.
+
     Returns:
         A string where each non-empty original line has been trimmed and the remaining lines are joined with a single newline character.
     """

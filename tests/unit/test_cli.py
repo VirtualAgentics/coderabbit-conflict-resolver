@@ -1,7 +1,7 @@
 """Unit tests for CLI commands in pr_conflict_resolver.cli.main."""
 
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from click.testing import CliRunner
 
@@ -61,9 +61,7 @@ def test_cli_analyze_with_conflicts(mock_resolver: Any) -> None:
 def test_cli_apply_dry_run() -> None:
     """apply --dry-run prints an informational message and exits cleanly."""
     runner = CliRunner()
-    result = runner.invoke(
-        cli, ["apply", "--pr", "7", "--owner", "o", "--repo", "r", "--dry-run"]
-    )
+    result = runner.invoke(cli, ["apply", "--pr", "7", "--owner", "o", "--repo", "r", "--dry-run"])
     assert result.exit_code == 0
     assert "DRY RUN:" in result.output
     assert "Would apply suggestions to PR #7" in result.output

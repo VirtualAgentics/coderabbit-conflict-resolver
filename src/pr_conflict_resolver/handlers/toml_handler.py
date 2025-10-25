@@ -23,9 +23,8 @@ class TomlHandler(BaseHandler):
     """Handler for TOML files with structure validation."""
 
     def __init__(self) -> None:
-        """
-        Initialize the TOML handler and its logger.
-        
+        """Initialize the TOML handler and its logger.
+
         Creates a module-level logger on the instance. If TOML support (tomli/tomli-w) is not available, logs a warning with installation instructions.
         """
         self.logger = logging.getLogger(__name__)
@@ -35,24 +34,22 @@ class TomlHandler(BaseHandler):
             )
 
     def can_handle(self, file_path: str) -> bool:
-        """
-        Determine whether the handler supports the given file path.
-        
+        """Determine whether the handler supports the given file path.
+
         @returns
             `True` if the file path ends with ".toml" (case-insensitive), `False` otherwise.
         """
         return file_path.lower().endswith(".toml")
 
     def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
-        """
-        Apply a TOML suggestion to the file at the given path by merging it into the existing content for the specified line range and writing the result back to disk.
-        
+        """Apply a TOML suggestion to the file at the given path by merging it into the existing content for the specified line range and writing the result back to disk.
+
         Parameters:
             path (str): Filesystem path to the TOML file to modify.
             content (str): TOML-formatted suggestion content to merge into the file.
             start_line (int): One-based start line of the region the suggestion targets.
             end_line (int): One-based end line of the region the suggestion targets.
-        
+
         Returns:
             bool: `True` if the suggestion was successfully merged and written to the file, `False` otherwise.
         """
@@ -94,15 +91,14 @@ class TomlHandler(BaseHandler):
     def validate_change(
         self, path: str, content: str, start_line: int, end_line: int
     ) -> tuple[bool, str]:
-        """
-        Validate the provided TOML suggestion and report whether it parses.
-        
+        """Validate the provided TOML suggestion and report whether it parses.
+
         Parameters:
             path (str): File path the suggestion targets (informational).
             content (str): TOML text to validate.
             start_line (int): Starting line number (1-based) of the suggested range.
             end_line (int): Ending line number (1-based) of the suggested range.
-        
+
         Returns:
             tuple[bool, str]: `(True, "Valid TOML")` if `content` parses as TOML, `(False, "<error message>")` otherwise.
         """
@@ -116,15 +112,14 @@ class TomlHandler(BaseHandler):
             return False, f"Invalid TOML: {e}"
 
     def detect_conflicts(self, path: str, changes: list[Change]) -> list[Conflict]:
-        """
-        Identify conflicting changes that target the same TOML sections.
-        
+        """Identify conflicting changes that target the same TOML sections.
+
         Parses each change's TOML content to collect affected section paths, groups changes by section, and creates a Conflict for any section modified by more than one change. Changes whose content fails to parse are skipped (a warning is logged). Each Conflict's line_range spans from the first change's start_line to the last change's end_line and includes an overlap_percentage computed by _calculate_overlap_percentage.
-        
+
         Parameters:
             path (str): File path for conflicts to report in each Conflict.
             changes (list[Change]): List of Change objects to analyze.
-        
+
         Returns:
             list[Conflict]: Conflicts detected for sections with multiple changes; empty list if no conflicts found.
         """
@@ -167,12 +162,11 @@ class TomlHandler(BaseHandler):
         return conflicts
 
     def _calculate_overlap_percentage(self, changes: list[Change]) -> float:
-        """
-        Compute the percentage of line-range overlap among multiple changes.
-        
+        """Compute the percentage of line-range overlap among multiple changes.
+
         Args:
             changes (list[Change]): List of Change objects each containing `start_line` and `end_line`.
-        
+
         Returns:
             float: Overlap percentage between 0.0 and 100.0. Returns 0.0 if fewer than two changes or if there is no overlapping range.
         """
@@ -201,17 +195,16 @@ class TomlHandler(BaseHandler):
     def _smart_merge_toml(
         self, original: dict[str, Any], suggestion: dict[str, Any], start_line: int, end_line: int
     ) -> dict[str, Any]:
-        """
-        Merge two TOML mappings by applying suggestion top-level keys onto the original.
-        
+        """Merge two TOML mappings by applying suggestion top-level keys onto the original.
+
         The suggestion's top-level keys overwrite or add to the original mapping; nested tables are not merged recursively. The start_line and end_line parameters are accepted for API compatibility but do not affect the merge behavior.
-        
+
         Parameters:
             original (dict[str, Any]): Original TOML data as a mapping.
             suggestion (dict[str, Any]): Suggested TOML data to apply on top of the original.
             start_line (int): Starting line of the change (ignored).
             end_line (int): Ending line of the change (ignored).
-        
+
         Returns:
             dict[str, Any]: A new mapping containing the merged TOML data.
         """
@@ -222,13 +215,12 @@ class TomlHandler(BaseHandler):
         return result
 
     def _extract_sections(self, data: dict[str, Any], prefix: str = "") -> list[str]:
-        """
-        Collects dot-separated section paths from a nested TOML mapping.
-        
+        """Collects dot-separated section paths from a nested TOML mapping.
+
         Parameters:
             data (dict[str, Any]): Parsed TOML data (mapping of keys to values or nested tables).
             prefix (str): Optional section path prefix used when descending into nested tables.
-        
+
         Returns:
             list[str]: A list of section path strings (dot-separated) for each table and leaf key in `data`.
         """

@@ -80,7 +80,7 @@ class TestConflictResolver:
     def test_detect_conflicts(self) -> None:
         """
         Verify that ConflictResolver groups overlapping changes in the same file into a single conflict.
-        
+
         Sets up two overlapping JSON Changes on "test.json" and asserts that detect_conflicts returns a single conflict covering both changes, that the conflict's file_path is "test.json", and that the conflict_type is either "major" or "partial".
         """
         resolver = ConflictResolver()

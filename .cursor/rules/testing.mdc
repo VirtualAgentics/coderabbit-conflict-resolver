@@ -23,14 +23,18 @@ tests/
 ## Test Structure
 
 ### Unit Tests
+
 Test individual components in isolation:
+
 - Mock external dependencies
 - Test edge cases and error conditions
 - Verify expected behavior with various inputs
 - Test all public methods and properties
 
 ### Integration Tests
+
 Test component interactions:
+
 - End-to-end workflows
 - Real GitHub API interactions (with test repos)
 - File system operations
@@ -39,19 +43,23 @@ Test component interactions:
 ## Pytest Conventions
 
 ### Test Naming
+
 - Files: `test_*.py`
 - Classes: `Test*`
 - Functions: `test_*`
 - Use descriptive names: `test_apply_change_success`, `test_detect_conflicts_multiple_files`
 
 ### Fixtures
+
 Use fixtures from `tests/conftest.py`:
+
 - `sample_pr_comments`: Mock GitHub comments
 - `temp_workspace`: Temporary directory for file operations
 - `sample_json_file`: Test JSON file
 - `sample_yaml_file`: Test YAML file
 
 ### Test Markers
+
 ```python
 @pytest.mark.slow
 def test_large_pr_processing():
@@ -74,7 +82,9 @@ def test_github_api_integration():
 ## Test Data
 
 ### Fixtures
+
 Create reusable test data:
+
 ```python
 @pytest.fixture
 def sample_conflict():
@@ -90,7 +100,9 @@ def sample_conflict():
 ```
 
 ### Mocking
+
 Mock external dependencies:
+
 ```python
 @patch('pr_conflict_resolver.integrations.github.GitHubCommentExtractor.fetch_pr_comments')
 def test_resolve_pr_conflicts(mock_fetch):
@@ -102,6 +114,7 @@ def test_resolve_pr_conflicts(mock_fetch):
 ## Assertions
 
 Use specific assertions:
+
 ```python
 # Good
 assert result.applied_count == 5
@@ -123,6 +136,7 @@ assert True    # Meaningless
 ## Performance Testing
 
 Test performance characteristics:
+
 ```python
 @pytest.mark.slow
 def test_large_file_processing():
@@ -136,6 +150,7 @@ def test_large_file_processing():
 ## Error Testing
 
 Test error conditions:
+
 ```python
 def test_invalid_file_path():
     """Test handling of invalid file paths."""
@@ -151,6 +166,7 @@ def test_malformed_json():
 ## Parametrized Tests
 
 Use parametrized tests for multiple scenarios:
+
 ```python
 @pytest.mark.parametrize("file_type,expected_handler", [
     (".json", JsonHandler),
@@ -166,6 +182,7 @@ def test_handler_selection(file_type, expected_handler):
 ## Test Documentation
 
 Document test purpose and expected behavior:
+
 ```python
 def test_priority_based_resolution():
     """Test that user selections override other changes.
@@ -180,6 +197,7 @@ def test_priority_based_resolution():
 ## Continuous Integration
 
 Tests must pass in CI environment:
+
 - Use GitHub Actions for automated testing
 - Test on Python 3.12.x
 - Include coverage reporting
