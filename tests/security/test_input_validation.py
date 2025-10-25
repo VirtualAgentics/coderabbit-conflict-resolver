@@ -357,9 +357,9 @@ class TestGitHubURLValidation:
         ]
 
         for url in legitimate_subdomains:
-            assert InputValidator.validate_github_url(url), (
-                f"Legitimate GitHub URL should be allowed: {url}"
-            )
+            assert InputValidator.validate_github_url(
+                url
+            ), f"Legitimate GitHub URL should be allowed: {url}"
 
         # Test malicious/arbitrary subdomains that should be rejected
         malicious_subdomains = [
@@ -375,9 +375,9 @@ class TestGitHubURLValidation:
         ]
 
         for url in malicious_subdomains:
-            assert not InputValidator.validate_github_url(url), (
-                f"Malicious GitHub URL should be rejected: {url}"
-            )
+            assert not InputValidator.validate_github_url(
+                url
+            ), f"Malicious GitHub URL should be rejected: {url}"
 
         # Test case variations of legitimate subdomains
         case_variations = [
@@ -388,6 +388,6 @@ class TestGitHubURLValidation:
         ]
 
         for url in case_variations:
-            assert InputValidator.validate_github_url(url), (
-                f"Case variation of legitimate URL should be allowed: {url}"
-            )
+            assert InputValidator.validate_github_url(
+                url
+            ), f"Case variation of legitimate URL should be allowed: {url}"
