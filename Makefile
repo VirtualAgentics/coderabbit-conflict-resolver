@@ -41,7 +41,7 @@ lint: ## Run all linters
 	@echo "Running Bandit..."
 	bandit -r src/ -f json -o bandit-report.json
 	@echo "Running Safety..."
-	safety check --json --output safety-report.json
+	safety check --json --save-json safety-report.json
 
 format: ## Auto-format code with Black and Ruff
 	black src/ tests/
@@ -51,8 +51,11 @@ type-check: ## Run type checking with MyPy
 	mypy src/
 
 security: ## Run security checks
+	set -e
+	@echo "Running Bandit..."
 	bandit -r src/ -f json -o bandit-report.json
-	safety check --json --output safety-report.json
+	@echo "Running Safety..."
+	safety check --json --save-json safety-report.json
 
 docs: ## Build documentation
 	cd docs && make html

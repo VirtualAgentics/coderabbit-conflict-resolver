@@ -1,0 +1,402 @@
+"""Input validation and sanitization for security."""
+
+import json
+import logging
+import re
+from pathlib import Path
+from typing import ClassVar
+from urllib.parse import urlparse
+
+import tomli
+import tomli_w
+import yaml
+
+# Module-level logger for structured logging
+logger = logging.getLogger(__name__)
+
+
+class InputValidator:
+    """Comprehensive input validation and sanitization.
+
+    This class provides static methods for validating and sanitizing inputs
+    to prevent security vulnerabilities including:
+    - Path traversal attacks
+    - Code injection
+    - File size attacks
+    - Malicious content
+    """
+
+    # Safe path pattern - alphanumeric, dots, underscores, hyphens, forward slashes
+    SAFE_PATH_PATTERN = re.compile(r"^[a-zA-Z0-9_./-]+$")
+
+    # Maximum file size: 10MB
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+
+    # Allowed file extensions
+    ALLOWED_FILE_EXTENSIONS: ClassVar[set[str]] = {
+        ".py",
+        ".ts",
+        ".js",
+        ".json",
+        ".yaml",
+        ".yml",
+        ".toml",
+    }
+
+    @staticmethod
+    def validate_file_path(path: str, base_dir: str | None = None) -> bool:
+        """Validate file path is safe (no directory traversal).
+
+        Args:
+            path: File path to validate.
+            base_dir: Optional base directory to restrict access to.
+
+        Returns:
+            bool: True if the path is safe, False otherwise.
+
+        Example:
+            >>> InputValidator.validate_file_path("src/file.py")
+            True
+            >>> InputValidator.validate_file_path("../../etc/passwd")
+            False
+        """
+        if not path or not isinstance(path, str):
+            logger.warning("File path validation failed: path is None or not a string")
+            return False
+
+        try:
+            # Create Path object from input
+            input_path = Path(path)
+
+            # Check for directory traversal attempts by examining path parts
+            if ".." in input_path.parts:
+                logger.warning(f"Directory traversal attempt detected: {path}")
+                return False
+
+            # Check for absolute paths (disallowed unless base_dir is specified)
+            if input_path.is_absolute() and not base_dir:
+                logger.warning(f"Absolute path disallowed: {path}")
+                return False
+
+            # Check for safe characters in each path segment
+            for part in input_path.parts:
+                if part and not InputValidator.SAFE_PATH_PATTERN.match(part):
+                    logger.warning(f"Unsafe path segment detected in: {path}")
+                    return False
+
+            # If base_dir is specified, ensure path is within it
+            if base_dir:
+                try:
+                    # Resolve base directory strictly to prevent symlink escapes
+                    abs_base = Path(base_dir).resolve(strict=True)
+
+                    # Build candidate target by joining base and normalized path
+                    candidate = abs_base / input_path
+
+                    # Resolve the candidate path
+                    resolved_candidate = candidate.resolve()
+
+                    # Verify containment using is_relative_to
+                    if not resolved_candidate.is_relative_to(abs_base):
+                        raise ValueError(
+                            f"Path {resolved_candidate} is not contained within {abs_base}"
+                        )
+
+                except (OSError, RuntimeError, ValueError) as e:
+                    # Resolution error or path not contained in base
+                    logger.warning(f"Path containment check failed: {path}, error: {e}")
+                    return False
+        except (OSError, ValueError) as e:
+            # Invalid path or path resolution failed
+            logger.error(f"Path validation error for {path}: {e}")
+            return False
+
+        return True
+
+    @staticmethod
+    def validate_file_size(file_path: Path) -> bool:
+        """Validate file size is within limits.
+
+        Args:
+            file_path: Path to the file to validate.
+
+        Returns:
+            bool: True if file size is within limits, False otherwise.
+
+        Raises:
+            FileNotFoundError: If file does not exist.
+            OSError: If file cannot be accessed.
+        """
+        if not file_path.exists():
+            logger.error(f"File not found for size validation: {file_path}")
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        if not file_path.is_file():
+            logger.warning(f"Path is not a file: {file_path}")
+            return False
+
+        file_size = file_path.stat().st_size
+        if file_size > InputValidator.MAX_FILE_SIZE:
+            logger.warning(
+                f"File size exceeds limit: {file_path} "
+                f"({file_size} bytes > {InputValidator.MAX_FILE_SIZE} bytes)"
+            )
+        return file_size <= InputValidator.MAX_FILE_SIZE
+
+    @staticmethod
+    def validate_file_extension(path: str) -> bool:
+        """Validate file extension is allowed.
+
+        Args:
+            path: File path to check.
+
+        Returns:
+            bool: True if extension is allowed, False otherwise.
+        """
+        if not path:
+            return False
+
+        ext = Path(path).suffix.lower()
+        if ext not in InputValidator.ALLOWED_FILE_EXTENSIONS:
+            logger.warning(f"File extension not allowed: {ext} in path {path}")
+        return ext in InputValidator.ALLOWED_FILE_EXTENSIONS
+
+    @staticmethod
+    def sanitize_content(content: str, file_type: str) -> tuple[str, list[str]]:
+        r"""Sanitize file content based on type.
+
+        Removes potentially malicious content and validates structure for
+        structured file formats.
+
+        Args:
+            content: Content to sanitize.
+            file_type: File type (json, yaml, toml, python, etc.).
+
+        Returns:
+            tuple: (sanitized_content, warnings) where warnings is a list of
+                   security issues found.
+
+        Example:
+            >>> content = "data: value\\x00"
+            >>> clean, warnings = InputValidator.sanitize_content(content, "yaml")
+            >>> "\\x00" not in clean
+            True
+        """
+        if not content:
+            return content, []
+
+        warnings: list[str] = []
+
+        # Remove null bytes (common in exploits)
+        if "\x00" in content:
+            logger.warning("Security threat detected: null bytes found in content (removed)")
+            content = content.replace("\x00", "")
+            warnings.append("Removed null bytes from content")
+
+        # Validate structure for structured formats
+        file_type_lower = file_type.lower()
+
+        if file_type_lower in ("json", ".json"):
+            content, json_warnings = InputValidator._sanitize_json(content)
+            warnings.extend(json_warnings)
+
+        elif file_type_lower in ("yaml", "yml", ".yaml", ".yml"):
+            content, yaml_warnings = InputValidator._sanitize_yaml(content)
+            warnings.extend(yaml_warnings)
+
+        elif file_type_lower in ("toml", ".toml"):
+            content, toml_warnings = InputValidator._sanitize_toml(content)
+            warnings.extend(toml_warnings)
+
+        # Check for suspicious patterns
+        suspicious_patterns = [
+            (r"!!python/object", "Detected Python object serialization in YAML"),
+            (r"__import__", "Detected __import__ usage"),
+            (r"eval\s*\(", "Detected eval() usage"),
+            (r"exec\s*\(", "Detected exec() usage"),
+            (r"os\.system", "Detected os.system usage"),
+            (r"subprocess\.", "Detected subprocess usage"),
+        ]
+
+        for pattern, warning_msg in suspicious_patterns:
+            if re.search(pattern, content, re.IGNORECASE):
+                logger.warning(f"Security threat detected in content: {warning_msg}")
+                warnings.append(warning_msg)
+
+        return content, warnings
+
+    @staticmethod
+    def _sanitize_json(content: str) -> tuple[str, list[str]]:
+        """Sanitize and validate JSON content.
+
+        Args:
+            content: JSON content to validate.
+
+        Returns:
+            tuple: (content, warnings)
+        """
+        warnings: list[str] = []
+
+        try:
+            # Parse JSON to validate structure
+            parsed = json.loads(content)
+
+            # Re-serialize to ensure clean format
+            content = json.dumps(parsed, indent=2)
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON structure detected: {e}")
+            warnings.append(f"Invalid JSON structure: {e}")
+
+        return content, warnings
+
+    @staticmethod
+    def _sanitize_yaml(content: str) -> tuple[str, list[str]]:
+        """Sanitize and validate YAML content.
+
+        Args:
+            content: YAML content to validate.
+
+        Returns:
+            tuple: (content, warnings)
+        """
+        warnings: list[str] = []
+
+        try:
+            # Use safe_load to prevent code execution
+            parsed = yaml.safe_load(content)
+
+            # Check for None (empty YAML)
+            if parsed is None:
+                return content, warnings
+
+            # Re-serialize using safe_dump
+            content = yaml.safe_dump(parsed, default_flow_style=False)
+
+        except yaml.YAMLError as e:
+            logger.error(f"Invalid YAML structure detected: {e}")
+            warnings.append(f"Invalid YAML structure: {e}")
+
+        return content, warnings
+
+    @staticmethod
+    def _sanitize_toml(content: str) -> tuple[str, list[str]]:
+        """Sanitize and validate TOML content.
+
+        Args:
+            content: TOML content to validate.
+
+        Returns:
+            tuple: (content, warnings)
+        """
+        warnings: list[str] = []
+
+        try:
+            # Parse TOML to validate structure
+            parsed = tomli.loads(content)
+
+            # Re-serialize to ensure clean format
+            content = tomli_w.dumps(parsed)
+
+        except tomli.TOMLDecodeError as e:
+            logger.error(f"Invalid TOML structure detected: {e}")
+            warnings.append(f"Invalid TOML structure: {e}")
+
+        return content, warnings
+
+    @staticmethod
+    def validate_line_range(start_line: int, end_line: int, max_lines: int | None = None) -> bool:
+        """Validate line range is valid.
+
+        Args:
+            start_line: Starting line number (1-indexed).
+            end_line: Ending line number (1-indexed).
+            max_lines: Optional maximum line number to check against.
+
+        Returns:
+            bool: True if line range is valid, False otherwise.
+        """
+        # Check basic validity
+        if start_line < 1 or end_line < 1:
+            logger.warning(
+                f"Invalid line range: start={start_line}, end={end_line} (lines must be >= 1)"
+            )
+            return False
+
+        if start_line > end_line:
+            logger.warning(f"Invalid line range: start={start_line} > end={end_line}")
+            return False
+
+        # Check against max_lines if provided
+        if max_lines is not None and end_line > max_lines:
+            logger.warning(f"Line range exceeds maximum: end={end_line} > max={max_lines}")
+        return max_lines is None or end_line <= max_lines
+
+    # Explicit allowlist of approved GitHub domains and subdomains
+    # This prevents subdomain-spoofing attacks (e.g., github.com.evil.com)
+    ALLOWED_GITHUB_DOMAINS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "github.com",
+            "api.github.com",
+            "raw.githubusercontent.com",
+            "gist.github.com",
+            "codeload.github.com",  # For downloading repository archives
+            # GitHub Enterprise customers may add their domains here
+            # Example: "github.internal.company.com"
+        }
+    )
+
+    @staticmethod
+    def validate_github_url(url: str) -> bool:
+        """Validate GitHub URL is legitimate using an explicit allowlist.
+
+        Uses an explicit list of approved GitHub domains to prevent
+        subdomain spoofing attacks. Only exact domain matches are allowed
+        from the predefined allowlist.
+
+        Args:
+            url: URL to validate.
+
+        Returns:
+            bool: True if URL is a valid GitHub URL, False otherwise.
+
+        Example:
+            >>> InputValidator.validate_github_url("https://github.com/user/repo")
+            True
+            >>> InputValidator.validate_github_url("https://github.com.evil.com/repo")
+            False
+        """
+        if not url or not isinstance(url, str):
+            logger.warning("GitHub URL validation failed: URL is None or not a string")
+            return False
+
+        try:
+            parsed = urlparse(url)
+
+            # Check scheme is https
+            if parsed.scheme != "https":
+                logger.warning(
+                    f"GitHub URL validation failed: scheme must be https, got {parsed.scheme}"
+                )
+                return False
+
+            # Use hostname instead of netloc to avoid port issues
+            hostname = parsed.hostname
+            if hostname is None:
+                logger.warning(f"GitHub URL validation failed: no hostname in {url}")
+                return False
+
+            # Normalize hostname to lowercase for case-insensitive comparison
+            normalized_hostname = hostname.lower()
+
+            # Check if hostname is in explicit allowlist (exact match only)
+            # This prevents attacks like github.com.evil.com from being accepted
+            is_allowed = normalized_hostname in InputValidator.ALLOWED_GITHUB_DOMAINS
+
+            if not is_allowed:
+                logger.warning(f"GitHub URL validation failed: hostname not allowed: {hostname}")
+            return is_allowed
+
+        except (ValueError, AttributeError) as e:
+            logger.error(f"GitHub URL validation error for {url}: {e}")
+            return False
