@@ -31,7 +31,7 @@ repos:
     hooks:
       - id: mypy
         language_version: python3.12
-        additional_dependencies: [types-requests, types-click, types-PyYAML, pytest, rich, ruamel.yaml, tomli, tomli-w]
+        additional_dependencies: [click, types-requests, types-PyYAML, pytest, rich, ruamel.yaml, tomli, tomli-w]
         args: [--strict]
 
   - repo: https://github.com/PyCQA/bandit
