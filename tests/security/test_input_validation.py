@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from pr_conflict_resolver.security.input_validator import InputValidator
+from pr_conflict_resolver import InputValidator
 
 
 class TestFilePathValidation:

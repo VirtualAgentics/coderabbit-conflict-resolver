@@ -41,7 +41,7 @@ lint: ## Run all linters
 	@echo "Running Bandit..."
 	bandit -r src/ -f json -o bandit-report.json
 	@echo "Running Safety..."
-	safety check --json --output safety-report.json
+	safety check --json --save-json safety-report.json
 
 format: ## Auto-format code with Black and Ruff
 	black src/ tests/
