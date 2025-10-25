@@ -40,7 +40,6 @@ jobs:
         uses: pyupio/safety-action@2591cf2f3e67ba68b923f4c92f0d36e281c65023 # v1.0.1
         with:
           api-key: ${{ secrets.SAFETY_API_KEY }}
-        continue-on-error: true
 
       - name: Run pip-audit check (JSON)
         run: pip-audit --format json > pip-audit-report.json || true
@@ -68,8 +67,8 @@ jobs:
           fi
 
           # Safety Action handles vulnerability detection automatically
-          # If the Safety Action step passed, no CRITICAL vulnerabilities were found
-          echo "✅ Safety scan completed - no CRITICAL vulnerabilities found"
+          # If we reach this point, the Safety Action step succeeded (no vulnerabilities found)
+          echo "✅ Safety scan completed - no vulnerabilities found"
 
           # Check pip-audit for CRITICAL vulnerabilities
           if [ -f pip-audit-report.json ]; then
