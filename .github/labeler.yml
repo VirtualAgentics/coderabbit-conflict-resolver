@@ -69,7 +69,7 @@ coderabbit:
 # GitHub templates and automation
 github:
   - changed-files:
-      - any-glob-to-any-file: ['.github/**', '.github/ISSUE_TEMPLATE/**', '.github/PULL_REQUEST_TEMPLATE.md', '.github/CODEOWNERS', '.github/labeler.yml']
+      - any-glob-to-any-file: ['.github/**']
 
 # Python specific
 python:

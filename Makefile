@@ -14,11 +14,10 @@ setup: ## Install dependencies and setup development environment
 	@echo ""
 	@echo "Then run: make install-dev"
 
-install-dev: ## Install development dependencies
+install-dev: install-hooks ## Install development dependencies
 	pip install --upgrade pip
 	pip install -e ".[dev]"
 	pre-commit install
-	./scripts/install-hooks.sh
 	@echo "Development environment ready!"
 
 install-docs: ## Install documentation dependencies
