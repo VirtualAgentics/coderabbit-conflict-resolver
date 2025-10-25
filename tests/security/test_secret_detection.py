@@ -190,6 +190,10 @@ class TestJWTTokens:
         findings = SecretScanner.scan_content(content)
 
         assert len(findings) >= 1
+        # Find JWT-specific finding and verify its classification
+        jwt_findings = [f for f in findings if f.secret_type == "jwt_token"]  # noqa: S105
+        assert len(jwt_findings) >= 1, "Expected at least one JWT token finding"
+        assert jwt_findings[0].severity.name == "HIGH", "JWT tokens should have HIGH severity"
 
 
 class TestPrivateKeys:
@@ -201,6 +205,39 @@ class TestPrivateKeys:
         findings = SecretScanner.scan_content(content)
 
         assert len(findings) >= 1
+        # Verify the finding is classified as a private key
+        private_key_findings = [f for f in findings if f.secret_type == "private_key"]  # noqa: S105
+        assert len(private_key_findings) >= 1, "Expected at least one private key finding"
+
+
+class TestSecretRedaction:
+    """Tests for secret redaction functionality."""
+
+    def test_redact_short_secret(self) -> None:
+        """Test redaction of secrets 8 characters or less."""
+        # Test with various short secrets
+        short_secrets = [
+            "short",  # 5 chars
+            "secret",  # 6 chars
+            "pass123",  # 7 chars
+            "testpass",  # 8 chars
+        ]
+
+        for secret in short_secrets:
+            redacted = SecretScanner._redact_secret(secret)
+            # Should be all asterisks for short secrets
+            assert redacted == "*" * len(secret)
+            assert len(redacted) == len(secret)
+
+    def test_redact_long_secret(self) -> None:
+        """Test redaction of secrets longer than 8 characters."""
+        long_secret = "this_is_a_long_secret_key_12345"  # noqa: S105
+        redacted = SecretScanner._redact_secret(long_secret)
+
+        # Should show first 4 and last 4 characters
+        assert redacted.startswith(long_secret[:4])
+        assert redacted.endswith(long_secret[-4:])
+        assert "..." in redacted
 
 
 class TestDatabaseURLs:
@@ -238,6 +275,19 @@ class TestFalsePositives:
         findings = SecretScanner.scan_content(content)
         assert len(findings) == 0
 
+    def test_comment_with_test_keyword_not_detected(self) -> None:
+        """Test that secrets in comments with test keywords are filtered."""
+        # Test various comment styles with test keywords
+        test_cases = [
+            "# example: api_key=ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "// test token: ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "<!-- sample password='MyTestPass123' -->",
+        ]
+
+        for content in test_cases:
+            findings = SecretScanner.scan_content(content)
+            assert len(findings) == 0, f"False positive not filtered: {content}"
+
 
 class TestFileScanning:
     """Tests for file scanning."""
@@ -263,6 +313,34 @@ class TestFileScanning:
             findings = SecretScanner.scan_file(file_path)
             assert len(findings) >= 1
         finally:
+            file_path.unlink()
+
+    def test_scan_file_not_found(self) -> None:
+        """Test scan_file raises FileNotFoundError for non-existent file."""
+        non_existent_path = Path("/tmp/this_file_does_not_exist_12345.txt")  # noqa: S108
+
+        with pytest.raises(FileNotFoundError, match="File not found"):
+            SecretScanner.scan_file(non_existent_path)
+
+    def test_scan_file_os_error(self) -> None:
+        """Test scan_file handles OSError when file cannot be read."""
+        import os
+        import stat
+
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
+            f.write("test content")
+            f.flush()
+            file_path = Path(f.name)
+
+        try:
+            # Remove read permissions to trigger OSError
+            os.chmod(file_path, 0o000)
+
+            with pytest.raises(OSError, match="Failed to read file"):
+                SecretScanner.scan_file(file_path)
+        finally:
+            # Restore permissions and cleanup
+            os.chmod(file_path, stat.S_IRUSR | stat.S_IWUSR)
             file_path.unlink()
 
 
@@ -334,8 +412,7 @@ class TestUtilityMethods:
         # With stop_on_first=True, should only return first finding
         findings = SecretScanner.scan_content(content, stop_on_first=True)
         assert len(findings) == 1
-        attr_name = "secret_type"
-        assert getattr(findings[0], attr_name) == "github_personal_token"
+        assert findings[0].secret_type == "github_personal_token"  # noqa: S105
 
         # Without stop_on_first, should return all findings
         all_findings = SecretScanner.scan_content(content, stop_on_first=False)
@@ -356,8 +433,7 @@ class TestUtilityMethods:
                 break
 
         assert len(findings) == 1
-        attr_name = "secret_type"
-        assert getattr(findings[0], attr_name) == "github_personal_token"
+        assert findings[0].secret_type == "github_personal_token"  # noqa: S105
 
     def test_scan_content_generator_complete_scan(self) -> None:
         """Test scan_content_generator can scan all content when needed."""
@@ -374,3 +450,15 @@ class TestUtilityMethods:
         secret_types = {finding.secret_type for finding in findings}
         assert "github_personal_token" in secret_types
         assert "openai_api_key" in secret_types
+
+    def test_scan_content_generator_with_throttled_logging(self) -> None:
+        """Test that throttled logging occurs every 100 lines."""
+        # Create content with 150 lines, including secrets at various positions
+        token = make_token("ghp_")
+        lines = [f"line {i}: some text" for i in range(150)]
+        lines[50] = f"api_key={token}"  # Add secret at line 51
+        content = "\n".join(lines)
+
+        # Scan content - this will trigger logging at line 100
+        findings = list(SecretScanner.scan_content_generator(content))
+        assert len(findings) >= 1

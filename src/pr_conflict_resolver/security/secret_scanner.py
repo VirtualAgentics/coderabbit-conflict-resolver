@@ -23,7 +23,11 @@ class Severity(Enum):
 # Type alias for the complete summary including dynamic keys
 # Contains fixed fields: "total", "high", "medium", "low"
 # Plus dynamic fields: "type_<secret_type>" for each secret type found
-SummaryDict = dict[str, int]
+type SummaryDict = dict[str, int]
+
+# Type alias for secret detection patterns
+# Tuple containing: (regex pattern, secret type name, severity level)
+type PatternDef = tuple[Pattern[str], str, Severity]
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,11 +37,11 @@ class SecretFinding:
     This dataclass is immutable and memory-efficient, storing information
     about a secret that was found during scanning.
 
-    Args:
+    Attributes:
         secret_type: The type of secret detected (e.g., 'github_personal_token').
         matched_text: The redacted/truncated secret text for safety.
-        line_number: The line number where the secret was found.
-        column: The column position where the secret starts.
+        line_number: The line number where the secret was found (1-based).
+        column: The column position where the secret starts (1-based).
         severity: The severity level of the secret (Severity.HIGH/MEDIUM/LOW).
         context: Surrounding text for false positive detection. Defaults to empty string.
     """
@@ -63,7 +67,7 @@ class SecretScanner:
 
     # Common secret patterns (compiled regex, type, severity)
     # NOTE: Order matters - more specific patterns should come before generic ones
-    PATTERNS: ClassVar[list[tuple[Pattern[str], str, Severity]]] = [
+    PATTERNS: ClassVar[list[PatternDef]] = [
         # GitHub tokens (most specific first)
         (re.compile(r"ghp_[A-Za-z0-9]{36}"), "github_personal_token", Severity.HIGH),
         (re.compile(r"gho_[A-Za-z0-9]{36}"), "github_oauth_token", Severity.HIGH),
@@ -156,7 +160,8 @@ class SecretScanner:
 
         Example:
             >>> scanner = SecretScanner()
-            >>> findings = scanner.scan_content("api_key=ghp_1234567890123456789012345678901234")
+            >>> content = "api_key=ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+            >>> findings = scanner.scan_content(content)
             >>> len(findings) > 0
             True
         """
@@ -190,7 +195,7 @@ class SecretScanner:
 
         Example:
             >>> scanner = SecretScanner()
-            >>> content = "api_key=ghp_1234567890123456789012345678901234"
+            >>> content = "api_key=ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             >>> for finding in scanner.scan_content_generator(content):
             ...     print(f"Found {finding.secret_type}")
             ...     break  # Early exit on first finding
@@ -228,7 +233,7 @@ class SecretScanner:
 
             # Throttled logging: only log every 100 lines to reduce noise
             if line_num % 100 == 0:
-                logger.debug("Scanned line %d: %d findings", line_num, findings_count)
+                logger.debug("Scanned line %d: total findings so far: %d", line_num, findings_count)
 
         logger.debug("Generator content scan completed")
 
@@ -273,7 +278,16 @@ class SecretScanner:
         # Check against false positive patterns
         for pattern in SecretScanner.FALSE_POSITIVE_PATTERNS:
             if pattern.search(matched_text) or pattern.search(context):
-                logger.debug("False positive detected: %s in context: %s", matched_text, context)
+                redacted_text = SecretScanner._redact_secret(matched_text)
+                # Redact context by replacing any potential secrets
+                redacted_context = context
+                for c_pattern, _, _ in SecretScanner.PATTERNS:
+                    redacted_context = c_pattern.sub(
+                        lambda m: SecretScanner._redact_secret(m.group(0)), redacted_context
+                    )
+                logger.debug(
+                    "False positive detected: %s in context: %s", redacted_text, redacted_context
+                )
                 return True
 
         # Check if it's in a comment or documentation
