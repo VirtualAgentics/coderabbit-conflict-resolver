@@ -58,8 +58,12 @@ def test_cli_analyze_with_conflicts(mock_resolver: Any) -> None:
     assert "test.json" in result.output
 
 
-def test_cli_apply_dry_run() -> None:
+@patch("pr_conflict_resolver.cli.main.ConflictResolver")
+def test_cli_apply_dry_run(mock_resolver: Any) -> None:
     """apply --dry-run prints an informational message and exits cleanly."""
+    mock_inst = mock_resolver.return_value
+    mock_inst.analyze_conflicts.return_value = []
+
     runner = CliRunner()
     result = runner.invoke(cli, ["apply", "--pr", "7", "--owner", "o", "--repo", "r", "--dry-run"])
     assert result.exit_code == 0
