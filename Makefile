@@ -52,7 +52,7 @@ type-check: ## Run type checking with MyPy
 
 security: ## Run security checks
 	bandit -r src/ -f json -o bandit-report.json
-	safety check --json --output safety-report.json
+	safety check --json --save-json safety-report.json
 
 docs: ## Build documentation
 	cd docs && make html
