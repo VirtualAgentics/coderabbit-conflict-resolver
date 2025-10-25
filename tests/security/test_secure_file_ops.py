@@ -525,12 +525,15 @@ class TestEdgeCases:
             def mock_replace(self: Path, target: Path) -> None:
                 raise OSError("Simulated filesystem error during replace")
 
+            # Store original unlink method before patching
+            original_unlink = Path.unlink
+
             # Mock Path.unlink to fail during temp file cleanup
             def mock_unlink(self: Path, missing_ok: bool = False) -> None:
                 if str(self).endswith(".tmp"):
                     raise OSError("Permission denied during temp cleanup")
                 # Use original unlink for other cases
-                return Path.unlink(self, missing_ok=missing_ok)
+                return original_unlink(self, missing_ok=missing_ok)
 
             monkeypatch.setattr(Path, "replace", mock_replace)
             monkeypatch.setattr(Path, "unlink", mock_unlink)
