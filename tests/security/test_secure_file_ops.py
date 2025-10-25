@@ -16,6 +16,8 @@ class TestSecureTempFile:
     def test_create_and_cleanup(self) -> None:
         """Test temporary file is created and cleaned up automatically."""
         with SecureFileHandler.secure_temp_file() as temp_path:
+            # Verify temp_path is a Path object
+            assert isinstance(temp_path, Path)
             # File should exist
             assert temp_path.exists()
 
@@ -28,6 +30,8 @@ class TestSecureTempFile:
     def test_with_suffix(self) -> None:
         """Test temporary file with suffix."""
         with SecureFileHandler.secure_temp_file(suffix=".json") as temp_path:
+            # Verify temp_path is a Path object
+            assert isinstance(temp_path, Path)
             assert temp_path.suffix == ".json"
             assert temp_path.exists()
 
@@ -36,19 +40,27 @@ class TestSecureTempFile:
         content = '{"key": "value"}'
 
         with SecureFileHandler.secure_temp_file(content=content) as temp_path:
+            # Verify temp_path is a Path object
+            assert isinstance(temp_path, Path)
             assert temp_path.read_text() == content
 
     def test_with_empty_content(self) -> None:
         """Test temporary file with empty string content."""
         with SecureFileHandler.secure_temp_file(content="") as temp_path:
+            # Verify temp_path is a Path object
+            assert isinstance(temp_path, Path)
             assert temp_path.read_text() == ""
 
     def test_multiple_temp_files(self) -> None:
         """Test creating multiple temporary files."""
         paths = []
         with SecureFileHandler.secure_temp_file() as temp1:
+            # Verify temp1 is a Path object
+            assert isinstance(temp1, Path)
             paths.append(temp1)
             with SecureFileHandler.secure_temp_file() as temp2:
+                # Verify temp2 is a Path object
+                assert isinstance(temp2, Path)
                 paths.append(temp2)
                 assert temp1 != temp2
 
