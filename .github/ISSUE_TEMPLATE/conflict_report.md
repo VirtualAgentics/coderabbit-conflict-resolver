@@ -8,6 +8,7 @@ assignees: ''
 ---
 
 **Conflict Details**
+
 - **File**: [e.g. package.json]
 - **Lines**: [e.g. L10-15]
 - **Conflict Type**: [e.g. exact, major, partial, minor]
@@ -20,6 +21,7 @@ Describe what you expected to happen.
 Describe what actually happened.
 
 **Configuration**
+
 ```json
 {
   "mode": "priority",
@@ -29,6 +31,7 @@ Describe what actually happened.
 
 **Conflict Analysis**
 If available, include the conflict analysis output:
+
 ```
 Conflict type: major
 Overlap: 85%

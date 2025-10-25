@@ -147,14 +147,12 @@ class TestGitHubCommentExtractor:
         extractor = GitHubCommentExtractor()
 
         comment = {
-            "body": """
-            Here's a suggestion:
-            ```suggestion
-            {
-              "name": "test"
-            }
-            ```
-            """
+            "body": """Here's a suggestion:
+```suggestion
+{
+  "name": "test"
+}
+```"""
         }
 
         blocks = extractor.extract_suggestion_blocks(comment)
@@ -168,21 +166,19 @@ class TestGitHubCommentExtractor:
         extractor = GitHubCommentExtractor()
 
         comment = {
-            "body": """
-            **Option 1:**
-            ```suggestion
-            {
-              "name": "test1"
-            }
-            ```
+            "body": """**Option 1:**
+```suggestion
+{
+  "name": "test1"
+}
+```
 
-            **Option 2:**
-            ```suggestion
-            {
-              "name": "test2"
-            }
-            ```
-            """
+**Option 2:**
+```suggestion
+{
+  "name": "test2"
+}
+```"""
         }
 
         blocks = extractor.extract_suggestion_blocks(comment)

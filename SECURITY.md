@@ -107,4 +107,3 @@ By reporting a vulnerability, you agree to:
 - Not disrupt our services or systems
 
 This security policy is effective as of the date of the last update and may be updated at any time.
-

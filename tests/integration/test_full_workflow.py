@@ -196,8 +196,10 @@ class TestFullWorkflow:
     def test_different_configurations(self, mock_extractor: Any) -> None:
         """
         Verify analyze_conflicts runs without error across preset configurations.
-        
-        Calls analyze_conflicts for each PresetConfig (CONSERVATIVE, BALANCED, AGGRESSIVE, SEMANTIC) using a mocked PR comment and asserts that the result is a list (possibly empty) for every configuration.
+
+        Calls analyze_conflicts for each PresetConfig (CONSERVATIVE, BALANCED, AGGRESSIVE,
+            SEMANTIC) using a mocked PR comment and asserts that the result is a list (possibly
+            empty) for every configuration.
         """
         # Mock GitHub extractor
         mock_extractor.return_value.fetch_pr_comments.return_value = [

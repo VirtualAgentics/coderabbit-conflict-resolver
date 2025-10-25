@@ -15,10 +15,10 @@ When the same logic appears in 2+ files, extract to a utility module:
 2. **Module structure:**
    ```python
    """Brief module description.
-   
+
    Detailed explanation of utilities provided.
    """
-   
+
    def utility_function(param: Type) -> ReturnType:
        """Function docstring with Args, Returns, Raises."""
        pass

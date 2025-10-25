@@ -1,9 +1,8 @@
 """Unit tests for data models in pr_conflict_resolver.core.models."""
 
 from dataclasses import is_dataclass
-from typing import Any
 
-from pr_conflict_resolver import (
+from pr_conflict_resolver.core.models import (
     Change,
     Conflict,
     FileType,
@@ -80,7 +79,14 @@ def test_conflict_dataclass() -> None:
     assert conflict.file_path == "file.yaml"
     assert conflict.line_range == (10, 12)
     assert conflict.changes and conflict.changes[0] == ch
-    assert conflict.conflict_type in {"exact", "major", "partial", "multiple", "key_conflict", "section_conflict"}
+    assert conflict.conflict_type in {
+        "exact",
+        "major",
+        "partial",
+        "multiple",
+        "key_conflict",
+        "section_conflict",
+    }
     assert conflict.severity in {"low", "medium", "high"}
     assert 0.0 <= conflict.overlap_percentage <= 100.0
 

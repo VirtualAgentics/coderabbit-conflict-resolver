@@ -65,6 +65,7 @@ If you prefer manual setup:
    pip install --upgrade pip
    pip install -e ".[dev]"
    pre-commit install
+   ./scripts/install-hooks.sh
    ```
 
 4. **Verify setup**:
@@ -117,6 +118,8 @@ If you prefer manual setup:
    git push origin feature/your-feature-name
    ```
 
+   **Note**: The pre-push hook will automatically run quality checks before pushing. If checks fail, you'll need to fix the issues or use `git push --no-verify` (not recommended).
+
 ### Available Commands
 
 Use `make help` to see all available commands:
@@ -129,6 +132,79 @@ Use `make help` to see all available commands:
 - `make docs` - Build documentation
 - `make clean` - Clean build artifacts
 - `make check-all` - Run all checks (lint + test + security)
+- `make install-hooks` - Install git hooks for quality checks
+
+## Pre-Push Hook
+
+This project uses a pre-push git hook to enforce quality checks before pushing to remote repositories. The hook runs automatically and ensures code quality standards are maintained.
+
+### What Checks Are Run
+
+The pre-push hook runs these quality checks in order:
+
+1. **Black formatting** - Ensures code is properly formatted
+2. **Ruff linting** - Checks for code style and quality issues
+3. **MyPy type checking** - Validates type annotations
+4. **Bandit security** - Scans for security vulnerabilities
+5. **Test suite** - Runs tests with coverage requirements
+
+### Installation
+
+The hook is automatically installed when you run:
+
+```bash
+make install-dev
+# or manually:
+./scripts/install-hooks.sh
+```
+
+### Usage
+
+The hook runs automatically when you push:
+
+```bash
+git push origin feature/your-branch
+```
+
+If any checks fail, you'll see a summary of what failed and how to fix it. You can then:
+
+1. **Fix the issues** and push again
+2. **Use `git push --no-verify`** to bypass checks (emergency only)
+
+### Manual Hook Installation
+
+If you need to install the hook manually:
+
+```bash
+./scripts/install-hooks.sh
+```
+
+### Running Checks Locally
+
+You can run the same checks locally before pushing:
+
+```bash
+make check-all  # Run all quality checks
+# or individually:
+make lint       # Formatting and linting
+make test       # Tests with coverage
+make security   # Security checks
+```
+
+## Security Scanning with Safety
+
+This project uses [Safety](https://safetycli.com/) for vulnerability scanning. To run scans locally:
+
+```bash
+# Authenticate (one-time setup)
+source .venv/bin/activate
+safety auth login
+
+# Run vulnerability scan
+safety scan
+```
+
+The CI/CD pipeline automatically runs Safety scans using the [official GitHub Action](https://github.com/pyupio/safety-action). See [`.github/SAFETY_SETUP.md`](.github/SAFETY_SETUP.md) for details.
 
 ## Coding Standards
 

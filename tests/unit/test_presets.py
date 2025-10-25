@@ -16,10 +16,22 @@ def test_balanced_preset_priority_rules_present() -> None:
     cfg = PresetConfig.BALANCED
     assert cfg["mode"] == "balanced"
     rules = cfg["priority_rules"]
-    expected = {"user_selections", "security_fixes", "syntax_errors", "regular_suggestions", "formatting"}
+    expected = {
+        "user_selections",
+        "security_fixes",
+        "syntax_errors",
+        "regular_suggestions",
+        "formatting",
+    }
     assert expected <= set(rules.keys())
     # Ensure ordering intent (relative magnitudes)
-    assert rules["user_selections"] > rules["security_fixes"] > rules["syntax_errors"] > rules["regular_suggestions"] > rules["formatting"]
+    assert (
+        rules["user_selections"]
+        > rules["security_fixes"]
+        > rules["syntax_errors"]
+        > rules["regular_suggestions"]
+        > rules["formatting"]
+    )
 
 
 def test_aggressive_preset_flags() -> None:

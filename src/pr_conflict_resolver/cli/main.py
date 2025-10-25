@@ -13,10 +13,11 @@ console = Console()
 @click.group()
 @click.version_option(version="0.1.0")
 def cli() -> None:
-    """
-    Create the main Click command-line interface for the CodeRabbit conflict resolver.
-    
-    Defines the top-level `cli` command group with a version option and registers the `analyze`, `apply`, and `simulate` subcommands; configures the Rich console used for styled terminal output.
+    """Create the main Click command-line interface for the CodeRabbit conflict resolver.
+
+    Defines the top-level `cli` command group with a version option and registers the
+    `analyze`, `apply`, and `simulate` subcommands; configures the Rich console used
+    for styled terminal output.
     """
 
 
@@ -26,15 +27,15 @@ def cli() -> None:
 @click.option("--repo", required=True, help="Repository name")
 @click.option("--config", default="balanced", help="Configuration preset")
 def analyze(pr: int, owner: str, repo: str, config: str) -> None:
-    """
-    Analyze conflicts in a pull request and print a summary to the console.
-    
+    """Analyze conflicts in a pull request and print a summary to the console.
+
     Parameters:
         pr (int): Pull request number.
         owner (str): Repository owner or organization.
         repo (str): Repository name.
-        config (str): Configuration preset name (e.g., "balanced"); falls back to the default preset if not recognized.
-    
+        config (str): Configuration preset name (e.g., "balanced"); falls back to
+            the default preset if not recognized.
+
     Raises:
         click.Abort: If an error occurs while analyzing conflicts.
     """
@@ -87,19 +88,19 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
 @click.option("--strategy", default="priority", help="Resolution strategy")
 @click.option("--dry-run", is_flag=True, help="Simulate without applying changes")
 def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
-    """
-    Apply or simulate applying conflict-resolution suggestions to a pull request.
-    
-    When `dry_run` is True, analyzes conflicts and reports how many would be processed without making changes.
-    Otherwise, applies suggestions for the given PR using the specified strategy and reports counts and success rate.
-    
+    """Apply or simulate applying conflict-resolution suggestions to a pull request.
+
+    When `dry_run` is True, analyzes conflicts and reports how many would be
+    processed without making changes. Otherwise, applies suggestions for the given
+    PR using the specified strategy and reports counts and success rate.
+
     Parameters:
         pr (int): Pull request number.
         owner (str): Repository owner or organization.
         repo (str): Repository name.
         strategy (str): Resolution strategy to use (e.g., "priority").
         dry_run (bool): If True, do not apply changes; only simulate and report.
-    
+
     Raises:
         click.Abort: If an error occurs while analyzing or applying suggestions.
     """
@@ -144,14 +145,16 @@ def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
 @click.option("--repo", required=True, help="Repository name")
 @click.option("--config", default="balanced", help="Configuration preset")
 def simulate(pr: int, owner: str, repo: str, config: str) -> None:
-    """
-    Simulate resolving pull request conflicts and print a summary of what would be applied.
-    
-    Analyzes conflicts for the specified PR using the named configuration preset and prints a simulation report showing total conflicting changes, how many would be applied or skipped, and the resulting success rate.
-    
+    """Simulate resolving pull request conflicts and print a summary of what would be applied.
+
+    Analyzes conflicts for the specified PR using the named configuration preset and
+    prints a simulation report showing total conflicting changes, how many would be
+    applied or skipped, and the resulting success rate.
+
     Parameters:
-        config (str): Name of the preset configuration to use (mapped to PresetConfig by uppercasing); defaults to BALANCED if not found.
-    
+        config (str): Name of the preset configuration to use (mapped to PresetConfig
+            by uppercasing); defaults to BALANCED if not found.
+
     Raises:
         click.Abort: If an unexpected error occurs during analysis.
     """

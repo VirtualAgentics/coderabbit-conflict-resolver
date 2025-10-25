@@ -13,9 +13,8 @@ class PriorityStrategy:
     """Priority-based conflict resolution strategy."""
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
-        """
-        Create a PriorityStrategy and initialize its configuration and priority rules.
-        
+        """Create a PriorityStrategy and initialize its configuration and priority rules.
+
         If `config` contains a "priority_rules" mapping, those rules are used; otherwise a default
         set of priority scores is established for:
         - user_selections: 100
@@ -23,7 +22,7 @@ class PriorityStrategy:
         - syntax_errors: 80
         - regular_suggestions: 50
         - formatting: 10
-        
+
         Parameters:
             config (dict[str, Any] | None): Optional configuration dictionary that may include a
                 "priority_rules" key to override the defaults.
@@ -41,12 +40,11 @@ class PriorityStrategy:
         )
 
     def resolve(self, conflict: Conflict) -> Resolution:
-        """
-        Selects the highest-priority change from a conflict according to configured priority rules.
-        
+        """Selects the highest-priority change from a conflict.
+
         Parameters:
             conflict (Conflict): The conflict containing candidate changes to resolve.
-        
+
         Returns:
             Resolution: A resolution describing the selected applied change and any skipped changes.
                 If the conflict has no changes, returns a "skip" resolution with success `False`
@@ -91,14 +89,16 @@ class PriorityStrategy:
         )
 
     def _calculate_priority(self, change: Change) -> int:
-        """
-        Compute the numeric priority for a Change based on configured priority rules, the change's metadata, and author adjustments.
-        
+        """Compute the numeric priority for a Change based on configured rules.
+
         Parameters:
-            change (Change): The change to evaluate. Uses change.metadata["option_label"] (if present) to prefer user selections and change.metadata["author"] to apply author-based adjustments.
-        
+            change (Change): The change to evaluate. Uses change.metadata["option_label"] (if
+                present) to prefer user selections and change.metadata["author"] to apply
+                author-based adjustments.
+
         Returns:
-            int: Priority value where higher numbers indicate higher precedence when resolving conflicts.
+            int: Priority value where higher numbers indicate higher precedence when resolving
+                conflicts.
         """
         base_priority = self.priority_rules.get("regular_suggestions", 50)
 
@@ -126,14 +126,15 @@ class PriorityStrategy:
         return int(base_priority)
 
     def _is_security_related(self, change: Change) -> bool:
-        """
-        Determine whether a Change's content indicates a security-related modification.
-        
+        """Determine whether a Change's content indicates a security-related modification.
+
         Parameters:
-            change (Change): Change object whose content will be inspected for security-related keywords.
-        
+            change (Change): Change object whose content will be inspected for security-related
+                keywords.
+
         Returns:
-            bool: True if the change's content contains any security-related keywords, False otherwise.
+            bool: True if the change's content contains any security-related keywords, False
+                otherwise.
         """
         content = change.content.lower()
         security_keywords = [
@@ -152,9 +153,8 @@ class PriorityStrategy:
         return any(keyword in content for keyword in security_keywords)
 
     def _is_syntax_error_fix(self, change: Change) -> bool:
-        """
-        Determine whether a change addresses a syntax-related error.
-        
+        """Determine whether a change addresses a syntax-related error.
+
         Returns:
             True if the change's content contains syntax-related keywords, False otherwise.
         """
@@ -176,11 +176,11 @@ class PriorityStrategy:
         return any(keyword in content for keyword in syntax_keywords)
 
     def _is_formatting_change(self, change: Change) -> bool:
-        """
-        Determine whether a change is a formatting-related edit.
-        
-        Scans the change's content for common formatting tool names and other formatting-related keywords.
-        
+        """Determine whether a change is a formatting-related edit.
+
+        Scans the change's content for common formatting tool names and other formatting-related
+            keywords.
+
         Returns:
             `true` if the change appears to be formatting-related, `false` otherwise.
         """
@@ -200,18 +200,16 @@ class PriorityStrategy:
         return any(keyword in content for keyword in formatting_keywords)
 
     def get_strategy_name(self) -> str:
-        """
-        Get the strategy's name.
-        
+        """Get the strategy's name.
+
         Returns:
             The strategy identifier string (e.g., "priority").
         """
         return "priority"
 
     def get_strategy_description(self) -> str:
-        """
-        Describe the priority-based conflict resolution strategy.
-        
+        """Describe the priority-based conflict resolution strategy.
+
         Returns:
             str: Human-readable description of the strategy.
         """
@@ -221,22 +219,22 @@ class PriorityStrategy:
         )
 
     def get_priority_rules(self) -> dict[str, int]:
-        """
-        Return a copy of the current priority rules mapping.
-        
+        """Return a copy of the current priority rules mapping.
+
         Returns:
-            dict[str, int]: A copy of the priority rules where keys are rule names and values are their integer priorities.
+            dict[str, int]: A copy of the priority rules where keys are rule names and values
+                are their integer priorities.
         """
         return dict(self.priority_rules)
 
     def update_priority_rules(self, new_rules: dict[str, int]) -> None:
-        """
-        Update the strategy's priority rules with the provided mapping.
-        
+        """Update the strategy's priority rules with the provided mapping.
+
         Parameters:
-            new_rules (dict[str, int]): Mapping of priority rule names to integer priority values.
-                Keys present in this mapping override the existing rules; other rules remain unchanged.
-                The method also updates the strategy's internal configuration to reflect the new rules.
+            new_rules (dict[str, int]): Mapping of priority rule names to integer priority
+                values. Keys present in this mapping override the existing rules; other rules
+                remain unchanged. The method also updates the strategy's internal configuration
+                to reflect the new rules.
         """
         self.priority_rules.update(new_rules)
         self.config["priority_rules"] = self.priority_rules

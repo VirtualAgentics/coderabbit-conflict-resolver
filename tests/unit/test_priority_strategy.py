@@ -146,9 +146,13 @@ class TestPriorityStrategy:
 
     def test_resolve(self) -> None:
         """
-        Verify PriorityStrategy selects the highest-priority change and skips the others when resolving a conflict.
-        
-        Creates three changes implying different priorities (security, regular, formatting), constructs a Conflict containing those changes, calls Strategy.resolve, and asserts that the resolution uses the "priority" strategy, succeeds, applies exactly the highest-priority change, and marks the other two changes as skipped.
+        Verify PriorityStrategy selects the highest-priority change and skips the others when
+            resolving a conflict.
+
+        Creates three changes implying different priorities (security, regular, formatting),
+            constructs a Conflict containing those changes, calls Strategy.resolve, and asserts
+            that the resolution uses the "priority" strategy, succeeds, applies exactly the
+            highest-priority change, and marks the other two changes as skipped.
         """
         strategy = PriorityStrategy()
 

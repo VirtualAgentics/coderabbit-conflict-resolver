@@ -1,8 +1,7 @@
 ---
 title: Python Style Guidelines
 description: Code formatting, linting rules, and style conventions for Python development
-globs:
-  - "**/*.py"
+alwaysApply: true
 ---
 
 # Python Style Guidelines
@@ -106,3 +105,69 @@ from pr_conflict_resolver.core.resolver import ConflictResolver
 - Use generator expressions for large datasets
 - Avoid unnecessary object creation in loops
 - Use appropriate data structures
+
+## Quality Enforcement (MANDATORY)
+
+### Never Bypass Quality Checks
+
+❌ **FORBIDDEN** - Never use bypass flags:
+
+```bash
+git commit --no-verify  # NEVER DO THIS
+black --skip-string-normalization  # Avoid unless absolutely necessary
+ruff --ignore E501  # Fix the issue instead
+mypy --ignore-errors  # Fix type errors instead
+```
+
+✅ **CORRECT** - Fix issues properly:
+
+```bash
+# Fix formatting
+black src/ tests/
+
+# Fix linting
+ruff check src/ tests/ --fix
+
+# Fix type errors
+mypy src/ --strict
+
+# Then commit
+git add .
+git commit -m "fix: resolve linting and type issues"
+```
+
+### Pre-commit Integration
+
+All Python files are automatically checked via pre-commit hooks:
+
+- **Black** - Auto-formats code
+- **Ruff** - Lints and fixes issues
+- **MyPy** - Type checking with strict mode
+- **Bandit** - Security scanning
+
+### Mandatory Standards
+
+These standards are **NON-NEGOTIABLE**:
+
+1. All code must pass Black formatting
+2. All code must pass Ruff linting (no errors)
+3. All code must pass MyPy type checking (--strict)
+4. All code must pass security scanning
+5. All public functions must have docstrings
+6. All functions must have type hints
+
+### Fix Before Commit
+
+Quality issues **MUST** be fixed before committing:
+
+```bash
+# Run all checks
+make lint
+
+# Fix any issues found
+# Re-run checks until clean
+make lint
+
+# Only then commit
+git commit -m "fix: resolve quality issues"
+```

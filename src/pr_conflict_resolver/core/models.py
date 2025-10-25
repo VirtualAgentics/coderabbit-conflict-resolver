@@ -21,6 +21,7 @@ class FileType(Enum):
 
 
 @dataclass
+@dataclass
 class Change:
     """Represents a single change suggestion."""
 

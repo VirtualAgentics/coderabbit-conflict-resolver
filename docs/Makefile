@@ -17,4 +17,3 @@ help:
 # Catch-all target: route all unknown targets to Sphinx using the "new" style.
 %: Makefile
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
-

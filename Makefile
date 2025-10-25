@@ -1,4 +1,4 @@
-.PHONY: all help setup test lint format type-check clean install-dev install-docs docs build publish
+.PHONY: all help setup test lint format type-check clean install-dev install-docs docs build publish install-hooks
 
 all: lint format type-check test build ## Default target - run all checks
 
@@ -14,7 +14,7 @@ setup: ## Install dependencies and setup development environment
 	@echo ""
 	@echo "Then run: make install-dev"
 
-install-dev: ## Install development dependencies
+install-dev: install-hooks ## Install development dependencies
 	pip install --upgrade pip
 	pip install -e ".[dev]"
 	pre-commit install
@@ -83,6 +83,9 @@ ci: ## Run CI checks locally
 	make test
 	make security
 	@echo "All CI checks passed!"
+
+install-hooks: ## Install git hooks for quality checks
+	./scripts/install-hooks.sh
 
 dev-setup: setup install-dev ## Complete development setup
 	@echo "Development setup complete!"
