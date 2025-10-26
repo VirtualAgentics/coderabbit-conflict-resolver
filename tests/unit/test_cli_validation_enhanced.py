@@ -1,7 +1,7 @@
 """Enhanced unit tests for CLI validation functions.
 
 This module provides comprehensive tests for the CLI validation functions
-including validate_github_identifier, sanitize_for_output, and validate_path_option.
+including validate_github_identifier and sanitize_for_output.
 """
 
 from unittest.mock import Mock
@@ -15,7 +15,6 @@ from pr_conflict_resolver.cli.main import (
     cli,
     sanitize_for_output,
     validate_github_identifier,
-    validate_path_option,
 )
 
 
@@ -252,33 +251,6 @@ class TestSanitizeForOutput:
         """Test that whitespace-only string passes through."""
         result = sanitize_for_output("   ")
         assert result == "   "
-
-
-class TestValidatePathOption:
-    """Test path option validation function."""
-
-    def test_path_too_long_raises_error(self) -> None:
-        """Test that path exceeding max length raises error."""
-        ctx = Context(cli)
-        param = Mock()
-        param.name = "test"
-        param.human_readable_name = None
-        long_path = "a" * (MAX_CLI_NAME_LENGTH + 1)
-
-        with pytest.raises(
-            BadParameter, match=f"test: value too long \\(max {MAX_CLI_NAME_LENGTH}\\)"
-        ):
-            validate_path_option(ctx, param, long_path)
-
-    def test_invalid_path_raises_error(self) -> None:
-        """Test that invalid path raises error."""
-        ctx = Context(cli)
-        param = Mock()
-        param.name = "test"
-        param.human_readable_name = None
-
-        with pytest.raises(BadParameter, match="test: invalid path"):
-            validate_path_option(ctx, param, "../../../etc/passwd")
 
 
 class TestCLIIntegration:

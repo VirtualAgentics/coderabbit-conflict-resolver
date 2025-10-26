@@ -8,7 +8,6 @@ from rich.table import Table
 
 from pr_conflict_resolver.config.presets import PresetConfig
 from pr_conflict_resolver.core.resolver import ConflictResolver
-from pr_conflict_resolver.security.input_validator import InputValidator
 
 console = Console()
 
@@ -86,32 +85,9 @@ def validate_github_identifier(ctx: click.Context, param: click.Parameter, value
     return value
 
 
-def validate_path_option(ctx: click.Context, param: click.Parameter, value: str) -> str:
-    """Validate CLI path option for security using Click callback.
-
-    Note: Reserved for future file-path options (e.g., config files, output paths).
-    Currently unused in CLI commands but maintained for planned features.
-
-    Args:
-        ctx: Click context object
-        param: Click parameter object
-        value: Path value to validate
-
-    Returns:
-        str: The validated path value
-
-    Raises:
-        click.BadParameter: If path validation fails
-    """
-    # Enforce maximum length for CLI identifiers
-    if len(value) > MAX_CLI_NAME_LENGTH:
-        raise click.BadParameter(
-            f"{param.human_readable_name or param.name}: value too long (max {MAX_CLI_NAME_LENGTH})"
-        )
-
-    if not InputValidator.validate_file_path(value, allow_absolute=False):
-        raise click.BadParameter(f"{param.human_readable_name or param.name}: invalid path")
-    return value
+# TODO: Add path-option validation when file path options are introduced
+# (e.g., --output, --config-path). Use InputValidator.validate_file_path()
+# with appropriate allow_absolute setting.
 
 
 @cli.command()
