@@ -75,24 +75,10 @@ class TestDependencyPinning:
             pytest.skip("pyproject.toml not found")
 
         # Parse the TOML file
-        try:
-            import tomllib
-
-            toml_parser = tomllib
-        except ImportError:
-            try:
-                import toml as toml_parser  # type: ignore
-            except ImportError:
-                pytest.skip("No TOML parser available (tomllib or toml)")
+        import tomllib
 
         with open(pyproject_file, "rb") as f:
-            if hasattr(toml_parser, "load"):
-                # tomllib (Python 3.11+)
-                data = toml_parser.load(f)
-            else:
-                # toml library
-                f.seek(0)
-                data = toml_parser.load(f)
+            data = tomllib.load(f)
 
         # Check for dependencies in various locations
         dependencies: list[str] = []
