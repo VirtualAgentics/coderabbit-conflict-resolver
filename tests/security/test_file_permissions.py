@@ -42,11 +42,13 @@ class TestFilePermissionSecurity:
     @pytest.mark.skipif(os.name == "nt", reason="POSIX file modes not available on Windows")
     def test_handlers_create_backup_with_proper_permissions(self) -> None:
         """Test that backups are created with secure permissions (0600)."""
-        handler = JsonHandler()
-
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write('{"key": "value"}')
             f.flush()
+            temp_dir = os.path.dirname(f.name)
+
+            # Create handler with temp directory as workspace root
+            handler = JsonHandler(workspace_root=temp_dir)
 
             try:
                 # Create backup

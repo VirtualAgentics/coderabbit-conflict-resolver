@@ -6,6 +6,7 @@ but extensible to other code review bots.
 """
 
 import hashlib
+import os
 from pathlib import Path
 from typing import Any
 
@@ -22,20 +23,25 @@ from .models import Change, Conflict, FileType, Resolution, ResolutionResult
 class ConflictResolver:
     """Main conflict resolver class."""
 
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, config: dict[str, Any] | None = None, workspace_root: str | None = None
+    ) -> None:
         """Create a ConflictResolver configured with optional settings.
 
         Parameters:
             config (dict[str, Any] | None): Optional configuration dictionary used to customize
                 resolver behavior (for example, strategy parameters or handler options). If not
                 provided, defaults to an empty dict.
+            workspace_root (str | None): Root directory for validating absolute file paths.
+                If None, defaults to current working directory.
         """
         self.config = config or {}
+        self.workspace_root = workspace_root or os.getcwd()
         self.conflict_detector = ConflictDetector()
         self.handlers = {
-            FileType.JSON: JsonHandler(),
-            FileType.YAML: YamlHandler(),
-            FileType.TOML: TomlHandler(),
+            FileType.JSON: JsonHandler(self.workspace_root),
+            FileType.YAML: YamlHandler(self.workspace_root),
+            FileType.TOML: TomlHandler(self.workspace_root),
         }
         self.strategy = PriorityStrategy(config)
         self.github_extractor = GitHubCommentExtractor()

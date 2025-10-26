@@ -4,13 +4,24 @@ This module provides the abstract base class that all file handlers must impleme
 """
 
 import contextlib
+import os
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 from ..core.models import Change, Conflict
 
 
 class BaseHandler(ABC):
     """Abstract base class for file-type specific handlers."""
+
+    def __init__(self, workspace_root: str | None = None) -> None:
+        """Initialize the base handler with workspace root for path validation.
+
+        Args:
+            workspace_root: Root directory for validating absolute paths.
+                If None, defaults to current working directory.
+        """
+        self.workspace_root = Path(workspace_root or os.getcwd()).resolve()
 
     @abstractmethod
     def can_handle(self, file_path: str) -> bool:
@@ -123,12 +134,9 @@ class BaseHandler(ABC):
         from ..security.input_validator import InputValidator
 
         # Validate file path for security (path traversal protection)
-        # For absolute paths, use parent directory as base_dir for containment check
-        file_path_obj = Path(path)
-        base_dir_for_validation = str(file_path_obj.parent) if file_path_obj.is_absolute() else None
-
+        # Use workspace root for absolute path containment check
         if not InputValidator.validate_file_path(
-            path, base_dir=base_dir_for_validation, allow_absolute=True
+            path, base_dir=str(self.workspace_root), allow_absolute=True
         ):
             raise ValueError(f"Invalid file path: {path}")
 

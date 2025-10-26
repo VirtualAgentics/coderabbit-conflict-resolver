@@ -409,7 +409,6 @@ class TestTomlHandler:
         assert "not available" in msg
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_validate_change(self) -> None:
         """Test change validation."""
         handler = TomlHandler()
@@ -436,7 +435,6 @@ class TestTomlHandler:
         assert set(expected_sections) <= set(sections)
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_apply_change_nonexistent_file(self) -> None:
         """Test apply_change handles non-existent files."""
         handler = TomlHandler()
@@ -446,7 +444,6 @@ class TestTomlHandler:
         assert result is False
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_apply_change_unicode_error(self) -> None:
         """Test apply_change handles Unicode decode errors."""
         handler = TomlHandler()
@@ -463,7 +460,6 @@ class TestTomlHandler:
                 os.unlink(f.name)
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_apply_change_toml_parse_error(self) -> None:
         """Test apply_change handles TOML parse errors."""
         handler = TomlHandler()
@@ -480,7 +476,6 @@ class TestTomlHandler:
                 os.unlink(f.name)
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_apply_change_suggestion_parse_error(self) -> None:
         """Test apply_change handles suggestion parse errors."""
         handler = TomlHandler()
@@ -498,15 +493,16 @@ class TestTomlHandler:
                 os.unlink(f.name)
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_apply_change_success_with_permissions(self) -> None:
         """Test apply_change successfully preserves file permissions."""
-        handler = TomlHandler()
-
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
             # Write original TOML
             f.write("key = 'value'")
             f.flush()
+            temp_dir = os.path.dirname(f.name)
+
+            # Create handler with temp directory as workspace root
+            handler = TomlHandler(workspace_root=temp_dir)
 
             # Set specific permissions
             original_mode = 0o644
@@ -523,24 +519,28 @@ class TestTomlHandler:
                 os.unlink(f.name)
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_apply_change_atomic_replacement(self) -> None:
-        """Test apply_change uses atomic file replacement."""
-        handler = TomlHandler()
-
+        """Test apply_change uses targeted line-based replacement."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-            # Write original TOML
-            f.write("key = 'value'")
+            # Write original TOML with multiple lines
+            original_content = "# Comment\nkey = 'value'\nanotherkey = 'anothervalue'\n"
+            f.write(original_content)
             f.flush()
+            temp_dir = os.path.dirname(f.name)
+
+            # Create handler with temp directory as workspace root
+            handler = TomlHandler(workspace_root=temp_dir)
 
             try:
-                result = handler.apply_change(f.name, "newkey = 'newvalue'", 1, 3)
+                # Replace only line 2 (key = 'value')
+                result = handler.apply_change(f.name, "key = 'newvalue'", 2, 2)
                 assert result is True
 
-                # Verify content was merged
+                # Verify content: comment preserved, only target line replaced, rest preserved
                 content = Path(f.name).read_text()
-                assert 'key = "value"' in content  # TOML normalizes quotes
-                assert 'newkey = "newvalue"' in content
+                assert "# Comment" in content  # Comment preserved
+                assert "key = 'newvalue'" in content  # Line 2 replaced
+                assert "anotherkey = 'anothervalue'" in content  # Line 3 preserved
             finally:
                 os.unlink(f.name)
 
@@ -563,7 +563,6 @@ class TestTomlHandler:
         assert "not available" in msg.lower()
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_validate_change_parse_validation(self) -> None:
         """Test validate_change validates TOML parsing."""
         handler = TomlHandler()
@@ -632,7 +631,7 @@ class TestTomlHandler:
 
 
 @pytest.fixture
-def test_handler() -> Any:
+def test_handler(tmp_path: Path) -> Any:
     """Fixture providing a concrete TestHandler instance for testing BaseHandler functionality."""
     from pr_conflict_resolver.handlers.base import BaseHandler
 
@@ -651,133 +650,117 @@ def test_handler() -> Any:
         def detect_conflicts(self, path: str, changes: list[Any]) -> list[Any]:
             return []
 
-    return TestHandler()
+    return TestHandler(workspace_root=str(tmp_path))
 
 
 class TestBaseHandlerBackupRestore:
     """Test BaseHandler backup and restore functionality."""
 
-    def test_backup_file_success(self, test_handler: Any) -> None:
+    def test_backup_file_success(self, test_handler: Any, tmp_path: Path) -> None:
         """Test successful backup file creation."""
         import stat
-        import tempfile
         from pathlib import Path
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Create test file
-            test_file = Path(tmpdir) / "test.txt"
-            test_file.write_text("test content")
+        # Create test file in tmp_path (same workspace_root as handler)
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("test content")
 
-            # Create backup
+        # Create backup
+        backup_path = test_handler.backup_file(str(test_file))
+
+        # Verify backup was created
+        assert Path(backup_path).exists()
+        assert Path(backup_path).read_text() == "test content"
+        assert backup_path.endswith(".backup")
+
+        # Verify backup file has secure permissions (0o600)
+        assert stat.S_IMODE(Path(backup_path).stat().st_mode) == 0o600
+
+    def test_backup_file_nonexistent(self, test_handler: Any, tmp_path: Path) -> None:
+        """Test backup_file with non-existent file raises FileNotFoundError."""
+
+        # Create a valid path that doesn't exist (within tmp_path)
+        nonexistent_file = tmp_path / "nonexistent.txt"
+
+        with pytest.raises(FileNotFoundError, match="Source file does not exist"):
+            test_handler.backup_file(str(nonexistent_file))
+
+    def test_backup_file_directory(self, test_handler: Any, tmp_path: Path) -> None:
+        """Test backup_file with directory instead of file raises ValueError."""
+        # Use tmp_path as the directory (within workspace_root)
+        with pytest.raises(ValueError, match="Source path is not a regular file"):
+            test_handler.backup_file(str(tmp_path))
+
+    def test_backup_file_collision_handling(self, test_handler: Any, tmp_path: Path) -> None:
+        """Test backup file collision handling with timestamp and counter."""
+        from pathlib import Path
+        from unittest.mock import patch
+
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("test content")
+
+        # Create existing backup file
+        existing_backup = test_file.with_suffix(".txt.backup")
+        existing_backup.write_text("existing backup")
+
+        # Mock time.time to return a fixed timestamp
+        with patch("time.time", return_value=1234567890):
             backup_path = test_handler.backup_file(str(test_file))
 
-            # Verify backup was created
-            assert Path(backup_path).exists()
-            assert Path(backup_path).read_text() == "test content"
-            assert backup_path.endswith(".backup")
+        # Should create timestamped backup
+        assert Path(backup_path).exists()
+        assert backup_path.endswith(".backup.1234567890")
 
-            # Verify backup file has secure permissions (0o600)
-            assert stat.S_IMODE(Path(backup_path).stat().st_mode) == 0o600
-
-    def test_backup_file_nonexistent(self, test_handler: Any) -> None:
-        """Test backup_file with non-existent file raises FileNotFoundError."""
-        import tempfile
-        from pathlib import Path
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Create a valid path that doesn't exist
-            nonexistent_file = Path(tmpdir) / "nonexistent.txt"
-
-            with pytest.raises(FileNotFoundError, match="Source file does not exist"):
-                test_handler.backup_file(str(nonexistent_file))
-
-    def test_backup_file_directory(self, test_handler: Any) -> None:
-        """Test backup_file with directory instead of file raises ValueError."""
-        import tempfile
-
-        with (
-            tempfile.TemporaryDirectory() as tmpdir,
-            pytest.raises(ValueError, match="Source path is not a regular file"),
-        ):
-            test_handler.backup_file(tmpdir)
-
-    def test_backup_file_collision_handling(self, test_handler: Any) -> None:
-        """Test backup file collision handling with timestamp and counter."""
-        import tempfile
-        from pathlib import Path
-        from unittest.mock import patch
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            test_file = Path(tmpdir) / "test.txt"
-            test_file.write_text("test content")
-
-            # Create existing backup file
-            existing_backup = test_file.with_suffix(".txt.backup")
-            existing_backup.write_text("existing backup")
-
-            # Mock time.time to return a fixed timestamp
-            with patch("time.time", return_value=1234567890):
-                backup_path = test_handler.backup_file(str(test_file))
-
-            # Should create timestamped backup
-            assert Path(backup_path).exists()
-            assert backup_path.endswith(".backup.1234567890")
-
-    def test_backup_file_collision_counter_limit(self, test_handler: Any) -> None:
+    def test_backup_file_collision_counter_limit(self, test_handler: Any, tmp_path: Path) -> None:
         """Test backup file collision handling with >1000 attempts raises OSError."""
         import os
-        import tempfile
         from pathlib import Path
         from unittest.mock import patch
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            test_file = Path(tmpdir) / "test.txt"
-            test_file.write_text("test content")
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("test content")
 
-            # Create the initial .backup file to trigger timestamp-based naming
-            backup_base = test_file.with_suffix(f"{test_file.suffix}.backup")
-            backup_base.write_text("initial backup")
+        # Create the initial .backup file to trigger timestamp-based naming
+        backup_base = test_file.with_suffix(f"{test_file.suffix}.backup")
+        backup_base.write_text("initial backup")
 
-            # Create a side_effect that only simulates collisions for backup files
-            # by checking if the path matches backup file patterns
-            def exists_side_effect(path: Path) -> bool:
-                # For backup target files, simulate collision after pattern match
-                path_str = str(path)
-                if path_str.endswith(".backup") or ".backup." in path_str:
-                    # Always return True for backup files to simulate infinite collisions
-                    return True
-                # For source file validation, use os.path.exists() to avoid recursion
-                return os.path.exists(str(path))
+        # Create a side_effect that only simulates collisions for backup files
+        # by checking if the path matches backup file patterns
+        def exists_side_effect(path: Path) -> bool:
+            # For backup target files, simulate collision after pattern match
+            path_str = str(path)
+            if path_str.endswith(".backup") or ".backup." in path_str:
+                # Always return True for backup files to simulate infinite collisions
+                return True
+            # For source file validation, use os.path.exists() to avoid recursion
+            return os.path.exists(str(path))
 
-            # Mock Path.exists with side_effect that only affects backup files
-            with (
-                patch(
-                    "pathlib.Path.exists",
-                    side_effect=exists_side_effect,
-                    autospec=True,
-                ),
-                pytest.raises(
-                    OSError, match="Unable to create unique backup filename after 1000 attempts"
-                ),
-            ):
-                test_handler.backup_file(str(test_file))
+        # Mock Path.exists with side_effect that only affects backup files
+        with (
+            patch(
+                "pathlib.Path.exists",
+                side_effect=exists_side_effect,
+                autospec=True,
+            ),
+            pytest.raises(
+                OSError, match="Unable to create unique backup filename after 1000 attempts"
+            ),
+        ):
+            test_handler.backup_file(str(test_file))
 
-    def test_backup_file_permission_error(self, test_handler: Any) -> None:
+    def test_backup_file_permission_error(self, test_handler: Any, tmp_path: Path) -> None:
         """Test backup file creation with permission errors triggers cleanup."""
-        import tempfile
-        from pathlib import Path
         from unittest.mock import patch
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            test_file = Path(tmpdir) / "test.txt"
-            test_file.write_text("test content")
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("test content")
 
-            # Mock shutil.copy2 to raise OSError
-            with (
-                patch("shutil.copy2", side_effect=OSError("Permission denied")),
-                pytest.raises(OSError, match="Failed to create backup"),
-            ):
-                test_handler.backup_file(str(test_file))
+        # Mock shutil.copy2 to raise OSError
+        with (
+            patch("shutil.copy2", side_effect=OSError("Permission denied")),
+            pytest.raises(OSError, match="Failed to create backup"),
+        ):
+            test_handler.backup_file(str(test_file))
 
     def test_restore_file_success(self, test_handler: Any) -> None:
         """Test successful file restoration."""

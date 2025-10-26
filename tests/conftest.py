@@ -5,6 +5,10 @@ from typing import Any
 
 import pytest
 
+from pr_conflict_resolver.handlers.json_handler import JsonHandler
+from pr_conflict_resolver.handlers.toml_handler import TomlHandler
+from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
+
 
 @pytest.fixture
 def sample_pr_comments() -> dict[str, Any]:
@@ -82,3 +86,45 @@ def sample_yaml_file(temp_workspace: Path) -> Path:
     yaml_file = temp_workspace / "config.yaml"
     yaml_file.write_text("name: test\nversion: 1.0.0\n")
     return yaml_file
+
+
+@pytest.fixture
+def json_handler(temp_workspace: Path) -> JsonHandler:
+    """
+    Create a JsonHandler instance configured with the temp workspace root.
+
+    Args:
+        temp_workspace: Temporary workspace directory.
+
+    Returns:
+        JsonHandler: Handler instance for testing.
+    """
+    return JsonHandler(workspace_root=str(temp_workspace))
+
+
+@pytest.fixture
+def yaml_handler(temp_workspace: Path) -> YamlHandler:
+    """
+    Create a YamlHandler instance configured with the temp workspace root.
+
+    Args:
+        temp_workspace: Temporary workspace directory.
+
+    Returns:
+        YamlHandler: Handler instance for testing.
+    """
+    return YamlHandler(workspace_root=str(temp_workspace))
+
+
+@pytest.fixture
+def toml_handler(temp_workspace: Path) -> TomlHandler:
+    """
+    Create a TomlHandler instance configured with the temp workspace root.
+
+    Args:
+        temp_workspace: Temporary workspace directory.
+
+    Returns:
+        TomlHandler: Handler instance for testing.
+    """
+    return TomlHandler(workspace_root=str(temp_workspace))

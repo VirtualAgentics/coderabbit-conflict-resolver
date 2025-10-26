@@ -152,8 +152,10 @@ class TestValidateGitHubIdentifier:
 class TestSanitizeForOutput:
     """Test output sanitization function."""
 
-    def test_shell_metacharacters_redacted(self) -> None:
-        """Test that shell metacharacters trigger redaction."""
+    def test_shell_metacharacters_pass_through(self) -> None:
+        """Test that shell metacharacters pass through after validation."""
+        # These would be rejected by validate_github_identifier, but if they somehow
+        # got through, they should pass sanitization since they're not control chars
         dangerous_inputs = [
             "; rm -rf /",
             "| cat /etc/passwd",
@@ -165,10 +167,12 @@ class TestSanitizeForOutput:
 
         for dangerous in dangerous_inputs:
             result = sanitize_for_output(dangerous)
-            assert result == "[REDACTED]"
+            assert result == dangerous  # Should pass through now
 
-    def test_environment_variables_redacted(self) -> None:
-        """Test that environment variable patterns trigger redaction."""
+    def test_environment_variables_pass_through(self) -> None:
+        """Test that environment variable patterns pass through after validation."""
+        # These would be rejected by validate_github_identifier, but if they somehow
+        # got through, they should pass sanitization since they're not control chars
         dangerous_inputs = [
             "$GITHUB_TOKEN",
             "${GITHUB_TOKEN}",
@@ -179,7 +183,7 @@ class TestSanitizeForOutput:
 
         for dangerous in dangerous_inputs:
             result = sanitize_for_output(dangerous)
-            assert result == "[REDACTED]"
+            assert result == dangerous  # Should pass through now
 
     def test_control_characters_redacted(self) -> None:
         """Test that control characters trigger redaction."""
@@ -193,8 +197,10 @@ class TestSanitizeForOutput:
             result = sanitize_for_output(dangerous)
             assert result == "[REDACTED]"
 
-    def test_shell_quotes_redacted(self) -> None:
-        """Test that shell quotes trigger redaction."""
+    def test_shell_quotes_pass_through(self) -> None:
+        """Test that shell quotes pass through after validation."""
+        # These would be rejected by validate_github_identifier, but if they somehow
+        # got through, they should pass sanitization since they're not control chars
         dangerous_inputs = [
             'text"with"quotes',
             "text'with'quotes",
@@ -203,10 +209,12 @@ class TestSanitizeForOutput:
 
         for dangerous in dangerous_inputs:
             result = sanitize_for_output(dangerous)
-            assert result == "[REDACTED]"
+            assert result == dangerous  # Should pass through now
 
-    def test_shell_brackets_redacted(self) -> None:
-        """Test that shell brackets trigger redaction."""
+    def test_shell_brackets_pass_through(self) -> None:
+        """Test that shell brackets pass through after validation."""
+        # These would be rejected by validate_github_identifier, but if they somehow
+        # got through, they should pass sanitization since they're not control chars
         dangerous_inputs = [
             "text[with]brackets",
             "text{with}braces",
@@ -215,7 +223,7 @@ class TestSanitizeForOutput:
 
         for dangerous in dangerous_inputs:
             result = sanitize_for_output(dangerous)
-            assert result == "[REDACTED]"
+            assert result == dangerous  # Should pass through now
 
     def test_clean_strings_pass_through(self) -> None:
         """Test that clean strings pass through unchanged."""

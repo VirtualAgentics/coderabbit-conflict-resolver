@@ -26,8 +26,14 @@ except ImportError:
 class YamlHandler(BaseHandler):
     """Handler for YAML files with comment preservation and structure validation."""
 
-    def __init__(self) -> None:
-        """Initialize the YAML handler."""
+    def __init__(self, workspace_root: str | None = None) -> None:
+        """Initialize the YAML handler.
+
+        Args:
+            workspace_root: Root directory for validating absolute paths.
+                If None, defaults to current working directory.
+        """
+        super().__init__(workspace_root)
         self.logger = logging.getLogger(__name__)
         if not YAML_AVAILABLE:
             self.logger.warning("ruamel.yaml not available. Install with: pip install ruamel.yaml")
@@ -58,7 +64,10 @@ class YamlHandler(BaseHandler):
             bool: `True` if the merged YAML was written successfully, `False` otherwise.
         """
         # Validate file path to prevent path traversal attacks
-        if not InputValidator.validate_file_path(path):
+        # Use workspace root for absolute path containment check
+        if not InputValidator.validate_file_path(
+            path, allow_absolute=True, base_dir=str(self.workspace_root)
+        ):
             self.logger.error(f"Invalid file path rejected: {path}")
             return False
 

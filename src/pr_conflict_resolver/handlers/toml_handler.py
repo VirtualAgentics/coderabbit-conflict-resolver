@@ -22,18 +22,11 @@ try:
 except ImportError:
     TOML_READ_AVAILABLE = False
 
-try:
-    import tomli_w
-
-    TOML_WRITE_AVAILABLE = True
-except ImportError:
-    TOML_WRITE_AVAILABLE = False
-
 
 class TomlHandler(BaseHandler):
     """Handler for TOML files with structure validation."""
 
-    def __init__(self) -> None:
+    def __init__(self, workspace_root: str | None = None) -> None:
         """Initialize the TOML handler.
 
         Initializes a module-level logger and verifies TOML parsing/writing availability.
@@ -41,7 +34,8 @@ class TomlHandler(BaseHandler):
         for writing TOML files.
 
         Args:
-            None
+            workspace_root: Root directory for validating absolute paths.
+                If None, defaults to current working directory.
 
         Returns:
             None: This constructor does not return a value.
@@ -50,11 +44,10 @@ class TomlHandler(BaseHandler):
             None: This constructor does not raise exceptions; missing dependencies are logged
             as warnings.
         """
+        super().__init__(workspace_root)
         self.logger = logging.getLogger(__name__)
         if not TOML_READ_AVAILABLE:
             self.logger.warning("TOML parsing support unavailable. Install tomllib (Python 3.11+)")
-        elif not TOML_WRITE_AVAILABLE:
-            self.logger.warning("TOML write support missing. Install with: pip install tomli-w")
 
     def can_handle(self, file_path: str) -> bool:
         """Determine whether the handler supports the given file path.
@@ -71,63 +64,76 @@ class TomlHandler(BaseHandler):
         return file_path.lower().endswith(".toml")
 
     def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
-        """Apply a TOML suggestion to the file by merging and writing the result.
+        """Apply a TOML suggestion to the file using targeted line-based replacement.
 
-        Performs secure path validation, parses the original and suggested TOML, merges at the
-        top level, and writes the result atomically while preserving file permissions.
-        NOTE: Uses Python 3.11+ `tomllib` for parsing and `tomli-w` for writing.
+        Performs secure path validation, validates the suggestion as proper TOML, then performs
+        a targeted in-place edit by replacing only the specified line range with the formatted
+        suggestion content. This preserves all original formatting, comments, and section ordering
+        outside the target region.
 
         Args:
             path (str): Filesystem path to the TOML file to modify. Must pass security validation.
-            content (str): TOML-formatted suggestion content to merge into the file.
-            start_line (int): One-based start line of the region the suggestion targets.
-            end_line (int): One-based end line of the region the suggestion targets.
+            content (str): TOML-formatted suggestion content to insert at the target region.
+            start_line (int): One-based start line of the region to replace (inclusive).
+            end_line (int): One-based end line of the region to replace (inclusive).
 
         Returns:
-            bool: True if the suggestion was merged and written successfully; False otherwise.
+            bool: True if the suggestion was applied successfully; False otherwise.
 
         Raises:
             None
         """
         # Validate file path to prevent path traversal attacks
-        # For absolute paths, use parent directory as base_dir for containment check
-        file_path_obj = Path(path)
-        base_dir_for_validation = str(file_path_obj.parent) if file_path_obj.is_absolute() else None
-
+        # Use workspace root for absolute path containment check
         if not InputValidator.validate_file_path(
-            path, allow_absolute=True, base_dir=base_dir_for_validation
+            path, allow_absolute=True, base_dir=str(self.workspace_root)
         ):
             self.logger.error(f"Invalid file path rejected: {path}")
             return False
 
-        if not TOML_READ_AVAILABLE or not TOML_WRITE_AVAILABLE:
-            self.logger.error("TOML support incomplete. Install tomllib (Python 3.11+) and tomli-w")
+        if not TOML_READ_AVAILABLE:
+            self.logger.error("TOML parsing support unavailable. Install tomllib (Python 3.11+)")
             return False
 
         file_path = Path(path)
 
-        # Parse original file
+        # Read original file as lines to preserve formatting
         try:
             original_content = file_path.read_text(encoding="utf-8")
-            original_data = tomllib.loads(original_content)
+            original_lines = original_content.splitlines(keepends=True)
         except (OSError, UnicodeDecodeError) as e:
             self.logger.error(f"Error reading original TOML file {file_path}: {e}")
             return False
+
+        # Validate original file is proper TOML
+        try:
+            tomllib.loads(original_content)
         except tomllib.TOMLDecodeError as e:
             self.logger.error(f"Error parsing original TOML {file_path}: {e}")
             return False
 
-        # Parse suggestion
+        # Validate suggestion is proper TOML
         try:
-            suggestion_data = tomllib.loads(content)
+            tomllib.loads(content)
         except tomllib.TOMLDecodeError as e:
             self.logger.error(f"Error parsing TOML suggestion: {e}")
             return False
 
-        # Apply suggestion using smart merge
-        merged_data = self._smart_merge_toml(original_data, suggestion_data, start_line, end_line)
+        # Format suggestion for insertion (ensure proper line endings)
+        formatted_suggestion = self._format_suggestion_for_insertion(content)
 
-        # Write with proper formatting using atomic operation
+        # Perform targeted line replacement (convert to 0-based indexing)
+        # Replace lines [start_line-1, end_line) with the formatted suggestion
+        new_lines = (
+            original_lines[: start_line - 1]  # Lines before the target region
+            + formatted_suggestion  # New content
+            + original_lines[end_line:]  # Lines after the target region
+        )
+
+        # Join lines and write atomically with preserved permissions
+        merged_content = "".join(new_lines)
+
+        # Write with atomic operation
         original_mode = None
         temp_path = None
         dir_fd = None
@@ -140,10 +146,14 @@ class TomlHandler(BaseHandler):
             # Create temporary file in the same directory as the target file
             temp_dir = file_path.parent
             with tempfile.NamedTemporaryFile(
-                mode="wb", dir=temp_dir, prefix=f".{file_path.name}.tmp", delete=False
+                mode="w",
+                encoding="utf-8",
+                dir=temp_dir,
+                prefix=f".{file_path.name}.tmp",
+                delete=False,
             ) as temp_file:
                 temp_path = Path(temp_file.name)
-                tomli_w.dump(merged_data, temp_file)
+                temp_file.write(merged_content)
                 temp_file.flush()
                 os.fsync(temp_file.fileno())  # Ensure data is written to disk
 
@@ -300,10 +310,39 @@ class TomlHandler(BaseHandler):
 
         return (intersection_lines / union_lines) * 100.0
 
+    def _format_suggestion_for_insertion(self, content: str) -> list[str]:
+        """Format a TOML suggestion string into a list of lines ready for insertion.
+
+        Ensures the suggestion has proper line endings for seamless insertion into the original
+        file's line array. Preserves the suggestion's internal formatting while ensuring
+        compatibility with the splitlines(keepends=True) format.
+
+        Args:
+            content (str): TOML-formatted suggestion content to format.
+
+        Returns:
+            list[str]: List of lines with preserved line endings, ready for insertion.
+
+        Raises:
+            None
+        """
+        # Split suggestion into lines, preserving line endings
+        lines = content.splitlines(keepends=True)
+
+        # If the last line doesn't have a line ending, add one for proper formatting
+        if lines and not lines[-1].endswith(("\n", "\r\n", "\r")):
+            lines[-1] += "\n"
+
+        return lines
+
     def _smart_merge_toml(
         self, original: dict[str, Any], suggestion: dict[str, Any], start_line: int, end_line: int
     ) -> dict[str, Any]:
         """Merge two TOML mappings by applying suggestion top-level keys onto the original.
+
+        NOTE: This method is deprecated and no longer used by apply_change, which now uses
+        line-based targeted replacement to preserve formatting and comments. This method is
+        retained for backward compatibility with external code that may call it directly.
 
         The suggestion's top-level keys overwrite or add to the original mapping; nested tables
         are not merged recursively. The start_line and end_line parameters are accepted for API

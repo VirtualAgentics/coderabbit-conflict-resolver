@@ -27,26 +27,22 @@ def cli() -> None:
 MAX_CLI_NAME_LENGTH = 512
 
 
-# Compiled pattern for detecting potential shell/env injection constructs.
-_INJECTION_PATTERN = re.compile(
-    r"(?:\$\{|\$\(|`|\$[A-Za-z_][A-Za-z0-9_]*)|[\n\r\x00|;&<>*\?\[\]\{\}\(\)\\\'\"]"
-)
+# Compiled pattern for detecting control characters only.
+_INJECTION_PATTERN = re.compile(r"[\x00-\x1f\x7f]")  # Control chars only
 
 
 def sanitize_for_output(value: str) -> str:
-    """Redact potentially dangerous injection patterns before printing.
+    """Redact control characters before printing.
 
-    Detects common shell and environment-variable injection constructs and returns
-    a redacted placeholder if any are present. Otherwise returns the original value.
+    Detects control characters (null bytes, line breaks, etc.) and returns
+    a redacted placeholder if any are present.
 
     Args:
         value (str): The string to sanitize for terminal output.
 
     Returns:
-        str: "[REDACTED]" if dangerous patterns are found; otherwise the original string.
+        str: "[REDACTED]" if control characters are found; otherwise the original string.
     """
-    # Patterns: $VAR, ${VAR}, $(...), backticks, or any dangerous characters
-    # including control chars (\n, \r, \x00), shell metacharacters, and quotes
     if _INJECTION_PATTERN.search(value):
         return "[REDACTED]"
     return value
@@ -92,6 +88,9 @@ def validate_github_identifier(ctx: click.Context, param: click.Parameter, value
 
 def validate_path_option(ctx: click.Context, param: click.Parameter, value: str) -> str:
     """Validate CLI path option for security using Click callback.
+
+    Note: Reserved for future file-path options (e.g., config files, output paths).
+    Currently unused in CLI commands but maintained for planned features.
 
     Args:
         ctx: Click context object

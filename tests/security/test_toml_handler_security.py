@@ -118,34 +118,35 @@ class TestTomlHandlerAtomicOperations:
     """Test TOML handler atomic file operations."""
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_apply_change_atomic_write(self) -> None:
-        """Test that apply_change uses atomic file replacement."""
-        handler = TomlHandler()
-
+        """Test that apply_change uses atomic file replacement with line-based editing."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-            # Write original TOML
-            f.write("original = 'value'")
+            # Write original TOML with multiple lines
+            f.write("# Configuration\noriginal = 'value'\nother = 'data'\n")
             f.flush()
             original_path = f.name
+            temp_dir = os.path.dirname(f.name)
+
+        # Create handler with temp directory as workspace root
+        handler = TomlHandler(workspace_root=temp_dir)
 
         try:
-            # Apply change
-            result = handler.apply_change(original_path, "new = 'value'", 1, 3)
+            # Apply change to replace only line 2
+            result = handler.apply_change(original_path, "original = 'newvalue'", 2, 2)
             assert result is True
 
-            # Verify file still exists and content was merged
+            # Verify file still exists and targeted replacement was performed
             assert os.path.exists(original_path)
             content = Path(original_path).read_text()
-            assert 'original = "value"' in content  # TOML normalizes quotes
-            assert 'new = "value"' in content
+            assert "# Configuration" in content  # Comment preserved
+            assert "original = 'newvalue'" in content  # Line 2 replaced
+            assert "other = 'data'" in content  # Line 3 preserved
 
         finally:
             if os.path.exists(original_path):
                 os.unlink(original_path)
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_apply_change_temp_file_cleanup(self) -> None:
         """Test that temporary files are cleaned up on error."""
         handler = TomlHandler()
@@ -171,20 +172,21 @@ class TestTomlHandlerAtomicOperations:
                 os.unlink(original_path)
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_apply_change_preserves_file_permissions(self) -> None:
         """Test that apply_change preserves original file permissions."""
-        handler = TomlHandler()
-
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
             # Write original TOML
             f.write("key = 'value'")
             f.flush()
             original_path = f.name
+            temp_dir = os.path.dirname(f.name)
 
             # Set specific permissions
             original_mode = 0o600  # Read/write for owner only
             os.chmod(original_path, original_mode)
+
+        # Create handler with temp directory as workspace root
+        handler = TomlHandler(workspace_root=temp_dir)
 
         try:
             # Apply change
@@ -200,16 +202,17 @@ class TestTomlHandlerAtomicOperations:
                 os.unlink(original_path)
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_apply_change_handles_permission_errors(self) -> None:
         """Test that apply_change handles permission errors gracefully."""
-        handler = TomlHandler()
-
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
             # Write original TOML
             f.write("key = 'value'")
             f.flush()
             original_path = f.name
+            temp_dir = os.path.dirname(f.name)
+
+        # Create handler with temp directory as workspace root
+        handler = TomlHandler(workspace_root=temp_dir)
 
         try:
             # Make file read-only after writing
@@ -231,7 +234,6 @@ class TestTomlHandlerErrorHandling:
     """Test TOML handler error handling and cleanup."""
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_apply_change_handles_write_errors(self) -> None:
         """Test that apply_change handles write errors gracefully."""
         handler = TomlHandler()
@@ -253,7 +255,6 @@ class TestTomlHandlerErrorHandling:
                 os.unlink(original_path)
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_apply_change_handles_fsync_errors(self) -> None:
         """Test that apply_change handles fsync errors gracefully."""
         handler = TomlHandler()
@@ -315,7 +316,6 @@ class TestTomlHandlerContentSecurity:
             assert isinstance(msg, str)
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_apply_change_handles_large_content(self) -> None:
         """Test that apply_change handles large content safely."""
         handler = TomlHandler()

@@ -18,11 +18,14 @@ from .base import BaseHandler
 class JsonHandler(BaseHandler):
     """Handler for JSON files with duplicate key detection and smart merging."""
 
-    def __init__(self) -> None:
+    def __init__(self, workspace_root: str | None = None) -> None:
         """Initialize the JsonHandler instance and configure a module-level logger.
 
-        Sets the `logger` attribute to a logger named for this module.
+        Args:
+            workspace_root: Root directory for validating absolute paths.
+                If None, defaults to current working directory.
         """
+        super().__init__(workspace_root)
         self.logger = logging.getLogger(__name__)
 
     def can_handle(self, file_path: str) -> bool:
@@ -77,7 +80,10 @@ class JsonHandler(BaseHandler):
             validate_change: Content validation for JSON structure
         """
         # Validate file path to prevent path traversal attacks
-        if not InputValidator.validate_file_path(path):
+        # Use workspace root for absolute path containment check
+        if not InputValidator.validate_file_path(
+            path, allow_absolute=True, base_dir=str(self.workspace_root)
+        ):
             self.logger.error(f"Invalid file path rejected: {path}")
             return False
 
