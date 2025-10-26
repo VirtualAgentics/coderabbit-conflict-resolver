@@ -223,16 +223,20 @@ class TestCommandLineParsingSecurity:
         assert isinstance(result.exit_code, int)
 
     def test_unicode_in_arguments_handled(self) -> None:
-        """Test that Unicode characters in arguments are handled safely."""
+        """Test that Unicode characters in arguments are rejected by Click validation.
+
+        The validate_github_identifier callback should reject invalid characters
+        including null bytes, control characters, and path traversal patterns.
+        """
         runner = CliRunner()
 
-        # Test Unicode handling
+        # Test Unicode handling - these should all be rejected
         unicode_inputs = [
             "\x00\x01",  # Null bytes
-            "../../",  # Path traversal
+            "../../",  # Path traversal (contains slashes)
             "\n\r",  # Control characters
-            "测试",  # Chinese characters
-            "тест",  # Cyrillic
+            "测试",  # Chinese characters (not in allowed set)
+            "тест",  # Cyrillic (not in allowed set)
         ]
 
         for unicode_input in unicode_inputs:
@@ -240,8 +244,16 @@ class TestCommandLineParsingSecurity:
                 cli, ["analyze", "--pr", "1", "--owner", unicode_input, "--repo", "test"]
             )
 
-            # Should handle Unicode safely (may fail but shouldn't crash)
-            assert isinstance(result.exit_code, int)
+            # Should reject invalid identifiers with non-zero exit code
+            assert result.exit_code != 0, f"CLI should reject invalid identifier: {unicode_input!r}"
+
+            # Should show Click-style validation error
+            output_lower = result.output.lower()
+            assert (
+                "invalid value for '--owner'" in output_lower
+                or "error:" in output_lower
+                or "invalid" in output_lower
+            ), f"CLI should show validation error for: {unicode_input!r}"
 
     @pytest.mark.parametrize(
         "path",
