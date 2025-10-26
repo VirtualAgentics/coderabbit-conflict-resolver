@@ -91,9 +91,11 @@ def validate_github_identifier(ctx: click.Context, param: click.Parameter, value
     return value
 
 
-# TODO: Add path-option validation when file path options are introduced
-# (e.g., --output, --config-path). Use InputValidator.validate_file_path()
-# with appropriate allow_absolute setting.
+# NOTE: File path validation for CLI options is not yet needed.
+# Current CLI commands use identifiers (--owner, --repo, --pr) which are validated
+# by validate_github_identifier(). If file path options are added in the future
+# (e.g., --output, --config-path), add InputValidator.validate_file_path() as a
+# Click callback with appropriate allow_absolute setting.
 
 
 @cli.command()

@@ -36,8 +36,8 @@ class TestHandlerPathTraversal:
         self, setup_test_files: tuple[Path, Path, Path]
     ) -> None:
         """Test that JSON handler rejects Unix-style path traversal."""
-        _base_path, test_file, _ = setup_test_files
-        handler = JsonHandler()
+        base_path, test_file, _ = setup_test_files
+        handler = JsonHandler(workspace_root=str(base_path))
 
         # Test valid path
         assert handler.can_handle(str(test_file)), "Valid path should be handled"

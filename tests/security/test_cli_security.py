@@ -87,6 +87,29 @@ class TestEnvironmentVariableHandling:
             if result.exit_code != 0:
                 assert test_token not in result.output
 
+    def _assert_injection_handled(self, result: Any, injection: str) -> None:
+        """Helper to assert injection is safely handled.
+
+        Args:
+            result: Click CLI result object
+            injection: The injection string that was attempted
+        """
+        # First requirement: raw injection string must NOT be present in output
+        assert injection not in result.output, f"CLI must not echo raw injection: {injection}"
+
+        # Second requirement: if CLI succeeds (exit_code == 0), output must be sanitized
+        if result.exit_code == 0:
+            # Must contain redaction placeholder to prove sanitization occurred
+            redaction_placeholders = ["[REDACTED]", "<redacted>", "[SANITIZED]", "<sanitized>"]
+            has_redaction = any(
+                placeholder in result.output for placeholder in redaction_placeholders
+            )
+            assert has_redaction, (
+                f"CLI succeeded but output not sanitized for injection '{injection}'. "
+                f"Expected redaction placeholder in output: {result.output[:200]}..."
+            )
+        # If exit_code != 0, that's acceptable (CLI rejected the injection)
+
     def test_env_var_injection_handled(self) -> None:
         """Test that environment variable injection is handled safely."""
         runner = CliRunner()
@@ -104,21 +127,8 @@ class TestEnvironmentVariableHandling:
                 cli, ["analyze", "--pr", "1", "--owner", injection, "--repo", "test"]
             )
 
-            # First requirement: raw injection string must NOT be present in output
-            assert injection not in result.output, f"CLI must not echo raw injection: {injection}"
-
-            # Second requirement: if CLI succeeds (exit_code == 0), output must be sanitized
-            if result.exit_code == 0:
-                # Must contain redaction placeholder to prove sanitization occurred
-                redaction_placeholders = ["[REDACTED]", "<redacted>", "[SANITIZED]", "<sanitized>"]
-                has_redaction = any(
-                    placeholder in result.output for placeholder in redaction_placeholders
-                )
-                assert has_redaction, (
-                    f"CLI succeeded but output not sanitized for injection '{injection}'. "
-                    f"Expected redaction placeholder in output: {result.output[:200]}..."
-                )
-            # If exit_code != 0, that's acceptable (CLI rejected the injection)
+            # Use helper for consistency
+            self._assert_injection_handled(result, injection)
 
 
 class TestTokenExposurePrevention:
