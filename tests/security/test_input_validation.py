@@ -394,3 +394,73 @@ class TestGitHubURLValidation:
             assert InputValidator.validate_github_url(
                 url
             ), f"Case variation of legitimate URL should be allowed: {url}"
+
+
+class TestInputValidationLogging:
+    """Tests for logging behavior in input validation."""
+
+    def test_path_containment_check_failure_logging(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test logging when path containment check fails."""
+        caplog.set_level("WARNING")
+
+        # Create a scenario where path containment check fails
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_dir = Path(tmpdir)
+
+            # Create a symlink that points outside the base directory
+            outside_file = base_dir.parent / "outside_file.txt"
+            outside_file.write_text("test")
+
+            # Create a symlink inside base_dir that points to the outside file
+            symlink_path = base_dir / "symlink.txt"
+            symlink_path.symlink_to(outside_file)
+
+            try:
+                # This should trigger the containment check failure logging
+                # because the symlink resolves outside the base directory
+                result = InputValidator.validate_file_path("symlink.txt", str(base_dir))
+                assert not result
+
+                # Verify warning was logged
+                assert any(
+                    "Path containment check failed" in record.message for record in caplog.records
+                )
+            finally:
+                if symlink_path.exists():
+                    symlink_path.unlink()
+                outside_file.unlink()
+
+    def test_path_validation_error_logging(
+        self, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test logging when path validation encounters an error."""
+        caplog.set_level("ERROR")
+
+        # Test with a path that causes an OSError during resolution
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_dir = Path(tmpdir)
+            test_path = "some_file.txt"
+
+            # Monkeypatch Path.parts to raise OSError when accessed
+            def mock_parts(self: Path) -> tuple[str, ...]:
+                raise OSError("Simulated path parts access error")
+
+            monkeypatch.setattr(Path, "parts", property(mock_parts))
+
+            # Call validate_file_path with a real path so path validation is attempted
+            result = InputValidator.validate_file_path(test_path, str(base_dir))
+            assert not result
+
+            # Verify error was logged
+            assert any("Path validation error" in record.message for record in caplog.records)
+
+    def test_file_extension_warning_logging(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test logging when file extension is not allowed."""
+        caplog.set_level("WARNING")
+
+        # Test with a disallowed extension
+        result = InputValidator.validate_file_extension("test.exe")
+        assert not result
+
+        # Verify warning was logged
+        assert any("File extension not allowed" in record.message for record in caplog.records)

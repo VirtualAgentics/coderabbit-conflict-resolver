@@ -488,3 +488,82 @@ class TestUtilityMethods:
         assert (
             throttled_log_found
         ), f"Expected throttled logging at line 100, but found logs: {log_messages}"
+
+
+class TestSecretScannerLogging:
+    """Tests for debug logging behavior in secret scanner."""
+
+    def test_scan_content_disabled_logging(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test debug logging when secret scanning is disabled."""
+        caplog.set_level("DEBUG")
+
+        from pr_conflict_resolver.security.config import SecurityConfig
+
+        # Create config with scanning disabled
+        config = SecurityConfig(enable_secret_scanning=False)
+
+        # Scan content - should log that scanning is disabled
+        findings = SecretScanner.scan_content("api_key=secret123", config=config)
+        assert len(findings) == 0
+
+        # Verify debug log was recorded
+        assert any(
+            "Secret scanning disabled by configuration" in record.message
+            for record in caplog.records
+        )
+
+    def test_scan_content_start_logging(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test debug logging when scan starts."""
+        caplog.set_level("DEBUG")
+
+        # Use a proper secret pattern that will be detected
+        token = make_token("ghp_")
+        content = f"api_key={token}"
+
+        # Scan content - should log start message
+        findings = SecretScanner.scan_content(content)
+        assert len(findings) >= 1
+
+        # Verify start log was recorded
+        assert any(
+            "Starting content scan" in record.message and "lines to process" in record.message
+            for record in caplog.records
+        )
+
+    def test_scan_content_stop_on_first_logging(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test debug logging when stop_on_first is enabled."""
+        caplog.set_level("DEBUG")
+
+        # Create content with multiple secrets using proper patterns
+        token1 = make_token("ghp_")
+        token2 = make_token("sk-")
+        content = f"api_key={token1}\npassword={token2}\n"
+
+        # Scan with stop_on_first=True
+        findings = SecretScanner.scan_content(content, stop_on_first=True)
+        assert len(findings) == 1
+
+        # Verify stop log was recorded
+        assert any(
+            "Found first secret, stopping scan" in record.message for record in caplog.records
+        )
+
+    def test_scan_content_completion_logging(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test debug logging when scan completes."""
+        caplog.set_level("DEBUG")
+
+        # Use a proper secret pattern that will be detected
+        token = make_token("ghp_")
+        content = f"api_key={token}"
+
+        # Scan content - should log completion message
+        findings = SecretScanner.scan_content(content)
+        assert len(findings) >= 1
+
+        # Verify completion log was recorded
+        assert any(
+            "Content scan completed" in record.message
+            and "found" in record.message
+            and "total secrets" in record.message
+            for record in caplog.records
+        )

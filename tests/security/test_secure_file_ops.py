@@ -1,5 +1,6 @@
 """Tests for secure file operations."""
 
+import contextlib
 import os
 import shutil
 import tempfile
@@ -608,3 +609,50 @@ class TestEdgeCases:
             result = SecureFileHandler.safe_copy(source, destination)
             assert result is False
             assert "Failed to copy" in caplog.text
+
+
+class TestSecureFileHandlerLogging:
+    """Tests for logging behavior in secure file handler."""
+
+    def test_cleanup_error_warning_logging(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test warning logging when temp file cleanup fails."""
+        caplog.set_level("WARNING")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file_path = Path(tmpdir) / "test.txt"
+            file_path.write_text("test content")
+
+            # Track which files should fail to unlink
+            temp_files_to_fail: set[Path] = set()
+
+            # Mock temp file unlink to fail for specific temp files
+            original_unlink = Path.unlink
+
+            def mock_unlink(self: Path, missing_ok: bool = False) -> None:
+                if self in temp_files_to_fail:
+                    raise OSError("Permission denied during cleanup")
+                return original_unlink(self, missing_ok=missing_ok)
+
+            monkeypatch.setattr(Path, "unlink", mock_unlink)
+
+            # Mock the atomic move operation to fail, which will trigger cleanup
+            def mock_replace(self: Path, target: Path) -> None:
+                # Add the temp file to the set of files that should fail to unlink
+                temp_files_to_fail.add(self)
+                # Raise an error to trigger the cleanup path
+                raise OSError("Atomic move failed")
+
+            monkeypatch.setattr(Path, "replace", mock_replace)
+
+            # Call the real atomic_write method
+            with contextlib.suppress(OSError):
+                # Expected to fail due to our mock
+                # Pass backup=False to avoid backup restoration side effects
+                SecureFileHandler.atomic_write(file_path, "new content", backup=False)
+
+            # Verify warning was logged
+            assert any(
+                "Failed to remove temporary file" in record.message for record in caplog.records
+            )
