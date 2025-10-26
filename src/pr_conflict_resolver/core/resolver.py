@@ -478,7 +478,7 @@ class ConflictResolver:
             new_lines = lines[:start_idx] + replacement + lines[end_idx:]
             file_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
             return True
-        except OSError:
+        except (OSError, UnicodeDecodeError, UnicodeEncodeError):
             return False
 
     def _fetch_comments_with_error_context(

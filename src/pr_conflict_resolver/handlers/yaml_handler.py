@@ -233,10 +233,10 @@ class YamlHandler(BaseHandler):
                         key_changes[key] = []
                     key_changes[key].append(change)
             except ValueError as e:
-                self.logger.warning(f"Failed to process change: {e}")
+                self.logger.warning("Failed to parse YAML change (path=%s): %s", path, e)
                 continue
             except Exception as e:  # ruamel.yaml raises base Exception
-                self.logger.warning(f"Failed to process change: {e}")
+                self.logger.warning("Failed to parse YAML change (path=%s): %s", path, e)
                 continue
 
         # Find conflicts (multiple changes to same key)

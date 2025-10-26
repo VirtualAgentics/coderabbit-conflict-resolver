@@ -270,7 +270,7 @@ class TomlHandler(BaseHandler):
                         section_changes[section] = []
                     section_changes[section].append(change)
             except tomllib.TOMLDecodeError as e:
-                self.logger.warning(f"Failed to process change: {e}")
+                self.logger.warning("Failed to parse TOML change (path=%s): %s", path, e)
                 continue
 
         # Find conflicts (multiple changes to same section)
