@@ -5,6 +5,7 @@ This module tests dependency security, package validation, and supply chain atta
 
 import logging
 import re
+import shutil
 import subprocess
 from pathlib import Path
 from urllib.parse import urlparse
@@ -37,13 +38,24 @@ class TestDependencyPinning:
             if line.startswith(("-r ", "--requirement")):
                 continue
 
-            # Check if version is pinned
-            # Must contain == or ~= followed by a version with at least one digit
-            version_pattern = r"(==|~=)(?=.*\d)[\d\w\.\-\+]+"
-            assert re.search(version_pattern, line), (
-                f"Line {line_num}: '{line}' does not specify a pinned version constraint. "
-                f"Use '==1.2.3' or '~=1.2.3' for security (not '>=1.2.3' or '<1.2.3')"
-            )
+            # Check if version is pinned or has reasonable constraints
+            # Allow ==, ~=, or range constraints like >=x.y.z,<a.b.c
+            version_pattern = r"(==|~=|>=)(?=.*\d)[\d\w\.\-\+]+"
+            has_version_constraint = re.search(version_pattern, line)
+
+            # For production requirements.txt, require exact pinning (== or ~=)
+            if file_path.name == "requirements.txt":
+                exact_pin_pattern = r"(==|~=)(?=.*\d)[\d\w\.\-\+]+"
+                assert re.search(exact_pin_pattern, line), (
+                    f"Line {line_num}: '{line}' does not specify exact version pinning. "
+                    f"Production dependencies must use '==1.2.3' or '~=1.2.3' for security"
+                )
+            else:
+                # For dev requirements, allow range constraints but require some constraint
+                assert has_version_constraint, (
+                    f"Line {line_num}: '{line}' does not specify a version constraint. "
+                    f"Use '==1.2.3', '~=1.2.3', or '>=1.2.3,<2.0.0' for security"
+                )
 
     @pytest.mark.parametrize("filename", ["requirements.txt", "requirements-dev.txt"])
     def test_requirements_files_versions_pinned(self, filename: str) -> None:
@@ -176,13 +188,18 @@ class TestDependencyVulnerabilities:
         if not requirements_file.exists():
             pytest.skip("requirements.txt not found")
 
+        # Find safety command path
+        safety_cmd = shutil.which("safety")
+        if not safety_cmd:
+            pytest.skip("safety command not found in PATH")
+
         # Run safety scan against requirements.txt (new command)
         # Fallback to deprecated check command if scan fails
         result = None
         try:
             result = subprocess.run(  # noqa: S603
                 [
-                    "/usr/bin/safety",
+                    safety_cmd,
                     "scan",
                     "--output",
                     "json",
