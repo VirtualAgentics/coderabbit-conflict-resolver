@@ -254,6 +254,7 @@ class TestValidatePathOption:
         ctx = Context(cli)
         param = Mock()
         param.name = "test"
+        param.human_readable_name = None
         long_path = "a" * (MAX_CLI_NAME_LENGTH + 1)
 
         with pytest.raises(
@@ -266,6 +267,7 @@ class TestValidatePathOption:
         ctx = Context(cli)
         param = Mock()
         param.name = "test"
+        param.human_readable_name = None
 
         with pytest.raises(BadParameter, match="test: invalid path"):
             validate_path_option(ctx, param, "../../../etc/passwd")
