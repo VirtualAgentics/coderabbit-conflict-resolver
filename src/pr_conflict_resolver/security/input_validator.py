@@ -421,3 +421,46 @@ class InputValidator:
         except (ValueError, AttributeError) as e:
             logger.error("GitHub URL validation error for %s: %s", url, e)
             return False
+
+    @staticmethod
+    def validate_github_token(token: str | None) -> bool:
+        """Validate GitHub token format.
+
+        Validates that a GitHub token has the correct format. GitHub tokens
+        typically start with specific prefixes:
+        - ghp_ (Personal Access Token)
+        - gho_ (OAuth Token)
+        - ghu_ (User Token)
+        - ghs_ (Server Token)
+        - ghr_ (Refresh Token)
+
+        Args:
+            token: Token string to validate.
+
+        Returns:
+            bool: True if token has valid GitHub format, False otherwise.
+
+        Example:
+            >>> InputValidator.validate_github_token("ghp_abcdef123456")
+            True
+            >>> InputValidator.validate_github_token("invalid_token")
+            False
+        """
+        if not token or not isinstance(token, str):
+            logger.warning("GitHub token validation failed: token is None or not a string")
+            return False
+
+        # Check for valid GitHub token prefixes
+        valid_prefixes = ["ghp_", "gho_", "ghu_", "ghs_", "ghr_"]
+        has_valid_prefix = any(token.startswith(prefix) for prefix in valid_prefixes)
+
+        if not has_valid_prefix:
+            logger.warning("GitHub token validation failed: token does not have valid prefix")
+            return False
+
+        # Basic length check (GitHub tokens have a minimum length of 40 characters)
+        if len(token) < 40:
+            logger.warning("GitHub token validation failed: token too short")
+            return False
+
+        return True
