@@ -117,7 +117,11 @@ class YamlHandler(BaseHandler):
         if not YAML_AVAILABLE:
             return False, "ruamel.yaml not available"
 
+        # Normalize/sanitize the raw input first
+        sanitized_content = self._sanitize_yaml_content(content)
+
         # Check for dangerous YAML tags that could lead to code execution
+        # Defense-in-depth: keep substring check as first line of defense
         dangerous_tags = [
             "!!python/object",
             "!!python/name",
@@ -126,14 +130,20 @@ class YamlHandler(BaseHandler):
             "!!python/apply",
         ]
 
-        content_lower = content.lower()
+        content_lower = sanitized_content.lower()
         for tag in dangerous_tags:
             if tag.lower() in content_lower:
                 return False, "YAML contains dangerous Python object tags"
 
+        # Parse with safe loader and perform structural tag checks
         try:
-            yaml = YAML()
-            yaml.load(content)
+            yaml = YAML(typ="safe")
+            parsed_data = yaml.load(sanitized_content)
+
+            # If parsing succeeded, check for dangerous tags in the parsed structure
+            if self._contains_dangerous_tags(parsed_data):
+                return False, "YAML contains dangerous Python object tags"
+
             return True, "Valid YAML"
         except Exception as e:
             return False, f"Invalid YAML: {e}"
@@ -250,3 +260,55 @@ class YamlHandler(BaseHandler):
                 keys.extend(self._extract_keys(item, current_key))
 
         return keys
+
+    def _sanitize_yaml_content(self, content: str) -> str:
+        """Sanitize YAML content by removing dangerous characters.
+
+        Parameters:
+            content (str): Raw YAML content to sanitize.
+
+        Returns:
+            str: Sanitized YAML content with null bytes and control characters removed.
+        """
+        # Remove null bytes and other dangerous control characters
+        # Keep only printable characters, whitespace, and common YAML characters
+        sanitized = ""
+        for char in content:
+            # Allow printable characters, whitespace, and common YAML characters
+            if char.isprintable() or char in "\n\r\t ":
+                sanitized += char
+            # Replace null bytes and other control characters with spaces
+            elif ord(char) < 32:
+                sanitized += " "
+
+        return sanitized.strip()
+
+    def _contains_dangerous_tags(self, data: YAMLValue) -> bool:
+        """Check if parsed YAML data contains dangerous Python-specific tags.
+
+        Parameters:
+            data (YAMLValue): Parsed YAML data structure.
+
+        Returns:
+            bool: True if dangerous tags are found, False otherwise.
+        """
+        if data is None:
+            return False
+
+        # Check if this is a tagged value (ruamel.yaml preserves tag information)
+        if hasattr(data, "tag") and data.tag:
+            tag_str = str(data.tag)
+            if tag_str.startswith("!!python"):
+                return True
+
+        # Recursively check nested structures
+        if isinstance(data, dict):
+            for value in data.values():
+                if self._contains_dangerous_tags(value):
+                    return True
+        elif isinstance(data, list):
+            for item in data:
+                if self._contains_dangerous_tags(item):
+                    return True
+
+        return False
