@@ -3,6 +3,8 @@
 This module tests token handling, SSRF prevention, and GitHub API security.
 """
 
+import pytest
+
 from pr_conflict_resolver import InputValidator
 from pr_conflict_resolver.integrations.github import GitHubCommentExtractor
 
@@ -17,22 +19,41 @@ class TestGitHubTokenSecurity:
         # For now, this is a conceptual test
         assert True  # TODO: Implement token exposure tests
 
-    def test_token_validation(self) -> None:
-        """Test that GitHub tokens are validated properly."""
-        # Verify token format (if applicable)
-        # GitHub tokens typically start with ghp_, gho_, gh_ prefixes
-        valid_tokens = ["ghp_abcdef", "gho_12345", "ghu_test"]
-        invalid_tokens = ["invalid", "not-a-token", "123456"]
+    @pytest.mark.parametrize(
+        "token",
+        [
+            "ghp_abcdef123456789012345678901234567890",  # Personal Access Token
+            "gho_1234567890abcdef1234567890abcdef12345678",  # OAuth Token
+            "ghu_test12345678901234567890123456789012",  # User Token
+            "ghs_server123456789012345678901234567890",  # Server Token
+            "ghr_refresh123456789012345678901234567890",  # Refresh Token
+        ],
+    )
+    def test_valid_token_formats(self, token: str) -> None:
+        """Test that valid GitHub tokens are accepted."""
+        assert InputValidator.validate_github_token(
+            token
+        ), f"Valid token '{token}' should be validated as True"
 
-        for token in valid_tokens:
-            # Token should have GitHub prefix
-            assert token.startswith("gh"), f"Valid token {token} should start with 'gh'"
-
-        for token in invalid_tokens:
-            # Invalid tokens should not have proper format
-            assert not token.startswith(
-                "gh"
-            ), f"Invalid token {token} should not have GitHub prefix"
+    @pytest.mark.parametrize(
+        "token",
+        [
+            "invalid",  # No GitHub prefix
+            "not-a-token",  # No GitHub prefix
+            "123456",  # No GitHub prefix
+            "gh_invalid",  # Invalid prefix (missing underscore)
+            "ghx_invalid",  # Invalid prefix
+            "ghp_",  # Too short
+            "gho_short",  # Too short
+            "",  # Empty string
+            None,  # None value
+        ],
+    )
+    def test_invalid_token_formats(self, token: str | None) -> None:
+        """Test that invalid GitHub tokens are rejected."""
+        assert not InputValidator.validate_github_token(
+            token
+        ), f"Invalid token '{token}' should be validated as False"
 
 
 class TestSSRFPrevention:

@@ -4,6 +4,7 @@ This module tests dependency security, package validation, and supply chain atta
 """
 
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -12,14 +13,16 @@ import pytest
 class TestDependencyPinning:
     """Tests for dependency version pinning."""
 
-    def test_requirements_txt_versions_pinned(self) -> None:
-        """Test that requirements.txt pins all dependencies."""
-        requirements_file = Path("requirements.txt")
+    def _check_requirements_file_pinning(self, file_path: Path) -> None:
+        """Helper to check that a requirements file pins all dependencies.
 
-        if not requirements_file.exists():
-            pytest.skip("requirements.txt not found")
+        Args:
+            file_path: Path to the requirements file to check.
+        """
+        if not file_path.exists():
+            pytest.skip(f"{file_path.name} not found")
 
-        with open(requirements_file) as f:
+        with open(file_path, encoding="utf-8") as f:
             lines = f.readlines()
 
         for line_num, line in enumerate(lines, 1):
@@ -39,31 +42,15 @@ class TestDependencyPinning:
                 version_pattern, line
             ), f"Line {line_num}: '{line}' does not specify a version constraint"
 
-    def test_requirements_dev_txt_versions_pinned(self) -> None:
-        """Test that requirements-dev.txt pins all dependencies."""
-        requirements_file = Path("requirements-dev.txt")
+    @pytest.mark.parametrize("filename", ["requirements.txt", "requirements-dev.txt"])
+    def test_requirements_files_versions_pinned(self, filename: str) -> None:
+        """Test that requirements files pin all dependencies.
 
-        if not requirements_file.exists():
-            pytest.skip("requirements-dev.txt not found")
-
-        with open(requirements_file) as f:
-            lines = f.readlines()
-
-        for line_num, line in enumerate(lines, 1):
-            line = line.strip()
-            # Skip comments and empty lines
-            if not line or line.startswith("#"):
-                continue
-
-            # Skip -r includes
-            if line.startswith(("-r ", "--requirement")):
-                continue
-
-            # Check if version is pinned
-            version_pattern = r"(>=|<=|==|~=|!=)[\d\w\.\-\+,]+"
-            assert re.search(
-                version_pattern, line
-            ), f"Line {line_num}: '{line}' does not specify a version constraint"
+        Args:
+            filename: Name of the requirements file to test.
+        """
+        requirements_file = Path(filename)
+        self._check_requirements_file_pinning(requirements_file)
 
     def test_pyproject_toml_has_version_constraints(self) -> None:
         """Test that pyproject.toml has version constraints for dependencies."""
@@ -72,14 +59,17 @@ class TestDependencyPinning:
         if not pyproject_file.exists():
             pytest.skip("pyproject.toml not found")
 
-        with open(pyproject_file) as f:
+        with open(pyproject_file, encoding="utf-8") as f:
             content = f.read()
 
-        # Check that [project.dependencies] section exists
-        if "[project.dependencies]" in content or "[tool.poetry.dependencies]" in content:
-            # For now, just check the section exists
-            # Full parsing would require tomli/toml parsing
-            assert True, "Dependencies section found in pyproject.toml"
+        # Check that dependencies are defined in pyproject.toml
+        # Modern PEP 621 format: dependencies = [...] within [project] section
+        # Legacy formats: [project.dependencies] or [tool.poetry.dependencies]
+        assert (
+            "dependencies = [" in content
+            or "[project.dependencies]" in content
+            or "[tool.poetry.dependencies]" in content
+        ), "No dependencies section found in pyproject.toml"
 
 
 class TestGitHubActionsPinning:
@@ -92,8 +82,10 @@ class TestGitHubActionsPinning:
         if not workflows_dir.exists():
             pytest.skip(".github/workflows directory not found")
 
+        unpinned_actions: list[tuple[str, int]] = []
+
         for workflow_file in workflows_dir.glob("*.yml"):
-            with open(workflow_file) as f:
+            with open(workflow_file, encoding="utf-8") as f:
                 content = f.read()
 
             # Check for uses: actions/...
@@ -101,15 +93,25 @@ class TestGitHubActionsPinning:
             # Pattern: uses: <action>@<version>
 
             # Find all uses statements
-            for _line_num, line in enumerate(content.split("\n"), 1):
+            for line_num, line in enumerate(content.split("\n"), 1):
                 if (
-                    re.search(r"^\s*uses:\s*[\w/_-]+", line)
+                    re.search(r"^\s*-\s*uses:\s*[\w/_-]+", line)
                     and "@" not in line
                     and "uses:" in line
                     and "composite" not in content.lower()
                 ):
-                    # This is a warning, not an error for now
-                    pass
+                    # Skip composite actions as they don't need pinning
+                    unpinned_actions.append((str(workflow_file), line_num))
+
+        # Assert that no unpinned actions were found
+        if unpinned_actions:
+            error_msg = "Found unpinned GitHub Actions:\n"
+            for file_path, line_num in unpinned_actions:
+                error_msg += f"  - {file_path}:{line_num}\n"
+            error_msg += (
+                "Please pin all GitHub Actions to specific versions (tags or SHAs) for security."
+            )
+            raise AssertionError(error_msg)
 
 
 class TestDependencyVulnerabilities:
@@ -117,22 +119,49 @@ class TestDependencyVulnerabilities:
 
     def test_no_known_vulnerable_versions(self) -> None:
         """Test that dependencies are not using known vulnerable versions."""
-        # This would typically use safety or pip-audit
-        # For now, this is a placeholder that checks the tool exists
         import importlib.util
 
         if importlib.util.find_spec("safety") is None:
             pytest.skip("safety package not installed")
+
+        requirements_file = Path("requirements.txt")
+        if not requirements_file.exists():
+            pytest.skip("requirements.txt not found")
+
+        # Run safety check against requirements.txt
+        result = subprocess.run(  # noqa: S603
+            ["safety", "check", "--file", str(requirements_file), "--json"],  # noqa: S607
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, (
+            "Vulnerable dependencies found. Run 'safety check' for details. "
+            f"Output: {result.stdout}"
+        )
 
 
 class TestLicenseCompliance:
     """Tests for license compliance."""
 
     def test_requirements_have_acceptable_licenses(self) -> None:
-        """Test that dependencies have acceptable licenses."""
-        # Placeholder for license checking
-        # In real implementation, would use packages like license-check
-        assert True  # TODO: Implement license compliance checking
+        """Test that dependencies have acceptable licenses.
+
+        This test is skipped as many packages lack complete license metadata.
+        License compliance should be checked using external tools like:
+        - pip-licenses
+        - licensecheck
+        - foss-cli
+
+        For now, we rely on:
+        - manual review of dependencies
+        - security scanning tools that check licenses
+        - explicit license declarations in pyproject.toml
+        """
+        pytest.skip(
+            "License check not fully implemented - many packages lack complete metadata. "
+            "Use tools like 'pip-licenses' or 'licensecheck' for comprehensive license analysis."
+        )
 
 
 class TestPackageValidity:
@@ -145,7 +174,7 @@ class TestPackageValidity:
         if not requirements_file.exists():
             pytest.skip("requirements.txt not found")
 
-        with open(requirements_file) as f:
+        with open(requirements_file, encoding="utf-8") as f:
             content = f.read()
 
         # Check for git+, http://, or https:// installs
