@@ -74,10 +74,12 @@ class TestCommandInjectionAttacks:
 
         for handler in handlers:
             for injection in injection_attempts:
-                # Handlers should not apply changes with command injection
-                assert not handler.can_handle(injection) or not handler.apply_change(
-                    injection, '{"key": "value"}', 1, 1
-                ), f"{handler.__class__.__name__} should reject: {injection}"
+                # First check if handler would accept the extension
+                if handler.can_handle(injection):
+                    # If handler accepts the extension, it must still reject
+                    # command injection in the path
+                    result = handler.apply_change(injection, '{"key": "value"}', 1, 1)
+                    assert not result, f"{handler.__class__.__name__} should reject: {injection}"
 
     def test_resolver_handles_command_injection_in_content(self) -> None:
         """Test that resolver handles command injection in content."""
