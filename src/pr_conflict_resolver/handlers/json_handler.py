@@ -87,7 +87,12 @@ class JsonHandler(BaseHandler):
             self.logger.error(f"Invalid file path rejected: {path}")
             return False
 
-        file_path = Path(path)
+        path_obj = Path(path)
+        file_path = (
+            path_obj.resolve()
+            if path_obj.is_absolute()
+            else (self.workspace_root / path_obj).resolve()
+        )
 
         # Parse original file
         try:

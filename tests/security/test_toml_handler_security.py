@@ -62,10 +62,12 @@ class TestTomlHandlerPathSecurity:
         """Test that apply_change accepts safe relative paths with actual files."""
         # Patch TOML support flag to prevent short-circuit
         monkeypatch.setattr("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-        handler = TomlHandler()
 
-        # Change to the temporary directory
+        # Change to the temporary directory first
         monkeypatch.chdir(tmp_path)
+
+        # Create handler with the correct workspace_root now that we're in tmp_path
+        handler = TomlHandler(workspace_root=str(tmp_path))
 
         safe_paths = [
             "config.toml",

@@ -96,7 +96,12 @@ class TomlHandler(BaseHandler):
             self.logger.error("TOML parsing support unavailable. Install tomllib (Python 3.11+)")
             return False
 
-        file_path = Path(path)
+        path_obj = Path(path)
+        file_path = (
+            path_obj.resolve()
+            if path_obj.is_absolute()
+            else (self.workspace_root / path_obj).resolve()
+        )
 
         # Read original file as lines to preserve formatting
         try:
