@@ -15,7 +15,7 @@ from .handlers.json_handler import JsonHandler
 from .handlers.toml_handler import TomlHandler
 from .handlers.yaml_handler import YamlHandler
 from .integrations.github import GitHubCommentExtractor
-from .security import InputValidator
+from .security import InputValidator, SecretFinding, SecretScanner
 from .strategies.priority_strategy import PriorityStrategy
 
 __all__ = [
@@ -31,6 +31,8 @@ __all__ = [
     "PriorityStrategy",
     "Resolution",
     "ResolutionResult",
+    "SecretFinding",
+    "SecretScanner",
     "TomlHandler",
     "YamlHandler",
 ]
