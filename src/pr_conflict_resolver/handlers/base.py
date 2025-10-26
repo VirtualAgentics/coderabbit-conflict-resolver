@@ -130,8 +130,8 @@ class BaseHandler(ABC):
 
         Note:
             This method uses InputValidator.validate_file_path() with allow_absolute=True
-            and base_dir set to the parent directory for absolute paths, ensuring
-            containment within the expected directory structure.
+            and base_dir set to the workspace_root, ensuring absolute paths are validated
+            for containment within the workspace root directory.
         """
         # Validate file path for security (path traversal protection)
         # Use workspace root for absolute path containment check
