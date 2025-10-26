@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from ..core.models import Change, Conflict
+from ..security.input_validator import InputValidator
 from .base import BaseHandler
 
 
@@ -49,6 +50,11 @@ class JsonHandler(BaseHandler):
             bool: `True` if the file was successfully updated with the merged JSON,
                 `False` otherwise.
         """
+        # Validate file path to prevent path traversal attacks
+        if not InputValidator.validate_file_path(path):
+            self.logger.error(f"Invalid file path rejected: {path}")
+            return False
+
         file_path = Path(path)
 
         # Parse original file
@@ -105,6 +111,10 @@ class JsonHandler(BaseHandler):
                 duplicate keys; otherwise `False` with an error message (either
                 `"Duplicate keys detected"` or `"Invalid JSON: <error>"`).
         """
+        # Validate file path to prevent path traversal attacks
+        if not InputValidator.validate_file_path(path):
+            return False, "Invalid file path: path traversal detected"
+
         try:
             data = json.loads(content)
             if self._has_duplicate_keys(data):

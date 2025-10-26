@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from ..core.models import Change, Conflict
+from ..security.input_validator import InputValidator
 from .base import BaseHandler
 
 try:
@@ -55,6 +56,11 @@ class TomlHandler(BaseHandler):
             bool: `True` if the suggestion was successfully merged and written to the file,
                 `False` otherwise.
         """
+        # Validate file path to prevent path traversal attacks
+        if not InputValidator.validate_file_path(path):
+            self.logger.error(f"Invalid file path rejected: {path}")
+            return False
+
         if not TOML_AVAILABLE:
             self.logger.error(
                 "tomli/tomli-w not available. Install with: pip install tomli tomli-w"

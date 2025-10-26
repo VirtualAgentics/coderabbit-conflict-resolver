@@ -25,14 +25,14 @@ class TestGitHubTokenSecurity:
         invalid_tokens = ["invalid", "not-a-token", "123456"]
 
         for token in valid_tokens:
-            # Token should pass validation
-            assert len(token) > 10, "Valid token should have sufficient length"
+            # Token should have GitHub prefix
+            assert token.startswith("gh"), f"Valid token {token} should start with 'gh'"
 
         for token in invalid_tokens:
-            # Invalid tokens should fail validation
-            assert len(token) < 40 or not token.startswith(
+            # Invalid tokens should not have proper format
+            assert not token.startswith(
                 "gh"
-            ), "Invalid token should not pass validation"
+            ), f"Invalid token {token} should not have GitHub prefix"
 
 
 class TestSSRFPrevention:

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from ..core.models import Change, Conflict
+from ..security.input_validator import InputValidator
 from .base import BaseHandler
 
 # Type alias for YAML values to avoid Any usage
@@ -56,6 +57,11 @@ class YamlHandler(BaseHandler):
         Returns:
             bool: `True` if the merged YAML was written successfully, `False` otherwise.
         """
+        # Validate file path to prevent path traversal attacks
+        if not InputValidator.validate_file_path(path):
+            self.logger.error(f"Invalid file path rejected: {path}")
+            return False
+
         if not YAML_AVAILABLE:
             self.logger.error("ruamel.yaml not available. Install with: pip install ruamel.yaml")
             return False
