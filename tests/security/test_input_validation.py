@@ -75,6 +75,16 @@ class TestFilePathValidation:
             # Should be rejected without base_dir when allow_absolute=False (default)
             assert not InputValidator.validate_file_path(str(test_file))
 
+    def test_absolute_path_allow_absolute_true_no_base_dir(self) -> None:
+        """Test that absolute paths are rejected when allow_absolute=True but no base_dir."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create test file
+            test_file = Path(tmpdir) / "test.txt"
+            test_file.write_text("test")
+
+            # Should be rejected when allow_absolute=True but no base_dir
+            assert not InputValidator.validate_file_path(str(test_file), allow_absolute=True)
+
     def test_unsafe_characters(self) -> None:
         """Test rejection of paths with unsafe characters."""
         assert not InputValidator.validate_file_path("file;rm -rf")

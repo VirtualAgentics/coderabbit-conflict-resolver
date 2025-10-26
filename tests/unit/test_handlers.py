@@ -3,6 +3,8 @@
 from typing import Any
 from unittest.mock import patch
 
+import pytest
+
 from pr_conflict_resolver import JsonHandler, TomlHandler, YamlHandler
 
 
@@ -226,6 +228,115 @@ class TestYamlHandler:
         ]
         assert set(expected_keys) <= set(keys)
 
+    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
+    def test_validate_change_dangerous_tags(self) -> None:
+        """Test validation rejects dangerous YAML tags."""
+        handler = YamlHandler()
+
+        # Test dangerous Python object tags
+        dangerous_yaml = "key: !!python/object/apply:os.system ['rm -rf /']"
+        valid, msg = handler.validate_change("test.yaml", dangerous_yaml, 1, 3)
+        assert valid is False
+        assert "dangerous Python object tags" in msg
+
+        # Test other dangerous tags
+        dangerous_yaml2 = "key: !!python/name:os.system"
+        valid, msg = handler.validate_change("test.yaml", dangerous_yaml2, 1, 3)
+        assert valid is False
+        assert "dangerous Python object tags" in msg
+
+    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
+    def test_validate_change_dangerous_characters(self) -> None:
+        """Test validation rejects dangerous control characters."""
+        handler = YamlHandler()
+
+        # Test null byte
+        dangerous_yaml = "key: value\x00"
+        valid, msg = handler.validate_change("test.yaml", dangerous_yaml, 1, 3)
+        assert valid is False
+        assert "dangerous control characters" in msg
+
+    def test_contains_dangerous_tags_none(self) -> None:
+        """Test _contains_dangerous_tags with None value."""
+        handler = YamlHandler()
+        assert handler._contains_dangerous_tags(None) is False
+
+    def test_contains_dangerous_tags_nested_dict(self) -> None:
+        """Test _contains_dangerous_tags with nested dictionaries."""
+        handler = YamlHandler()
+
+        # Create a mock tagged object
+        class MockTaggedObject:
+            def __init__(self, tag: str):
+                self.tag = tag
+
+        dangerous_data = {
+            "safe_key": "safe_value",
+            "dangerous_key": MockTaggedObject("!!python/object"),
+            "nested": {"another_dangerous": MockTaggedObject("!!python/name")},
+        }
+
+        assert handler._contains_dangerous_tags(dangerous_data) is True
+
+    def test_contains_dangerous_tags_nested_list(self) -> None:
+        """Test _contains_dangerous_tags with nested lists."""
+        handler = YamlHandler()
+
+        # Create a mock tagged object
+        class MockTaggedObject:
+            def __init__(self, tag: str):
+                self.tag = tag
+
+        dangerous_data = [
+            "safe_item",
+            MockTaggedObject("!!python/function"),
+            ["nested", MockTaggedObject("!!python/module")],
+        ]
+
+        assert handler._contains_dangerous_tags(dangerous_data) is True
+
+    def test_detect_conflicts_unparseable_content(self) -> None:
+        """Test detect_conflicts with unparseable change content."""
+        handler = YamlHandler()
+
+        from pr_conflict_resolver import Change, FileType
+
+        # Create changes with unparseable content
+        changes = [
+            Change(
+                path="test.yaml",
+                start_line=1,
+                end_line=3,
+                content="invalid: yaml: content: [",
+                metadata={},
+                fingerprint="test1",
+                file_type=FileType.YAML,
+            ),
+            Change(
+                path="test.yaml",
+                start_line=4,
+                end_line=6,
+                content="key: value",
+                metadata={},
+                fingerprint="test2",
+                file_type=FileType.YAML,
+            ),
+        ]
+
+        # Should handle unparseable content gracefully
+        conflicts = handler.detect_conflicts("test.yaml", changes)
+        # Should not crash and may return empty list or partial results
+        assert isinstance(conflicts, list)
+
+    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
+    def test_apply_change_invalid_path(self) -> None:
+        """Test apply_change with invalid file path (security rejection)."""
+        handler = YamlHandler()
+
+        # Test with path traversal attempt
+        result = handler.apply_change("../../../etc/passwd", "key: value", 1, 3)
+        assert result is False
+
     def test_yaml_empty_dict_and_list(self) -> None:
         """Test empty dictionaries and empty lists."""
         handler = YamlHandler()
@@ -318,3 +429,293 @@ class TestTomlHandler:
 
         expected_sections = ["section1", "section2", "section2.subsection1", "section2.subsection2"]
         assert set(expected_sections) <= set(sections)
+
+
+class TestBaseHandlerBackupRestore:
+    """Test BaseHandler backup and restore functionality."""
+
+    def test_backup_file_success(self) -> None:
+        """Test successful backup file creation."""
+        import tempfile
+        from pathlib import Path
+
+        from pr_conflict_resolver.handlers.base import BaseHandler
+
+        # Create a concrete handler for testing
+        class TestHandler(BaseHandler):
+            def can_handle(self, file_path: str) -> bool:
+                return True
+
+            def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
+                return True
+
+            def validate_change(
+                self, path: str, content: str, start_line: int, end_line: int
+            ) -> tuple[bool, str]:
+                return True, "Valid"
+
+            def detect_conflicts(self, path: str, changes: list[Any]) -> list[Any]:
+                return []
+
+        handler = TestHandler()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create test file
+            test_file = Path(tmpdir) / "test.txt"
+            test_file.write_text("test content")
+
+            # Create backup
+            backup_path = handler.backup_file(str(test_file))
+
+            # Verify backup was created
+            assert Path(backup_path).exists()
+            assert Path(backup_path).read_text() == "test content"
+            assert backup_path.endswith(".backup")
+
+    def test_backup_file_nonexistent(self) -> None:
+        """Test backup_file with non-existent file raises FileNotFoundError."""
+        import tempfile
+        from pathlib import Path
+
+        from pr_conflict_resolver.handlers.base import BaseHandler
+
+        class TestHandler(BaseHandler):
+            def can_handle(self, file_path: str) -> bool:
+                return True
+
+            def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
+                return True
+
+            def validate_change(
+                self, path: str, content: str, start_line: int, end_line: int
+            ) -> tuple[bool, str]:
+                return True, "Valid"
+
+            def detect_conflicts(self, path: str, changes: list[Any]) -> list[Any]:
+                return []
+
+        handler = TestHandler()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a valid path that doesn't exist
+            nonexistent_file = Path(tmpdir) / "nonexistent.txt"
+
+            with pytest.raises(FileNotFoundError, match="Source file does not exist"):
+                handler.backup_file(str(nonexistent_file))
+
+    def test_backup_file_directory(self) -> None:
+        """Test backup_file with directory instead of file raises ValueError."""
+        import tempfile
+
+        from pr_conflict_resolver.handlers.base import BaseHandler
+
+        class TestHandler(BaseHandler):
+            def can_handle(self, file_path: str) -> bool:
+                return True
+
+            def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
+                return True
+
+            def validate_change(
+                self, path: str, content: str, start_line: int, end_line: int
+            ) -> tuple[bool, str]:
+                return True, "Valid"
+
+            def detect_conflicts(self, path: str, changes: list[Any]) -> list[Any]:
+                return []
+
+        handler = TestHandler()
+
+        with (
+            tempfile.TemporaryDirectory() as tmpdir,
+            pytest.raises(ValueError, match="Source path is not a regular file"),
+        ):
+            handler.backup_file(tmpdir)
+
+    def test_backup_file_collision_handling(self) -> None:
+        """Test backup file collision handling with timestamp and counter."""
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+
+        from pr_conflict_resolver.handlers.base import BaseHandler
+
+        class TestHandler(BaseHandler):
+            def can_handle(self, file_path: str) -> bool:
+                return True
+
+            def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
+                return True
+
+            def validate_change(
+                self, path: str, content: str, start_line: int, end_line: int
+            ) -> tuple[bool, str]:
+                return True, "Valid"
+
+            def detect_conflicts(self, path: str, changes: list[Any]) -> list[Any]:
+                return []
+
+        handler = TestHandler()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.txt"
+            test_file.write_text("test content")
+
+            # Create existing backup file
+            existing_backup = test_file.with_suffix(".txt.backup")
+            existing_backup.write_text("existing backup")
+
+            # Mock time.time to return a fixed timestamp
+            with patch("time.time", return_value=1234567890):
+                backup_path = handler.backup_file(str(test_file))
+
+            # Should create timestamped backup
+            assert Path(backup_path).exists()
+            assert backup_path.endswith(".backup.1234567890")
+
+    def test_backup_file_collision_counter_limit(self) -> None:
+        """Test backup file collision handling with >1000 attempts raises OSError."""
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+
+        from pr_conflict_resolver.handlers.base import BaseHandler
+
+        class TestHandler(BaseHandler):
+            def can_handle(self, file_path: str) -> bool:
+                return True
+
+            def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
+                return True
+
+            def validate_change(
+                self, path: str, content: str, start_line: int, end_line: int
+            ) -> tuple[bool, str]:
+                return True, "Valid"
+
+            def detect_conflicts(self, path: str, changes: list[Any]) -> list[Any]:
+                return []
+
+        handler = TestHandler()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.txt"
+            test_file.write_text("test content")
+
+            # Create existing backup files to trigger collision handling
+            existing_backup = test_file.with_suffix(".txt.backup.1234567890")
+            existing_backup.write_text("existing backup")
+
+            # Mock Path.exists to always return True (simulating collision)
+            with (
+                patch("pathlib.Path.exists", return_value=True),
+                pytest.raises(
+                    OSError, match="Unable to create unique backup filename after 1000 attempts"
+                ),
+            ):
+                handler.backup_file(str(test_file))
+
+    def test_backup_file_permission_error(self) -> None:
+        """Test backup file creation with permission errors triggers cleanup."""
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+
+        from pr_conflict_resolver.handlers.base import BaseHandler
+
+        class TestHandler(BaseHandler):
+            def can_handle(self, file_path: str) -> bool:
+                return True
+
+            def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
+                return True
+
+            def validate_change(
+                self, path: str, content: str, start_line: int, end_line: int
+            ) -> tuple[bool, str]:
+                return True, "Valid"
+
+            def detect_conflicts(self, path: str, changes: list[Any]) -> list[Any]:
+                return []
+
+        handler = TestHandler()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.txt"
+            test_file.write_text("test content")
+
+            # Mock shutil.copy2 to raise OSError
+            with (
+                patch("shutil.copy2", side_effect=OSError("Permission denied")),
+                pytest.raises(OSError, match="Failed to create backup"),
+            ):
+                handler.backup_file(str(test_file))
+
+    def test_restore_file_success(self) -> None:
+        """Test successful file restoration."""
+        import tempfile
+        from pathlib import Path
+
+        from pr_conflict_resolver.handlers.base import BaseHandler
+
+        class TestHandler(BaseHandler):
+            def can_handle(self, file_path: str) -> bool:
+                return True
+
+            def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
+                return True
+
+            def validate_change(
+                self, path: str, content: str, start_line: int, end_line: int
+            ) -> tuple[bool, str]:
+                return True, "Valid"
+
+            def detect_conflicts(self, path: str, changes: list[Any]) -> list[Any]:
+                return []
+
+        handler = TestHandler()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create original file
+            original_file = Path(tmpdir) / "original.txt"
+            original_file.write_text("original content")
+
+            # Create backup file
+            backup_file = Path(tmpdir) / "backup.txt"
+            backup_file.write_text("backup content")
+
+            # Restore file
+            result = handler.restore_file(str(backup_file), str(original_file))
+
+            # Verify restoration
+            assert result is True
+            assert original_file.read_text() == "backup content"
+            assert not backup_file.exists()  # Backup should be removed
+
+    def test_restore_file_failure(self) -> None:
+        """Test restore_file failure returns False."""
+        from unittest.mock import patch
+
+        from pr_conflict_resolver.handlers.base import BaseHandler
+
+        class TestHandler(BaseHandler):
+            def can_handle(self, file_path: str) -> bool:
+                return True
+
+            def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
+                return True
+
+            def validate_change(
+                self, path: str, content: str, start_line: int, end_line: int
+            ) -> tuple[bool, str]:
+                return True, "Valid"
+
+            def detect_conflicts(self, path: str, changes: list[Any]) -> list[Any]:
+                return []
+
+        handler = TestHandler()
+
+        # Mock shutil.copy2 to raise an exception
+        with patch("shutil.copy2", side_effect=OSError("Copy failed")):
+            result = handler.restore_file("/nonexistent/backup.txt", "/nonexistent/original.txt")
+            assert result is False
