@@ -37,8 +37,17 @@ class JsonHandler(BaseHandler):
     def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
         """Apply a JSON suggestion to a file, merging and validating to prevent duplicate keys.
 
+        This method implements security validation to prevent path traversal attacks and
+        ensures safe JSON processing. Path validation occurs before any file operations.
+
+        Security Features:
+            - Path traversal protection using InputValidator.validate_file_path()
+            - Duplicate key detection to prevent JSON structure corruption
+            - Safe JSON parsing with proper error handling
+            - File existence verification before processing
+
         Parameters:
-            path (str): Filesystem path to the target JSON file.
+            path (str): Filesystem path to the target JSON file. Must pass security validation.
             content (str): Suggested JSON content; may be a complete JSON object or a
                 partial fragment.
             start_line (int): Start line of the suggestion in the original file (used as
@@ -49,6 +58,23 @@ class JsonHandler(BaseHandler):
         Returns:
             bool: `True` if the file was successfully updated with the merged JSON,
                 `False` otherwise.
+
+        Example:
+            >>> handler = JsonHandler()
+            >>> # Valid path and JSON
+            >>> handler.apply_change("config.json", '{"key": "value"}', 1, 1)
+            True
+            >>> # Path traversal attempt - rejected
+            >>> handler.apply_change("../../../etc/passwd", '{"key": "value"}', 1, 1)
+            False
+
+        Warning:
+            This method validates file paths to prevent directory traversal attacks.
+            Invalid paths are rejected before any file operations occur.
+
+        See Also:
+            InputValidator.validate_file_path: Path security validation
+            validate_change: Content validation for JSON structure
         """
         # Validate file path to prevent path traversal attacks
         if not InputValidator.validate_file_path(path):
@@ -98,8 +124,17 @@ class JsonHandler(BaseHandler):
     ) -> tuple[bool, str]:
         """Validate a JSON suggestion without applying changes.
 
+        This method performs security validation on the file path before validating JSON content.
+        It ensures that path traversal attacks are prevented and JSON structure is valid.
+
+        Security Features:
+            - Path traversal protection using InputValidator.validate_file_path()
+            - JSON syntax validation with proper error reporting
+            - Duplicate key detection to prevent structure corruption
+            - Safe JSON parsing without side effects
+
         Parameters:
-            path (str): File path of the JSON being validated.
+            path (str): File path of the JSON being validated. Must pass security validation.
             content (str): JSON text to validate.
             start_line (int): Start line of the suggested change (contextual; not used for
                 validation).
@@ -110,6 +145,26 @@ class JsonHandler(BaseHandler):
             tuple[bool, str]: `True, "Valid JSON"` if `content` is valid JSON and contains no
                 duplicate keys; otherwise `False` with an error message (either
                 `"Duplicate keys detected"` or `"Invalid JSON: <error>"`).
+
+        Example:
+            >>> handler = JsonHandler()
+            >>> # Valid JSON
+            >>> handler.validate_change("config.json", '{"key": "value"}', 1, 1)
+            (True, "Valid JSON")
+            >>> # Invalid JSON syntax
+            >>> handler.validate_change("config.json", '{"key": value}', 1, 1)
+            (False, "Invalid JSON: Expecting value: line 1 column 10 (char 9)")
+            >>> # Path traversal attempt - rejected
+            >>> handler.validate_change("../../../etc/passwd", '{"key": "value"}', 1, 1)
+            (False, "Invalid file path: path traversal detected")
+
+        Warning:
+            This method validates file paths to prevent directory traversal attacks.
+            Invalid paths are rejected before JSON validation occurs.
+
+        See Also:
+            InputValidator.validate_file_path: Path security validation
+            apply_change: Apply validated changes to files
         """
         # Validate file path to prevent path traversal attacks
         if not InputValidator.validate_file_path(path):

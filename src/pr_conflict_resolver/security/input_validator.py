@@ -65,23 +65,60 @@ class InputValidator:
     def validate_file_path(
         path: str, base_dir: str | None = None, allow_absolute: bool = False
     ) -> bool:
-        """Validate file path is safe (no directory traversal).
+        r"""Validate file path is safe (no directory traversal).
+
+        This method implements comprehensive path validation with three explicit cases
+        for handling absolute paths, ensuring security while providing flexibility for
+        legitimate use cases.
+
+        Security Features:
+            - Directory traversal protection (../, ..\\, etc.)
+            - Absolute path containment checking
+            - Unsafe character detection (;, |, &, `, $, etc.)
+            - Null byte detection
+            - Unicode normalization attack prevention
 
         Args:
             path: File path to validate.
-            base_dir: Optional base directory to restrict access to.
-            allow_absolute: Whether to allow absolute paths (default: False).
+            base_dir: Optional base directory to restrict access to. When provided with
+                allow_absolute=True, absolute paths must be contained within this directory.
+            allow_absolute: Whether to allow absolute paths (default: False). When True,
+                base_dir must also be provided for security containment.
 
         Returns:
             bool: True if the path is safe, False otherwise.
 
+        Three-Case Logic for Absolute Paths:
+            1. allow_absolute=True AND base_dir provided: Allow for containment check
+            2. allow_absolute=False: Reject unconditionally (default behavior)
+            3. allow_absolute=True AND no base_dir: Reject for security
+               (prevents unrestricted access)
+
         Example:
+            >>> # Case 1: Valid absolute path with containment
+            >>> InputValidator.validate_file_path("/tmp/file.py",
+            ...     base_dir="/tmp", allow_absolute=True)
+            True
+            >>> # Case 2: Absolute path rejected when disallowed (default)
+            >>> InputValidator.validate_file_path("/tmp/file.py")
+            False
+            >>> # Case 3: Absolute path rejected without base_dir for security
+            >>> InputValidator.validate_file_path("/tmp/file.py", allow_absolute=True)
+            False
+            >>> # Relative paths work normally
             >>> InputValidator.validate_file_path("src/file.py")
             True
+            >>> # Path traversal attempts rejected
             >>> InputValidator.validate_file_path("../../etc/passwd")
             False
-            >>> InputValidator.validate_file_path("/tmp/file.py", allow_absolute=True)
-            True
+
+        Warning:
+            This method is critical for preventing directory traversal attacks.
+            Always validate file paths before using them in file operations.
+
+        See Also:
+            validate_github_url: URL validation for GitHub API calls
+            validate_github_token: Token format validation
         """
         if not path or not isinstance(path, str):
             logger.warning("File path validation failed: path is None or not a string")

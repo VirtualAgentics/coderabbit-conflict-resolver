@@ -27,8 +27,17 @@ class TomlHandler(BaseHandler):
     def __init__(self) -> None:
         """Initialize the TOML handler and its logger.
 
-        Creates a module-level logger on the instance. If TOML support (tomllib/tomli-w) is not
+        Creates a module-level logger on the instance. Uses Python 3.11+ standard library
+        tomllib for parsing and tomli-w for writing TOML files. If TOML support is not
         available, logs a warning with installation instructions.
+
+        Note:
+            This handler requires Python 3.11+ for tomllib support. For older Python versions,
+            consider using the tomli package as an alternative.
+
+        Dependencies:
+            - tomllib: Python 3.11+ standard library for TOML parsing
+            - tomli-w: Third-party package for TOML writing
         """
         self.logger = logging.getLogger(__name__)
         if not TOML_AVAILABLE:
@@ -43,10 +52,19 @@ class TomlHandler(BaseHandler):
         return file_path.lower().endswith(".toml")
 
     def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
-        """Apply a TOML suggestion to the file by merging and writing the result back.
+        r"""Apply a TOML suggestion to the file by merging and writing the result back.
+
+        This method implements security validation to prevent path traversal attacks and
+        ensures safe TOML processing using Python 3.11+ standard library tomllib.
+
+        Security Features:
+            - Path traversal protection using InputValidator.validate_file_path()
+            - Safe TOML parsing using tomllib (Python 3.11+ standard library)
+            - Structure validation to prevent TOML corruption
+            - File existence verification before processing
 
         Parameters:
-            path (str): Filesystem path to the TOML file to modify.
+            path (str): Filesystem path to the TOML file to modify. Must pass security validation.
             content (str): TOML-formatted suggestion content to merge into the file.
             start_line (int): One-based start line of the region the suggestion targets.
             end_line (int): One-based end line of the region the suggestion targets.
@@ -54,6 +72,26 @@ class TomlHandler(BaseHandler):
         Returns:
             bool: `True` if the suggestion was successfully merged and written to the file,
                 `False` otherwise.
+
+        Example:
+            >>> handler = TomlHandler()
+            >>> # Valid TOML and path
+            >>> handler.apply_change("config.toml", '[section]\nkey = "value"', 1, 2)
+            True
+            >>> # Path traversal attempt - rejected
+            >>> handler.apply_change("../../../etc/passwd", '[section]\nkey = "value"', 1, 2)
+            False
+
+        Warning:
+            This method validates file paths to prevent directory traversal attacks.
+            Invalid paths are rejected before any TOML processing occurs.
+
+        Note:
+            Requires Python 3.11+ for tomllib support. Uses tomli-w for writing TOML files.
+
+        See Also:
+            InputValidator.validate_file_path: Path security validation
+            validate_change: Content validation for TOML structure
         """
         # Validate file path to prevent path traversal attacks
         if not InputValidator.validate_file_path(path):

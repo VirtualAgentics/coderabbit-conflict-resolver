@@ -80,17 +80,40 @@ class BaseHandler(ABC):
 
         This method performs comprehensive security validation including path traversal
         protection, file existence verification, and collision handling for backup files.
+        The backup file is created with secure permissions (0o600) to prevent unauthorized access.
+
+        Security Features:
+            - Path traversal protection using InputValidator
+            - Absolute path containment checking
+            - Secure file permissions (0o600) on backup files
+            - Collision handling with timestamp-based naming
+            - Automatic cleanup on failure
 
         Parameters:
-            path (str): Path to the file to back up.
+            path (str): Path to the file to back up. Must be a valid, accessible file path.
 
         Returns:
-            backup_path (str): Path to the created backup file.
+            backup_path (str): Path to the created backup file with .backup suffix.
 
         Raises:
             ValueError: If the path is invalid, contains path traversal, or file doesn't exist.
             OSError: If the file cannot be copied or permissions cannot be set.
             FileNotFoundError: If the source file doesn't exist or isn't a regular file.
+
+        Example:
+            >>> handler = JsonHandler()
+            >>> backup_path = handler.backup_file("config.json")
+            >>> print(backup_path)
+            config.json.backup
+            >>> # Backup file has secure permissions (0o600)
+            >>> import os
+            >>> oct(os.stat(backup_path).st_mode & 0o777)
+            '0o600'
+
+        Note:
+            This method uses InputValidator.validate_file_path() with allow_absolute=True
+            and base_dir set to the parent directory for absolute paths, ensuring
+            containment within the expected directory structure.
         """
         import os
         import shutil

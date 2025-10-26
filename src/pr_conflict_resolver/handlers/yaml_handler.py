@@ -100,7 +100,17 @@ class YamlHandler(BaseHandler):
     def validate_change(
         self, path: str, content: str, start_line: int, end_line: int
     ) -> tuple[bool, str]:
-        """Validate a YAML suggestion string and report whether it parses successfully.
+        r"""Validate a YAML suggestion string and report whether it parses successfully.
+
+        This method implements comprehensive security validation to prevent YAML deserialization
+        attacks and other malicious content. It uses a defense-in-depth approach with multiple
+        layers of validation.
+
+        Security Features:
+            - Dangerous control character detection (null bytes, etc.)
+            - Python object serialization tag detection (!!python/object, !!python/name, etc.)
+            - Structural analysis of parsed YAML for hidden dangerous tags
+            - Safe YAML parsing using ruamel.yaml's safe loader
 
         Parameters:
             path (str): File path associated with the suggestion (used for context only).
@@ -113,6 +123,28 @@ class YamlHandler(BaseHandler):
         Returns:
             tuple[bool, str]: `True` and "Valid YAML" if `content` parses as YAML; `False` and an
                 error message otherwise.
+
+        Example:
+            >>> handler = YamlHandler()
+            >>> # Valid YAML
+            >>> handler.validate_change("config.yaml", "key: value", 1, 1)
+            (True, "Valid YAML")
+            >>> # Dangerous Python object - rejected
+            >>> handler.validate_change("config.yaml",
+            ...     "key: !!python/object/apply:os.system ['rm -rf /']", 1, 1)
+            (False, "YAML contains dangerous Python object tags")
+            >>> # Null byte - rejected
+            >>> handler.validate_change("config.yaml", "key: value\x00", 1, 1)
+            (False, "Invalid YAML: contains dangerous control characters")
+
+        Warning:
+            This method rejects YAML content that could lead to arbitrary code execution
+            through Python object deserialization. Always validate YAML content before
+            processing to prevent security vulnerabilities.
+
+        See Also:
+            _contains_dangerous_characters: Detects dangerous control characters
+            _contains_dangerous_tags: Detects dangerous Python tags in parsed data
         """
         if not YAML_AVAILABLE:
             return False, "ruamel.yaml not available"
