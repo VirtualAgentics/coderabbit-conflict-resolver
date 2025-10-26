@@ -3,9 +3,11 @@
 This module tests dependency security, package validation, and supply chain attacks.
 """
 
+import logging
 import re
 import subprocess
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 
@@ -185,10 +187,32 @@ class TestPackageValidity:
             r"https://[^@]+\.[a-z]+",  # URLs without @ (not pip URLs)
         ]
 
+        dangerous_urls = []
+
         for pattern in dangerous_patterns:
             matches = re.findall(pattern, content)
             for match in matches:
-                # Skip legitimate PyPI URLs
-                if "pypi.org" in match or "files.pythonhosted.org" in match:
+                # Parse URL and check hostname properly to prevent bypass attacks
+                try:
+                    parsed = urlparse(match)
+                    hostname = parsed.hostname
+                    if hostname and (
+                        hostname == "pypi.org"
+                        or hostname.endswith((".pypi.org", ".files.pythonhosted.org"))
+                        or hostname == "files.pythonhosted.org"
+                    ):
+                        continue
+                except (ValueError, AttributeError) as e:
+                    # If URL parsing fails, treat as potentially dangerous
+                    logging.warning("Failed to parse URL '%s': %s", match, e)
+                    dangerous_urls.append(match)
                     continue
-                # This is a warning, not enforced as hard requirement
+
+                # If we reach here, the URL is not from a trusted PyPI source
+                dangerous_urls.append(match)
+
+        # This is a warning, not enforced as hard requirement
+        if dangerous_urls:
+            logging.warning("Found potentially dangerous direct URL installs: %s", dangerous_urls)
+            # For now, just warn - in the future this could be made stricter
+            # pytest.fail(f"Direct URL installs found: {dangerous_urls}")
