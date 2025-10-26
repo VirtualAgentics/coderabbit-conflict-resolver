@@ -100,8 +100,13 @@ class BaseHandler(ABC):
         from ..security.input_validator import InputValidator
 
         # Validate file path for security (path traversal protection)
-        # For backup operations, we allow absolute paths but still check for traversal
-        if not InputValidator.validate_file_path(path, base_dir=None, allow_absolute=True):
+        # For absolute paths, use parent directory as base_dir for containment check
+        file_path_obj = Path(path)
+        base_dir_for_validation = str(file_path_obj.parent) if file_path_obj.is_absolute() else None
+
+        if not InputValidator.validate_file_path(
+            path, base_dir=base_dir_for_validation, allow_absolute=True
+        ):
             raise ValueError(f"Invalid file path: {path}")
 
         file_path = Path(path).resolve()

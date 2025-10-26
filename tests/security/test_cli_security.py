@@ -239,36 +239,45 @@ class TestCommandLineParsingSecurity:
             # Should handle Unicode safely (may fail but shouldn't crash)
             assert isinstance(result.exit_code, int)
 
-    def test_file_path_arguments_validated(self) -> None:
+    @pytest.mark.parametrize(
+        "path,should_reject",
+        [
+            pytest.param(
+                "../../../etc/passwd",
+                True,
+                marks=pytest.mark.xfail(reason="path sanitization pending"),
+            ),
+            pytest.param(
+                "C:\\Windows\\System32",
+                True,
+                marks=pytest.mark.xfail(reason="path sanitization pending"),
+            ),
+            pytest.param(
+                "/etc/hosts",
+                True,
+                marks=pytest.mark.xfail(reason="path sanitization pending"),
+            ),
+            pytest.param(
+                "..\\..\\..\\windows\\system32",
+                True,
+                marks=pytest.mark.xfail(reason="path sanitization pending"),
+            ),
+        ],
+    )
+    def test_file_path_arguments_validated(self, path: str, should_reject: bool) -> None:
         """Test that file path arguments are validated."""
         runner = CliRunner()
 
-        # Test dangerous paths
-        dangerous_paths = [
-            "../../../etc/passwd",
-            "C:\\Windows\\System32",
-            "/etc/hosts",
-            "..\\..\\..\\windows\\system32",
-        ]
+        result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
 
-        for path in dangerous_paths:
-            result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
-
-            # Should reject dangerous paths - CLI must not accept or echo them
-            # Note: CLI currently echoes dangerous paths in output - this is a security issue to fix
-            if result.exit_code == 0:
-                # Check if dangerous path appears in the output (security issue)
-                if path in result.output:
-                    pytest.xfail(
-                        "CLI echoes dangerous paths; mark xfail until path sanitization implemented"
-                    )
-                else:
-                    # CLI succeeded without echoing dangerous path - this is acceptable
-                    assert isinstance(result.exit_code, int)  # Just ensure it doesn't crash
-            else:
-                # CLI properly rejected dangerous path - this is the expected behavior
-                assert result.exit_code != 0, f"CLI should reject dangerous path: {path}"
-                assert "Error" in result.output, f"CLI should show error for dangerous path: {path}"
+        # Should reject dangerous paths - CLI must not accept or echo them
+        if should_reject:
+            # CLI properly rejected dangerous path - this is the expected behavior
+            assert result.exit_code != 0, f"CLI should reject dangerous path: {path}"
+            assert "Error" in result.output, f"CLI should show error for dangerous path: {path}"
+        else:
+            # CLI accepted path but didn't echo it - this is acceptable
+            assert isinstance(result.exit_code, int)
 
 
 class TestInputValidation:

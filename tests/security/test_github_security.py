@@ -72,11 +72,14 @@ class TestGitHubTokenSecurity:
     @pytest.mark.parametrize(
         "token",
         [
-            "ghp_abcdef123456789012345678901234567890",  # Personal Access Token
-            "gho_1234567890abcdef1234567890abcdef12345678",  # OAuth Token
-            "ghu_test12345678901234567890123456789012",  # User Token
-            "ghs_server123456789012345678901234567890",  # Server Token
-            "ghr_refresh123456789012345678901234567890",  # Refresh Token
+            "ghp_abcdef123456789012345678901234567890",  # Personal Access Token (40 chars)
+            "gho_1234567890abcdef1234567890abcdef12345678",  # OAuth Token (42 chars)
+            "ghu_test12345678901234567890123456789012",  # User Token (40 chars)
+            "ghs_server123456789012345678901234567890",  # Server Token (41 chars)
+            "ghr_refresh123456789012345678901234567890",  # Refresh Token (43 chars)
+            "github_pat_abc123DEF456xyz789ABC012def345GHI678",  # Fine-grained PAT (47 chars)
+            "github_pat_1234567890abcdef1234567890abcdef12AB",  # Fine-grained PAT (47 chars)
+            "github_pat_abcdefghijklmnopqrstuvwxyz0123456789012",  # Fine-grained PAT (50 chars)
         ],
     )
     def test_valid_token_formats(self, token: str) -> None:
@@ -95,6 +98,10 @@ class TestGitHubTokenSecurity:
             "ghx_invalid",  # Invalid prefix
             "ghp_",  # Too short
             "gho_short",  # Too short
+            "ghp_short",  # Too short (only 10 chars)
+            "github_pat_short",  # Too short (<47 chars)
+            "github_pat_abc123ABC789xyz",  # Too short (29 chars, needs 47)
+            "ghp_with_underscore_char",  # Contains underscore (invalid)
             "",  # Empty string
             None,  # None value
         ],
@@ -118,9 +125,9 @@ class TestSSRFPrevention:
         assert not InputValidator.validate_github_url("http://169.254.169.254")  # AWS metadata
         assert not InputValidator.validate_github_url("file:///etc/passwd")
 
-    def test_internal_ips_rejected(self) -> None:
-        """Test that internal IP addresses are rejected to prevent SSRF."""
-        internal_urls = [
+    @pytest.mark.parametrize(
+        "url",
+        [
             "http://localhost",
             "http://127.0.0.1",
             "http://[::1]",  # IPv6 localhost
@@ -128,21 +135,14 @@ class TestSSRFPrevention:
             "http://192.168.1.1",
             "http://10.0.0.1",
             "http://172.16.0.1",
-        ]
-
-        for url in internal_urls:
-            assert not InputValidator.validate_github_url(url), f"Should reject: {url}"
-
-    def test_private_networks_rejected(self) -> None:
-        """Test that private network ranges are rejected."""
-        private_urls = [
             "http://192.168.1.1/api",
             "http://10.0.0.1/api",
             "http://172.16.0.1/api",
-        ]
-
-        for url in private_urls:
-            assert not InputValidator.validate_github_url(url), f"Should reject: {url}"
+        ],
+    )
+    def test_internal_and_private_urls_rejected(self, url: str) -> None:
+        """Test that internal IPs and private network ranges are rejected to prevent SSRF."""
+        assert not InputValidator.validate_github_url(url), f"Should reject: {url}"
 
 
 class TestGitHubAPIErrorHandling:

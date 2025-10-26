@@ -18,6 +18,7 @@ from pr_conflict_resolver.handlers.json_handler import JsonHandler
 class TestFilePermissionSecurity:
     """Tests for file permission security."""
 
+    @pytest.mark.skipif(os.name == "nt", reason="chmod unreliable on Windows")
     def test_handlers_respect_readonly_files(self) -> None:
         """Test that handlers respect read-only file permissions."""
         handler = JsonHandler()
@@ -38,6 +39,7 @@ class TestFilePermissionSecurity:
                 os.chmod(f.name, 0o644)
                 Path(f.name).unlink()
 
+    @pytest.mark.skipif(os.name == "nt", reason="POSIX file modes not available on Windows")
     def test_handlers_create_backup_with_proper_permissions(self) -> None:
         """Test that backups are created with secure permissions (0600)."""
         handler = JsonHandler()
@@ -67,6 +69,7 @@ class TestFilePermissionSecurity:
             finally:
                 Path(f.name).unlink()
 
+    @pytest.mark.skipif(os.name == "nt", reason="chmod unreliable on Windows")
     def test_handlers_validate_directory_permissions(self) -> None:
         """Test that handlers validate directory permissions."""
         handler = JsonHandler()
@@ -120,6 +123,7 @@ class TestFilePermissionSecurity:
                 os.chmod(tmpdir, 0o755)  # noqa: S103
                 Path(test_file).unlink()
 
+    @pytest.mark.skipif(os.name == "nt", reason="chmod unreliable on Windows")
     def test_resolver_detect_conflicts_readonly_file(self) -> None:
         """detect_conflicts should not depend on filesystem permissions."""
         resolver = ConflictResolver()
@@ -149,6 +153,7 @@ class TestFilePermissionSecurity:
                 os.chmod(f.name, 0o644)
                 Path(f.name).unlink()
 
+    @pytest.mark.skipif(os.name == "nt", reason="POSIX file modes not available on Windows")
     def test_secure_temp_file_creation(self) -> None:
         """Test that temporary files are created with secure permissions."""
         with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:

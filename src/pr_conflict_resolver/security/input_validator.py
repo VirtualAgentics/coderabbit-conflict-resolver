@@ -57,6 +57,10 @@ class InputValidator:
         "ghr_",  # Refresh Token
     )
 
+    # GitHub token minimum length requirements
+    GITHUB_PAT_MIN_LENGTH = 47  # Fine-grained Personal Access Token minimum length
+    GITHUB_CLASSIC_MIN_LENGTH = 40  # Classic token minimum length
+
     @staticmethod
     def validate_file_path(
         path: str, base_dir: str | None = None, allow_absolute: bool = False
@@ -92,11 +96,21 @@ class InputValidator:
                 logger.warning("Directory traversal attempt detected: %s", path)
                 return False
 
-            # Check for absolute paths (disallowed unless base_dir is specified or
-            # allow_absolute=True)
-            if input_path.is_absolute() and not base_dir and not allow_absolute:
-                logger.warning("Absolute path disallowed: %s", path)
-                return False
+            # Check for absolute paths - handle three explicit cases
+            if input_path.is_absolute():
+                # Case 1: allow_absolute=True AND base_dir set -> Allow for containment check
+                if allow_absolute and base_dir:
+                    pass  # Allow for later containment check
+                # Case 2: allow_absolute=False/not set -> Reject unconditionally
+                elif not allow_absolute:
+                    logger.warning("Absolute path disallowed when allow_absolute=False: %s", path)
+                    return False
+                # Case 3: allow_absolute=True AND no base_dir -> Reject for security
+                else:
+                    logger.warning(
+                        "Absolute path requires base_dir when allow_absolute=True: %s", path
+                    )
+                    return False
 
             # Check for safe characters in each path segment
             for part in input_path.parts:
@@ -458,7 +472,10 @@ class InputValidator:
             bool: True if token has valid GitHub format, False otherwise.
 
         Example:
-            >>> InputValidator.validate_github_token("ghp_abcdef123456")
+            >>> InputValidator.validate_github_token("ghp_abcdef123456789012345678901234567890")
+            True
+            >>> token = "github_pat_abc123DEF456xyz789ABC012def345GHI678"
+            >>> InputValidator.validate_github_token(token)
             True
             >>> InputValidator.validate_github_token("invalid_token")
             False
@@ -471,19 +488,29 @@ class InputValidator:
         token = token.strip()
 
         # Build regex pattern from class variable prefixes
-        # GitHub token pattern: valid prefix + alphanumeric/underscore characters only
+        # GitHub token pattern: valid prefix + base62 characters only (A-Za-z0-9)
         # Prefixes: github_pat_ (fine-grained PAT ~47 chars), ghp_/gho_/ghu_/ghs_/ghr_ (~40 chars)
         prefix_pattern = "|".join(
             re.escape(prefix) for prefix in InputValidator.GITHUB_TOKEN_PREFIXES
         )
-        pattern = rf"^(?:{prefix_pattern})[A-Za-z0-9_]+$"
+        pattern = rf"^(?:{prefix_pattern})[A-Za-z0-9]+$"
         if not re.match(pattern, token):
             logger.warning("GitHub token validation failed: invalid prefix or characters")
             return False
 
-        # Length validation: minimum 40 characters total
-        if len(token) < 40:
-            logger.warning("GitHub token validation failed: token too short")
+        # Length validation: enforce per-prefix minimum lengths
+        # Use constants for documented minimum lengths
+        min_length = (
+            InputValidator.GITHUB_PAT_MIN_LENGTH
+            if token.startswith("github_pat_")
+            else InputValidator.GITHUB_CLASSIC_MIN_LENGTH
+        )
+
+        if len(token) < min_length:
+            logger.warning(
+                "GitHub token validation failed: token too short (minimum %d characters)",
+                min_length,
+            )
             return False
 
         return True

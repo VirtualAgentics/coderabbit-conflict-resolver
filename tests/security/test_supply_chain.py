@@ -160,7 +160,7 @@ class TestGitHubActionsPinning:
             for line_num, line in enumerate(content.split("\n"), 1):
                 # Match lines with "uses:" that don't have "@" for version pinning
                 # Handle both single-line (- uses: action) and multi-line (uses: action) formats
-                if re.search(r"^\s*-?\s*uses:\s+[\w/_-]+", line.strip()) and "@" not in line:
+                if re.search(r"^\s*-?\s*uses:\s+[\w/_-]+", line) and "@" not in line:
                     unpinned_actions.append((str(workflow_file), line_num))
 
         # Assert that no unpinned actions were found
@@ -197,6 +197,7 @@ class TestDependencyVulnerabilities:
         # Fallback to deprecated check command if scan fails
         result = None
         try:
+            # Primary call uses full path from shutil.which() (no S607 needed)
             result = subprocess.run(  # noqa: S603
                 [
                     safety_cmd,
@@ -211,7 +212,7 @@ class TestDependencyVulnerabilities:
                 timeout=60,  # Add timeout to prevent hanging
             )
         except subprocess.TimeoutExpired:
-            # Fallback to deprecated check command
+            # Fallback uses partial path "safety" - needs both S603 and S607
             result = subprocess.run(  # noqa: S603
                 ["safety", "check", "--file", str(requirements_file), "--json"],  # noqa: S607
                 capture_output=True,
@@ -229,16 +230,20 @@ class TestDependencyVulnerabilities:
                 safety_data = None
 
                 # Try multiple JSON extraction strategies
+                # Store start indices to avoid redundant find() calls
+                start_brace = stdout_content.find("{")
+                start_bracket = stdout_content.find("[")
+
                 strategies = [
                     stdout_content,  # Full stripped stdout
                     (
-                        stdout_content[stdout_content.find("{") : stdout_content.rfind("}") + 1]
-                        if stdout_content.find("{") >= 0
+                        stdout_content[start_brace : stdout_content.rfind("}") + 1]
+                        if start_brace >= 0
                         else ""
                     ),  # First '{' to last '}'
                     (
-                        stdout_content[stdout_content.find("[") : stdout_content.rfind("]") + 1]
-                        if stdout_content.find("[") >= 0
+                        stdout_content[start_bracket : stdout_content.rfind("]") + 1]
+                        if start_bracket >= 0
                         else ""
                     ),  # First '[' to last ']'
                 ]

@@ -248,8 +248,12 @@ class TestTOMLInjection:
 
             try:
                 result = handler.validate_change(f.name, malicious_toml, 1, 2)
-                # Should detect malicious content
-                assert isinstance(result, tuple)
+                # Should reject TOML with shell metacharacters
+                assert isinstance(result, tuple), "Should return tuple"
+                assert result[0] is False, "Should reject TOML with shell metacharacters"
+                assert (
+                    "Invalid" in result[1] or "detected" in result[1].lower()
+                ), f"Error message should indicate security issue: {result[1]}"
             finally:
                 Path(f.name).unlink()
 
