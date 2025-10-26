@@ -3,6 +3,7 @@
 import json
 import logging
 import re
+from collections.abc import Set
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlparse
@@ -73,18 +74,18 @@ class InputValidator:
 
             # Check for directory traversal attempts by examining path parts
             if ".." in input_path.parts:
-                logger.warning(f"Directory traversal attempt detected: {path}")
+                logger.warning("Directory traversal attempt detected: %s", path)
                 return False
 
             # Check for absolute paths (disallowed unless base_dir is specified)
             if input_path.is_absolute() and not base_dir:
-                logger.warning(f"Absolute path disallowed: {path}")
+                logger.warning("Absolute path disallowed: %s", path)
                 return False
 
             # Check for safe characters in each path segment
             for part in input_path.parts:
                 if part and not InputValidator.SAFE_PATH_PATTERN.match(part):
-                    logger.warning(f"Unsafe path segment detected in: {path}")
+                    logger.warning("Unsafe path segment detected in: %s", path)
                     return False
 
             # If base_dir is specified, ensure path is within it
@@ -107,11 +108,11 @@ class InputValidator:
 
                 except (OSError, RuntimeError, ValueError) as e:
                     # Resolution error or path not contained in base
-                    logger.warning(f"Path containment check failed: {path}, error: {e}")
+                    logger.warning("Path containment check failed: %s, error: %s", path, e)
                     return False
         except (OSError, ValueError) as e:
             # Invalid path or path resolution failed
-            logger.error(f"Path validation error for {path}: {e}")
+            logger.error("Path validation error for %s: %s", path, e)
             return False
 
         return True
@@ -133,11 +134,11 @@ class InputValidator:
             OSError: If file cannot be accessed.
         """
         if not file_path.exists():
-            logger.error(f"File not found for size validation: {file_path}")
+            logger.error("File not found for size validation: %s", file_path)
             raise FileNotFoundError(f"File not found: {file_path}")
 
         if not file_path.is_file():
-            logger.warning(f"Path is not a file: {file_path}")
+            logger.warning("Path is not a file: %s", file_path)
             return False
 
         # Use config max_file_size if provided, otherwise use class default
@@ -146,7 +147,10 @@ class InputValidator:
         file_size = file_path.stat().st_size
         if file_size > max_file_size:
             logger.warning(
-                f"File size exceeds limit: {file_path} ({file_size} bytes > {max_file_size} bytes)"
+                "File size exceeds limit: %s (%d bytes > %d bytes)",
+                file_path,
+                file_size,
+                max_file_size,
             )
         return file_size <= max_file_size
 
@@ -166,13 +170,13 @@ class InputValidator:
             return False
 
         # Use config allowed_extensions if provided, otherwise use class default
-        allowed_extensions = (
+        allowed_extensions: Set[str] = (
             config.allowed_extensions if config else InputValidator.ALLOWED_FILE_EXTENSIONS
         )
 
         ext = Path(path).suffix.lower()
         if ext not in allowed_extensions:
-            logger.warning(f"File extension not allowed: {ext} in path {path}")
+            logger.warning("File extension not allowed: %s in path %s", ext, path)
         return ext in allowed_extensions
 
     @staticmethod
@@ -234,7 +238,7 @@ class InputValidator:
 
         for pattern, warning_msg in suspicious_patterns:
             if re.search(pattern, content, re.IGNORECASE):
-                logger.warning(f"Security threat detected in content: {warning_msg}")
+                logger.warning("Security threat detected in content: %s", warning_msg)
                 warnings.append(warning_msg)
 
         return content, warnings
@@ -259,7 +263,7 @@ class InputValidator:
             content = json.dumps(parsed, indent=2)
 
         except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON structure detected: {e}")
+            logger.error("Invalid JSON structure detected: %s", e)
             warnings.append(f"Invalid JSON structure: {e}")
 
         return content, warnings
@@ -288,7 +292,7 @@ class InputValidator:
             content = yaml.safe_dump(parsed, default_flow_style=False)
 
         except yaml.YAMLError as e:
-            logger.error(f"Invalid YAML structure detected: {e}")
+            logger.error("Invalid YAML structure detected: %s", e)
             warnings.append(f"Invalid YAML structure: {e}")
 
         return content, warnings
@@ -313,7 +317,7 @@ class InputValidator:
             content = tomli_w.dumps(parsed)
 
         except tomli.TOMLDecodeError as e:
-            logger.error(f"Invalid TOML structure detected: {e}")
+            logger.error("Invalid TOML structure detected: %s", e)
             warnings.append(f"Invalid TOML structure: {e}")
 
         return content, warnings
@@ -333,17 +337,19 @@ class InputValidator:
         # Check basic validity
         if start_line < 1 or end_line < 1:
             logger.warning(
-                f"Invalid line range: start={start_line}, end={end_line} (lines must be >= 1)"
+                "Invalid line range: start=%d, end=%d (lines must be >= 1)",
+                start_line,
+                end_line,
             )
             return False
 
         if start_line > end_line:
-            logger.warning(f"Invalid line range: start={start_line} > end={end_line}")
+            logger.warning("Invalid line range: start=%d > end=%d", start_line, end_line)
             return False
 
         # Check against max_lines if provided
         if max_lines is not None and end_line > max_lines:
-            logger.warning(f"Line range exceeds maximum: end={end_line} > max={max_lines}")
+            logger.warning("Line range exceeds maximum: end=%d > max=%d", end_line, max_lines)
         return max_lines is None or end_line <= max_lines
 
     # Explicit allowlist of approved GitHub domains and subdomains
@@ -390,14 +396,15 @@ class InputValidator:
             # Check scheme is https
             if parsed.scheme != "https":
                 logger.warning(
-                    f"GitHub URL validation failed: scheme must be https, got {parsed.scheme}"
+                    "GitHub URL validation failed: scheme must be https, got %s",
+                    parsed.scheme,
                 )
                 return False
 
             # Use hostname instead of netloc to avoid port issues
             hostname = parsed.hostname
             if hostname is None:
-                logger.warning(f"GitHub URL validation failed: no hostname in {url}")
+                logger.warning("GitHub URL validation failed: no hostname in %s", url)
                 return False
 
             # Normalize hostname to lowercase for case-insensitive comparison
@@ -408,9 +415,9 @@ class InputValidator:
             is_allowed = normalized_hostname in InputValidator.ALLOWED_GITHUB_DOMAINS
 
             if not is_allowed:
-                logger.warning(f"GitHub URL validation failed: hostname not allowed: {hostname}")
+                logger.warning("GitHub URL validation failed: hostname not allowed: %s", hostname)
             return is_allowed
 
         except (ValueError, AttributeError) as e:
-            logger.error(f"GitHub URL validation error for {url}: {e}")
+            logger.error("GitHub URL validation error for %s: %s", url, e)
             return False
