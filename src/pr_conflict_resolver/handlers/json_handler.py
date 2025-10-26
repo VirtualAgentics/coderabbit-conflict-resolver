@@ -92,24 +92,35 @@ class JsonHandler(BaseHandler):
         # Parse original file
         try:
             original_content = file_path.read_text(encoding="utf-8")
-            original_data = json.loads(original_content)
+            original_data_raw = self._loads_strict(original_content)
+            if not isinstance(original_data_raw, dict):
+                self.logger.error(
+                    f"Expected JSON object in {file_path}, got {type(original_data_raw).__name__}"
+                )
+                return False
+            original_data = original_data_raw
+        except (OSError, UnicodeDecodeError) as e:
+            self.logger.error(f"Error reading JSON file {file_path}: {e}")
+            return False
         except json.JSONDecodeError as e:
-            self.logger.error(f"Error parsing original JSON: {e}")
+            self.logger.error(f"Error parsing original JSON in {file_path}: {e}")
+            return False
+        except ValueError as e:
+            self.logger.error(f"Invalid JSON in {file_path}: {e}")
             return False
 
         # Parse suggestion
         try:
-            suggestion_data = json.loads(content)
-        except json.JSONDecodeError:
-            # Suggestion might be partial - try smart merge
+            suggestion_data_raw = self._loads_strict(content)
+            if not isinstance(suggestion_data_raw, dict):
+                self.logger.error("Expected JSON object in suggestion")
+                return False
+            suggestion_data = suggestion_data_raw
+        except (json.JSONDecodeError, ValueError):
+            # Suggestion might be partial or has duplicate keys - try smart merge
             return self._apply_partial_suggestion(
                 file_path, original_data, content, start_line, end_line
             )
-
-        # Validate: check for duplicate keys
-        if self._has_duplicate_keys(suggestion_data):
-            self.logger.error("Suggestion contains duplicate keys")
-            return False
 
         # Apply suggestion
         merged_data = self._smart_merge_json(original_data, suggestion_data, start_line, end_line)
@@ -184,11 +195,9 @@ class JsonHandler(BaseHandler):
             return False, "Invalid file path: path traversal detected"
 
         try:
-            data = json.loads(content)
-            if self._has_duplicate_keys(data):
-                return False, "Duplicate keys detected"
+            self._loads_strict(content)
             return True, "Valid JSON"
-        except json.JSONDecodeError as e:
+        except (json.JSONDecodeError, ValueError) as e:
             return False, f"Invalid JSON: {e}"
 
     def detect_conflicts(self, path: str, changes: list[Change]) -> list[Conflict]:
@@ -362,3 +371,30 @@ class JsonHandler(BaseHandler):
         # parsing of partial JSON structures
         self.logger.warning("Partial JSON suggestion detected, using fallback method")
         return False
+
+    def _loads_strict(self, s: str) -> dict[str, Any] | list[Any]:
+        """Parse JSON and raise ValueError on duplicate keys.
+
+        Args:
+            s: JSON string to parse.
+
+        Returns:
+            Parsed JSON data (dict or list).
+
+        Raises:
+            json.JSONDecodeError: If the JSON is malformed.
+            ValueError: If duplicate keys are detected.
+        """
+
+        def _no_dupes_object_pairs_hook(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+            obj: dict[str, Any] = {}
+            for k, v in pairs:
+                if k in obj:
+                    raise ValueError(f"Duplicate key detected: {k}")
+                obj[k] = v
+            return obj
+
+        result: dict[str, Any] | list[Any] = json.loads(
+            s, object_pairs_hook=_no_dupes_object_pairs_hook
+        )
+        return result
