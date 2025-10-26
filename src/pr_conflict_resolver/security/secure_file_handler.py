@@ -7,7 +7,10 @@ import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
+
+if TYPE_CHECKING:
+    from pr_conflict_resolver.security.config import SecurityConfig
 
 logger: Final[logging.Logger] = logging.getLogger(__name__)
 
@@ -58,7 +61,9 @@ class SecureFileHandler:
                 logger.exception("Failed to remove temporary file %s", path_obj)
 
     @staticmethod
-    def atomic_write(file_path: Path, content: str, backup: bool = True) -> None:
+    def atomic_write(
+        file_path: Path, content: str, backup: bool = True, config: "SecurityConfig | None" = None
+    ) -> None:
         """Perform an atomic file write with backup and rollback.
 
         This method ensures that file writes are atomic and provides
@@ -69,6 +74,9 @@ class SecureFileHandler:
             file_path: Path to the file to write.
             content: Content to write to the file.
             backup: Whether to create a backup (default: True).
+            config: Optional SecurityConfig to use for backup and atomic behavior.
+                    If None, uses backup parameter. If provided, overrides backup with
+                    config.enable_backups and respects config.enable_atomic_writes.
 
         Raises:
             OSError: If the file operation fails.
@@ -79,12 +87,16 @@ class SecureFileHandler:
             ...     '{"key": "value"}'
             ... )
         """
+        # Use config settings if provided, otherwise use function parameter
+        should_backup = config.enable_backups if config else backup
+        use_atomic = config.enable_atomic_writes if config else True
+
         backup_path: Path | None = None
         temp_file: Path | None = None
 
         try:
             # Create backup if file exists and backup is enabled
-            if backup and file_path.exists():
+            if should_backup and file_path.exists():
                 backup_path = file_path.with_suffix(file_path.suffix + ".bak")
                 shutil.copy2(file_path, backup_path)
 
@@ -94,24 +106,32 @@ class SecureFileHandler:
             with open(temp_file, "w", encoding="utf-8") as f:
                 f.write(content)
                 f.flush()  # Ensure data is written to OS buffer
-                os.fsync(f.fileno())  # Ensure data is written to disk
+                if use_atomic:
+                    os.fsync(f.fileno())  # Ensure data is written to disk
 
             # Atomic move (atomic on most filesystems)
-            temp_file.replace(file_path)
+            if use_atomic:
+                temp_file.replace(file_path)
+            else:
+                # Non-atomic write (for when atomic writes are disabled)
+                temp_file.rename(file_path)
 
-            # Ensure directory entry durability
-            dir_fd: int | None = None
-            try:
-                # Open directory descriptor with proper flags
-                dir_fd = os.open(str(file_path.parent), os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-                os.fsync(dir_fd)
-            except OSError:
-                # Directory fsync may not be supported on all systems
-                # This is not critical for the atomic operation
-                pass
-            finally:
-                if dir_fd is not None:
-                    os.close(dir_fd)
+            # Ensure directory entry durability (only if atomic)
+            if use_atomic:
+                dir_fd: int | None = None
+                try:
+                    # Open directory descriptor with proper flags
+                    dir_fd = os.open(
+                        str(file_path.parent), os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+                    )
+                    os.fsync(dir_fd)
+                except OSError:
+                    # Directory fsync may not be supported on all systems
+                    # This is not critical for the atomic operation
+                    pass
+                finally:
+                    if dir_fd is not None:
+                        os.close(dir_fd)
 
             # Clean up backup on success
             if backup_path and backup_path.exists():
@@ -128,7 +148,7 @@ class SecureFileHandler:
                     )
 
             # Restore backup on failure
-            if backup_path and backup_path.exists() and backup:
+            if backup_path and backup_path.exists() and should_backup:
                 try:
                     backup_path.replace(file_path)
                     logger.info("Restored backup from %s", backup_path)
