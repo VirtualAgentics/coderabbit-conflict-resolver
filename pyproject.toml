@@ -170,7 +170,7 @@ addopts = [
     "--cov=src/pr_conflict_resolver",
     "--cov-report=html",
     "--cov-report=term-missing",
-    "--cov-fail-under=50",
+    "--cov-fail-under=80",  # Increased from 50% to enforce quality standards
 ]
 markers = [
     "slow: marks tests as slow",

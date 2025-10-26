@@ -14,6 +14,7 @@ from typing import Any
 from pr_conflict_resolver.core.models import Change, Conflict
 from pr_conflict_resolver.handlers.base import BaseHandler
 from pr_conflict_resolver.security.input_validator import InputValidator
+from pr_conflict_resolver.utils.path_utils import resolve_file_path
 
 try:
     import tomllib
@@ -30,8 +31,9 @@ class TomlHandler(BaseHandler):
         """Initialize the TOML handler.
 
         Initializes a module-level logger and verifies TOML parsing/writing availability.
-        NOTE: Uses Python 3.11+ `tomllib` for parsing and the third-party `tomli-w` package
-        for writing TOML files.
+        NOTE: Uses Python 3.11+ `tomllib` for parsing TOML files (read-only). Writing is
+        performed via line-based replacements with atomic file operations rather than a TOML
+        serialization library. Missing write-only dependencies are not required.
 
         Args:
             workspace_root: Root directory for validating absolute paths.
@@ -96,12 +98,8 @@ class TomlHandler(BaseHandler):
             self.logger.error("TOML parsing support unavailable. Install tomllib (Python 3.11+)")
             return False
 
-        path_obj = Path(path)
-        file_path = (
-            path_obj.resolve()
-            if path_obj.is_absolute()
-            else (self.workspace_root / path_obj).resolve()
-        )
+        # Resolve path relative to workspace_root
+        file_path = resolve_file_path(path, self.workspace_root)
 
         # Read original file as lines to preserve formatting
         try:

@@ -5,11 +5,11 @@ and comment preservation using ruamel.yaml.
 """
 
 import logging
-from pathlib import Path
 from typing import Any
 
 from ..core.models import Change, Conflict
 from ..security.input_validator import InputValidator
+from ..utils.path_utils import resolve_file_path
 from .base import BaseHandler
 
 # Type alias for YAML values to avoid Any usage
@@ -75,12 +75,8 @@ class YamlHandler(BaseHandler):
             self.logger.error("ruamel.yaml not available. Install with: pip install ruamel.yaml")
             return False
 
-        path_obj = Path(path)
-        file_path = (
-            path_obj.resolve()
-            if path_obj.is_absolute()
-            else (self.workspace_root / path_obj).resolve()
-        )
+        # Resolve path relative to workspace_root
+        file_path = resolve_file_path(path, self.workspace_root)
 
         # Parse original file
         try:
