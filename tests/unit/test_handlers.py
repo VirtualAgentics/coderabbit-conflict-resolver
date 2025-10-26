@@ -351,8 +351,20 @@ class TestYamlHandler:
 
         # Should handle unparseable content gracefully
         conflicts = handler.detect_conflicts("test.yaml", changes)
-        # Should not crash and may return empty list or partial results
+        # Handler should skip unparseable changes and process only valid ones
         assert isinstance(conflicts, list)
+
+        # If conflicts are returned, they should only relate to parseable changes
+        if conflicts:
+            for conflict in conflicts:
+                for change in conflict.changes:
+                    # Unparseable changes should not appear in conflicts
+                    assert (
+                        change.fingerprint == "test2"
+                    ), "Only parseable change should be in conflicts"
+        else:
+            # No conflicts expected for single valid change
+            pass
 
     @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
     def test_apply_change_invalid_path(self) -> None:
@@ -740,10 +752,11 @@ class TestBaseHandlerBackupRestore:
         backup_base = test_file.with_suffix(f"{test_file.suffix}.backup")
         backup_base.write_text("initial backup")
 
-        # Create a side_effect that only simulates collisions for backup files
-        # by checking if the path matches backup file patterns
+        # Mock exists() behavior for backup collision testing
+        # Returns True for backup paths to simulate persistent collisions.
+        # Uses os.path.exists for non-backup paths to avoid recursion and preserve
+        # real-file checks. This ensures the mock only affects backup file detection.
         def exists_side_effect(path: Path) -> bool:
-            # For backup target files, simulate collision after pattern match
             path_str = str(path)
             if path_str.endswith(".backup") or ".backup." in path_str:
                 # Always return True for backup files to simulate infinite collisions
@@ -752,6 +765,8 @@ class TestBaseHandlerBackupRestore:
             return os.path.exists(str(path))
 
         # Mock Path.exists with side_effect that only affects backup files
+        # autospec=True ensures the mock maintains the same signature as Path.exists
+        # This prevents recursion when the handler calls Path methods internally
         with (
             patch(
                 "pathlib.Path.exists",
