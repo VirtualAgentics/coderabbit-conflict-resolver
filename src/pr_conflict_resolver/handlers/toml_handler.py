@@ -4,6 +4,8 @@ This handler provides TOML-aware suggestion application with structure validatio
 """
 
 import logging
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -14,11 +16,16 @@ from .base import BaseHandler
 try:
     import tomllib
 
+    TOML_READ_AVAILABLE = True
+except ImportError:
+    TOML_READ_AVAILABLE = False
+
+try:
     import tomli_w
 
-    TOML_AVAILABLE = True
+    TOML_WRITE_AVAILABLE = True
 except ImportError:
-    TOML_AVAILABLE = False
+    TOML_WRITE_AVAILABLE = False
 
 
 class TomlHandler(BaseHandler):
@@ -40,8 +47,10 @@ class TomlHandler(BaseHandler):
             - tomli-w: Third-party package for TOML writing
         """
         self.logger = logging.getLogger(__name__)
-        if not TOML_AVAILABLE:
-            self.logger.warning("tomllib/tomli-w not available. Install with: pip install tomli-w")
+        if not TOML_READ_AVAILABLE:
+            self.logger.warning("TOML parsing support unavailable. Install tomllib (Python 3.11+)")
+        elif not TOML_WRITE_AVAILABLE:
+            self.logger.warning("TOML write support missing. Install with: pip install tomli-w")
 
     def can_handle(self, file_path: str) -> bool:
         """Determine whether the handler supports the given file path.
@@ -98,8 +107,8 @@ class TomlHandler(BaseHandler):
             self.logger.error(f"Invalid file path rejected: {path}")
             return False
 
-        if not TOML_AVAILABLE:
-            self.logger.error("tomllib/tomli-w not available. Install with: pip install tomli-w")
+        if not TOML_READ_AVAILABLE or not TOML_WRITE_AVAILABLE:
+            self.logger.error("TOML support incomplete. Install tomllib (Python 3.11+) and tomli-w")
             return False
 
         file_path = Path(path)
@@ -108,27 +117,46 @@ class TomlHandler(BaseHandler):
         try:
             original_content = file_path.read_text(encoding="utf-8")
             original_data = tomllib.loads(original_content)
-        except Exception as e:
+        except (OSError, UnicodeDecodeError) as e:
+            self.logger.error(f"Error reading original TOML file: {e}")
+            return False
+        except tomllib.TOMLDecodeError as e:
             self.logger.error(f"Error parsing original TOML: {e}")
             return False
 
         # Parse suggestion
         try:
             suggestion_data = tomllib.loads(content)
-        except Exception as e:
+        except tomllib.TOMLDecodeError as e:
             self.logger.error(f"Error parsing TOML suggestion: {e}")
             return False
 
         # Apply suggestion using smart merge
         merged_data = self._smart_merge_toml(original_data, suggestion_data, start_line, end_line)
 
-        # Write with proper formatting
+        # Write with proper formatting using atomic operation
         try:
-            with open(file_path, "wb") as f:
-                tomli_w.dump(merged_data, f)
+            # Create temporary file in the same directory as the target file
+            temp_dir = file_path.parent
+            with tempfile.NamedTemporaryFile(
+                mode="wb", dir=temp_dir, prefix=f".{file_path.name}.tmp", delete=False
+            ) as temp_file:
+                temp_path = Path(temp_file.name)
+                tomli_w.dump(merged_data, temp_file)
+                temp_file.flush()
+                os.fsync(temp_file.fileno())  # Ensure data is written to disk
+
+            # Atomically replace the original file
+            os.replace(temp_path, file_path)
             return True
-        except Exception as e:
-            self.logger.error(f"Error writing TOML: {e}")
+        except (OSError, UnicodeEncodeError) as e:
+            self.logger.error(f"Error writing TOML file: {e}")
+            # Clean up temporary file if it exists
+            try:
+                if "temp_path" in locals() and temp_path.exists():
+                    temp_path.unlink()
+            except OSError:
+                pass  # Ignore cleanup errors
             return False
 
     def validate_change(
@@ -146,13 +174,13 @@ class TomlHandler(BaseHandler):
             tuple[bool, str]: `(True, "Valid TOML")` if `content` parses as TOML,
                 `(False, "<error message>")` otherwise.
         """
-        if not TOML_AVAILABLE:
-            return False, "tomllib/tomli-w not available"
+        if not TOML_READ_AVAILABLE:
+            return False, "tomllib not available"
 
         try:
             tomllib.loads(content)
             return True, "Valid TOML"
-        except Exception as e:
+        except tomllib.TOMLDecodeError as e:
             return False, f"Invalid TOML: {e}"
 
     def detect_conflicts(self, path: str, changes: list[Change]) -> list[Conflict]:

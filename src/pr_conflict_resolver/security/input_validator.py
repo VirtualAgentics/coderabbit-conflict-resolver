@@ -82,8 +82,10 @@ class InputValidator:
             path: File path to validate.
             base_dir: Optional base directory to restrict access to. When provided with
                 allow_absolute=True, absolute paths must be contained within this directory.
+                Required when allow_absolute=True to ensure secure containment.
             allow_absolute: Whether to allow absolute paths (default: False). When True,
-                base_dir must also be provided for security containment.
+                base_dir must also be provided for security containment, otherwise the
+                path will be rejected.
 
         Returns:
             bool: True if the path is safe, False otherwise.
@@ -95,20 +97,21 @@ class InputValidator:
                (prevents unrestricted access)
 
         Example:
-            >>> # Case 1: Valid absolute path with containment
+            >>> # Case 1: Absolute path with both allow_absolute=True AND base_dir (allowed)
             >>> InputValidator.validate_file_path("/tmp/file.py",
             ...     base_dir="/tmp", allow_absolute=True)
             True
-            >>> # Case 2: Absolute path rejected when disallowed (default)
+            >>> # Case 2: Absolute path with default settings (rejected)
             >>> InputValidator.validate_file_path("/tmp/file.py")
             False
-            >>> # Case 3: Absolute path rejected without base_dir for security
+            >>> # Case 3: Absolute path with allow_absolute=True but NO base_dir (rejected)
+            >>> # This is rejected for security - base_dir is required with allow_absolute=True
             >>> InputValidator.validate_file_path("/tmp/file.py", allow_absolute=True)
             False
-            >>> # Relative paths work normally
+            >>> # Relative paths work normally without base_dir
             >>> InputValidator.validate_file_path("src/file.py")
             True
-            >>> # Path traversal attempts rejected
+            >>> # Path traversal attempts always rejected
             >>> InputValidator.validate_file_path("../../etc/passwd")
             False
 

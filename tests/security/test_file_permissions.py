@@ -57,12 +57,17 @@ class TestFilePermissionSecurity:
 
                 # Get backup permissions
                 backup_perms = os.stat(backup_path).st_mode
-                backup_mode = oct(backup_perms & 0o777)
+                mode_bits = backup_perms & 0o777
 
-                # Backup should have secure permissions (0o600)
+                # Backup should have secure permissions (0o600: owner read/write only)
                 assert (
-                    backup_mode == "0o600"
-                ), f"Backup should have 0o600 permissions, got {backup_mode}"
+                    mode_bits == 0o600
+                ), f"Backup should have 0o600 permissions, got {oct(mode_bits)}"
+
+                # Explicitly ensure world bits are zero (no world permissions)
+                assert (
+                    mode_bits & 0o007
+                ) == 0, f"Backup should have no world permissions, got {oct(mode_bits)}"
 
                 # Clean up
                 Path(backup_path).unlink()

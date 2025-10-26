@@ -4,11 +4,12 @@ This module tests dependency security, package validation, and supply chain atta
 """
 
 import logging
+import os
 import re
 import shutil
 import subprocess
 from pathlib import Path
-from urllib.parse import urlparse
+from typing import Any
 
 import pytest
 
@@ -40,12 +41,12 @@ class TestDependencyPinning:
 
             # Check if version is pinned or has reasonable constraints
             # Allow ==, ~=, or range constraints like >=x.y.z,<a.b.c
-            version_pattern = r"(==|~=|>=)(?=.*\d)[\d\w\.\-\+]+"
+            version_pattern = r"(==|~=|>=)(?=\d)[\d\w\.\-\+]+"
             has_version_constraint = re.search(version_pattern, line)
 
             # For production requirements.txt, require exact pinning (== or ~=)
             if file_path.name == "requirements.txt":
-                exact_pin_pattern = r"(==|~=)(?=.*\d)[\d\w\.\-\+]+"
+                exact_pin_pattern = r"(==|~=)(?=\d)[\d\w\.\-\+]+"
                 assert re.search(exact_pin_pattern, line), (
                     f"Line {line_num}: '{line}' does not specify exact version pinning. "
                     f"Production dependencies must use '==1.2.3' or '~=1.2.3' for security"
@@ -80,22 +81,51 @@ class TestDependencyPinning:
         with open(pyproject_file, "rb") as f:
             data = tomllib.load(f)
 
+        def extract_string_dependencies(deps_data: Any) -> list[str]:
+            """Safely extract string dependencies from various data structures."""
+            result: list[str] = []
+
+            if isinstance(deps_data, dict):
+                for value in deps_data.values():
+                    if isinstance(value, str):
+                        result.append(value)
+                    elif (
+                        isinstance(value, dict)
+                        and "version" in value
+                        and isinstance(value["version"], str)
+                    ):
+                        # Extract version if present, otherwise skip
+                        result.append(value["version"])
+                        # Skip non-string dict values for safety
+            elif isinstance(deps_data, list):
+                for item in deps_data:
+                    if isinstance(item, str):
+                        result.append(item)
+                    elif (
+                        isinstance(item, dict)
+                        and "version" in item
+                        and isinstance(item["version"], str)
+                    ):
+                        # Extract version if present, otherwise skip
+                        result.append(item["version"])
+                        # Skip non-string dict items for safety
+            elif isinstance(deps_data, str):
+                result.append(deps_data)
+
+            return result
+
         # Check for dependencies in various locations
         dependencies: list[str] = []
 
         # Project dependencies: [project].dependencies
         if "project" in data and "dependencies" in data["project"]:
             deps = data["project"]["dependencies"]
-            if isinstance(deps, dict):
-                dependencies.extend(deps.values())
-            else:
-                dependencies.extend(deps if isinstance(deps, list) else [deps])
+            dependencies.extend(extract_string_dependencies(deps))
 
         # Poetry format: [tool.poetry.dependencies]
         if "tool" in data and "poetry" in data["tool"] and "dependencies" in data["tool"]["poetry"]:
             poetry_deps = data["tool"]["poetry"]["dependencies"]
-            if isinstance(poetry_deps, dict):
-                dependencies.extend(poetry_deps.values())
+            dependencies.extend(extract_string_dependencies(poetry_deps))
 
         # Ensure we found dependencies
         assert dependencies, "No dependencies found in pyproject.toml"
@@ -374,49 +404,48 @@ class TestPackageValidity:
     """Tests for package validity and integrity."""
 
     def test_no_direct_url_installs(self) -> None:
-        """Test that requirements don't use direct URL installs (security risk)."""
+        """Test that requirements don't use direct URL installs (security risk).
+
+        This test can be configured to either fail strictly or warn only:
+        - Set SUPPLY_CHAIN_WARN_ONLY=1 to log warnings instead of failing
+        - Default behavior is to fail the test when dangerous URLs are found
+        """
         requirements_file = Path("requirements.txt")
 
         if not requirements_file.exists():
             pytest.skip("requirements.txt not found")
 
         with open(requirements_file, encoding="utf-8") as f:
-            content = f.read()
+            lines = f.readlines()
 
-        # Check for git+, http://, or https:// installs
-        # These can be security risks as they bypass PyPI security checks
         dangerous_patterns = [
             r"git\+",
             r"http://",
-            r"https://[^@]+\.[a-z]+",  # URLs without @ (not pip URLs)
+            r"https://(?!files\.pythonhosted\.org|pypi\.org)",
         ]
 
         dangerous_urls = []
 
-        for pattern in dangerous_patterns:
-            matches = re.findall(pattern, content)
-            for match in matches:
-                # Parse URL and check hostname properly to prevent bypass attacks
-                try:
-                    parsed = urlparse(match)
-                    hostname = parsed.hostname
-                    if hostname and (
-                        hostname == "pypi.org"
-                        or hostname.endswith((".pypi.org", ".files.pythonhosted.org"))
-                        or hostname == "files.pythonhosted.org"
-                    ):
-                        continue
-                except (ValueError, AttributeError) as e:
-                    # If URL parsing fails, treat as potentially dangerous
-                    logging.warning("Failed to parse URL '%s': %s", match, e)
-                    dangerous_urls.append(match)
-                    continue
+        for line_num, line in enumerate(lines, 1):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
 
-                # If we reach here, the URL is not from a trusted PyPI source
-                dangerous_urls.append(match)
+            for pattern in dangerous_patterns:
+                if re.search(pattern, line):
+                    dangerous_urls.append((line_num, line))
+                    break
 
-        # This is a warning, not enforced as hard requirement
         if dangerous_urls:
-            logging.warning("Found potentially dangerous direct URL installs: %s", dangerous_urls)
-            # For now, just warn - in the future this could be made stricter
-            # pytest.fail(f"Direct URL installs found: {dangerous_urls}")
+            error_msg = "Found potentially dangerous direct URL installs:\n"
+            for line_num, line in dangerous_urls:
+                error_msg += f"  Line {line_num}: {line}\n"
+
+            # Check if warning-only mode is enabled via environment variable
+            warn_only = os.getenv("SUPPLY_CHAIN_WARN_ONLY", "0") == "1"
+
+            if warn_only:
+                logging.warning(error_msg)
+            else:
+                # Strict enforcement: fail the test
+                pytest.fail(error_msg)

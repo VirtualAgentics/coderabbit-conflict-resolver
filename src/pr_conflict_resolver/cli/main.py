@@ -6,6 +6,7 @@ from rich.table import Table
 
 from ..config.presets import PresetConfig
 from ..core.resolver import ConflictResolver
+from ..security.input_validator import InputValidator
 
 console = Console()
 
@@ -19,6 +20,22 @@ def cli() -> None:
     `analyze`, `apply`, and `simulate` subcommands; configures the Rich console used
     for styled terminal output.
     """
+
+
+def validate_cli_path(path: str) -> None:
+    """Validate CLI path argument for security.
+
+    Args:
+        path: Path to validate (e.g., repo name, owner)
+
+    Raises:
+        click.BadParameter: If path validation fails
+    """
+    if not InputValidator.validate_file_path(path, allow_absolute=False):
+        raise click.BadParameter(
+            "Invalid path: path validation failed. "
+            "Paths must be relative and cannot contain '..' or absolute references."
+        )
 
 
 @cli.command()
@@ -39,6 +56,10 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
     Raises:
         click.Abort: If an error occurs while analyzing conflicts.
     """
+    # Validate path parameters for security
+    validate_cli_path(repo)
+    validate_cli_path(owner)
+
     console.print(f"Analyzing conflicts in PR #{pr} for {owner}/{repo}")
     console.print(f"Using configuration: {config}")
 
@@ -104,6 +125,10 @@ def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
     Raises:
         click.Abort: If an error occurs while analyzing or applying suggestions.
     """
+    # Validate path parameters for security
+    validate_cli_path(repo)
+    validate_cli_path(owner)
+
     if dry_run:
         console.print(f"[yellow]DRY RUN:[/yellow] Would apply suggestions to PR #{pr}")
     else:
@@ -158,6 +183,10 @@ def simulate(pr: int, owner: str, repo: str, config: str) -> None:
     Raises:
         click.Abort: If an unexpected error occurs during analysis.
     """
+    # Validate path parameters for security
+    validate_cli_path(repo)
+    validate_cli_path(owner)
+
     console.print(f"Simulating conflict resolution for PR #{pr}")
     console.print(f"Using configuration: {config}")
 

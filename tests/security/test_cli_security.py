@@ -17,12 +17,9 @@ from pr_conflict_resolver.cli.main import cli
 class TestArgumentInjectionPrevention:
     """Tests for command-line argument injection prevention."""
 
-    def test_cli_sanitizes_user_input(self) -> None:
-        """Test that CLI sanitizes user-provided input."""
-        runner = CliRunner()
-
-        # Test malicious inputs that could be used for injection
-        malicious_inputs = [
+    @pytest.mark.parametrize(
+        "malicious_input",
+        [
             "; rm -rf /",
             "| cat /etc/passwd",
             "&& echo malicious",
@@ -31,28 +28,21 @@ class TestArgumentInjectionPrevention:
             "../../../etc/passwd",
             "owner; rm -rf /",
             "repo && echo hacked",
-        ]
+        ],
+    )
+    def test_cli_sanitizes_user_input(self, malicious_input: str) -> None:
+        """Test that CLI sanitizes user-provided input.
 
-        for malicious in malicious_inputs:
-            # Test analyze command with malicious input
-            result = runner.invoke(
-                cli, ["analyze", "--pr", "1", "--owner", malicious, "--repo", "test"]
-            )
+        Malicious inputs should either be rejected or not echoed back in error messages.
+        """
+        runner = CliRunner()
 
-            # Should either fail or not execute malicious commands
-            # Note: CLI currently echoes malicious input in output - this is a security issue to fix
-            if result.exit_code == 0:
-                # Check if malicious input appears in the output (security issue)
-                if malicious in result.output:
-                    pytest.xfail(
-                        "CLI echoes unsanitized input; mark xfail until sanitization implemented"
-                    )
-                else:
-                    # CLI succeeded without echoing malicious input - this is acceptable
-                    assert isinstance(result.exit_code, int)  # Just ensure it doesn't crash
-            else:
-                # If it fails, that's also acceptable (better security)
-                assert "Error" in result.output or result.exit_code != 0
+        result = runner.invoke(
+            cli, ["analyze", "--pr", "1", "--owner", malicious_input, "--repo", "test"]
+        )
+
+        # CLI should either reject the input or not echo it back
+        assert result.exit_code != 0 or malicious_input not in result.output
 
     def test_cli_rejects_dangerous_flags(self) -> None:
         """Test that dangerous command-line flags are rejected."""
@@ -84,7 +74,7 @@ class TestEnvironmentVariableHandling:
         runner = CliRunner()
 
         # Set a test token (clearly marked as test data)
-        test_token = "ghp_test12345678901234567890123456789012"  # noqa: S105  # gitleaks:allowlist
+        test_token = "ghp_test12345678901234567890123456789012"  # noqa: S105  # gitleaks:allow
         with patch.dict(os.environ, {"GITHUB_TOKEN": test_token}):
             result = runner.invoke(
                 cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", "test"]
@@ -113,8 +103,21 @@ class TestEnvironmentVariableHandling:
                 cli, ["analyze", "--pr", "1", "--owner", injection, "--repo", "test"]
             )
 
-            # Should not execute the injection
-            assert result.exit_code != 0 or injection in result.output
+            # First requirement: raw injection string must NOT be present in output
+            assert injection not in result.output, f"CLI must not echo raw injection: {injection}"
+
+            # Second requirement: if CLI succeeds (exit_code == 0), output must be sanitized
+            if result.exit_code == 0:
+                # Must contain redaction placeholder to prove sanitization occurred
+                redaction_placeholders = ["[REDACTED]", "<redacted>", "[SANITIZED]", "<sanitized>"]
+                has_redaction = any(
+                    placeholder in result.output for placeholder in redaction_placeholders
+                )
+                assert has_redaction, (
+                    f"CLI succeeded but output not sanitized for injection '{injection}'. "
+                    f"Expected redaction placeholder in output: {result.output[:200]}..."
+                )
+            # If exit_code != 0, that's acceptable (CLI rejected the injection)
 
 
 class TestTokenExposurePrevention:
@@ -162,36 +165,36 @@ class TestTokenExposurePrevention:
 class TestDryRunModeValidation:
     """Tests for dry-run mode security."""
 
-    def test_dry_run_doesnt_modify_files(self) -> None:
+    def test_dry_run_doesnt_modify_files(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test that dry-run mode doesn't actually modify files."""
         runner = CliRunner()
 
-        # Create a test file to monitor
-        test_file = Path("test_file.txt")
+        # Create a test file to monitor in the temporary directory
+        test_file = tmp_path / "test_file.txt"
         test_file.write_text("original content")
 
-        try:
-            result = runner.invoke(
-                cli, ["apply", "--pr", "1", "--owner", "test", "--repo", "test", "--dry-run"]
-            )
+        # Change to the temporary directory for the test
+        monkeypatch.chdir(tmp_path)
 
-            # File should remain unchanged
-            assert test_file.read_text() == "original content"
+        # Run CLI command
+        result = runner.invoke(
+            cli, ["apply", "--pr", "1", "--owner", "test", "--repo", "test", "--dry-run"]
+        )
 
-            # Should show dry-run message
-            assert "DRY RUN" in result.output or "dry-run" in result.output.lower()
+        # File should remain unchanged
+        assert test_file.read_text() == "original content"
 
-        finally:
-            # Cleanup
-            if test_file.exists():
-                test_file.unlink()
+        # Should show dry-run message
+        assert "DRY RUN" in result.output or "dry-run" in result.output.lower()
 
     def test_dry_run_shows_changes_safely(self) -> None:
         """Test that dry-run output doesn't leak sensitive data."""
         runner = CliRunner()
 
         # Set a test token (clearly marked as test data)
-        test_token = "ghp_test12345678901234567890123456789012"  # noqa: S105  # gitleaks:allowlist
+        test_token = "ghp_test12345678901234567890123456789012"  # noqa: S105  # gitleaks:allow
         with patch.dict(os.environ, {"GITHUB_TOKEN": test_token}):
             result = runner.invoke(
                 cli, ["apply", "--pr", "1", "--owner", "test", "--repo", "test", "--dry-run"]
@@ -240,44 +243,28 @@ class TestCommandLineParsingSecurity:
             assert isinstance(result.exit_code, int)
 
     @pytest.mark.parametrize(
-        "path,should_reject",
+        "path",
         [
-            pytest.param(
-                "../../../etc/passwd",
-                True,
-                marks=pytest.mark.xfail(reason="path sanitization pending"),
-            ),
-            pytest.param(
-                "C:\\Windows\\System32",
-                True,
-                marks=pytest.mark.xfail(reason="path sanitization pending"),
-            ),
-            pytest.param(
-                "/etc/hosts",
-                True,
-                marks=pytest.mark.xfail(reason="path sanitization pending"),
-            ),
-            pytest.param(
-                "..\\..\\..\\windows\\system32",
-                True,
-                marks=pytest.mark.xfail(reason="path sanitization pending"),
-            ),
+            "../../../etc/passwd",
+            "C:\\Windows\\System32",
+            "/etc/hosts",
+            "..\\..\\..\\windows\\system32",
         ],
     )
-    def test_file_path_arguments_validated(self, path: str, should_reject: bool) -> None:
-        """Test that file path arguments are validated."""
+    def test_file_path_arguments_validated(self, path: str) -> None:
+        """Test that file path arguments are validated.
+
+        Dangerous paths should be rejected with path validation errors.
+        """
         runner = CliRunner()
 
         result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
 
-        # Should reject dangerous paths - CLI must not accept or echo them
-        if should_reject:
-            # CLI properly rejected dangerous path - this is the expected behavior
-            assert result.exit_code != 0, f"CLI should reject dangerous path: {path}"
-            assert "Error" in result.output, f"CLI should show error for dangerous path: {path}"
-        else:
-            # CLI accepted path but didn't echo it - this is acceptable
-            assert isinstance(result.exit_code, int)
+        # CLI should reject dangerous paths with non-zero exit code
+        assert result.exit_code != 0, f"CLI should reject dangerous path: {path}"
+        assert (
+            "path validation failed" in result.output.lower()
+        ), f"CLI should show path validation error for: {path}"
 
 
 class TestInputValidation:

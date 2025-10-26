@@ -28,9 +28,9 @@ To meet plan requirement of "all tests pass", need to:
 - Handle permission errors gracefully
 
 ### 4. Fix Other Issues (1 test each for CLI, GitHub, token validation)
-- Complete CLI security implementations
+- ✅ Complete CLI security implementations (path validation + sanitized error messages in PR #48)
+- ✅ Complete argument injection prevention (fixed via sanitized error messages in PR #48)
 - Fix GitHub token validation
-- Complete argument injection prevention
 
 ## Recommendation
 Either:

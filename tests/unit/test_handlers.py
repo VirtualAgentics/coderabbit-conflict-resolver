@@ -395,7 +395,7 @@ class TestTomlHandler:
         assert handler.can_handle("test.json") is False
         assert handler.can_handle("test.txt") is False
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_AVAILABLE", False)
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", False)
     def test_toml_not_available(self) -> None:
         """Test behavior when tomllib is not available."""
         handler = TomlHandler()
@@ -404,7 +404,8 @@ class TestTomlHandler:
         assert valid is False
         assert "not available" in msg
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_AVAILABLE", True)
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
     def test_validate_change(self) -> None:
         """Test change validation."""
         handler = TomlHandler()
