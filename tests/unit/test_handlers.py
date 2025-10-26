@@ -1,5 +1,9 @@
 """Test the file handlers."""
 
+import os
+import stat
+import tempfile
+from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
@@ -430,6 +434,201 @@ class TestTomlHandler:
 
         expected_sections = ["section1", "section2", "section2.subsection1", "section2.subsection2"]
         assert set(expected_sections) <= set(sections)
+
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
+    def test_apply_change_nonexistent_file(self) -> None:
+        """Test apply_change handles non-existent files."""
+        handler = TomlHandler()
+
+        # Test with non-existent file
+        result = handler.apply_change("nonexistent.toml", "key = 'value'", 1, 3)
+        assert result is False
+
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
+    def test_apply_change_unicode_error(self) -> None:
+        """Test apply_change handles Unicode decode errors."""
+        handler = TomlHandler()
+
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".toml", delete=False) as f:
+            # Write invalid UTF-8
+            f.write(b"\xff\xfe\x00\x00")
+            f.flush()
+
+            try:
+                result = handler.apply_change(f.name, "key = 'value'", 1, 3)
+                assert result is False
+            finally:
+                os.unlink(f.name)
+
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
+    def test_apply_change_toml_parse_error(self) -> None:
+        """Test apply_change handles TOML parse errors."""
+        handler = TomlHandler()
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
+            # Write invalid TOML
+            f.write("invalid toml content [")
+            f.flush()
+
+            try:
+                result = handler.apply_change(f.name, "key = 'value'", 1, 3)
+                assert result is False
+            finally:
+                os.unlink(f.name)
+
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
+    def test_apply_change_suggestion_parse_error(self) -> None:
+        """Test apply_change handles suggestion parse errors."""
+        handler = TomlHandler()
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
+            # Write valid original TOML
+            f.write("key = 'value'")
+            f.flush()
+
+            try:
+                # Invalid suggestion TOML
+                result = handler.apply_change(f.name, "invalid suggestion [", 1, 3)
+                assert result is False
+            finally:
+                os.unlink(f.name)
+
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
+    def test_apply_change_success_with_permissions(self) -> None:
+        """Test apply_change successfully preserves file permissions."""
+        handler = TomlHandler()
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
+            # Write original TOML
+            f.write("key = 'value'")
+            f.flush()
+
+            # Set specific permissions
+            original_mode = 0o644
+            os.chmod(f.name, original_mode)
+
+            try:
+                result = handler.apply_change(f.name, "newkey = 'newvalue'", 1, 3)
+                assert result is True
+
+                # Check that permissions were preserved
+                current_mode = stat.S_IMODE(os.stat(f.name).st_mode)
+                assert current_mode == original_mode
+            finally:
+                os.unlink(f.name)
+
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
+    def test_apply_change_atomic_replacement(self) -> None:
+        """Test apply_change uses atomic file replacement."""
+        handler = TomlHandler()
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
+            # Write original TOML
+            f.write("key = 'value'")
+            f.flush()
+
+            try:
+                result = handler.apply_change(f.name, "newkey = 'newvalue'", 1, 3)
+                assert result is True
+
+                # Verify content was merged
+                content = Path(f.name).read_text()
+                assert 'key = "value"' in content  # TOML normalizes quotes
+                assert 'newkey = "newvalue"' in content
+            finally:
+                os.unlink(f.name)
+
+    def test_validate_change_only_parses_toml(self) -> None:
+        """Test that validate_change only validates TOML content, not file paths."""
+        handler = TomlHandler()
+
+        # validate_change only validates TOML parsing, not paths
+        valid, _ = handler.validate_change("../../../etc/passwd", "key = 'value'", 1, 3)
+        # Path validation is performed in apply_change
+        assert valid is True  # TOML content is valid
+
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", False)
+    def test_validate_change_toml_not_available(self) -> None:
+        """Test validate_change when TOML is not available."""
+        handler = TomlHandler()
+
+        valid, msg = handler.validate_change("test.toml", "key = 'value'", 1, 3)
+        assert valid is False
+        assert "not available" in msg.lower()
+
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
+    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_WRITE_AVAILABLE", True)
+    def test_validate_change_parse_validation(self) -> None:
+        """Test validate_change validates TOML parsing."""
+        handler = TomlHandler()
+
+        # Valid TOML
+        valid, msg = handler.validate_change("test.toml", "key = 'value'", 1, 3)
+        assert valid is True
+        assert "valid toml" in msg.lower()
+
+        # Invalid TOML
+        valid, msg = handler.validate_change("test.toml", "invalid toml [", 1, 3)
+        assert valid is False
+        assert "invalid toml" in msg.lower()
+
+    def test_detect_conflicts_section_overlap(self) -> None:
+        """Test detect_conflicts identifies section conflicts."""
+        handler = TomlHandler()
+
+        from pr_conflict_resolver import Change, FileType
+
+        changes = [
+            Change(
+                path="test.toml",
+                start_line=1,
+                end_line=3,
+                content="[section1]\nkey1 = 'value1'",
+                metadata={},
+                fingerprint="test1",
+                file_type=FileType.TOML,
+            ),
+            Change(
+                path="test.toml",
+                start_line=4,
+                end_line=6,
+                content="[section1]\nkey2 = 'value2'",
+                metadata={},
+                fingerprint="test2",
+                file_type=FileType.TOML,
+            ),
+        ]
+
+        conflicts = handler.detect_conflicts("test.toml", changes)
+        assert len(conflicts) > 0
+        assert conflicts[0].conflict_type == "section_conflict"
+
+    def test_extract_sections_helper(self) -> None:
+        """Test _extract_sections helper method."""
+        handler = TomlHandler()
+
+        data = {
+            "section1": "value1",
+            "section2": {"subsection1": "value2", "subsection2": {"nested": "value3"}},
+        }
+
+        sections = handler._extract_sections(data)
+
+        expected = [
+            "section1",
+            "section2",
+            "section2.subsection1",
+            "section2.subsection2",
+            "section2.subsection2.nested",
+        ]
+        for expected_section in expected:
+            assert expected_section in sections
 
 
 @pytest.fixture

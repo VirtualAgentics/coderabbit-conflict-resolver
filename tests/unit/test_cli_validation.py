@@ -15,7 +15,6 @@ class TestCLIPathValidation:
             "myrepo",
             "my-repo",
             "my_repo",
-            "org/repo",
         ]
 
         for path in safe_paths:
@@ -25,6 +24,16 @@ class TestCLIPathValidation:
             assert (
                 "invalid value for '--repo'" not in result.output.lower()
             ), f"Safe path should not trigger validation error: {path}"
+
+    def test_slash_in_repo_name_rejected(self) -> None:
+        """Test that repo names with slashes are rejected by new validation."""
+        runner = CliRunner()
+
+        result = runner.invoke(
+            cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", "org/repo"]
+        )
+        assert result.exit_code != 0
+        assert "identifier must be a single segment (no slashes or spaces)" in result.output
 
     def test_traversal_paths_rejected(self) -> None:
         """Test that path traversal attempts are rejected."""

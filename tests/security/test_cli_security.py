@@ -6,6 +6,7 @@ and token exposure in CLI operations.
 
 import os
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -299,12 +300,217 @@ class TestInputValidation:
         """Test that maximum input size is enforced."""
         runner = CliRunner()
 
-        # Test with very large input
-        large_input = "x" * 10000  # 10KB string
-
-        result = runner.invoke(
-            cli, ["analyze", "--pr", "1", "--owner", large_input, "--repo", "test"]
+        # Boundary: exactly at limit should pass
+        max_len = 512
+        at_limit = "x" * max_len
+        ok_result = runner.invoke(
+            cli, ["analyze", "--pr", "1", "--owner", at_limit, "--repo", "test"]
         )
+        assert ok_result.exit_code == 0
 
-        # Should handle large input gracefully
-        assert isinstance(result.exit_code, int)
+        # Above limit should be rejected with Click-style invalid message
+        over_limit = "x" * (max_len + 1)
+        result = runner.invoke(
+            cli, ["analyze", "--pr", "1", "--owner", over_limit, "--repo", "test"]
+        )
+        assert result.exit_code != 0
+        assert "invalid value for '--owner'" in result.output.lower()
+
+
+class TestOutputSanitization:
+    """Test that CLI output is properly sanitized."""
+
+    def test_malicious_config_sanitized(self) -> None:
+        """Test that malicious config values are sanitized in output."""
+        runner = CliRunner()
+
+        malicious_configs = [
+            "$(cat /etc/passwd)",
+            "`whoami`",
+            "; rm -rf /",
+            "${GITHUB_TOKEN}",
+        ]
+
+        for malicious_config in malicious_configs:
+            result = runner.invoke(
+                cli,
+                [
+                    "analyze",
+                    "--pr",
+                    "1",
+                    "--owner",
+                    "test",
+                    "--repo",
+                    "test",
+                    "--config",
+                    malicious_config,
+                ],
+            )
+            # Malicious content must never appear in output
+            assert malicious_config not in result.output
+
+            # Additionally, if CLI succeeded, output must contain redaction
+            if result.exit_code == 0:
+                assert "[REDACTED]" in result.output
+            # If exit_code != 0, that's acceptable (CLI rejected the injection)
+
+    def test_malicious_strategy_sanitized(self) -> None:
+        """Test that malicious strategy values are sanitized in output."""
+        runner = CliRunner()
+
+        malicious_strategies = [
+            "$(cat /etc/passwd)",
+            "`whoami`",
+            "; rm -rf /",
+            "${GITHUB_TOKEN}",
+        ]
+
+        for malicious_strategy in malicious_strategies:
+            result = runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "1",
+                    "--owner",
+                    "test",
+                    "--repo",
+                    "test",
+                    "--strategy",
+                    malicious_strategy,
+                ],
+            )
+            # Malicious content must never appear in output
+            assert malicious_strategy not in result.output
+
+            # Additionally, if CLI succeeded, output must contain redaction
+            if result.exit_code == 0:
+                assert "[REDACTED]" in result.output
+            # If exit_code != 0, that's acceptable (CLI rejected the injection)
+
+    def test_clean_values_not_sanitized(self) -> None:
+        """Test that clean values are not sanitized."""
+        runner = CliRunner()
+
+        clean_values = ["balanced", "priority", "conservative", "aggressive"]
+
+        for clean_value in clean_values:
+            result = runner.invoke(
+                cli,
+                [
+                    "analyze",
+                    "--pr",
+                    "1",
+                    "--owner",
+                    "test",
+                    "--repo",
+                    "test",
+                    "--config",
+                    clean_value,
+                ],
+            )
+            # Clean values should appear in output
+            assert clean_value in result.output
+
+
+class TestCommandSuccessPaths:
+    """Test successful command execution paths."""
+
+    @patch("pr_conflict_resolver.core.resolver.ConflictResolver.analyze_conflicts")
+    def test_analyze_command_success_path(self, mock_analyze: Any) -> None:
+        """Test analyze command success path."""
+        mock_analyze.return_value = []
+        runner = CliRunner()
+
+        result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", "test"])
+
+        assert result.exit_code == 0
+        assert "No conflicts detected" in result.output
+
+    @patch("pr_conflict_resolver.core.resolver.ConflictResolver.analyze_conflicts")
+    def test_analyze_command_with_conflicts(self, mock_analyze: Any) -> None:
+        """Test analyze command with conflicts."""
+        from pr_conflict_resolver.core.models import Change, Conflict, FileType
+
+        mock_conflict = Conflict(
+            file_path="test.py",
+            line_range=(1, 5),
+            changes=[
+                Change(
+                    path="test.py",
+                    start_line=1,
+                    end_line=5,
+                    content="test content",
+                    metadata={},
+                    fingerprint="test1",
+                    file_type=FileType.PYTHON,
+                )
+            ],
+            conflict_type="overlap",
+            severity="medium",
+            overlap_percentage=50.0,
+        )
+        mock_analyze.return_value = [mock_conflict]
+        runner = CliRunner()
+
+        result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", "test"])
+
+        assert result.exit_code == 0
+        assert "Found 1 conflicts" in result.output
+
+    @patch("pr_conflict_resolver.core.resolver.ConflictResolver.resolve_pr_conflicts")
+    def test_apply_command_success_path(self, mock_resolve: Any) -> None:
+        """Test apply command success path."""
+        from pr_conflict_resolver.core.models import ResolutionResult
+
+        mock_result = ResolutionResult(
+            applied_count=5,
+            conflict_count=2,
+            success_rate=71.4,
+            resolutions=[],
+            conflicts=[],
+        )
+        mock_resolve.return_value = mock_result
+        runner = CliRunner()
+
+        result = runner.invoke(cli, ["apply", "--pr", "1", "--owner", "test", "--repo", "test"])
+
+        assert result.exit_code == 0
+        assert "Applied 5 suggestions" in result.output
+        assert "Skipped 2 conflicts" in result.output
+        assert "Success rate: 71.4%" in result.output
+
+    @patch("pr_conflict_resolver.core.resolver.ConflictResolver.analyze_conflicts")
+    def test_simulate_command_success_path(self, mock_analyze: Any) -> None:
+        """Test simulate command success path."""
+        from pr_conflict_resolver.core.models import Change, Conflict, FileType
+
+        mock_conflict = Conflict(
+            file_path="test.py",
+            line_range=(1, 5),
+            changes=[
+                Change(
+                    path="test.py",
+                    start_line=1,
+                    end_line=5,
+                    content="test content",
+                    metadata={},
+                    fingerprint="test1",
+                    file_type=FileType.PYTHON,
+                )
+            ],
+            conflict_type="overlap",
+            severity="medium",
+            overlap_percentage=50.0,
+        )
+        mock_analyze.return_value = [mock_conflict]
+        runner = CliRunner()
+
+        result = runner.invoke(cli, ["simulate", "--pr", "1", "--owner", "test", "--repo", "test"])
+
+        assert result.exit_code == 0
+        assert "Simulation Results:" in result.output
+        assert "Total changes:" in result.output
+        assert "Would apply:" in result.output
+        assert "Would skip:" in result.output
+        assert "Success rate:" in result.output

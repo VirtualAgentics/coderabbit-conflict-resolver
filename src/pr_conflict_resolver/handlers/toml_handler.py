@@ -6,13 +6,14 @@ This handler provides TOML-aware suggestion application with structure validatio
 import contextlib
 import logging
 import os
+import stat
 import tempfile
 from pathlib import Path
 from typing import Any
 
-from ..core.models import Change, Conflict
-from ..security.input_validator import InputValidator
-from .base import BaseHandler
+from pr_conflict_resolver.core.models import Change, Conflict
+from pr_conflict_resolver.handlers.base import BaseHandler
+from pr_conflict_resolver.security.input_validator import InputValidator
 
 try:
     import tomllib
@@ -33,19 +34,21 @@ class TomlHandler(BaseHandler):
     """Handler for TOML files with structure validation."""
 
     def __init__(self) -> None:
-        """Initialize the TOML handler and its logger.
+        """Initialize the TOML handler.
 
-        Creates a module-level logger on the instance. Uses Python 3.11+ standard library
-        tomllib for parsing and tomli-w for writing TOML files. If TOML support is not
-        available, logs a warning with installation instructions.
+        Initializes a module-level logger and verifies TOML parsing/writing availability.
+        NOTE: Uses Python 3.11+ `tomllib` for parsing and the third-party `tomli-w` package
+        for writing TOML files.
 
-        Note:
-            This handler requires Python 3.11+ for tomllib support. For older Python versions,
-            consider using the tomli package as an alternative.
+        Args:
+            None
 
-        Dependencies:
-            - tomllib: Python 3.11+ standard library for TOML parsing
-            - tomli-w: Third-party package for TOML writing
+        Returns:
+            None: This constructor does not return a value.
+
+        Raises:
+            None: This constructor does not raise exceptions; missing dependencies are logged
+            as warnings.
         """
         self.logger = logging.getLogger(__name__)
         if not TOML_READ_AVAILABLE:
@@ -56,52 +59,35 @@ class TomlHandler(BaseHandler):
     def can_handle(self, file_path: str) -> bool:
         """Determine whether the handler supports the given file path.
 
-        @returns
-            `True` if the file path ends with ".toml" (case-insensitive), `False` otherwise.
+        Args:
+            file_path (str): The file path to evaluate.
+
+        Returns:
+            bool: True if the file path ends with ".toml" (case-insensitive); False otherwise.
+
+        Raises:
+            None
         """
         return file_path.lower().endswith(".toml")
 
     def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
-        r"""Apply a TOML suggestion to the file by merging and writing the result back.
+        """Apply a TOML suggestion to the file by merging and writing the result.
 
-        This method implements security validation to prevent path traversal attacks and
-        ensures safe TOML processing using Python 3.11+ standard library tomllib.
+        Performs secure path validation, parses the original and suggested TOML, merges at the
+        top level, and writes the result atomically while preserving file permissions.
+        NOTE: Uses Python 3.11+ `tomllib` for parsing and `tomli-w` for writing.
 
-        Security Features:
-            - Path traversal protection using InputValidator.validate_file_path()
-            - Safe TOML parsing using tomllib (Python 3.11+ standard library)
-            - Structure validation to prevent TOML corruption
-            - File existence verification before processing
-
-        Parameters:
+        Args:
             path (str): Filesystem path to the TOML file to modify. Must pass security validation.
             content (str): TOML-formatted suggestion content to merge into the file.
             start_line (int): One-based start line of the region the suggestion targets.
             end_line (int): One-based end line of the region the suggestion targets.
 
         Returns:
-            bool: `True` if the suggestion was successfully merged and written to the file,
-                `False` otherwise.
+            bool: True if the suggestion was merged and written successfully; False otherwise.
 
-        Example:
-            >>> handler = TomlHandler()
-            >>> # Valid TOML and path
-            >>> handler.apply_change("config.toml", '[section]\nkey = "value"', 1, 2)
-            True
-            >>> # Path traversal attempt - rejected
-            >>> handler.apply_change("../../../etc/passwd", '[section]\nkey = "value"', 1, 2)
-            False
-
-        Warning:
-            This method validates file paths to prevent directory traversal attacks.
-            Invalid paths are rejected before any TOML processing occurs.
-
-        Note:
-            Requires Python 3.11+ for tomllib support. Uses tomli-w for writing TOML files.
-
-        See Also:
-            InputValidator.validate_file_path: Path security validation
-            validate_change: Content validation for TOML structure
+        Raises:
+            None
         """
         # Validate file path to prevent path traversal attacks
         # For absolute paths, use parent directory as base_dir for containment check
@@ -125,10 +111,10 @@ class TomlHandler(BaseHandler):
             original_content = file_path.read_text(encoding="utf-8")
             original_data = tomllib.loads(original_content)
         except (OSError, UnicodeDecodeError) as e:
-            self.logger.error(f"Error reading original TOML file: {e}")
+            self.logger.error(f"Error reading original TOML file {file_path}: {e}")
             return False
         except tomllib.TOMLDecodeError as e:
-            self.logger.error(f"Error parsing original TOML: {e}")
+            self.logger.error(f"Error parsing original TOML {file_path}: {e}")
             return False
 
         # Parse suggestion
@@ -161,19 +147,22 @@ class TomlHandler(BaseHandler):
                 temp_file.flush()
                 os.fsync(temp_file.fileno())  # Ensure data is written to disk
 
-            # Apply original file mode to temp file if we have it
+            # Apply original file permissions (mask to permission bits) to temp file if we have it
             if original_mode is not None:
-                os.chmod(temp_path, original_mode)
+                masked_mode = stat.S_IMODE(original_mode)
+                os.chmod(temp_path, masked_mode)
 
             # Atomically replace the original file
             os.replace(temp_path, file_path)
 
             # Ensure directory durability by fsyncing the parent directory
+            dir_fd = None
             try:
                 dir_fd = os.open(temp_dir, os.O_RDONLY)
                 os.fsync(dir_fd)
             except OSError:
-                pass  # Ignore directory fsync errors
+                # Log at debug level but continue to ignore the error
+                self.logger.debug("directory fsync failed for %s", temp_dir, exc_info=True)
             finally:
                 if dir_fd is not None:
                     os.close(dir_fd)
@@ -199,15 +188,18 @@ class TomlHandler(BaseHandler):
     ) -> tuple[bool, str]:
         """Validate the provided TOML suggestion and report whether it parses.
 
-        Parameters:
+        Args:
             path (str): File path the suggestion targets (informational).
             content (str): TOML text to validate.
             start_line (int): Starting line number (1-based) of the suggested range.
             end_line (int): Ending line number (1-based) of the suggested range.
 
         Returns:
-            tuple[bool, str]: `(True, "Valid TOML")` if `content` parses as TOML,
-                `(False, "<error message>")` otherwise.
+            tuple[bool, str]: Tuple of (is_valid, message). When valid, returns
+                (True, "Valid TOML"); otherwise returns (False, "<error message>").
+
+        Raises:
+            None
         """
         if not TOML_READ_AVAILABLE:
             return False, "tomllib not available"
@@ -221,19 +213,21 @@ class TomlHandler(BaseHandler):
     def detect_conflicts(self, path: str, changes: list[Change]) -> list[Conflict]:
         """Identify conflicting changes that target the same TOML sections.
 
-        Parses each change's TOML content to collect affected section paths, groups changes by
-        section, and creates a Conflict for any section modified by more than one change.
-        Changes whose content fails to parse are skipped (a warning is logged). Each Conflict's
-        line_range spans from the first change's start_line to the last change's end_line and
-        includes an overlap_percentage computed by _calculate_overlap_percentage.
+        Parses each change's TOML to collect affected section paths, groups by section, and
+        creates a Conflict when multiple changes modify the same section. Unparseable changes
+        are skipped (a warning is logged). The conflict `line_range` spans from the first to the
+        last change, and the overlap percentage is computed from the union/intersection of
+        line ranges.
 
-        Parameters:
-            path (str): File path for conflicts to report in each Conflict.
+        Args:
+            path (str): File path reported on each Conflict.
             changes (list[Change]): List of Change objects to analyze.
 
         Returns:
-            list[Conflict]: Conflicts detected for sections with multiple changes; empty list if
-                no conflicts found.
+            list[Conflict]: List of detected conflicts; empty list if no conflicts are found.
+
+        Raises:
+            None
         """
         conflicts: list[Conflict] = []
 

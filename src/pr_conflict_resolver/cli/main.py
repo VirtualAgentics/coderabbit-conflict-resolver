@@ -1,5 +1,7 @@
 """Command-line interface for pr-conflict-resolver."""
 
+import re
+
 import click
 from rich.console import Console
 from rich.table import Table
@@ -22,6 +24,72 @@ def cli() -> None:
     """
 
 
+MAX_CLI_NAME_LENGTH = 512
+
+
+# Compiled pattern for detecting potential shell/env injection constructs.
+_INJECTION_PATTERN = re.compile(
+    r"(?:\$\{|\$\(|`|\$[A-Za-z_][A-Za-z0-9_]*)|[\n\r\x00|;&<>*\?\[\]\{\}\(\)\\\'\"]"
+)
+
+
+def sanitize_for_output(value: str) -> str:
+    """Redact potentially dangerous injection patterns before printing.
+
+    Detects common shell and environment-variable injection constructs and returns
+    a redacted placeholder if any are present. Otherwise returns the original value.
+
+    Args:
+        value (str): The string to sanitize for terminal output.
+
+    Returns:
+        str: "[REDACTED]" if dangerous patterns are found; otherwise the original string.
+    """
+    # Patterns: $VAR, ${VAR}, $(...), backticks, or any dangerous characters
+    # including control chars (\n, \r, \x00), shell metacharacters, and quotes
+    if _INJECTION_PATTERN.search(value):
+        return "[REDACTED]"
+    return value
+
+
+def validate_github_identifier(ctx: click.Context, param: click.Parameter, value: str) -> str:
+    """Validate GitHub owner/repo identifiers for safety.
+
+    Enforces strict length and character constraints and rejects common
+    shell/environment injection patterns.
+
+    Args:
+        ctx: Click context object.
+        param: Click parameter object.
+        value: Identifier value to validate.
+
+    Returns:
+        str: The validated identifier value.
+
+    Raises:
+        click.BadParameter: If identifier validation fails.
+    """
+    # Basic type/emptiness checks
+    if not isinstance(value, str) or not value.strip():
+        raise click.BadParameter("identifier required")
+
+    # Enforce maximum length
+    if len(value) > MAX_CLI_NAME_LENGTH:
+        raise click.BadParameter(f"identifier too long (max {MAX_CLI_NAME_LENGTH})")
+
+    # Disallow slashes and whitespace; GitHub identifiers are single segments
+    if "/" in value or "\\" in value or any(ch.isspace() for ch in value):
+        raise click.BadParameter("identifier must be a single segment (no slashes or spaces)")
+
+    # Allowed characters: letters, digits, dot, underscore, hyphen
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", value):
+        raise click.BadParameter(
+            "identifier contains invalid characters; "
+            "allowed: letters, digits, dot, underscore, hyphen"
+        )
+    return value
+
+
 def validate_path_option(ctx: click.Context, param: click.Parameter, value: str) -> str:
     """Validate CLI path option for security using Click callback.
 
@@ -36,6 +104,12 @@ def validate_path_option(ctx: click.Context, param: click.Parameter, value: str)
     Raises:
         click.BadParameter: If path validation fails
     """
+    # Enforce maximum length for CLI identifiers
+    if len(value) > MAX_CLI_NAME_LENGTH:
+        raise click.BadParameter(
+            f"{param.human_readable_name or param.name}: value too long (max {MAX_CLI_NAME_LENGTH})"
+        )
+
     if not InputValidator.validate_file_path(value, allow_absolute=False):
         raise click.BadParameter(f"{param.human_readable_name or param.name}: invalid path")
     return value
@@ -43,8 +117,18 @@ def validate_path_option(ctx: click.Context, param: click.Parameter, value: str)
 
 @cli.command()
 @click.option("--pr", required=True, type=int, help="Pull request number")
-@click.option("--owner", required=True, callback=validate_path_option, help="Repository owner")
-@click.option("--repo", required=True, callback=validate_path_option, help="Repository name")
+@click.option(
+    "--owner",
+    required=True,
+    callback=validate_github_identifier,
+    help="Repository owner",
+)
+@click.option(
+    "--repo",
+    required=True,
+    callback=validate_github_identifier,
+    help="Repository name",
+)
 @click.option("--config", default="balanced", help="Configuration preset")
 def analyze(pr: int, owner: str, repo: str, config: str) -> None:
     """Analyze conflicts in a pull request and print a summary to the console.
@@ -59,8 +143,12 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
     Raises:
         click.Abort: If an error occurs while analyzing conflicts.
     """
-    console.print(f"Analyzing conflicts in PR #{pr} for {owner}/{repo}")
-    console.print(f"Using configuration: {config}")
+    safe_config = sanitize_for_output(config)
+
+    safe_owner = sanitize_for_output(owner)
+    safe_repo = sanitize_for_output(repo)
+    console.print(f"Analyzing conflicts in PR #{pr} for {safe_owner}/{safe_repo}")
+    console.print(f"Using configuration: {safe_config}")
 
     # Get configuration preset
     config_preset = getattr(PresetConfig, config.upper(), PresetConfig.BALANCED)
@@ -103,8 +191,18 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
 
 @cli.command()
 @click.option("--pr", required=True, type=int, help="Pull request number")
-@click.option("--owner", required=True, callback=validate_path_option, help="Repository owner")
-@click.option("--repo", required=True, callback=validate_path_option, help="Repository name")
+@click.option(
+    "--owner",
+    required=True,
+    callback=validate_github_identifier,
+    help="Repository owner",
+)
+@click.option(
+    "--repo",
+    required=True,
+    callback=validate_github_identifier,
+    help="Repository name",
+)
 @click.option("--strategy", default="priority", help="Resolution strategy")
 @click.option("--dry-run", is_flag=True, help="Simulate without applying changes")
 def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
@@ -129,7 +227,8 @@ def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
     else:
         console.print(f"Applying suggestions to PR #{pr}")
 
-    console.print(f"Using strategy: {strategy}")
+    safe_strategy = sanitize_for_output(strategy)
+    console.print(f"Using strategy: {safe_strategy}")
 
     # Get configuration preset
     config_preset = PresetConfig.BALANCED
@@ -161,8 +260,18 @@ def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
 
 @cli.command()
 @click.option("--pr", required=True, type=int, help="Pull request number")
-@click.option("--owner", required=True, callback=validate_path_option, help="Repository owner")
-@click.option("--repo", required=True, callback=validate_path_option, help="Repository name")
+@click.option(
+    "--owner",
+    required=True,
+    callback=validate_github_identifier,
+    help="Repository owner",
+)
+@click.option(
+    "--repo",
+    required=True,
+    callback=validate_github_identifier,
+    help="Repository name",
+)
 @click.option("--config", default="balanced", help="Configuration preset")
 def simulate(pr: int, owner: str, repo: str, config: str) -> None:
     """Simulate resolving pull request conflicts and print a summary of what would be applied.
@@ -179,7 +288,8 @@ def simulate(pr: int, owner: str, repo: str, config: str) -> None:
         click.Abort: If an unexpected error occurs during analysis.
     """
     console.print(f"Simulating conflict resolution for PR #{pr}")
-    console.print(f"Using configuration: {config}")
+    safe_config = sanitize_for_output(config)
+    console.print(f"Using configuration: {safe_config}")
 
     # Get configuration preset
     config_preset = getattr(PresetConfig, config.upper(), PresetConfig.BALANCED)
