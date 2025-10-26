@@ -8,6 +8,7 @@ import os
 import shutil
 import time
 from abc import ABC, abstractmethod
+from os import PathLike
 from pathlib import Path
 
 from ..core.models import Change, Conflict
@@ -17,12 +18,15 @@ from ..security.input_validator import InputValidator
 class BaseHandler(ABC):
     """Abstract base class for file-type specific handlers."""
 
-    def __init__(self, workspace_root: str | None = None) -> None:
+    workspace_root: Path
+
+    def __init__(self, workspace_root: str | PathLike[str] | None = None) -> None:
         """Initialize the base handler with workspace root for path validation.
 
         Args:
             workspace_root: Root directory for validating absolute paths.
-                If None, defaults to current working directory.
+                Can be str, PathLike, or None. If None, defaults to current
+                working directory.
         """
         self.workspace_root = Path(workspace_root or os.getcwd()).resolve()
 
