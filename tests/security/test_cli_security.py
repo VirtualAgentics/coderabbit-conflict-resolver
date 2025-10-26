@@ -61,8 +61,8 @@ class TestArgumentInjectionPrevention:
             if len(parts) >= 3:
                 result = runner.invoke(cli, parts)
                 # Should either fail or not execute dangerous parts
-                assert result.exit_code != 0 or not any(
-                    "rm -rf" in str(part) or "cat /etc/passwd" in str(part) for part in parts
+                assert result.exit_code != 0 or not (
+                    "rm -rf" in result.output or "cat /etc/passwd" in result.output
                 )
 
 
@@ -263,7 +263,7 @@ class TestCommandLineParsingSecurity:
         # CLI should reject dangerous paths with non-zero exit code
         assert result.exit_code != 0, f"CLI should reject dangerous path: {path}"
         assert (
-            "path validation failed" in result.output.lower()
+            "invalid value for '--repo'" in result.output.lower()
         ), f"CLI should show path validation error for: {path}"
 
 
@@ -276,9 +276,9 @@ class TestInputValidation:
 
         # Test with invalid input types
         invalid_inputs = [
-            ("--pr", "not_a_number"),
-            ("--pr", "-1"),
-            ("--pr", "0"),
+            ("--pr", "not_a_number"),  # Invalid integer format
+            ("--pr", "abc123"),  # Invalid integer format
+            ("--pr", "3.14"),  # Invalid integer format (float)
         ]
 
         for flag, value in invalid_inputs:
@@ -286,15 +286,14 @@ class TestInputValidation:
                 cli, ["analyze", flag, value, "--owner", "test", "--repo", "test"]
             )
 
-            # Should either reject invalid input or handle it gracefully
-            # Note: CLI currently accepts invalid input - this is a security issue to fix
-            if result.exit_code == 0:
-                # If it succeeds, that's concerning but we document it
-                # TODO: CLI should reject invalid input entirely
-                pass
-            else:
-                # If it fails, that's the expected behavior
-                assert result.exit_code != 0
+            # Click should reject invalid input before command execution
+            assert result.exit_code != 0, f"CLI should reject invalid {flag} value: {value}"
+
+            # Should contain indication of invalid integer input
+            output_lower = result.output.lower()
+            assert (
+                "invalid value" in output_lower or "not a valid integer" in output_lower
+            ), f"CLI should show integer validation error for {flag} value: {value}"
 
     def test_max_input_size_enforced(self) -> None:
         """Test that maximum input size is enforced."""

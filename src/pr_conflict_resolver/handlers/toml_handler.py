@@ -3,6 +3,7 @@
 This handler provides TOML-aware suggestion application with structure validation.
 """
 
+import contextlib
 import logging
 import os
 import tempfile
@@ -103,7 +104,13 @@ class TomlHandler(BaseHandler):
             validate_change: Content validation for TOML structure
         """
         # Validate file path to prevent path traversal attacks
-        if not InputValidator.validate_file_path(path):
+        # For absolute paths, use parent directory as base_dir for containment check
+        file_path_obj = Path(path)
+        base_dir_for_validation = str(file_path_obj.parent) if file_path_obj.is_absolute() else None
+
+        if not InputValidator.validate_file_path(
+            path, allow_absolute=True, base_dir=base_dir_for_validation
+        ):
             self.logger.error(f"Invalid file path rejected: {path}")
             return False
 
@@ -135,7 +142,15 @@ class TomlHandler(BaseHandler):
         merged_data = self._smart_merge_toml(original_data, suggestion_data, start_line, end_line)
 
         # Write with proper formatting using atomic operation
+        original_mode = None
+        temp_path = None
+        dir_fd = None
+
         try:
+            # Capture original file mode if it exists
+            if file_path.exists():
+                original_mode = os.stat(file_path).st_mode
+
             # Create temporary file in the same directory as the target file
             temp_dir = file_path.parent
             with tempfile.NamedTemporaryFile(
@@ -146,18 +161,38 @@ class TomlHandler(BaseHandler):
                 temp_file.flush()
                 os.fsync(temp_file.fileno())  # Ensure data is written to disk
 
+            # Apply original file mode to temp file if we have it
+            if original_mode is not None:
+                os.chmod(temp_path, original_mode)
+
             # Atomically replace the original file
             os.replace(temp_path, file_path)
+
+            # Ensure directory durability by fsyncing the parent directory
+            try:
+                dir_fd = os.open(temp_dir, os.O_RDONLY)
+                os.fsync(dir_fd)
+            except OSError:
+                pass  # Ignore directory fsync errors
+            finally:
+                if dir_fd is not None:
+                    os.close(dir_fd)
+                    dir_fd = None
+
             return True
         except (OSError, UnicodeEncodeError) as e:
             self.logger.error(f"Error writing TOML file: {e}")
-            # Clean up temporary file if it exists
-            try:
-                if "temp_path" in locals() and temp_path.exists():
-                    temp_path.unlink()
-            except OSError:
-                pass  # Ignore cleanup errors
             return False
+        finally:
+            # Clean up temporary file if it exists
+            if temp_path is not None and temp_path.exists():
+                with contextlib.suppress(OSError):
+                    temp_path.unlink()
+
+            # Ensure directory file descriptor is closed
+            if dir_fd is not None:
+                with contextlib.suppress(OSError):
+                    os.close(dir_fd)
 
     def validate_change(
         self, path: str, content: str, start_line: int, end_line: int

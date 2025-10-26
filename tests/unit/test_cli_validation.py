@@ -23,7 +23,7 @@ class TestCLIPathValidation:
             result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
             # If it mentions path validation, that's wrong
             assert (
-                "path validation failed" not in result.output.lower()
+                "invalid value for '--repo'" not in result.output.lower()
             ), f"Safe path should not trigger validation error: {path}"
 
     def test_traversal_paths_rejected(self) -> None:
@@ -39,7 +39,7 @@ class TestCLIPathValidation:
             result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
             assert result.exit_code != 0, f"Should reject traversal path: {path}"
             assert (
-                "path validation failed" in result.output.lower()
+                "invalid value for '--repo'" in result.output.lower()
             ), f"Should show validation error for: {path}"
 
     def test_absolute_unix_paths_rejected(self) -> None:
@@ -49,13 +49,15 @@ class TestCLIPathValidation:
             "/etc/passwd",
             "/var/log/secure",
             "/root/.ssh/id_rsa",
+            "/usr/local/bin",
+            "/home/user/documents",
         ]
 
         for path in unsafe_paths:
             result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
             assert result.exit_code != 0, f"Should reject absolute path: {path}"
             assert (
-                "path validation failed" in result.output.lower()
+                "invalid value for '--repo'" in result.output.lower()
             ), f"Should show validation error for: {path}"
 
     def test_absolute_windows_paths_rejected(self) -> None:
@@ -65,13 +67,18 @@ class TestCLIPathValidation:
             "C:\\Windows\\System32",
             "D:\\Program Files",
             "C:/Windows/System32",
+            "C:\\\\path\\\\to\\\\repo",
+            "C:/path/to/repo",
+            "\\\\server\\\\share\\\\repo",
+            "\\\\server\\share\\repo",
+            "D:\\\\data\\\\projects\\\\myrepo",
         ]
 
         for path in unsafe_paths:
             result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
             assert result.exit_code != 0, f"Should reject Windows path: {path}"
             assert (
-                "path validation failed" in result.output.lower()
+                "invalid value for '--repo'" in result.output.lower()
             ), f"Should show validation error for: {path}"
 
     def test_owner_parameter_also_validated(self) -> None:
@@ -82,4 +89,7 @@ class TestCLIPathValidation:
             cli, ["analyze", "--pr", "1", "--owner", "../../../etc", "--repo", "test"]
         )
         assert result.exit_code != 0
-        assert "path validation failed" in result.output.lower()
+        # Verify error is bound to the --owner parameter specifically
+        assert "invalid value for '--owner'" in result.output.lower()
+        assert "--owner" in result.output.lower()
+        assert "owner" in result.output.lower()

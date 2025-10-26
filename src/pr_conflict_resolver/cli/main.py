@@ -22,26 +22,29 @@ def cli() -> None:
     """
 
 
-def validate_cli_path(path: str) -> None:
-    """Validate CLI path argument for security.
+def validate_path_option(ctx: click.Context, param: click.Parameter, value: str) -> str:
+    """Validate CLI path option for security using Click callback.
 
     Args:
-        path: Path to validate (e.g., repo name, owner)
+        ctx: Click context object
+        param: Click parameter object
+        value: Path value to validate
+
+    Returns:
+        str: The validated path value
 
     Raises:
         click.BadParameter: If path validation fails
     """
-    if not InputValidator.validate_file_path(path, allow_absolute=False):
-        raise click.BadParameter(
-            "Invalid path: path validation failed. "
-            "Paths must be relative and cannot contain '..' or absolute references."
-        )
+    if not InputValidator.validate_file_path(value, allow_absolute=False):
+        raise click.BadParameter(f"{param.human_readable_name or param.name}: invalid path")
+    return value
 
 
 @cli.command()
-@click.option("--pr", required=True, help="Pull request number")
-@click.option("--owner", required=True, help="Repository owner")
-@click.option("--repo", required=True, help="Repository name")
+@click.option("--pr", required=True, type=int, help="Pull request number")
+@click.option("--owner", required=True, callback=validate_path_option, help="Repository owner")
+@click.option("--repo", required=True, callback=validate_path_option, help="Repository name")
 @click.option("--config", default="balanced", help="Configuration preset")
 def analyze(pr: int, owner: str, repo: str, config: str) -> None:
     """Analyze conflicts in a pull request and print a summary to the console.
@@ -56,10 +59,6 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
     Raises:
         click.Abort: If an error occurs while analyzing conflicts.
     """
-    # Validate path parameters for security
-    validate_cli_path(repo)
-    validate_cli_path(owner)
-
     console.print(f"Analyzing conflicts in PR #{pr} for {owner}/{repo}")
     console.print(f"Using configuration: {config}")
 
@@ -103,9 +102,9 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
 
 
 @cli.command()
-@click.option("--pr", required=True, help="Pull request number")
-@click.option("--owner", required=True, help="Repository owner")
-@click.option("--repo", required=True, help="Repository name")
+@click.option("--pr", required=True, type=int, help="Pull request number")
+@click.option("--owner", required=True, callback=validate_path_option, help="Repository owner")
+@click.option("--repo", required=True, callback=validate_path_option, help="Repository name")
 @click.option("--strategy", default="priority", help="Resolution strategy")
 @click.option("--dry-run", is_flag=True, help="Simulate without applying changes")
 def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
@@ -125,10 +124,6 @@ def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
     Raises:
         click.Abort: If an error occurs while analyzing or applying suggestions.
     """
-    # Validate path parameters for security
-    validate_cli_path(repo)
-    validate_cli_path(owner)
-
     if dry_run:
         console.print(f"[yellow]DRY RUN:[/yellow] Would apply suggestions to PR #{pr}")
     else:
@@ -165,9 +160,9 @@ def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
 
 
 @cli.command()
-@click.option("--pr", required=True, help="Pull request number")
-@click.option("--owner", required=True, help="Repository owner")
-@click.option("--repo", required=True, help="Repository name")
+@click.option("--pr", required=True, type=int, help="Pull request number")
+@click.option("--owner", required=True, callback=validate_path_option, help="Repository owner")
+@click.option("--repo", required=True, callback=validate_path_option, help="Repository name")
 @click.option("--config", default="balanced", help="Configuration preset")
 def simulate(pr: int, owner: str, repo: str, config: str) -> None:
     """Simulate resolving pull request conflicts and print a summary of what would be applied.
@@ -183,10 +178,6 @@ def simulate(pr: int, owner: str, repo: str, config: str) -> None:
     Raises:
         click.Abort: If an unexpected error occurs during analysis.
     """
-    # Validate path parameters for security
-    validate_cli_path(repo)
-    validate_cli_path(owner)
-
     console.print(f"Simulating conflict resolution for PR #{pr}")
     console.print(f"Using configuration: {config}")
 
