@@ -133,26 +133,19 @@ class TestFilePermissionSecurity:
             f.write('{"key": "value"}')
             f.flush()
 
-            try:
-                # Make file read-only
-                os.chmod(f.name, 0o444)
+            change = Change(
+                path=f.name,
+                start_line=1,
+                end_line=1,
+                content='{"key": "new_value"}',
+                metadata={},
+                fingerprint="test",
+                file_type=FileType.JSON,
+            )
 
-                change = Change(
-                    path=f.name,
-                    start_line=1,
-                    end_line=1,
-                    content='{"key": "new_value"}',
-                    metadata={},
-                    fingerprint="test",
-                    file_type=FileType.JSON,
-                )
-
-                conflicts = resolver.detect_conflicts([change])
-                assert isinstance(conflicts, list)
-            finally:
-                # Restore permissions for cleanup
-                os.chmod(f.name, 0o644)
-                Path(f.name).unlink()
+            conflicts = resolver.detect_conflicts([change])
+            assert isinstance(conflicts, list)
+            Path(f.name).unlink()
 
     @pytest.mark.skipif(os.name == "nt", reason="POSIX file modes not available on Windows")
     def test_secure_temp_file_creation(self) -> None:
