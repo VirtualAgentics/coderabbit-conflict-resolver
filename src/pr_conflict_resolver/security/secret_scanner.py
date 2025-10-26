@@ -7,7 +7,10 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from re import Pattern
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
+
+if TYPE_CHECKING:
+    from pr_conflict_resolver.security.config import SecurityConfig
 
 logger = logging.getLogger(__name__)
 
@@ -148,12 +151,17 @@ class SecretScanner:
     ]
 
     @staticmethod
-    def scan_content(content: str, stop_on_first: bool = False) -> list[SecretFinding]:
+    def scan_content(
+        content: str, stop_on_first: bool = False, config: "SecurityConfig | None" = None
+    ) -> list[SecretFinding]:
         """Scan content for potential secrets.
 
         Args:
             content: Text content to scan.
             stop_on_first: If True, stop scanning after finding the first secret.
+            config: Optional SecurityConfig to use for scanning behavior.
+                    If None or enable_secret_scanning is True, scanning proceeds.
+                    If enable_secret_scanning is False, returns empty list.
 
         Returns:
             list[SecretFinding]: List of detected secrets.
@@ -165,6 +173,11 @@ class SecretScanner:
             >>> len(findings) > 0
             True
         """
+        # Check if secret scanning is disabled in config
+        if config and not config.enable_secret_scanning:
+            logger.debug("Secret scanning disabled by configuration")
+            return []
+
         logger.debug("Starting content scan, %d lines to process", len(content.split("\n")))
         findings: list[SecretFinding] = []
 
@@ -254,11 +267,14 @@ class SecretScanner:
         logger.debug("Generator content scan completed")
 
     @staticmethod
-    def scan_file(file_path: Path) -> list[SecretFinding]:
+    def scan_file(file_path: Path, config: "SecurityConfig | None" = None) -> list[SecretFinding]:
         """Scan a file for potential secrets.
 
         Args:
             file_path: Path to the file to scan.
+            config: Optional SecurityConfig to use for scanning behavior.
+                    If None or enable_secret_scanning is True, scanning proceeds.
+                    If enable_secret_scanning is False, returns empty list.
 
         Returns:
             list[SecretFinding]: List of detected secrets.
@@ -273,7 +289,7 @@ class SecretScanner:
         try:
             logger.debug("Scanning file for secrets: %s", file_path)
             content = file_path.read_text(encoding="utf-8", errors="ignore")
-            findings = SecretScanner.scan_content(content)
+            findings = SecretScanner.scan_content(content, config=config)
             logger.debug("Finished scanning %s: %d findings", file_path, len(findings))
             return findings
         except OSError as e:
@@ -335,22 +351,24 @@ class SecretScanner:
         return f"{secret[:4]}...{secret[-4:]}"
 
     @staticmethod
-    def has_secrets(content: str) -> bool:
+    def has_secrets(content: str, config: "SecurityConfig | None" = None) -> bool:
         """Check if content contains any secrets.
-
-        Uses an early-exit approach that stops scanning as soon as the first
-        secret is found, providing better performance for large files.
 
         Args:
             content: Text content to check.
+            config: Optional SecurityConfig to use for scanning behavior.
+                    If None or enable_secret_scanning is True, scanning proceeds.
+                    If enable_secret_scanning is False, returns False.
 
         Returns:
-            bool: True if secrets are detected, False otherwise.
+            bool: True if any secrets are found, False otherwise.
         """
-        # Use generator approach for early exit - return True on first finding
-        for _ in SecretScanner.scan_content_generator(content):
-            return True
-        return False
+        # Check if secret scanning is disabled in config
+        if config and not config.enable_secret_scanning:
+            logger.debug("Secret scanning disabled by configuration, skipping has_secrets check")
+            return False
+
+        return bool(SecretScanner.scan_content(content, stop_on_first=True, config=config))
 
     @staticmethod
     def get_summary(findings: list[SecretFinding]) -> SummaryDict:
