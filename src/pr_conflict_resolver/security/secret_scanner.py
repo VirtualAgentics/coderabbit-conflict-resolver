@@ -207,11 +207,23 @@ class SecretScanner:
         findings_count = 0
 
         for line_num, line in enumerate(lines, start=1):
+            # Track occupied spans to prevent duplicate findings from overlapping patterns
+            occupied_spans: list[tuple[int, int]] = []
+
             for pattern, secret_type, severity in SecretScanner.PATTERNS:
                 matches = pattern.finditer(line)
 
                 for match in matches:
                     matched_text = match.group(0)
+                    match_start = match.start()
+                    match_end = match.end()
+
+                    # Check if this match overlaps with any previously occupied span
+                    if any(
+                        not (match_end <= span_start or match_start >= span_end)
+                        for span_start, span_end in occupied_spans
+                    ):
+                        continue
 
                     # Check for false positives
                     if SecretScanner._is_false_positive(matched_text, line):
@@ -224,11 +236,13 @@ class SecretScanner:
                         secret_type=secret_type,
                         matched_text=redacted_text,
                         line_number=line_num,
-                        column=match.start() + 1,
+                        column=match_start + 1,
                         severity=severity,
                         context=line.strip()[:50],  # First 50 chars of line
                     )
                     findings_count += 1
+                    # Mark this span as occupied
+                    occupied_spans.append((match_start, match_end))
                     yield finding
 
             # Throttled logging: only log every 100 lines to reduce noise
@@ -278,15 +292,16 @@ class SecretScanner:
         # Check against false positive patterns
         for pattern in SecretScanner.FALSE_POSITIVE_PATTERNS:
             if pattern.search(matched_text) or pattern.search(context):
-                redacted_text = SecretScanner._redact_secret(matched_text)
-                # Redact context by replacing any potential secrets
-                redacted_context = context
-                for c_pattern, _, _ in SecretScanner.PATTERNS:
-                    redacted_context = c_pattern.sub(
-                        lambda m: SecretScanner._redact_secret(m.group(0)), redacted_context
-                    )
+                # Log only numeric metadata - no secret-like content
+                match_length = len(matched_text)
+                context_length = len(context)
+                has_special_chars = any(c in context for c in ["#", "//", "/*", "<!--"])
+
                 logger.debug(
-                    "False positive detected: %s in context: %s", redacted_text, redacted_context
+                    "False positive detected: match_length=%d, context_length=%d, has_comment=%s",
+                    match_length,
+                    context_length,
+                    has_special_chars,
                 )
                 return True
 

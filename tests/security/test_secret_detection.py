@@ -114,6 +114,19 @@ class TestGitHubTokenDetection:
         expected_type = "github_refresh_token"
         assert findings[0].secret_type == expected_type
 
+    def test_no_duplicate_findings_on_overlapping_patterns(self) -> None:
+        """Test that overlapping patterns produce a single finding (specific pattern wins)."""
+        # GitHub token pattern will match, and generic API key pattern would also match
+        # the same substring
+        token = make_token("ghp_", 36)
+        content = f"api_key={token}"
+        findings = SecretScanner.scan_content(content)
+
+        # Should only produce one finding (github_personal_token),
+        # not duplicate with generic_api_key
+        assert len(findings) == 1
+        assert findings[0].secret_type == "github_personal_token"  # noqa: S105
+
 
 class TestAWSCredentials:
     """Tests for AWS credential detection."""
