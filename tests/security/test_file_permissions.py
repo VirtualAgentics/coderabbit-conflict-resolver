@@ -147,12 +147,11 @@ class TestFilePermissionSecurity:
             try:
                 # Get file permissions
                 file_stats = os.stat(f.name)
-                file_perms = oct(file_stats.st_mode & 0o777)
 
-                # Temporary files should not be world-readable/writable
-                # Python's tempfile creates files with 0600 (octal) permissions
+                # Check that file is not world-readable or world-writable
+                world_perms = file_stats.st_mode & 0o007
                 assert (
-                    "0" in file_perms or "4" in file_perms
-                ), f"Temp file should have restrictive permissions, got: {file_perms}"
+                    world_perms == 0
+                ), f"Temp file should not have world permissions, got: {oct(file_stats.st_mode)}"
             finally:
                 Path(f.name).unlink()
