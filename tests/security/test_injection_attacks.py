@@ -140,10 +140,12 @@ class TestJSONInjection:
             f.flush()
 
             try:
-                # Should detect duplicate keys or malicious content
+                # Should detect and reject duplicate keys
                 result = handler.validate_change(f.name, malicious_json, 1, 1)
-                # Should either reject or clean the content
-                assert not result[0] or "duplicate" in result[1].lower()
+                assert result[0] is False, "Handler should reject duplicate keys"
+                assert (
+                    "duplicate" in result[1].lower()
+                ), f"Error message should mention duplicate: {result[1]}"
             finally:
                 Path(f.name).unlink()
 

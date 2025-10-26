@@ -312,22 +312,23 @@ class TestTomlHandlerContentSecurity:
     """Test TOML handler content security validation."""
 
     def test_validate_change_rejects_malicious_content(self) -> None:
-        """Test that validate_change rejects malicious TOML content."""
+        """Test that validate_change handles potentially harmful but valid TOML content."""
         handler = TomlHandler()
 
-        malicious_contents = [
-            "key = 'value'; rm -rf /'",
-            "key = 'value`whoami`'",
-            "key = 'value$(cat /etc/passwd)'",
-            "key = 'value${GITHUB_TOKEN}'",
+        # Use syntactically valid TOML with potentially harmful string content
+        # Security is enforced in context of usage, not in TOML parsing itself
+        test_cases = [
+            ("key = '`echo test`'", "backticks"),
+            ("key = '$(whoami)'", "subshell"),
+            ("key = '${GITHUB_TOKEN}'", "env-var"),
+            ("key = '../../../etc/passwd'", "path-traversal"),
         ]
 
-        for content in malicious_contents:
-            valid, msg = handler.validate_change("test.toml", content, 1, 3)
-            # Should either reject as invalid TOML or pass validation
-            # The security is in the sanitization, not validation
-            assert isinstance(valid, bool)
-            assert isinstance(msg, str)
+        for content, description in test_cases:
+            valid, msg = handler.validate_change("test.toml", content, 1, 1)
+            # Valid TOML syntax should be accepted (security is in usage context)
+            assert valid is True, f"Handler should accept valid TOML with {description}"
+            assert "Valid TOML" in msg, f"Expected success message for {description}, got: {msg}"
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_apply_change_handles_large_content(self) -> None:
@@ -344,9 +345,15 @@ class TestTomlHandlerContentSecurity:
             original_path = f.name
 
         try:
-            result = handler.apply_change(original_path, large_content, 1, 3)
-            # Should handle large content gracefully
-            assert isinstance(result, bool)
+            result = handler.apply_change(original_path, large_content, 1, 1)
+            # Should succeed with large content
+            assert result is True, "Handler should successfully apply large content"
+
+            # Verify file was updated
+            with open(original_path) as f:
+                updated_content = f.read()
+            assert "x" * 10000 in updated_content, "File should contain the large content"
+            assert "key" in updated_content, "File should have the key from large_content"
 
         finally:
             if os.path.exists(original_path):

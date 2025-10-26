@@ -38,13 +38,6 @@ class TomlHandler(BaseHandler):
         Args:
             workspace_root: Root directory for validating absolute paths.
                 If None, defaults to current working directory.
-
-        Returns:
-            None: This constructor does not return a value.
-
-        Raises:
-            None: This constructor does not raise exceptions; missing dependencies are logged
-            as warnings.
         """
         super().__init__(workspace_root)
         self.logger = logging.getLogger(__name__)
@@ -59,9 +52,6 @@ class TomlHandler(BaseHandler):
 
         Returns:
             bool: True if the file path ends with ".toml" (case-insensitive); False otherwise.
-
-        Raises:
-            None
         """
         return file_path.lower().endswith(".toml")
 
@@ -228,9 +218,6 @@ class TomlHandler(BaseHandler):
         Returns:
             tuple[bool, str]: Tuple of (is_valid, message). When valid, returns
                 (True, "Valid TOML"); otherwise returns (False, "<error message>").
-
-        Raises:
-            None
         """
         if not TOML_READ_AVAILABLE:
             return False, "tomllib not available"
@@ -343,9 +330,6 @@ class TomlHandler(BaseHandler):
 
         Returns:
             list[str]: List of lines with preserved line endings, ready for insertion.
-
-        Raises:
-            None
         """
         # Split suggestion into lines, preserving line endings
         lines = content.splitlines(keepends=True)
