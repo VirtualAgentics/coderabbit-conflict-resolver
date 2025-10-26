@@ -5,8 +5,12 @@ smart merging, and structural validation to prevent issues like the package.json
 duplication problem.
 """
 
+import contextlib
 import json
 import logging
+import os
+import stat
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -135,15 +139,47 @@ class JsonHandler(BaseHandler):
             self.logger.error("Merge would create duplicate keys")
             return False
 
-        # Write with proper formatting
+        # Write with atomic operation
+        original_mode = None
+        temp_path: Path | None = None
+
         try:
-            file_path.write_text(
-                json.dumps(merged_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-            )
+            # Capture original file permissions if file exists
+            if file_path.exists():
+                original_mode = os.stat(file_path).st_mode
+
+            # Create temp file in same directory
+            temp_dir = file_path.parent
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=temp_dir,
+                prefix=f".{file_path.name}.tmp",
+                delete=False,
+            ) as temp_file:
+                temp_path = Path(temp_file.name)
+                # Write JSON content
+                temp_file.write(json.dumps(merged_data, indent=2, ensure_ascii=False) + "\n")
+                temp_file.flush()
+                os.fsync(temp_file.fileno())  # Ensure data written to disk
+
+            # Apply original permissions if we have them
+            if original_mode is not None:
+                os.chmod(temp_path, stat.S_IMODE(original_mode))
+
+            # Atomically replace the original file
+            os.replace(temp_path, file_path)
+            return True
+
         except OSError as e:
-            self.logger.error(f"Error writing JSON file {path}: {e}")
+            self.logger.error(
+                f"Error writing JSON file {path}: {e} (temp: {temp_path}, target: {file_path})"
+            )
+            # Clean up temp file if it exists
+            if temp_path and temp_path.exists():
+                with contextlib.suppress(OSError):
+                    temp_path.unlink()  # Ignore cleanup errors
             return False
-        return True
 
     def validate_change(
         self, path: str, content: str, start_line: int, end_line: int
