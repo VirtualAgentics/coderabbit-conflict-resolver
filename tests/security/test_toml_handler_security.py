@@ -15,6 +15,15 @@ import pytest
 from pr_conflict_resolver.handlers.toml_handler import TomlHandler
 
 
+@pytest.fixture(scope="module", autouse=True)
+def enable_toml_for_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Enable TOML support globally for all tests in this module.
+
+    This ensures all tests exercise the same TOML-enabled code path consistently.
+    """
+    monkeypatch.setattr("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
+
+
 class TestTomlHandlerPathSecurity:
     """Test TOML handler path security validation."""
 
@@ -56,13 +65,8 @@ class TestTomlHandlerPathSecurity:
             result = handler.apply_change(path, "key = 'value'", 1, 3)
             assert result is False, f"Should reject absolute path: {path}"
 
-    def test_apply_change_accepts_relative_paths(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_apply_change_accepts_relative_paths(self, tmp_path: Path) -> None:
         """Test that apply_change accepts safe relative paths with actual files."""
-        # Patch TOML support flag to prevent short-circuit
-        monkeypatch.setattr("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
-
         # Create handler with temp directory as workspace root
         handler = TomlHandler(workspace_root=str(tmp_path))
 
@@ -118,7 +122,6 @@ class TestTomlHandlerPathSecurity:
 class TestTomlHandlerAtomicOperations:
     """Test TOML handler atomic file operations."""
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_apply_change_atomic_write(self) -> None:
         """Test that apply_change uses atomic file replacement with line-based editing."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
@@ -147,7 +150,6 @@ class TestTomlHandlerAtomicOperations:
             if os.path.exists(original_path):
                 os.unlink(original_path)
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_apply_change_temp_file_cleanup(self) -> None:
         """Test that temporary files are cleaned up on error."""
         handler = TomlHandler()
@@ -173,7 +175,6 @@ class TestTomlHandlerAtomicOperations:
             if os.path.exists(original_path):
                 os.unlink(original_path)
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_apply_change_preserves_file_permissions(self) -> None:
         """Test that apply_change preserves original file permissions."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
@@ -203,7 +204,6 @@ class TestTomlHandlerAtomicOperations:
             if os.path.exists(original_path):
                 os.unlink(original_path)
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_apply_change_handles_permission_errors(self) -> None:
         """Test that apply_change handles permission errors gracefully."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
@@ -235,7 +235,6 @@ class TestTomlHandlerAtomicOperations:
 class TestTomlHandlerErrorHandling:
     """Test TOML handler error handling and cleanup."""
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_apply_change_handles_write_errors(self) -> None:
         """Test that apply_change handles write errors gracefully."""
         handler = TomlHandler()
@@ -262,7 +261,6 @@ class TestTomlHandlerErrorHandling:
             if os.path.exists(original_path):
                 os.unlink(original_path)
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_apply_change_handles_fsync_errors(self) -> None:
         """Test that apply_change handles fsync errors gracefully."""
         handler = TomlHandler()
@@ -330,7 +328,6 @@ class TestTomlHandlerContentSecurity:
             assert valid is True, f"Handler should accept valid TOML with {description}"
             assert "Valid TOML" in msg, f"Expected success message for {description}, got: {msg}"
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_apply_change_handles_large_content(self) -> None:
         """Test that apply_change handles large content safely."""
         handler = TomlHandler()

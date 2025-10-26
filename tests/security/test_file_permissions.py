@@ -126,6 +126,17 @@ class TestFilePermissionSecurity:
                 # detect_conflicts should work on read-only files
                 conflicts = resolver.detect_conflicts([change])
                 assert isinstance(conflicts, list)
+
+                # Enhance assertions to verify conflict details
+                assert len(conflicts) == 0, "No conflicts expected for single change"
+
+                # If conflicts exist, verify details
+                if conflicts:
+                    assert len(conflicts) == 1, "Should detect exactly one conflict"
+                    conflict = conflicts[0]
+                    assert conflict.file_path == f.name
+                    assert conflict.line_range == (1, 1)
+                    assert change.fingerprint in [c.fingerprint for c in conflict.changes]
             finally:
                 # Restore permissions for cleanup
                 os.chmod(f.name, 0o644)
