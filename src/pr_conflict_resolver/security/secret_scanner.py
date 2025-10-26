@@ -218,9 +218,11 @@ class SecretScanner:
                     match_start = match.start()
                     match_end = match.end()
 
-                    # Check if this match overlaps with any previously occupied span
+                    # Skip match if it overlaps any occupied span
+                    # Two spans overlap if: new starts before span ends AND
+                    # new ends after span starts
                     if any(
-                        not (match_end <= span_start or match_start >= span_end)
+                        match_start < span_end and match_end > span_start
                         for span_start, span_end in occupied_spans
                     ):
                         continue

@@ -462,8 +462,13 @@ class TestUtilityMethods:
         assert "github_personal_token" in secret_types
         assert "openai_api_key" in secret_types
 
-    def test_scan_content_generator_with_throttled_logging(self) -> None:
+    def test_scan_content_generator_with_throttled_logging(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test that throttled logging occurs every 100 lines."""
+        # Configure caplog to capture debug level logs
+        caplog.set_level("DEBUG")
+
         # Create content with 150 lines, including secrets at various positions
         token = make_token("ghp_")
         lines = [f"line {i}: some text" for i in range(150)]
@@ -473,3 +478,13 @@ class TestUtilityMethods:
         # Scan content - this will trigger logging at line 100
         findings = list(SecretScanner.scan_content_generator(content))
         assert len(findings) >= 1
+
+        # Verify that throttled logging occurred at line 100
+        log_messages = [record.message for record in caplog.records]
+        throttled_log_found = any(
+            "Scanned line 100" in message and "total findings so far" in message
+            for message in log_messages
+        )
+        assert (
+            throttled_log_found
+        ), f"Expected throttled logging at line 100, but found logs: {log_messages}"
