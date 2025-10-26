@@ -4,12 +4,15 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlparse
 
 import tomli
 import tomli_w
 import yaml
+
+if TYPE_CHECKING:
+    from pr_conflict_resolver.security.config import SecurityConfig
 
 # Module-level logger for structured logging
 logger = logging.getLogger(__name__)
@@ -114,11 +117,13 @@ class InputValidator:
         return True
 
     @staticmethod
-    def validate_file_size(file_path: Path) -> bool:
+    def validate_file_size(file_path: Path, config: "SecurityConfig | None" = None) -> bool:
         """Validate file size is within limits.
 
         Args:
             file_path: Path to the file to validate.
+            config: Optional SecurityConfig to use for max_file_size limit.
+                    If None, uses class default MAX_FILE_SIZE.
 
         Returns:
             bool: True if file size is within limits, False otherwise.
@@ -135,20 +140,24 @@ class InputValidator:
             logger.warning(f"Path is not a file: {file_path}")
             return False
 
+        # Use config max_file_size if provided, otherwise use class default
+        max_file_size = config.max_file_size if config else InputValidator.MAX_FILE_SIZE
+
         file_size = file_path.stat().st_size
-        if file_size > InputValidator.MAX_FILE_SIZE:
+        if file_size > max_file_size:
             logger.warning(
-                f"File size exceeds limit: {file_path} "
-                f"({file_size} bytes > {InputValidator.MAX_FILE_SIZE} bytes)"
+                f"File size exceeds limit: {file_path} ({file_size} bytes > {max_file_size} bytes)"
             )
-        return file_size <= InputValidator.MAX_FILE_SIZE
+        return file_size <= max_file_size
 
     @staticmethod
-    def validate_file_extension(path: str) -> bool:
+    def validate_file_extension(path: str, config: "SecurityConfig | None" = None) -> bool:
         """Validate file extension is allowed.
 
         Args:
             path: File path to check.
+            config: Optional SecurityConfig to use for allowed extensions.
+                    If None, uses class default ALLOWED_FILE_EXTENSIONS.
 
         Returns:
             bool: True if extension is allowed, False otherwise.
@@ -156,10 +165,15 @@ class InputValidator:
         if not path:
             return False
 
+        # Use config allowed_extensions if provided, otherwise use class default
+        allowed_extensions = (
+            config.allowed_extensions if config else InputValidator.ALLOWED_FILE_EXTENSIONS
+        )
+
         ext = Path(path).suffix.lower()
-        if ext not in InputValidator.ALLOWED_FILE_EXTENSIONS:
+        if ext not in allowed_extensions:
             logger.warning(f"File extension not allowed: {ext} in path {path}")
-        return ext in InputValidator.ALLOWED_FILE_EXTENSIONS
+        return ext in allowed_extensions
 
     @staticmethod
     def sanitize_content(content: str, file_type: str) -> tuple[str, list[str]]:
