@@ -63,6 +63,51 @@ class SecurityConfig:
     enable_audit_logging: bool = True
     log_sensitive_data: bool = False  # Never log secrets/tokens by default
 
+    def __post_init__(self) -> None:
+        """Validate configuration values after initialization.
+
+        Validates numeric fields are positive integers and collections are valid.
+        Raises ValueError with clear messages for any invalid values.
+
+        Raises:
+            ValueError: If any configuration value is invalid.
+        """
+        # Validate positive integer fields
+        if not isinstance(self.max_file_size, int) or self.max_file_size <= 0:
+            raise ValueError(f"max_file_size must be a positive integer, got {self.max_file_size}")
+
+        if not isinstance(self.github_api_timeout, int) or self.github_api_timeout <= 0:
+            raise ValueError(
+                f"github_api_timeout must be a positive integer, got {self.github_api_timeout}"
+            )
+
+        if not isinstance(self.github_max_retries, int) or self.github_max_retries <= 0:
+            raise ValueError(
+                f"github_max_retries must be a positive integer, got {self.github_max_retries}"
+            )
+
+        # Validate max_backup_count (can be 0 or positive)
+        if not isinstance(self.max_backup_count, int) or self.max_backup_count < 0:
+            raise ValueError(
+                f"max_backup_count must be a non-negative integer, got {self.max_backup_count}"
+            )
+
+        # Validate allowed_extensions collection
+        if not isinstance(self.allowed_extensions, frozenset):
+            raise ValueError(
+                f"allowed_extensions must be a frozenset, got {type(self.allowed_extensions)}"
+            )
+
+        if len(self.allowed_extensions) == 0:
+            raise ValueError("allowed_extensions cannot be empty")
+
+        # Validate all extensions are strings
+        for ext in self.allowed_extensions:
+            if not isinstance(ext, str):
+                raise ValueError(
+                    f"All extensions in allowed_extensions must be strings, got {type(ext)}: {ext}"
+                )
+
     @classmethod
     def conservative(cls) -> "SecurityConfig":
         """Conservative security profile with strict settings.
