@@ -93,8 +93,8 @@ class TestFilePermissionSecurity:
                 Path(f.name).unlink()
 
     @pytest.mark.skipif(os.name == "nt", reason="chmod unreliable on Windows")
-    def test_handlers_validate_directory_permissions(self) -> None:
-        """Test that handlers can handle read-only files with atomic writes.
+    def test_handlers_validate_read_only_file_behavior(self) -> None:
+        """Test that handlers validate read-only file behavior.
 
         With atomic writes (using temp files and os.replace), even read-only
         target files can be successfully modified. The test verifies this behavior.
