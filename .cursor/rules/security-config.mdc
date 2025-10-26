@@ -1,0 +1,249 @@
+---
+description: "Security configuration patterns for centralized security settings with immutability and preset profiles"
+globs: ["src/**/security/config.py", "tests/**/test_security_config.py"]
+alwaysApply: false
+---
+
+# Security Configuration Standards
+
+## Immutable Security Configuration
+
+Security configurations MUST be immutable to prevent accidental modification at runtime.
+
+### Use Frozen Dataclasses
+
+❌ WRONG (mutable):
+```python
+@dataclass
+class SecurityConfig:
+    max_file_size: int = 10 * 1024 * 1024
+    allowed_extensions: set[str] = field(default_factory=set)
+```
+
+✅ CORRECT (immutable):
+```python
+@dataclass(frozen=True)
+class SecurityConfig:
+    max_file_size: int = 10 * 1024 * 1024
+    allowed_extensions: frozenset[str] = frozenset({".py", ".json"})
+```
+
+**Why**: Frozen dataclasses prevent accidental modification of security settings during runtime.
+
+### Use Frozenset for Collections
+
+❌ WRONG (mutable set):
+```python
+@dataclass(frozen=True)
+class SecurityConfig:
+    allowed_extensions: set[str] = field(default_factory=set)  # Mutable!
+```
+
+✅ CORRECT (immutable frozenset):
+```python
+@dataclass(frozen=True)
+class SecurityConfig:
+    allowed_extensions: frozenset[str] = frozenset({".py", ".json", ".yaml"})
+```
+
+**Why**: Even with frozen dataclass, mutable collections can be modified. Use frozenset for immutability.
+
+## Preset Profile Pattern
+
+Provide security profiles via class methods, not multiple dataclass definitions.
+
+### Class Method Profiles
+
+✅ CORRECT:
+```python
+@dataclass(frozen=True)
+class SecurityConfig:
+    max_file_size: int = 10 * 1024 * 1024
+    block_on_secrets: bool = False
+
+    @classmethod
+    def conservative(cls) -> "SecurityConfig":
+        """Conservative security profile with strict settings."""
+        return cls(
+            max_file_size=5 * 1024 * 1024,
+            block_on_secrets=True,
+        )
+
+    @classmethod
+    def balanced(cls) -> "SecurityConfig":
+        """Balanced security profile (default recommended)."""
+        return cls()  # Use defaults
+
+    @classmethod
+    def permissive(cls) -> "SecurityConfig":
+        """Permissive security profile for development/CI."""
+        return cls(
+            max_file_size=20 * 1024 * 1024,
+            block_on_secrets=False,
+        )
+```
+
+**Benefits**:
+- Single source of truth
+- Easy to add new profiles
+- Clear documentation of each profile's purpose
+
+## Security Defaults
+
+### Safe Defaults (Fail-Secure)
+
+Security configurations MUST default to secure values:
+
+❌ WRONG (insecure defaults):
+```python
+@dataclass(frozen=True)
+class SecurityConfig:
+    enable_secret_scanning: bool = False  # Disabled by default!
+    log_sensitive_data: bool = True       # Logging secrets!
+    max_file_size: int = 100 * 1024 * 1024  # 100MB!
+```
+
+✅ CORRECT (secure defaults):
+```python
+@dataclass(frozen=True)
+class SecurityConfig:
+    enable_secret_scanning: bool = True   # Enabled by default
+    log_sensitive_data: bool = False      # Never log secrets
+    max_file_size: int = 10 * 1024 * 1024  # Reasonable 10MB
+```
+
+**Principle**: Fail-secure by default. Users must explicitly opt-in to less secure options.
+
+### Never Expose Secrets in Config
+
+❌ WRONG (hardcoded secrets):
+```python
+@dataclass(frozen=True)
+class SecurityConfig:
+    github_token: str = "ghp_xxxxxxxxxxxxxxxxxxxx"  # NEVER!
+    api_key: str = "sk-xxxxxxxxxxxxx"              # NEVER!
+```
+
+✅ CORRECT (no secrets):
+```python
+@dataclass(frozen=True)
+class SecurityConfig:
+    github_api_timeout: int = 30  # Configuration only
+    github_max_retries: int = 3   # No sensitive data
+```
+
+**Secrets must be**:
+- Loaded from environment variables
+- Passed as parameters at runtime
+- Never hardcoded in configuration defaults
+
+## Configuration Categories
+
+Organize settings into logical categories with clear naming:
+
+✅ CORRECT (organized):
+```python
+@dataclass(frozen=True)
+class SecurityConfig:
+    # Input Validation
+    max_file_size: int = 10 * 1024 * 1024
+    allowed_extensions: frozenset[str] = frozenset({".py"})
+    enable_path_validation: bool = True
+
+    # Secret Scanning
+    enable_secret_scanning: bool = True
+    block_on_secrets_found: bool = False
+
+    # File Operations
+    enable_atomic_writes: bool = True
+    enable_backups: bool = True
+
+    # GitHub API
+    github_api_timeout: int = 30
+    github_max_retries: int = 3
+```
+
+**Benefits**:
+- Clear organization
+- Easy to understand
+- Maintainable
+
+## Documentation Requirements
+
+All security configurations MUST have:
+
+1. **Module docstring** explaining purpose
+2. **Class docstring** explaining usage
+3. **Profile docstrings** explaining when to use each profile
+4. **Attribute comments** for complex settings
+
+✅ CORRECT:
+```python
+"""Security configuration for the CodeRabbit Conflict Resolver.
+
+This module provides centralized security configuration with three preset
+profiles: conservative, balanced, and permissive.
+"""
+
+@dataclass(frozen=True)
+class SecurityConfig:
+    """Centralized security configuration.
+
+    Provides immutable security settings with three preset profiles:
+    - conservative(): Maximum security, strict settings
+    - balanced(): Recommended default, good balance
+    - permissive(): Relaxed for development/CI
+
+    Example:
+        >>> config = SecurityConfig.balanced()
+        >>> config.max_file_size
+        10485760
+    """
+
+    max_file_size: int = 10 * 1024 * 1024  # 10MB default
+```
+
+## Testing Requirements
+
+Security configuration tests MUST verify:
+
+1. **Immutability**: Attempt to modify frozen dataclass
+2. **Type correctness**: frozenset vs set
+3. **Profile differences**: Each profile has distinct values
+4. **Defaults**: Default values are secure
+5. **100% coverage**: All settings and profiles tested
+
+✅ CORRECT test structure:
+```python
+class TestSecurityConfigImmutability:
+    """Test dataclass immutability."""
+
+    def test_cannot_modify_config(self) -> None:
+        """Test that config attributes cannot be modified."""
+        config = SecurityConfig()
+        with pytest.raises(FrozenInstanceError):
+            config.max_file_size = 999  # type: ignore
+```
+
+## Pattern Checklist
+
+When creating security configuration:
+- [ ] Use `@dataclass(frozen=True)`
+- [ ] Use `frozenset` for collections, not `set`
+- [ ] Provide 3+ preset profiles via class methods
+- [ ] Default to secure values (fail-secure)
+- [ ] Never include secrets in defaults
+- [ ] Organize settings into logical categories
+- [ ] Add comprehensive docstrings
+- [ ] Write tests for immutability
+- [ ] Achieve 100% test coverage
+- [ ] Follow existing patterns from `SecretFinding`
+
+## Related Patterns
+
+This pattern follows the same approach as:
+- `SecretFinding` in `secret_scanner.py` (frozen dataclass)
+- Core models in `models.py` (dataclass pattern)
+- Input validation in `input_validator.py` (ClassVar for constants)
+
+**Consistency**: Security configuration should feel familiar to developers already working with the codebase.
