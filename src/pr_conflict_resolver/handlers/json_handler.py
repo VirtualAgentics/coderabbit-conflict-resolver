@@ -120,9 +120,13 @@ class JsonHandler(BaseHandler):
             return False
 
         # Write with proper formatting
-        file_path.write_text(
-            json.dumps(merged_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-        )
+        try:
+            file_path.write_text(
+                json.dumps(merged_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+            )
+        except OSError as e:
+            self.logger.error(f"Error writing JSON file {path}: {e}")
+            return False
         return True
 
     def validate_change(
@@ -173,7 +177,10 @@ class JsonHandler(BaseHandler):
             apply_change: Apply validated changes to files
         """
         # Validate file path to prevent path traversal attacks
-        if not InputValidator.validate_file_path(path):
+        # Use workspace root for absolute path containment check
+        if not InputValidator.validate_file_path(
+            path, allow_absolute=True, base_dir=str(self.workspace_root)
+        ):
             return False, "Invalid file path: path traversal detected"
 
         try:

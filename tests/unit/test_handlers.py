@@ -3,6 +3,7 @@
 import os
 import stat
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -10,6 +11,27 @@ from unittest.mock import patch
 import pytest
 
 from pr_conflict_resolver import JsonHandler, TomlHandler, YamlHandler
+
+
+@pytest.fixture(scope="module", autouse=True)
+def enable_toml_support() -> Generator[None, None, None]:
+    """Enable TOML support for all tests in this module by default.
+
+    Individual tests can override this by using @patch decorators if they
+    need to test behavior when TOML support is unavailable.
+    """
+    import pr_conflict_resolver.handlers.toml_handler as toml_handler
+
+    # Store original value
+    original_value = toml_handler.TOML_READ_AVAILABLE
+
+    # Set to True for tests
+    toml_handler.TOML_READ_AVAILABLE = True
+
+    yield
+
+    # Restore original value
+    toml_handler.TOML_READ_AVAILABLE = original_value
 
 
 class TestJsonHandler:
@@ -408,7 +430,6 @@ class TestTomlHandler:
         assert valid is False
         assert "not available" in msg
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_validate_change(self) -> None:
         """Test change validation."""
         handler = TomlHandler()
@@ -434,7 +455,6 @@ class TestTomlHandler:
         expected_sections = ["section1", "section2", "section2.subsection1", "section2.subsection2"]
         assert set(expected_sections) <= set(sections)
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_apply_change_nonexistent_file(self) -> None:
         """Test apply_change handles non-existent files."""
         handler = TomlHandler()
@@ -443,7 +463,6 @@ class TestTomlHandler:
         result = handler.apply_change("nonexistent.toml", "key = 'value'", 1, 3)
         assert result is False
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_apply_change_unicode_error(self) -> None:
         """Test apply_change handles Unicode decode errors."""
         handler = TomlHandler()
@@ -459,7 +478,6 @@ class TestTomlHandler:
             finally:
                 os.unlink(f.name)
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_apply_change_toml_parse_error(self) -> None:
         """Test apply_change handles TOML parse errors."""
         handler = TomlHandler()
@@ -475,7 +493,6 @@ class TestTomlHandler:
             finally:
                 os.unlink(f.name)
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_apply_change_suggestion_parse_error(self) -> None:
         """Test apply_change handles suggestion parse errors."""
         handler = TomlHandler()
@@ -492,7 +509,6 @@ class TestTomlHandler:
             finally:
                 os.unlink(f.name)
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_apply_change_success_with_permissions(self) -> None:
         """Test apply_change successfully preserves file permissions."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
@@ -509,7 +525,7 @@ class TestTomlHandler:
             os.chmod(f.name, original_mode)
 
             try:
-                result = handler.apply_change(f.name, "newkey = 'newvalue'", 1, 3)
+                result = handler.apply_change(f.name, "newkey = 'newvalue'", 1, 1)
                 assert result is True
 
                 # Check that permissions were preserved
@@ -518,7 +534,6 @@ class TestTomlHandler:
             finally:
                 os.unlink(f.name)
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_apply_change_atomic_replacement(self) -> None:
         """Test apply_change uses targeted line-based replacement."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
@@ -562,7 +577,6 @@ class TestTomlHandler:
         assert valid is False
         assert "not available" in msg.lower()
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
     def test_validate_change_parse_validation(self) -> None:
         """Test validate_change validates TOML parsing."""
         handler = TomlHandler()
@@ -658,6 +672,7 @@ class TestBaseHandlerBackupRestore:
 
     def test_backup_file_success(self, test_handler: Any, tmp_path: Path) -> None:
         """Test successful backup file creation."""
+        import os
         import stat
         from pathlib import Path
 
@@ -673,8 +688,9 @@ class TestBaseHandlerBackupRestore:
         assert Path(backup_path).read_text() == "test content"
         assert backup_path.endswith(".backup")
 
-        # Verify backup file has secure permissions (0o600)
-        assert stat.S_IMODE(Path(backup_path).stat().st_mode) == 0o600
+        # Verify backup file has secure permissions (0o600) on POSIX systems
+        if os.name != "nt":  # Skip on Windows
+            assert stat.S_IMODE(Path(backup_path).stat().st_mode) == 0o600
 
     def test_backup_file_nonexistent(self, test_handler: Any, tmp_path: Path) -> None:
         """Test backup_file with non-existent file raises FileNotFoundError."""

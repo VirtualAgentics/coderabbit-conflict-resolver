@@ -5,10 +5,13 @@ This module provides the abstract base class that all file handlers must impleme
 
 import contextlib
 import os
+import shutil
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 from ..core.models import Change, Conflict
+from ..security.input_validator import InputValidator
 
 
 class BaseHandler(ABC):
@@ -100,11 +103,11 @@ class BaseHandler(ABC):
             - Collision handling with timestamp-based naming
             - Automatic cleanup on failure
 
-        Parameters:
+        Args:
             path (str): Path to the file to back up. Must be a valid, accessible file path.
 
         Returns:
-            backup_path (str): Path to the created backup file with .backup suffix.
+            str: Path to the created backup file with .backup suffix.
 
         Raises:
             ValueError: If the path is invalid, contains path traversal, or file doesn't exist.
@@ -126,13 +129,6 @@ class BaseHandler(ABC):
             and base_dir set to the parent directory for absolute paths, ensuring
             containment within the expected directory structure.
         """
-        import os
-        import shutil
-        import time
-        from pathlib import Path
-
-        from ..security.input_validator import InputValidator
-
         # Validate file path for security (path traversal protection)
         # Use workspace root for absolute path containment check
         if not InputValidator.validate_file_path(
@@ -202,9 +198,6 @@ class BaseHandler(ABC):
             `True` if the file was restored and the backup removed, `False` if an error
                 occurred.
         """
-        import shutil
-        from pathlib import Path
-
         try:
             shutil.copy2(backup_path, original_path)
             Path(backup_path).unlink()  # Remove backup

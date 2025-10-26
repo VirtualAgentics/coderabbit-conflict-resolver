@@ -12,7 +12,7 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from pr_conflict_resolver.cli.main import cli
+from pr_conflict_resolver.cli.main import MAX_CLI_NAME_LENGTH, cli
 
 
 class TestArgumentInjectionPrevention:
@@ -301,7 +301,7 @@ class TestInputValidation:
         runner = CliRunner()
 
         # Boundary: exactly at limit should pass
-        max_len = 512
+        max_len = MAX_CLI_NAME_LENGTH
         at_limit = "x" * max_len
         ok_result = runner.invoke(
             cli, ["analyze", "--pr", "1", "--owner", at_limit, "--repo", "test"]

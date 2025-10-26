@@ -79,55 +79,49 @@ class TestFilePermissionSecurity:
     @pytest.mark.skipif(os.name == "nt", reason="chmod unreliable on Windows")
     def test_handlers_validate_directory_permissions(self) -> None:
         """Test that handlers validate directory permissions."""
-        handler = JsonHandler()
-
         with tempfile.TemporaryDirectory() as tmpdir:
+            handler = JsonHandler(workspace_root=tmpdir)
             test_file = Path(tmpdir) / "test.json"
             test_file.write_text('{"key": "value"}')
 
-            # Make directory read-only
-            os.chmod(tmpdir, 0o555)  # noqa: S103
+            # Make file read-only (prevents modification)
+            os.chmod(test_file, 0o444)
 
             try:
-                # Store original content for verification
-                original_content = test_file.read_text()
-
-                # Handler should fail to write to read-only directory
+                # Handler should fail to modify read-only file
                 result = handler.apply_change(str(test_file), '{"key": "new"}', 1, 1)
 
                 # Should fail (return False) due to permission error
-                assert result is False, "Handler should fail to write to read-only directory"
+                assert result is False, "Handler should fail to modify read-only file"
 
                 # Verify file contents were not modified
                 current_content = test_file.read_text()
-                assert current_content == original_content, (
-                    f"File contents should not be modified. "
-                    f"Original: {original_content}, Current: {current_content}"
-                )
+                assert (
+                    current_content == '{"key": "value"}'
+                ), f"File contents should not be modified. Current: {current_content}"
             finally:
                 # Restore permissions for cleanup
-                os.chmod(tmpdir, 0o755)  # noqa: S103
+                os.chmod(test_file, 0o644)
 
     @pytest.mark.skipif(os.name == "nt", reason="Unix-specific permission test")
     def test_handlers_handle_permission_denied_error(self) -> None:
         """Test that handlers handle PermissionDenied errors."""
-        handler = JsonHandler()
-
         with tempfile.TemporaryDirectory() as tmpdir:
+            handler = JsonHandler(workspace_root=tmpdir)
             test_file = Path(tmpdir) / "test.json"
             test_file.write_text('{"key": "value"}')
 
-            # Remove write permission from directory
-            os.chmod(tmpdir, 0o555)  # noqa: S103
+            # Remove write permission from file
+            os.chmod(test_file, 0o444)
 
             try:
                 original = test_file.read_text()
                 result = handler.apply_change(str(test_file), '{"key": "new"}', 1, 1)
-                assert result is False, "Handler should fail to write in read-only directory"
+                assert result is False, "Handler should fail to write to read-only file"
                 assert test_file.read_text() == original, "File must remain unchanged"
             finally:
                 # Restore permissions for cleanup
-                os.chmod(tmpdir, 0o755)  # noqa: S103
+                os.chmod(test_file, 0o644)
                 Path(test_file).unlink()
 
     @pytest.mark.skipif(os.name == "nt", reason="chmod unreliable on Windows")

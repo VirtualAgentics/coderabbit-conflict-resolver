@@ -7,6 +7,7 @@ but extensible to other code review bots.
 
 import hashlib
 import os
+from os import PathLike
 from pathlib import Path
 from typing import Any
 
@@ -24,19 +25,28 @@ class ConflictResolver:
     """Main conflict resolver class."""
 
     def __init__(
-        self, config: dict[str, Any] | None = None, workspace_root: str | None = None
+        self,
+        config: dict[str, Any] | None = None,
+        workspace_root: str | PathLike[str] | None = None,
     ) -> None:
         """Create a ConflictResolver configured with optional settings.
 
-        Parameters:
-            config (dict[str, Any] | None): Optional configuration dictionary used to customize
-                resolver behavior (for example, strategy parameters or handler options). If not
-                provided, defaults to an empty dict.
-            workspace_root (str | None): Root directory for validating absolute file paths.
-                If None, defaults to current working directory.
+        Args:
+            config: Optional configuration dictionary used to customize resolver behavior
+                (for example, strategy parameters or handler options). If not provided,
+                defaults to an empty dict.
+            workspace_root: Root directory for validating absolute file paths. Accepts a
+                string path or any path-like object. If None, defaults to current working
+                directory.
+
+        Returns:
+            None: This constructor does not return a value.
         """
         self.config = config or {}
-        self.workspace_root = workspace_root or os.getcwd()
+        # Coerce workspace_root to string, handling PathLike objects
+        self.workspace_root = (
+            os.fspath(workspace_root) if workspace_root is not None else os.getcwd()
+        )
         self.conflict_detector = ConflictDetector()
         self.handlers = {
             FileType.JSON: JsonHandler(self.workspace_root),

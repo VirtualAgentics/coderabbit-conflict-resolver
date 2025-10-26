@@ -335,6 +335,16 @@ class TestCLIIntegration:
 
         for cmd in commands:
             result = runner.invoke(cli, cmd)
-            # Should not fail due to validation errors - ensure both terms are absent
+            # Should not fail due to validation errors - check for specific identifier errors
             output_lower = result.output.lower()
-            assert "identifier" not in output_lower and "invalid" not in output_lower
+            # Check for specific identifier validation error messages
+            identifier_errors = [
+                "identifier required",
+                "identifier too long",
+                "identifier must be a single segment",
+                "identifier contains invalid characters",
+            ]
+            for error_msg in identifier_errors:
+                assert (
+                    error_msg not in output_lower
+                ), f"Command should not fail with identifier validation error: {error_msg}"

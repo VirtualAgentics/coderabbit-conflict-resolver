@@ -60,6 +60,8 @@ class TestTomlHandlerPathSecurity:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test that apply_change accepts safe relative paths with actual files."""
+        # Patch TOML support flag to prevent short-circuit
+        monkeypatch.setattr("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
         handler = TomlHandler()
 
         # Change to the temporary directory
@@ -77,7 +79,7 @@ class TestTomlHandlerPathSecurity:
             test_file.write_text("original = 'value'")
 
             # Apply change to the existing file
-            result = handler.apply_change(path, "key = 'value'", 1, 3)
+            result = handler.apply_change(path, "key = 'value'", 1, 1)
             # Path validation should pass and the operation should complete
             assert result is True, f"Should accept safe relative path: {path}"
 
@@ -164,7 +166,8 @@ class TestTomlHandlerAtomicOperations:
 
             # Verify no temp files were left behind
             temp_dir = os.path.dirname(original_path)
-            temp_files = [f for f in os.listdir(temp_dir) if f.startswith(".tmp")]
+            expected_prefix = f".{os.path.basename(original_path)}.tmp"
+            temp_files = [f for f in os.listdir(temp_dir) if f.startswith(expected_prefix)]
             assert len(temp_files) == 0, "Temporary files should be cleaned up"
 
         finally:
@@ -190,7 +193,7 @@ class TestTomlHandlerAtomicOperations:
 
         try:
             # Apply change
-            result = handler.apply_change(original_path, "newkey = 'newvalue'", 1, 3)
+            result = handler.apply_change(original_path, "newkey = 'newvalue'", 1, 1)
             assert result is True
 
             # Verify permissions were preserved
@@ -220,7 +223,7 @@ class TestTomlHandlerAtomicOperations:
 
             # This should succeed because the handler can read the file
             # and write to a temp file, then replace it atomically
-            result = handler.apply_change(original_path, "newkey = 'newvalue'", 1, 3)
+            result = handler.apply_change(original_path, "newkey = 'newvalue'", 1, 1)
             assert result is True  # Should succeed with atomic replacement
 
         finally:
@@ -250,6 +253,12 @@ class TestTomlHandlerErrorHandling:
                 result = handler.apply_change(original_path, "newkey = 'newvalue'", 1, 3)
                 assert result is False
 
+            # Verify no temp files were left behind after error
+            temp_dir = os.path.dirname(original_path)
+            expected_prefix = f".{os.path.basename(original_path)}.tmp"
+            temp_files = [f for f in os.listdir(temp_dir) if f.startswith(expected_prefix)]
+            assert len(temp_files) == 0, "Temporary files should be cleaned up after write error"
+
         finally:
             if os.path.exists(original_path):
                 os.unlink(original_path)
@@ -261,7 +270,8 @@ class TestTomlHandlerErrorHandling:
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
             # Write original TOML
-            f.write("key = 'value'")
+            original_content = "key = 'value'"
+            f.write(original_content)
             f.flush()
             original_path = f.name
 
@@ -271,6 +281,11 @@ class TestTomlHandlerErrorHandling:
                 result = handler.apply_change(original_path, "newkey = 'newvalue'", 1, 3)
                 # Should fail due to fsync error
                 assert result is False
+                # Verify file content remained unchanged (no partial write)
+                with open(original_path, encoding="utf-8") as f:
+                    assert (
+                        f.read() == original_content
+                    ), "File content should remain unchanged after fsync error"
 
         finally:
             if os.path.exists(original_path):

@@ -6,9 +6,9 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from ..config.presets import PresetConfig
-from ..core.resolver import ConflictResolver
-from ..security.input_validator import InputValidator
+from pr_conflict_resolver.config.presets import PresetConfig
+from pr_conflict_resolver.core.resolver import ConflictResolver
+from pr_conflict_resolver.security.input_validator import InputValidator
 
 console = Console()
 

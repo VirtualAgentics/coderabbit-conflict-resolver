@@ -81,7 +81,8 @@ class TomlHandler(BaseHandler):
             bool: True if the suggestion was applied successfully; False otherwise.
 
         Raises:
-            None
+            ValueError: If start_line < 1, end_line < start_line, or end_line > file length.
+                The method logs the error and returns False instead of raising
         """
         # Validate file path to prevent path traversal attacks
         # Use workspace root for absolute path containment check
@@ -112,6 +113,23 @@ class TomlHandler(BaseHandler):
             self.logger.error(f"Error parsing original TOML {file_path}: {e}")
             return False
 
+        # Validate line range bounds (1-based indices)
+        total_lines = len(original_lines)
+        if start_line < 1:
+            self.logger.error(f"Invalid line range: start_line must be >= 1, got {start_line}")
+            return False
+        if end_line < start_line:
+            self.logger.error(
+                f"Invalid line range: end_line ({end_line}) must be >= start_line ({start_line})"
+            )
+            return False
+        if end_line > total_lines:
+            self.logger.error(
+                f"Invalid line range: end_line ({end_line}) exceeds file length "
+                f"({total_lines} lines)"
+            )
+            return False
+
         # Validate suggestion is proper TOML
         try:
             tomllib.loads(content)
@@ -122,7 +140,7 @@ class TomlHandler(BaseHandler):
         # Format suggestion for insertion (ensure proper line endings)
         formatted_suggestion = self._format_suggestion_for_insertion(content)
 
-        # Perform targeted line replacement (convert to 0-based indexing)
+        # Perform targeted line replacement (validated 1-based indices, converted to 0-based)
         # Replace lines [start_line-1, end_line) with the formatted suggestion
         new_lines = (
             original_lines[: start_line - 1]  # Lines before the target region
@@ -180,7 +198,7 @@ class TomlHandler(BaseHandler):
 
             return True
         except (OSError, UnicodeEncodeError) as e:
-            self.logger.error(f"Error writing TOML file: {e}")
+            self.logger.error(f"Error writing TOML file {file_path}: {e}")
             return False
         finally:
             # Clean up temporary file if it exists
