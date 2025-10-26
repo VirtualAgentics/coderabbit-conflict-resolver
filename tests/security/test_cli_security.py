@@ -191,7 +191,7 @@ class TestDryRunModeValidation:
         runner = CliRunner()
 
         # Set a test token (clearly marked as test data)
-        test_token = "ghp_test12345678901234567890123456789012"  # noqa: S105
+        test_token = "ghp_test12345678901234567890123456789012"  # noqa: S105  # gitleaks:allowlist
         with patch.dict(os.environ, {"GITHUB_TOKEN": test_token}):
             result = runner.invoke(
                 cli, ["apply", "--pr", "1", "--owner", "test", "--repo", "test", "--dry-run"]

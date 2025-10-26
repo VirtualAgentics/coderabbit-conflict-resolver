@@ -397,7 +397,7 @@ class TestTomlHandler:
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_AVAILABLE", False)
     def test_toml_not_available(self) -> None:
-        """Test behavior when tomli is not available."""
+        """Test behavior when tomllib is not available."""
         handler = TomlHandler()
 
         valid, msg = handler.validate_change("test.toml", "key = 'value'", 1, 3)
@@ -409,8 +409,8 @@ class TestTomlHandler:
         """Test change validation."""
         handler = TomlHandler()
 
-        with patch("tomli.loads") as mock_tomli:
-            mock_tomli.return_value = {"key": "value"}
+        with patch("tomllib.loads") as mock_tomllib:
+            mock_tomllib.return_value = {"key": "value"}
 
             valid, msg = handler.validate_change("test.toml", "key = 'value'", 1, 3)
             assert valid is True

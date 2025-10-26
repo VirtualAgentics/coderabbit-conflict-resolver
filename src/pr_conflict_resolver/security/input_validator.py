@@ -3,12 +3,12 @@
 import json
 import logging
 import re
+import tomllib
 from collections.abc import Set
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlparse
 
-import tomli
 import tomli_w
 import yaml
 
@@ -341,12 +341,12 @@ class InputValidator:
 
         try:
             # Parse TOML to validate structure
-            parsed = tomli.loads(content)
+            parsed = tomllib.loads(content)
 
             # Re-serialize to ensure clean format
             content = tomli_w.dumps(parsed)
 
-        except tomli.TOMLDecodeError as e:
+        except tomllib.TOMLDecodeError as e:
             logger.error("Invalid TOML structure detected: %s", e)
             warnings.append(f"Invalid TOML structure: {e}")
 

@@ -114,10 +114,10 @@ class TestFilePermissionSecurity:
             os.chmod(tmpdir, 0o555)  # noqa: S103
 
             try:
-                # Attempt to modify file in read-only directory
+                original = test_file.read_text()
                 result = handler.apply_change(str(test_file), '{"key": "new"}', 1, 1)
-                # Should handle the error gracefully
-                assert isinstance(result, bool), "Should return boolean result"
+                assert result is False, "Handler should fail to write in read-only directory"
+                assert test_file.read_text() == original, "File must remain unchanged"
             finally:
                 # Restore permissions for cleanup
                 os.chmod(tmpdir, 0o755)  # noqa: S103

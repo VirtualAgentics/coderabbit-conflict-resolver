@@ -12,7 +12,8 @@ from ..security.input_validator import InputValidator
 from .base import BaseHandler
 
 try:
-    import tomli
+    import tomllib
+
     import tomli_w
 
     TOML_AVAILABLE = True
@@ -26,14 +27,12 @@ class TomlHandler(BaseHandler):
     def __init__(self) -> None:
         """Initialize the TOML handler and its logger.
 
-        Creates a module-level logger on the instance. If TOML support (tomli/tomli-w) is not
+        Creates a module-level logger on the instance. If TOML support (tomllib/tomli-w) is not
         available, logs a warning with installation instructions.
         """
         self.logger = logging.getLogger(__name__)
         if not TOML_AVAILABLE:
-            self.logger.warning(
-                "tomli/tomli-w not available. Install with: pip install tomli tomli-w"
-            )
+            self.logger.warning("tomllib/tomli-w not available. Install with: pip install tomli-w")
 
     def can_handle(self, file_path: str) -> bool:
         """Determine whether the handler supports the given file path.
@@ -62,9 +61,7 @@ class TomlHandler(BaseHandler):
             return False
 
         if not TOML_AVAILABLE:
-            self.logger.error(
-                "tomli/tomli-w not available. Install with: pip install tomli tomli-w"
-            )
+            self.logger.error("tomllib/tomli-w not available. Install with: pip install tomli-w")
             return False
 
         file_path = Path(path)
@@ -72,14 +69,14 @@ class TomlHandler(BaseHandler):
         # Parse original file
         try:
             original_content = file_path.read_text(encoding="utf-8")
-            original_data = tomli.loads(original_content)
+            original_data = tomllib.loads(original_content)
         except Exception as e:
             self.logger.error(f"Error parsing original TOML: {e}")
             return False
 
         # Parse suggestion
         try:
-            suggestion_data = tomli.loads(content)
+            suggestion_data = tomllib.loads(content)
         except Exception as e:
             self.logger.error(f"Error parsing TOML suggestion: {e}")
             return False
@@ -112,10 +109,10 @@ class TomlHandler(BaseHandler):
                 `(False, "<error message>")` otherwise.
         """
         if not TOML_AVAILABLE:
-            return False, "tomli/tomli-w not available"
+            return False, "tomllib/tomli-w not available"
 
         try:
-            tomli.loads(content)
+            tomllib.loads(content)
             return True, "Valid TOML"
         except Exception as e:
             return False, f"Invalid TOML: {e}"
@@ -143,7 +140,7 @@ class TomlHandler(BaseHandler):
         section_changes: dict[str, list[Change]] = {}
         for change in changes:
             try:
-                data = tomli.loads(change.content)
+                data = tomllib.loads(change.content)
                 sections = self._extract_sections(data)
                 for section in sections:
                     if section not in section_changes:

@@ -33,7 +33,7 @@ repos:
     hooks:
       - id: mypy
         language_version: python3.12
-        additional_dependencies: [click, types-requests, types-PyYAML, pytest, rich, ruamel.yaml, tomli, tomli-w]
+        additional_dependencies: [click, types-requests, types-PyYAML, pytest, rich, ruamel.yaml, tomli-w]
         pass_filenames: false
         args: [--strict, --install-types, --non-interactive, src/, tests/]
 
