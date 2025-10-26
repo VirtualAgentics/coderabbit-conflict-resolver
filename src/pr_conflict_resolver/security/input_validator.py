@@ -47,13 +47,26 @@ class InputValidator:
         ".toml",
     }
 
+    # GitHub token prefixes for all supported token types
+    GITHUB_TOKEN_PREFIXES: ClassVar[tuple[str, ...]] = (
+        "github_pat_",  # Fine-grained Personal Access Token (current best practice)
+        "ghp_",  # Classic Personal Access Token
+        "gho_",  # OAuth Token
+        "ghu_",  # User Token
+        "ghs_",  # Server Token
+        "ghr_",  # Refresh Token
+    )
+
     @staticmethod
-    def validate_file_path(path: str, base_dir: str | None = None) -> bool:
+    def validate_file_path(
+        path: str, base_dir: str | None = None, allow_absolute: bool = False
+    ) -> bool:
         """Validate file path is safe (no directory traversal).
 
         Args:
             path: File path to validate.
             base_dir: Optional base directory to restrict access to.
+            allow_absolute: Whether to allow absolute paths (default: False).
 
         Returns:
             bool: True if the path is safe, False otherwise.
@@ -63,6 +76,8 @@ class InputValidator:
             True
             >>> InputValidator.validate_file_path("../../etc/passwd")
             False
+            >>> InputValidator.validate_file_path("/tmp/file.py", allow_absolute=True)
+            True
         """
         if not path or not isinstance(path, str):
             logger.warning("File path validation failed: path is None or not a string")
@@ -77,8 +92,9 @@ class InputValidator:
                 logger.warning("Directory traversal attempt detected: %s", path)
                 return False
 
-            # Check for absolute paths (disallowed unless base_dir is specified)
-            if input_path.is_absolute() and not base_dir:
+            # Check for absolute paths (disallowed unless base_dir is specified or
+            # allow_absolute=True)
+            if input_path.is_absolute() and not base_dir and not allow_absolute:
                 logger.warning("Absolute path disallowed: %s", path)
                 return False
 
@@ -428,7 +444,8 @@ class InputValidator:
 
         Validates that a GitHub token has the correct format. GitHub tokens
         typically start with specific prefixes:
-        - ghp_ (Personal Access Token)
+        - github_pat_ (Fine-grained Personal Access Token - current best practice)
+        - ghp_ (Classic Personal Access Token)
         - gho_ (OAuth Token)
         - ghu_ (User Token)
         - ghs_ (Server Token)
@@ -450,15 +467,21 @@ class InputValidator:
             logger.warning("GitHub token validation failed: token is None or not a string")
             return False
 
-        # Check for valid GitHub token prefixes
-        valid_prefixes = ["ghp_", "gho_", "ghu_", "ghs_", "ghr_"]
-        has_valid_prefix = any(token.startswith(prefix) for prefix in valid_prefixes)
+        # Normalize whitespace
+        token = token.strip()
 
-        if not has_valid_prefix:
-            logger.warning("GitHub token validation failed: token does not have valid prefix")
+        # Build regex pattern from class variable prefixes
+        # GitHub token pattern: valid prefix + alphanumeric/underscore characters only
+        # Prefixes: github_pat_ (fine-grained PAT ~47 chars), ghp_/gho_/ghu_/ghs_/ghr_ (~40 chars)
+        prefix_pattern = "|".join(
+            re.escape(prefix) for prefix in InputValidator.GITHUB_TOKEN_PREFIXES
+        )
+        pattern = rf"^(?:{prefix_pattern})[A-Za-z0-9_]+$"
+        if not re.match(pattern, token):
+            logger.warning("GitHub token validation failed: invalid prefix or characters")
             return False
 
-        # Basic length check (GitHub tokens have a minimum length of 40 characters)
+        # Length validation: minimum 40 characters total
         if len(token) < 40:
             logger.warning("GitHub token validation failed: token too short")
             return False

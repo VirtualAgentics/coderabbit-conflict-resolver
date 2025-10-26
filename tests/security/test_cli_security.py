@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from click.testing import CliRunner
 
 from pr_conflict_resolver.cli.main import cli
@@ -41,9 +42,14 @@ class TestArgumentInjectionPrevention:
             # Should either fail or not execute malicious commands
             # Note: CLI currently echoes malicious input in output - this is a security issue to fix
             if result.exit_code == 0:
-                # CLI currently echoes malicious input - document this security issue
-                # TODO: CLI should sanitize/redact malicious input from output
-                assert isinstance(result.exit_code, int)  # Just ensure it doesn't crash
+                # Check if malicious input appears in the output (security issue)
+                if malicious in result.output:
+                    pytest.xfail(
+                        "CLI echoes unsanitized input; mark xfail until sanitization implemented"
+                    )
+                else:
+                    # CLI succeeded without echoing malicious input - this is acceptable
+                    assert isinstance(result.exit_code, int)  # Just ensure it doesn't crash
             else:
                 # If it fails, that's also acceptable (better security)
                 assert "Error" in result.output or result.exit_code != 0
@@ -78,7 +84,7 @@ class TestEnvironmentVariableHandling:
         runner = CliRunner()
 
         # Set a test token (clearly marked as test data)
-        test_token = "ghp_test12345678901234567890123456789012"  # noqa: S105
+        test_token = "ghp_test12345678901234567890123456789012"  # noqa: S105  # gitleaks:allowlist
         with patch.dict(os.environ, {"GITHUB_TOKEN": test_token}):
             result = runner.invoke(
                 cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", "test"]
@@ -248,15 +254,21 @@ class TestCommandLineParsingSecurity:
         for path in dangerous_paths:
             result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
 
-            # Should either reject dangerous paths or handle them safely
+            # Should reject dangerous paths - CLI must not accept or echo them
             # Note: CLI currently echoes dangerous paths in output - this is a security issue to fix
             if result.exit_code == 0:
-                # CLI currently echoes dangerous paths - document this security issue
-                # TODO: CLI should sanitize/redact dangerous paths from output
-                assert isinstance(result.exit_code, int)  # Just ensure it doesn't crash
+                # Check if dangerous path appears in the output (security issue)
+                if path in result.output:
+                    pytest.xfail(
+                        "CLI echoes dangerous paths; mark xfail until path sanitization implemented"
+                    )
+                else:
+                    # CLI succeeded without echoing dangerous path - this is acceptable
+                    assert isinstance(result.exit_code, int)  # Just ensure it doesn't crash
             else:
-                # If it fails, that's also acceptable (better security)
-                assert "Error" in result.output or result.exit_code != 0
+                # CLI properly rejected dangerous path - this is the expected behavior
+                assert result.exit_code != 0, f"CLI should reject dangerous path: {path}"
+                assert "Error" in result.output, f"CLI should show error for dangerous path: {path}"
 
 
 class TestInputValidation:

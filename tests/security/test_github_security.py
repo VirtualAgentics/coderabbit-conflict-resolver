@@ -14,10 +14,60 @@ class TestGitHubTokenSecurity:
 
     def test_token_not_exposed_in_errors(self) -> None:
         """Test that tokens are not leaked in error messages."""
-        # This test verifies that error handling doesn't expose tokens
-        # In real implementation, would check error messages
-        # For now, this is a conceptual test
-        assert True  # TODO: Implement token exposure tests
+        import io
+        import logging
+        from unittest.mock import patch
+
+        from requests import RequestException
+
+        # Test token that should not appear in error messages
+        test_token = "ghp_test123456789012345678901234567890"  # gitleaks:allow  # noqa: S105
+
+        # Create a string buffer to capture log messages
+        log_capture = io.StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.ERROR)
+
+        # Get the logger for the GitHub module
+        github_logger = logging.getLogger("pr_conflict_resolver.integrations.github")
+        github_logger.addHandler(handler)
+        github_logger.setLevel(logging.ERROR)
+
+        try:
+            # Create GitHubCommentExtractor with test token
+            extractor = GitHubCommentExtractor(token=test_token)
+
+            # Mock a request that will fail and potentially expose the token
+            with patch.object(extractor.session, "get") as mock_get:
+                # Simulate a RequestException that might include token in error
+                mock_get.side_effect = RequestException(f"Request failed with token {test_token}")
+
+                # This should not raise an exception, but return empty list
+                result = extractor.fetch_pr_comments("owner", "repo", 123)
+                assert result == []
+
+                # Check that the token is not present in any log messages
+                log_output = log_capture.getvalue()
+                assert (
+                    test_token not in log_output
+                ), f"Token '{test_token}' found in log output: {log_output}"
+
+            # Test with a different error scenario - network timeout
+            with patch.object(extractor.session, "get") as mock_get:
+                mock_get.side_effect = RequestException(f"Timeout occurred for token {test_token}")
+
+                metadata_result = extractor.fetch_pr_metadata("owner", "repo", 123)
+                assert metadata_result is None
+
+                # Verify token not in logs
+                log_output = log_capture.getvalue()
+                assert (
+                    test_token not in log_output
+                ), f"Token '{test_token}' found in log output: {log_output}"
+
+        finally:
+            # Clean up logging handler
+            github_logger.removeHandler(handler)
 
     @pytest.mark.parametrize(
         "token",
@@ -100,12 +150,77 @@ class TestGitHubAPIErrorHandling:
 
     def test_error_messages_dont_leak_internal_info(self) -> None:
         """Test that error messages don't leak internal information."""
-        # This would test that API errors don't expose:
-        # - Internal file paths
-        # - Tokens or credentials
-        # - Stack traces in production
-        # For now, this is a conceptual test
-        assert True  # TODO: Implement error message leakage tests
+        import io
+        import logging
+        from unittest.mock import Mock, patch
+
+        from requests import HTTPError, RequestException
+
+        # Test token and internal paths that should not be exposed
+        test_token = "ghp_secret123456789012345678901234567890"  # gitleaks:allow  # noqa: S105
+        internal_path = "/home/user/internal/config.json"
+
+        # Create a string buffer to capture log messages
+        log_capture = io.StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.ERROR)
+
+        # Get the logger for the GitHub module
+        github_logger = logging.getLogger("pr_conflict_resolver.integrations.github")
+        github_logger.addHandler(handler)
+        github_logger.setLevel(logging.ERROR)
+
+        try:
+            # Create GitHubCommentExtractor with test token
+            extractor = GitHubCommentExtractor(token=test_token)
+
+            # Test 1: HTTP 401 Unauthorized - should not expose token
+            with patch.object(extractor.session, "get") as mock_get:
+                response = Mock()
+                response.raise_for_status.side_effect = HTTPError(
+                    f"401 Client Error: Unauthorized for token {test_token}"
+                )
+                mock_get.return_value = response
+
+                result = extractor.fetch_pr_comments("owner", "repo", 123)
+                assert result == []
+
+                # Check that sensitive info is not in logs
+                log_output = log_capture.getvalue()
+                assert test_token not in log_output, f"Token found in logs: {log_output}"
+
+            # Test 2: HTTP 403 Forbidden - should not expose internal paths
+            with patch.object(extractor.session, "get") as mock_get:
+                response = Mock()
+                response.raise_for_status.side_effect = HTTPError(
+                    f"403 Client Error: Forbidden accessing {internal_path}"
+                )
+                mock_get.return_value = response
+
+                result = extractor.fetch_pr_files("owner", "repo", 123)
+                assert result == []
+
+                # Check that internal paths are not in logs
+                log_output = log_capture.getvalue()
+                assert internal_path not in log_output, f"Internal path found in logs: {log_output}"
+
+            # Test 3: Network error - should not expose stack traces in production
+            with patch.object(extractor.session, "get") as mock_get:
+                mock_get.side_effect = RequestException(
+                    f"Connection failed to {internal_path} with token {test_token}"
+                )
+
+                metadata_result = extractor.fetch_pr_metadata("owner", "repo", 123)
+                assert metadata_result is None
+
+                # Check that neither token nor internal path appear in logs
+                log_output = log_capture.getvalue()
+                assert test_token not in log_output, f"Token found in logs: {log_output}"
+                assert internal_path not in log_output, f"Internal path found in logs: {log_output}"
+
+        finally:
+            # Clean up logging handler
+            github_logger.removeHandler(handler)
 
 
 class TestRateLimitHandling:
@@ -113,10 +228,81 @@ class TestRateLimitHandling:
 
     def test_rate_limit_handled_gracefully(self) -> None:
         """Test that rate limiting is handled gracefully."""
-        # This would test that rate limit errors are caught
-        # and don't cause crashes
-        # For now, this is a placeholder
-        assert True  # TODO: Implement rate limit tests
+        import io
+        import logging
+        from unittest.mock import Mock, patch
+
+        from requests import HTTPError
+
+        # Create a string buffer to capture log messages
+        log_capture = io.StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.ERROR)
+
+        # Get the logger for the GitHub module
+        github_logger = logging.getLogger("pr_conflict_resolver.integrations.github")
+        github_logger.addHandler(handler)
+        github_logger.setLevel(logging.ERROR)
+
+        try:
+            # Create GitHubCommentExtractor
+            extractor = GitHubCommentExtractor(
+                token="ghp_test123456789012345678901234567890"  # gitleaks:allow  # noqa: S106
+            )
+
+            # Test 1: HTTP 429 Too Many Requests - should return empty results gracefully
+            with patch.object(extractor.session, "get") as mock_get:
+                response = Mock()
+                response.raise_for_status.side_effect = HTTPError(
+                    "429 Client Error: Too Many Requests"
+                )
+                mock_get.return_value = response
+
+                # Should not raise exception, should return empty list
+                result = extractor.fetch_pr_comments("owner", "repo", 123)
+                assert result == []
+
+                # Should not raise exception, should return None
+                metadata_result = extractor.fetch_pr_metadata("owner", "repo", 123)
+                assert metadata_result is None
+
+                # Should not raise exception, should return empty list
+                result = extractor.fetch_pr_files("owner", "repo", 123)
+                assert result == []
+
+            # Test 2: Rate limit with retry-after header - should handle gracefully
+            with patch.object(extractor.session, "get") as mock_get:
+                response = Mock()
+                response.headers = {"Retry-After": "60"}
+                response.raise_for_status.side_effect = HTTPError(
+                    "429 Client Error: Rate limit exceeded"
+                )
+                mock_get.return_value = response
+
+                # Should handle rate limit gracefully without crashing
+                result = extractor.fetch_pr_comments("owner", "repo", 123)
+                assert result == []
+
+            # Test 3: Multiple rate limit errors in sequence - should handle all gracefully
+            with patch.object(extractor.session, "get") as mock_get:
+                response = Mock()
+                response.raise_for_status.side_effect = HTTPError(
+                    "429 Client Error: Rate limit exceeded"
+                )
+                mock_get.return_value = response
+
+                # Multiple calls should all handle rate limits gracefully
+                results = []
+                for i in range(3):
+                    result = extractor.fetch_pr_comments("owner", "repo", i)
+                    results.append(result)
+
+                # All should return empty lists
+                assert all(result == [] for result in results)
+
+        finally:
+            # Clean up logging handler
+            github_logger.removeHandler(handler)
 
 
 class TestURLConstruction:

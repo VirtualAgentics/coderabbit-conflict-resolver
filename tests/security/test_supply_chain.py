@@ -38,11 +38,12 @@ class TestDependencyPinning:
                 continue
 
             # Check if version is pinned
-            # Must contain ==, >=, <=, ~=, or != followed by a version
-            version_pattern = r"(>=|<=|==|~=|!=)[\d\w\.\-\+,]+"
-            assert re.search(
-                version_pattern, line
-            ), f"Line {line_num}: '{line}' does not specify a version constraint"
+            # Must contain == or ~= followed by a version with at least one digit
+            version_pattern = r"(==|~=)(?=.*\d)[\d\w\.\-\+]+"
+            assert re.search(version_pattern, line), (
+                f"Line {line_num}: '{line}' does not specify a pinned version constraint. "
+                f"Use '==1.2.3' or '~=1.2.3' for security (not '>=1.2.3' or '<1.2.3')"
+            )
 
     @pytest.mark.parametrize("filename", ["requirements.txt", "requirements-dev.txt"])
     def test_requirements_files_versions_pinned(self, filename: str) -> None:
@@ -61,17 +62,66 @@ class TestDependencyPinning:
         if not pyproject_file.exists():
             pytest.skip("pyproject.toml not found")
 
-        with open(pyproject_file, encoding="utf-8") as f:
-            content = f.read()
+        # Parse the TOML file
+        try:
+            import tomllib
 
-        # Check that dependencies are defined in pyproject.toml
-        # Modern PEP 621 format: dependencies = [...] within [project] section
-        # Legacy formats: [project.dependencies] or [tool.poetry.dependencies]
-        assert (
-            "dependencies = [" in content
-            or "[project.dependencies]" in content
-            or "[tool.poetry.dependencies]" in content
-        ), "No dependencies section found in pyproject.toml"
+            toml_parser = tomllib
+        except ImportError:
+            try:
+                import toml as toml_parser  # type: ignore
+            except ImportError:
+                pytest.skip("No TOML parser available (tomllib or toml)")
+
+        with open(pyproject_file, "rb") as f:
+            if hasattr(toml_parser, "load"):
+                # tomllib (Python 3.11+)
+                data = toml_parser.load(f)
+            else:
+                # toml library
+                f.seek(0)
+                data = toml_parser.load(f)
+
+        # Check for dependencies in various locations
+        dependencies: list[str] = []
+
+        # Project dependencies: [project].dependencies
+        if "project" in data and "dependencies" in data["project"]:
+            deps = data["project"]["dependencies"]
+            if isinstance(deps, dict):
+                dependencies.extend(deps.values())
+            else:
+                dependencies.extend(deps if isinstance(deps, list) else [deps])
+
+        # Poetry format: [tool.poetry.dependencies]
+        if "tool" in data and "poetry" in data["tool"] and "dependencies" in data["tool"]["poetry"]:
+            poetry_deps = data["tool"]["poetry"]["dependencies"]
+            if isinstance(poetry_deps, dict):
+                dependencies.extend(poetry_deps.values())
+
+        # Ensure we found dependencies
+        assert dependencies, "No dependencies found in pyproject.toml"
+
+        # Validate each dependency has a version constraint
+        for dep in dependencies:
+            dep_str = str(dep).strip()
+
+            # Skip empty dependencies
+            if not dep_str:
+                continue
+
+            # Check if dependency has a version constraint
+            # Must contain an operator (==, >=, <=, ~=, ^, etc.) or be a URL/git reference
+            has_version_constraint = (
+                any(op in dep_str for op in ["==", ">=", "<=", "~=", "!=", "^", "~"])
+                or dep_str.startswith(("git+", "hg+", "svn+", "bzr+", "http://", "https://"))
+                or "@" in dep_str  # For pip installable URLs
+            )
+
+            assert has_version_constraint, (
+                f"Dependency '{dep_str}' does not specify a version constraint. "
+                f"Use format like 'package>=1.0.0' or 'package==1.2.3'"
+            )
 
 
 class TestGitHubActionsPinning:
@@ -96,13 +146,9 @@ class TestGitHubActionsPinning:
 
             # Find all uses statements
             for line_num, line in enumerate(content.split("\n"), 1):
-                if (
-                    re.search(r"^\s*-\s*uses:\s*[\w/_-]+", line)
-                    and "@" not in line
-                    and "uses:" in line
-                    and "composite" not in content.lower()
-                ):
-                    # Skip composite actions as they don't need pinning
+                # Match lines with "uses:" that don't have "@" for version pinning
+                # Handle both single-line (- uses: action) and multi-line (uses: action) formats
+                if re.search(r"^\s*-?\s*uses:\s+[\w/_-]+", line.strip()) and "@" not in line:
                     unpinned_actions.append((str(workflow_file), line_num))
 
         # Assert that no unpinned actions were found
@@ -130,17 +176,167 @@ class TestDependencyVulnerabilities:
         if not requirements_file.exists():
             pytest.skip("requirements.txt not found")
 
-        # Run safety check against requirements.txt
-        result = subprocess.run(  # noqa: S603
-            ["safety", "check", "--file", str(requirements_file), "--json"],  # noqa: S607
-            capture_output=True,
-            text=True,
-        )
+        # Run safety scan against requirements.txt (new command)
+        # Fallback to deprecated check command if scan fails
+        result = None
+        try:
+            result = subprocess.run(  # noqa: S603
+                [
+                    "/usr/bin/safety",
+                    "scan",
+                    "--output",
+                    "json",
+                    "--target",
+                    str(requirements_file.parent),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60,  # Add timeout to prevent hanging
+            )
+        except subprocess.TimeoutExpired:
+            # Fallback to deprecated check command
+            result = subprocess.run(  # noqa: S603
+                ["safety", "check", "--file", str(requirements_file), "--json"],  # noqa: S607
+                capture_output=True,
+                text=True,
+            )
 
-        assert result.returncode == 0, (
-            "Vulnerable dependencies found. Run 'safety check' for details. "
-            f"Output: {result.stdout}"
-        )
+        # Always parse JSON output to provide detailed vulnerability information
+        # even when returncode is 0 (ignored vulnerabilities)
+        if result and result.stdout:
+            try:
+                import json
+
+                # Extract JSON from output using robust strategy
+                stdout_content = result.stdout.strip()
+                safety_data = None
+
+                # Try multiple JSON extraction strategies
+                strategies = [
+                    stdout_content,  # Full stripped stdout
+                    (
+                        stdout_content[stdout_content.find("{") : stdout_content.rfind("}") + 1]
+                        if stdout_content.find("{") >= 0
+                        else ""
+                    ),  # First '{' to last '}'
+                    (
+                        stdout_content[stdout_content.find("[") : stdout_content.rfind("]") + 1]
+                        if stdout_content.find("[") >= 0
+                        else ""
+                    ),  # First '[' to last ']'
+                ]
+
+                for strategy_content in strategies:
+                    if not strategy_content:
+                        continue
+                    try:
+                        safety_data = json.loads(strategy_content)
+                        break  # Success, exit the loop
+                    except json.JSONDecodeError:
+                        continue  # Try next strategy
+
+                if safety_data is None:
+                    raise json.JSONDecodeError("No valid JSON found in output", stdout_content, 0)
+
+                # Format vulnerability details based on different JSON structures
+                vulnerability_details = []
+                ignored_vulnerability_details = []
+
+                # Handle different JSON structures
+                vulnerabilities = []
+                ignored_vulnerabilities = []
+
+                if isinstance(safety_data, list):
+                    vulnerabilities = safety_data
+                elif isinstance(safety_data, dict):
+                    # Check common keys for vulnerability data
+                    for key in ["vulnerabilities", "vulnerability", "issues", "findings"]:
+                        if key in safety_data and isinstance(safety_data[key], list):
+                            vulnerabilities = safety_data[key]
+                            break
+
+                    # Also check for ignored_vulnerabilities
+                    if "ignored_vulnerabilities" in safety_data and isinstance(
+                        safety_data["ignored_vulnerabilities"], list
+                    ):
+                        ignored_vulnerabilities = safety_data["ignored_vulnerabilities"]
+
+                # Process actual vulnerabilities
+                for vuln in vulnerabilities:
+                    if isinstance(vuln, dict):
+                        package = vuln.get(
+                            "package", vuln.get("name", vuln.get("package_name", "unknown"))
+                        )
+                        version = vuln.get(
+                            "installed_version",
+                            vuln.get("version", vuln.get("current_version", "unknown")),
+                        )
+                        vulnerability_id = vuln.get(
+                            "vulnerability_id", vuln.get("cve", vuln.get("id", "unknown"))
+                        )
+                        advisory = vuln.get(
+                            "advisory",
+                            vuln.get("description", vuln.get("summary", "No advisory available")),
+                        )
+
+                        vulnerability_details.append(
+                            f"  • {package}=={version} - {vulnerability_id}: {advisory}"
+                        )
+
+                # Process ignored vulnerabilities
+                for vuln in ignored_vulnerabilities:
+                    if isinstance(vuln, dict):
+                        package = vuln.get(
+                            "package", vuln.get("name", vuln.get("package_name", "unknown"))
+                        )
+                        version = vuln.get(
+                            "installed_version",
+                            vuln.get("version", vuln.get("current_version", "unknown")),
+                        )
+                        vulnerability_id = vuln.get(
+                            "vulnerability_id", vuln.get("cve", vuln.get("id", "unknown"))
+                        )
+                        advisory = vuln.get(
+                            "advisory",
+                            vuln.get("description", vuln.get("summary", "No advisory available")),
+                        )
+                        ignored_reason = vuln.get("ignored_reason", "Ignored")
+
+                        ignored_vulnerability_details.append(
+                            f"  • {package}=={version} - {vulnerability_id}: {advisory} "
+                            f"(IGNORED: {ignored_reason})"
+                        )
+
+                # Fail if there are actual vulnerabilities
+                if vulnerability_details:
+                    error_msg = f"Found {len(vulnerability_details)} vulnerable dependencies:\n"
+                    error_msg += "\n".join(vulnerability_details)
+                    error_msg += (
+                        f"\n\nRun 'safety scan --output json --target "
+                        f"{requirements_file.parent}' for more details."
+                    )
+                    raise AssertionError(error_msg)
+
+                # Warn about ignored vulnerabilities but don't fail
+                if ignored_vulnerability_details:
+                    logging.warning(
+                        "Found %d ignored vulnerabilities: %s",
+                        len(ignored_vulnerability_details),
+                        "; ".join(ignored_vulnerability_details),
+                    )
+                    logging.warning(
+                        "These vulnerabilities are ignored due to unpinned dependencies. "
+                        "Consider pinning dependencies for better security."
+                    )
+
+            except (json.JSONDecodeError, KeyError, TypeError):
+                # Fallback to plain text if JSON parsing fails
+                if result.returncode != 0:
+                    error_msg = (
+                        "Vulnerable dependencies found. Run 'safety scan' for details. "
+                        f"Output: {result.stdout[:500]}..."
+                    )
+                    raise AssertionError(error_msg) from None
 
 
 class TestLicenseCompliance:

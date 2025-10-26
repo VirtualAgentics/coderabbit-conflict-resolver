@@ -117,6 +117,20 @@ class YamlHandler(BaseHandler):
         if not YAML_AVAILABLE:
             return False, "ruamel.yaml not available"
 
+        # Check for dangerous YAML tags that could lead to code execution
+        dangerous_tags = [
+            "!!python/object",
+            "!!python/name",
+            "!!python/module",
+            "!!python/function",
+            "!!python/apply",
+        ]
+
+        content_lower = content.lower()
+        for tag in dangerous_tags:
+            if tag.lower() in content_lower:
+                return False, "YAML contains dangerous Python object tags"
+
         try:
             yaml = YAML()
             yaml.load(content)

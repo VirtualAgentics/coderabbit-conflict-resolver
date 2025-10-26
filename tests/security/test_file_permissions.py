@@ -57,9 +57,10 @@ class TestFilePermissionSecurity:
                 backup_perms = os.stat(backup_path).st_mode
                 backup_mode = oct(backup_perms & 0o777)
 
-                # Backup should have restrictive permissions (0600)
-                # On some systems, this might be 0644, so we check it's not world-writable
-                assert "7" not in backup_mode, "Backup should not be world-writable"
+                # Backup should have secure permissions (0o600)
+                assert (
+                    backup_mode == "0o600"
+                ), f"Backup should have 0o600 permissions, got {backup_mode}"
 
                 # Clean up
                 Path(backup_path).unlink()
@@ -78,10 +79,21 @@ class TestFilePermissionSecurity:
             os.chmod(tmpdir, 0o555)  # noqa: S103
 
             try:
-                # Handler should handle permission errors gracefully
+                # Store original content for verification
+                original_content = test_file.read_text()
+
+                # Handler should fail to write to read-only directory
                 result = handler.apply_change(str(test_file), '{"key": "new"}', 1, 1)
-                # Should either fail or handle gracefully
-                assert isinstance(result, bool), "Should return boolean result"
+
+                # Should fail (return False) due to permission error
+                assert result is False, "Handler should fail to write to read-only directory"
+
+                # Verify file contents were not modified
+                current_content = test_file.read_text()
+                assert current_content == original_content, (
+                    f"File contents should not be modified. "
+                    f"Original: {original_content}, Current: {current_content}"
+                )
             finally:
                 # Restore permissions for cleanup
                 os.chmod(tmpdir, 0o755)  # noqa: S103
@@ -108,8 +120,8 @@ class TestFilePermissionSecurity:
                 os.chmod(tmpdir, 0o755)  # noqa: S103
                 Path(test_file).unlink()
 
-    def test_resolver_handles_permission_errors(self) -> None:
-        """Test that resolver handles permission errors in changes."""
+    def test_resolver_detect_conflicts_readonly_file(self) -> None:
+        """detect_conflicts should not depend on filesystem permissions."""
         resolver = ConflictResolver()
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
@@ -130,9 +142,8 @@ class TestFilePermissionSecurity:
                     file_type=FileType.JSON,
                 )
 
-                # Resolver should handle permission errors
                 conflicts = resolver.detect_conflicts([change])
-                assert isinstance(conflicts, list), "Should return list of conflicts"
+                assert isinstance(conflicts, list)
             finally:
                 # Restore permissions for cleanup
                 os.chmod(f.name, 0o644)

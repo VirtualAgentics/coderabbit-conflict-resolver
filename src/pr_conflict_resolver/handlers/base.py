@@ -3,6 +3,7 @@
 This module provides the abstract base class that all file handlers must implement.
 """
 
+import contextlib
 from abc import ABC, abstractmethod
 
 from ..core.models import Change, Conflict
@@ -77,20 +78,82 @@ class BaseHandler(ABC):
     def backup_file(self, path: str) -> str:
         """Create a filesystem backup of the given file and return the backup file path.
 
+        This method performs comprehensive security validation including path traversal
+        protection, file existence verification, and collision handling for backup files.
+
         Parameters:
             path (str): Path to the file to back up.
 
         Returns:
             backup_path (str): Path to the created backup file.
 
+        Raises:
+            ValueError: If the path is invalid, contains path traversal, or file doesn't exist.
+            OSError: If the file cannot be copied or permissions cannot be set.
+            FileNotFoundError: If the source file doesn't exist or isn't a regular file.
         """
+        import os
         import shutil
+        import time
         from pathlib import Path
 
-        file_path = Path(path)
+        from ..security.input_validator import InputValidator
+
+        # Validate file path for security (path traversal protection)
+        # For backup operations, we allow absolute paths but still check for traversal
+        if not InputValidator.validate_file_path(path, base_dir=None, allow_absolute=True):
+            raise ValueError(f"Invalid file path: {path}")
+
+        file_path = Path(path).resolve()
+
+        # Verify source file exists and is a regular file
+        if not file_path.exists():
+            raise FileNotFoundError(f"Source file does not exist: {file_path}")
+
+        if not file_path.is_file():
+            raise ValueError(f"Source path is not a regular file: {file_path}")
+
+        # Generate initial backup path
         backup_path = file_path.with_suffix(file_path.suffix + ".backup")
-        shutil.copy2(file_path, backup_path)
-        return str(backup_path)
+
+        # Handle backup file collisions by appending timestamp or incrementing suffix
+        if backup_path.exists():
+            # Try timestamp-based naming first
+            timestamp = int(time.time())
+            backup_path = file_path.with_suffix(f"{file_path.suffix}.backup.{timestamp}")
+
+            # If timestamp collision still exists, use incrementing suffix
+            counter = 1
+            while backup_path.exists():
+                backup_path = file_path.with_suffix(
+                    f"{file_path.suffix}.backup.{timestamp}.{counter}"
+                )
+                counter += 1
+
+                # Prevent infinite loop (safety check)
+                if counter > 1000:
+                    raise OSError(
+                        f"Unable to create unique backup filename after 1000 attempts "
+                        f"for: {file_path}"
+                    )
+
+        try:
+            # Copy the file with metadata preservation
+            shutil.copy2(file_path, backup_path)
+
+            # Explicitly set secure permissions (0o600) on the backup file
+            os.chmod(backup_path, 0o600)
+
+            return str(backup_path)
+
+        except OSError as e:
+            # Clean up partial backup if it was created
+            if backup_path.exists():
+                with contextlib.suppress(OSError):
+                    backup_path.unlink()  # Ignore cleanup errors
+
+            # Re-raise with context
+            raise OSError(f"Failed to create backup of {file_path}: {e}") from e
 
     def restore_file(self, backup_path: str, original_path: str) -> bool:
         """Restore an original file by copying it from a backup and removing the backup file.
