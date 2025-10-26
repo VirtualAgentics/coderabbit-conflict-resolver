@@ -24,6 +24,8 @@ def cli() -> None:
 
 
 MAX_CLI_NAME_LENGTH = 512
+MAX_GITHUB_USERNAME_LENGTH = 39
+MAX_GITHUB_REPO_LENGTH = 100
 
 
 # Compiled pattern for detecting control characters only.
@@ -47,43 +49,91 @@ def sanitize_for_output(value: str) -> str:
     return value
 
 
-def validate_github_identifier(ctx: click.Context, param: click.Parameter, value: str) -> str:
-    """Validate GitHub owner/repo identifiers for safety.
+def validate_github_username(ctx: click.Context, param: click.Parameter, value: str) -> str:
+    """Validate GitHub username for safety.
 
-    Enforces strict length and character constraints and rejects common
-    shell/environment injection patterns.
+    Enforces GitHub username rules: A-Za-z0-9 and hyphen only, 1-39 chars,
+    cannot start/end with hyphen, no consecutive hyphens.
 
     Args:
         ctx: Click context object.
         param: Click parameter object.
-        value: Identifier value to validate.
+        value: Username value to validate.
 
     Returns:
-        str: The validated identifier value.
+        str: The validated username.
 
     Raises:
-        click.BadParameter: If identifier validation fails.
+        click.BadParameter: If username validation fails.
     """
     # Basic type/emptiness checks
     if not isinstance(value, str) or not value.strip():
-        raise click.BadParameter("identifier required", param=param, ctx=ctx)
+        raise click.BadParameter("username required", param=param, ctx=ctx)
 
-    # Enforce maximum length
-    if len(value) > MAX_CLI_NAME_LENGTH:
+    # Enforce GitHub username length (1-39 characters)
+    if len(value) > MAX_GITHUB_USERNAME_LENGTH:
         raise click.BadParameter(
-            f"identifier too long (max {MAX_CLI_NAME_LENGTH})", param=param, ctx=ctx
+            f"username too long (max {MAX_GITHUB_USERNAME_LENGTH})", param=param, ctx=ctx
         )
 
-    # Disallow slashes and whitespace; GitHub identifiers are single segments
+    # Disallow slashes and whitespace
     if "/" in value or "\\" in value or any(ch.isspace() for ch in value):
         raise click.BadParameter(
-            "identifier must be a single segment (no slashes or spaces)", param=param, ctx=ctx
+            "username must be a single segment (no slashes or spaces)", param=param, ctx=ctx
+        )
+
+    # GitHub username rules: A-Za-z0-9 and hyphen only, no leading/trailing hyphen
+    # Regex: starts with alphanum, can have hyphens not at start/end, no consecutive hyphens
+    if not re.fullmatch(r"^[A-Za-z0-9]([A-Za-z0-9]|-(?=[A-Za-z0-9]))*$", value):
+        raise click.BadParameter(
+            "username contains invalid characters or format; "
+            "allowed: A-Za-z0-9 and hyphen, cannot start/end with hyphen, "
+            "no consecutive hyphens",
+            param=param,
+            ctx=ctx,
+        )
+    return value
+
+
+def validate_github_repo(ctx: click.Context, param: click.Parameter, value: str) -> str:
+    """Validate GitHub repository name for safety.
+
+    Enforces length and character constraints for repository names:
+    letters, digits, dot, underscore, hyphen. Max 100 characters.
+
+    Args:
+        ctx: Click context object.
+        param: Click parameter object.
+        value: Repository name to validate.
+
+    Returns:
+        str: The validated repository name.
+
+    Raises:
+        click.BadParameter: If repository name validation fails.
+    """
+    # Basic type/emptiness checks
+    if not isinstance(value, str) or not value.strip():
+        raise click.BadParameter("repository name required", param=param, ctx=ctx)
+
+    # Enforce repository name length (max 100 characters)
+    if len(value) > MAX_GITHUB_REPO_LENGTH:
+        raise click.BadParameter(
+            f"repository name too long (max {MAX_GITHUB_REPO_LENGTH})", param=param, ctx=ctx
+        )
+
+    # Disallow slashes and whitespace
+    if "/" in value or "\\" in value or any(ch.isspace() for ch in value):
+        raise click.BadParameter(
+            "repository name must be a single segment (no slashes or spaces)",
+            param=param,
+            ctx=ctx,
         )
 
     # Allowed characters: letters, digits, dot, underscore, hyphen
     if not re.fullmatch(r"[A-Za-z0-9._-]+", value):
         raise click.BadParameter(
-            "identifier contains invalid characters; "
+            "repository name contains invalid characters; "
             "allowed: letters, digits, dot, underscore, hyphen",
             param=param,
             ctx=ctx,
@@ -103,13 +153,13 @@ def validate_github_identifier(ctx: click.Context, param: click.Parameter, value
 @click.option(
     "--owner",
     required=True,
-    callback=validate_github_identifier,
+    callback=validate_github_username,
     help="Repository owner",
 )
 @click.option(
     "--repo",
     required=True,
-    callback=validate_github_identifier,
+    callback=validate_github_repo,
     help="Repository name",
 )
 @click.option("--config", default="balanced", help="Configuration preset")
@@ -177,13 +227,13 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
 @click.option(
     "--owner",
     required=True,
-    callback=validate_github_identifier,
+    callback=validate_github_username,
     help="Repository owner",
 )
 @click.option(
     "--repo",
     required=True,
-    callback=validate_github_identifier,
+    callback=validate_github_repo,
     help="Repository name",
 )
 @click.option("--strategy", default="priority", help="Resolution strategy")
@@ -246,13 +296,13 @@ def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
 @click.option(
     "--owner",
     required=True,
-    callback=validate_github_identifier,
+    callback=validate_github_username,
     help="Repository owner",
 )
 @click.option(
     "--repo",
     required=True,
-    callback=validate_github_identifier,
+    callback=validate_github_repo,
     help="Repository name",
 )
 @click.option("--config", default="balanced", help="Configuration preset")

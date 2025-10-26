@@ -13,6 +13,7 @@ from pathlib import Path
 
 from ..core.models import Change, Conflict
 from ..security.input_validator import InputValidator
+from ..utils.path_utils import resolve_file_path
 
 
 class BaseHandler(ABC):
@@ -140,7 +141,8 @@ class BaseHandler(ABC):
         ):
             raise ValueError(f"Invalid file path: {path}")
 
-        file_path = Path(path).resolve()
+        # Resolve path relative to workspace_root (not CWD)
+        file_path = resolve_file_path(path, self.workspace_root)
 
         # Verify source file exists and is a regular file
         if not file_path.exists():

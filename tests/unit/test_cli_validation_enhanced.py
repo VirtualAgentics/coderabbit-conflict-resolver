@@ -1,7 +1,7 @@
 """Enhanced unit tests for CLI validation functions.
 
 This module provides comprehensive tests for the CLI validation functions
-including validate_github_identifier and sanitize_for_output.
+including validate_github_username and sanitize_for_output.
 """
 
 from unittest.mock import Mock
@@ -11,91 +11,92 @@ from click import BadParameter, Context
 from click.testing import CliRunner
 
 from pr_conflict_resolver.cli.main import (
-    MAX_CLI_NAME_LENGTH,
     cli,
     sanitize_for_output,
-    validate_github_identifier,
+    validate_github_username,
 )
 
 
-class TestValidateGitHubIdentifier:
-    """Test GitHub identifier validation function."""
+class TestValidateGitHubUsername:
+    """Test GitHub username validation function."""
 
     def test_empty_string_raises_error(self) -> None:
-        """Test that empty string raises 'identifier required' error."""
+        """Test that empty string raises 'username required' error."""
         ctx = Context(cli)
         param = Mock()
         param.name = "test"
 
-        with pytest.raises(BadParameter, match="identifier required"):
-            validate_github_identifier(ctx, param, "")
+        with pytest.raises(BadParameter, match="username required"):
+            validate_github_username(ctx, param, "")
 
     def test_whitespace_only_raises_error(self) -> None:
-        """Test that whitespace-only string raises 'identifier required' error."""
+        """Test that whitespace-only string raises 'username required' error."""
         ctx = Context(cli)
         param = Mock()
         param.name = "test"
 
-        with pytest.raises(BadParameter, match="identifier required"):
-            validate_github_identifier(ctx, param, "   ")
+        with pytest.raises(BadParameter, match="username required"):
+            validate_github_username(ctx, param, "   ")
 
     def test_none_input_raises_error(self) -> None:
-        """Test that None input raises 'identifier required' error."""
+        """Test that None input raises 'username required' error."""
         ctx = Context(cli)
         param = Mock()
         param.name = "test"
 
         # Test with None input to verify handling of non-string sentinel values
-        with pytest.raises(BadParameter, match="identifier required"):
-            validate_github_identifier(ctx, param, None)  # type: ignore[arg-type]
+        with pytest.raises(BadParameter, match="username required"):
+            validate_github_username(ctx, param, None)  # type: ignore[arg-type]
 
     def test_too_long_raises_error(self) -> None:
-        """Test that identifier exceeding max length raises error."""
+        """Test that username exceeding max length raises error."""
+        from pr_conflict_resolver.cli.main import MAX_GITHUB_USERNAME_LENGTH
+
         ctx = Context(cli)
         param = Mock()
         param.name = "test"
-        long_identifier = "a" * (MAX_CLI_NAME_LENGTH + 1)
+        long_username = "a" * (MAX_GITHUB_USERNAME_LENGTH + 1)
 
         with pytest.raises(
-            BadParameter, match=f"identifier too long \\(max {MAX_CLI_NAME_LENGTH}\\)"
+            BadParameter, match=f"username too long \\(max {MAX_GITHUB_USERNAME_LENGTH}\\)"
         ):
-            validate_github_identifier(ctx, param, long_identifier)
+            validate_github_username(ctx, param, long_username)
 
     def test_slash_raises_error(self) -> None:
-        """Test that slash in identifier raises 'single segment' error."""
+        """Test that slash in username raises 'single segment' error."""
         ctx = Context(cli)
         param = Mock()
         param.name = "test"
 
-        with pytest.raises(BadParameter, match="identifier must be a single segment"):
-            validate_github_identifier(ctx, param, "org/repo")
+        with pytest.raises(BadParameter, match="username must be a single segment"):
+            validate_github_username(ctx, param, "org/repo")
 
     def test_backslash_raises_error(self) -> None:
-        """Test that backslash in identifier raises 'single segment' error."""
+        """Test that backslash in username raises 'single segment' error."""
         ctx = Context(cli)
         param = Mock()
         param.name = "test"
 
-        with pytest.raises(BadParameter, match="identifier must be a single segment"):
-            validate_github_identifier(ctx, param, "org\\repo")
+        with pytest.raises(BadParameter, match="username must be a single segment"):
+            validate_github_username(ctx, param, "org\\repo")
 
     def test_whitespace_raises_error(self) -> None:
-        """Test that whitespace in identifier raises 'single segment' error."""
+        """Test that whitespace in username raises 'single segment' error."""
         ctx = Context(cli)
         param = Mock()
         param.name = "test"
 
-        with pytest.raises(BadParameter, match="identifier must be a single segment"):
-            validate_github_identifier(ctx, param, "org repo")
+        with pytest.raises(BadParameter, match="username must be a single segment"):
+            validate_github_username(ctx, param, "org repo")
 
     def test_tab_raises_error(self) -> None:
-        """Test that tab in identifier raises 'single segment' error."""
+        """Test that tab in username raises 'single segment' error."""
         ctx = Context(cli)
         param = Mock()
         param.name = "test"
 
-        with pytest.raises(BadParameter, match="identifier must be a single segment"):
-            validate_github_identifier(ctx, param, "org\trepo")
+        with pytest.raises(BadParameter, match="username must be a single segment"):
+            validate_github_username(ctx, param, "org\trepo")
 
     def test_invalid_characters_raises_error(self) -> None:
         """Test that invalid characters raise 'invalid characters' error."""
@@ -103,8 +104,8 @@ class TestValidateGitHubIdentifier:
         param = Mock()
         param.name = "test"
 
-        with pytest.raises(BadParameter, match="identifier contains invalid characters"):
-            validate_github_identifier(ctx, param, "org@repo")
+        with pytest.raises(BadParameter, match="username contains invalid characters"):
+            validate_github_username(ctx, param, "org@repo")
 
     def test_special_chars_raises_error(self) -> None:
         """Test that special characters raise 'invalid characters' error."""
@@ -112,40 +113,59 @@ class TestValidateGitHubIdentifier:
         param = Mock()
         param.name = "test"
 
-        with pytest.raises(BadParameter, match="identifier contains invalid characters"):
-            validate_github_identifier(ctx, param, "org#repo")
+        with pytest.raises(BadParameter, match="username contains invalid characters"):
+            validate_github_username(ctx, param, "org#repo")
 
-    def test_valid_identifiers_pass(self) -> None:
-        """Test that valid identifiers pass validation."""
+    def test_valid_username_pass(self) -> None:
+        """Test that valid usernames pass validation."""
+
         ctx = Context(cli)
         param = Mock()
         param.name = "test"
 
-        valid_identifiers = [
+        # GitHub usernames: A-Za-z0-9 and hyphen only, no leading/trailing hyphen
+        valid_usernames = [
             "myrepo",
             "my-repo",
-            "my_repo",
-            "my.repo",
             "repo123",
-            "123repo",
             "a",
             "A",
-            "test-repo_123",
+            "test-repo-123",
         ]
 
-        for identifier in valid_identifiers:
-            result = validate_github_identifier(ctx, param, identifier)
-            assert result == identifier
+        for username in valid_usernames:
+            result = validate_github_username(ctx, param, username)
+            assert result == username
 
-    def test_max_length_boundary(self) -> None:
-        """Test that identifier at max length passes."""
+    def test_leading_hyphen_rejected(self) -> None:
+        """Test that username starting with hyphen is rejected."""
         ctx = Context(cli)
         param = Mock()
         param.name = "test"
-        max_length_identifier = "a" * MAX_CLI_NAME_LENGTH
 
-        result = validate_github_identifier(ctx, param, max_length_identifier)
-        assert result == max_length_identifier
+        with pytest.raises(BadParameter, match="username contains invalid characters"):
+            validate_github_username(ctx, param, "-invalid")
+
+    def test_trailing_hyphen_rejected(self) -> None:
+        """Test that username ending with hyphen is rejected."""
+        ctx = Context(cli)
+        param = Mock()
+        param.name = "test"
+
+        with pytest.raises(BadParameter, match="username contains invalid characters"):
+            validate_github_username(ctx, param, "invalid-")
+
+    def test_max_length_boundary(self) -> None:
+        """Test that username at max length passes."""
+        from pr_conflict_resolver.cli.main import MAX_GITHUB_USERNAME_LENGTH
+
+        ctx = Context(cli)
+        param = Mock()
+        param.name = "test"
+        max_length_username = "a" * MAX_GITHUB_USERNAME_LENGTH
+
+        result = validate_github_username(ctx, param, max_length_username)
+        assert result == max_length_username
 
 
 class TestSanitizeForOutput:
@@ -153,7 +173,7 @@ class TestSanitizeForOutput:
 
     def test_shell_metacharacters_pass_through(self) -> None:
         """Test that shell metacharacters pass through after validation."""
-        # These would be rejected by validate_github_identifier, but if they somehow
+        # These would be rejected by validate_github_username, but if they somehow
         # got through, they should pass sanitization since they're not control chars
         dangerous_inputs = [
             "; rm -rf /",
@@ -170,7 +190,7 @@ class TestSanitizeForOutput:
 
     def test_environment_variables_pass_through(self) -> None:
         """Test that environment variable patterns pass through after validation."""
-        # These would be rejected by validate_github_identifier, but if they somehow
+        # These would be rejected by validate_github_username, but if they somehow
         # got through, they should pass sanitization since they're not control chars
         dangerous_inputs = [
             "$GITHUB_TOKEN",
@@ -198,7 +218,7 @@ class TestSanitizeForOutput:
 
     def test_shell_quotes_pass_through(self) -> None:
         """Test that shell quotes pass through after validation."""
-        # These would be rejected by validate_github_identifier, but if they somehow
+        # These would be rejected by validate_github_username, but if they somehow
         # got through, they should pass sanitization since they're not control chars
         dangerous_inputs = [
             'text"with"quotes',
@@ -212,7 +232,7 @@ class TestSanitizeForOutput:
 
     def test_shell_brackets_pass_through(self) -> None:
         """Test that shell brackets pass through after validation."""
-        # These would be rejected by validate_github_identifier, but if they somehow
+        # These would be rejected by validate_github_username, but if they somehow
         # got through, they should pass sanitization since they're not control chars
         dangerous_inputs = [
             "text[with]brackets",
