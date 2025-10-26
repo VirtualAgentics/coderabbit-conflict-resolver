@@ -269,7 +269,7 @@ class TomlHandler(BaseHandler):
                     if section not in section_changes:
                         section_changes[section] = []
                     section_changes[section].append(change)
-            except Exception as e:
+            except tomllib.TOMLDecodeError as e:
                 self.logger.warning(f"Failed to process change: {e}")
                 continue
 

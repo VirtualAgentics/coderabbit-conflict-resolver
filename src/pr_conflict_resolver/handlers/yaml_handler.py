@@ -83,7 +83,10 @@ class YamlHandler(BaseHandler):
             yaml.preserve_quotes = True
             original_content = file_path.read_text(encoding="utf-8")
             original_data = yaml.load(original_content)
-        except Exception as e:
+        except (OSError, ValueError) as e:
+            self.logger.error(f"Error parsing original YAML: {e}")
+            return False
+        except Exception as e:  # ruamel.yaml raises base Exception
             self.logger.error(f"Error parsing original YAML: {e}")
             return False
 
@@ -91,7 +94,10 @@ class YamlHandler(BaseHandler):
         try:
             yaml_suggestion = YAML()
             suggestion_data = yaml_suggestion.load(content)
-        except Exception as e:
+        except ValueError as e:
+            self.logger.error(f"Error parsing YAML suggestion: {e}")
+            return False
+        except Exception as e:  # ruamel.yaml raises base Exception
             self.logger.error(f"Error parsing YAML suggestion: {e}")
             return False
 
@@ -102,7 +108,10 @@ class YamlHandler(BaseHandler):
         try:
             yaml.dump(merged_data, file_path)
             return True
-        except Exception as e:
+        except (OSError, ValueError) as e:
+            self.logger.error(f"Error writing YAML: {e}")
+            return False
+        except Exception as e:  # ruamel.yaml raises base Exception
             self.logger.error(f"Error writing YAML: {e}")
             return False
 
@@ -187,7 +196,9 @@ class YamlHandler(BaseHandler):
                 return False, "YAML contains dangerous Python object tags"
 
             return True, "Valid YAML"
-        except Exception as e:
+        except ValueError as e:
+            return False, f"Invalid YAML: {e}"
+        except Exception as e:  # ruamel.yaml raises base Exception
             return False, f"Invalid YAML: {e}"
 
     def detect_conflicts(self, path: str, changes: list[Change]) -> list[Conflict]:
@@ -221,7 +232,10 @@ class YamlHandler(BaseHandler):
                     if key not in key_changes:
                         key_changes[key] = []
                     key_changes[key].append(change)
-            except Exception as e:
+            except ValueError as e:
+                self.logger.warning(f"Failed to process change: {e}")
+                continue
+            except Exception as e:  # ruamel.yaml raises base Exception
                 self.logger.warning(f"Failed to process change: {e}")
                 continue
 

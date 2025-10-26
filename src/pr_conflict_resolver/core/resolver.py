@@ -478,7 +478,7 @@ class ConflictResolver:
             new_lines = lines[:start_idx] + replacement + lines[end_idx:]
             file_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
             return True
-        except Exception:
+        except OSError:
             return False
 
     def _fetch_comments_with_error_context(
@@ -499,7 +499,7 @@ class ConflictResolver:
         """
         try:
             return self.github_extractor.fetch_pr_comments(owner, repo, pr_number)
-        except Exception as e:
+        except (RuntimeError, ConnectionError, TimeoutError, Exception) as e:
             raise RuntimeError(
                 f"Failed to fetch PR comments "
                 f"(owner={owner}, repo={repo}, pr_number={pr_number}): {e}"

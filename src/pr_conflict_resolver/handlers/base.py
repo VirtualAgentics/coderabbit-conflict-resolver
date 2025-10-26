@@ -202,5 +202,5 @@ class BaseHandler(ABC):
             shutil.copy2(backup_path, original_path)
             Path(backup_path).unlink()  # Remove backup
             return True
-        except Exception:
+        except OSError:
             return False
