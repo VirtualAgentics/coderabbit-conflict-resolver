@@ -335,25 +335,23 @@ class TestFileScanning:
         with pytest.raises(FileNotFoundError, match="File not found"):
             SecretScanner.scan_file(non_existent_path)
 
-    def test_scan_file_os_error(self) -> None:
+    def test_scan_file_os_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test scan_file handles OSError when file cannot be read."""
-        import os
-        import stat
-
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
             f.write("test content")
             f.flush()
             file_path = Path(f.name)
 
         try:
-            # Remove read permissions to trigger OSError
-            os.chmod(file_path, 0o000)
+            # Use monkeypatch to force Path.read_text to raise OSError
+            def raise_oserror(*args: object, **kwargs: object) -> None:
+                raise OSError("Failed to read file")
+
+            monkeypatch.setattr(Path, "read_text", raise_oserror)
 
             with pytest.raises(OSError, match="Failed to read file"):
                 SecretScanner.scan_file(file_path)
         finally:
-            # Restore permissions and cleanup
-            os.chmod(file_path, stat.S_IRUSR | stat.S_IWUSR)
             file_path.unlink()
 
 
