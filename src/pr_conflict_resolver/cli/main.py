@@ -66,21 +66,27 @@ def validate_github_identifier(ctx: click.Context, param: click.Parameter, value
     """
     # Basic type/emptiness checks
     if not isinstance(value, str) or not value.strip():
-        raise click.BadParameter("identifier required")
+        raise click.BadParameter("identifier required", param=param, ctx=ctx)
 
     # Enforce maximum length
     if len(value) > MAX_CLI_NAME_LENGTH:
-        raise click.BadParameter(f"identifier too long (max {MAX_CLI_NAME_LENGTH})")
+        raise click.BadParameter(
+            f"identifier too long (max {MAX_CLI_NAME_LENGTH})", param=param, ctx=ctx
+        )
 
     # Disallow slashes and whitespace; GitHub identifiers are single segments
     if "/" in value or "\\" in value or any(ch.isspace() for ch in value):
-        raise click.BadParameter("identifier must be a single segment (no slashes or spaces)")
+        raise click.BadParameter(
+            "identifier must be a single segment (no slashes or spaces)", param=param, ctx=ctx
+        )
 
     # Allowed characters: letters, digits, dot, underscore, hyphen
     if not re.fullmatch(r"[A-Za-z0-9._-]+", value):
         raise click.BadParameter(
             "identifier contains invalid characters; "
-            "allowed: letters, digits, dot, underscore, hyphen"
+            "allowed: letters, digits, dot, underscore, hyphen",
+            param=param,
+            ctx=ctx,
         )
     return value
 
