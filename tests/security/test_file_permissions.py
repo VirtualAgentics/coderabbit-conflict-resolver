@@ -88,8 +88,6 @@ class TestFilePermissionSecurity:
     @pytest.mark.skipif(os.name == "nt", reason="chmod unreliable on Windows")
     def test_resolver_detect_conflicts_on_readonly_file(self) -> None:
         """Test that detect_conflicts works on read-only files."""
-        resolver = ConflictResolver()
-
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write('{"key": "value"}')
             f.flush()
@@ -97,6 +95,9 @@ class TestFilePermissionSecurity:
             try:
                 # Make file read-only
                 os.chmod(f.name, 0o444)
+
+                # Use temp file's parent directory as workspace_root
+                resolver = ConflictResolver(workspace_root=Path(f.name).parent)
 
                 change = Change(
                     path=f.name,

@@ -302,10 +302,16 @@ def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
     Raises:
         click.Abort: If an error occurs while analyzing or applying suggestions.
     """
+    safe_owner = sanitize_for_output(owner)
+    safe_repo = sanitize_for_output(repo)
+
     if dry_run:
-        console.print(f"[yellow]DRY RUN:[/yellow] Would apply suggestions to PR #{pr}")
+        console.print(
+            f"[yellow]DRY RUN:[/yellow] Would apply suggestions to PR #{pr} "
+            f"for {safe_owner}/{safe_repo}"
+        )
     else:
-        console.print(f"Applying suggestions to PR #{pr}")
+        console.print(f"Applying suggestions to PR #{pr} for {safe_owner}/{safe_repo}")
 
     safe_strategy = sanitize_for_output(strategy)
     console.print(f"Using strategy: {safe_strategy}")
@@ -369,8 +375,11 @@ def simulate(pr: int, owner: str, repo: str, config: str) -> None:
     Raises:
         click.Abort: If an unexpected error occurs during analysis.
     """
-    console.print(f"Simulating conflict resolution for PR #{pr}")
+    safe_owner = sanitize_for_output(owner)
+    safe_repo = sanitize_for_output(repo)
     safe_config = sanitize_for_output(config)
+
+    console.print(f"Simulating conflict resolution for PR #{pr} for {safe_owner}/{safe_repo}")
     console.print(f"Using configuration: {safe_config}")
 
     # Get configuration preset

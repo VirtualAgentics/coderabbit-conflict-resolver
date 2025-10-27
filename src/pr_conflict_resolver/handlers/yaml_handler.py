@@ -6,7 +6,7 @@ and comment preservation using ruamel.yaml.
 
 import logging
 from os import PathLike
-from typing import Any
+from typing import Any, ClassVar
 
 from ..core.models import Change, Conflict
 from ..security.input_validator import InputValidator
@@ -28,8 +28,10 @@ class YamlHandler(BaseHandler):
     """Handler for YAML files with comment preservation and structure validation."""
 
     # Dangerous YAML tags that could lead to code execution through Python object serialization
-    DANGEROUS_TAGS = (
+    DANGEROUS_TAGS: ClassVar[tuple[str, ...]] = (
         "!!python/object",
+        "!!python/object/new",
+        "!!python/object/apply",
         "!!python/name",
         "!!python/module",
         "!!python/function",
@@ -86,7 +88,21 @@ class YamlHandler(BaseHandler):
             return False
 
         # Resolve path relative to workspace_root
-        file_path = resolve_file_path(path, self.workspace_root)
+        # (skip validation since BaseHandler.__init__ already validated)
+        file_path = resolve_file_path(path, self.workspace_root, validate_workspace=False)
+
+        # Check for symlinks in the target path and all parent components before any file I/O
+        if file_path.is_symlink():
+            self.logger.error(f"Symlink detected, rejecting path for security: {file_path}")
+            return False
+
+        # Check all parent directories for symlinks
+        for parent in file_path.parents:
+            if parent.is_symlink():
+                self.logger.error(
+                    f"Symlink detected in path hierarchy, rejecting for security: {parent}"
+                )
+                return False
 
         # Parse original file
         try:

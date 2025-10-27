@@ -7,6 +7,8 @@ but extensible to other code review bots.
 
 import hashlib
 import logging
+import os
+import stat
 from os import PathLike
 from pathlib import Path
 from typing import Any
@@ -24,7 +26,15 @@ from .models import Change, Conflict, FileType, Resolution, ResolutionResult
 
 
 class WorkspaceError(ValueError):
-    """Error raised when workspace_root is invalid."""
+    """Exception raised when workspace_root is invalid or inaccessible.
+
+    Indicates that the provided workspace_root path does not exist, is not a
+    directory, or cannot be accessed. Also raised when the current working
+    directory cannot be determined.
+
+    Attributes:
+        msg: Error message describing the workspace validation failure.
+    """
 
 
 class ConflictResolver:
@@ -47,14 +57,24 @@ class ConflictResolver:
         """
         self.config = config or {}
         # Convert input to Path, handling None and PathLike objects
-        workspace_path = Path(workspace_root) if workspace_root is not None else Path.cwd()
+        try:
+            workspace_path = Path(workspace_root) if workspace_root is not None else Path.cwd()
+        except OSError as e:
+            raise WorkspaceError(f"Failed to determine workspace root: {e}") from e
+
         # Resolve to absolute path
         resolved_path = workspace_path.resolve()
-        # Validate path exists and is a directory
-        if not resolved_path.exists():
-            raise WorkspaceError(f"workspace_root does not exist: {resolved_path}")
-        if not resolved_path.is_dir():
-            raise WorkspaceError(f"workspace_root must be a directory: {resolved_path}")
+
+        # Validate path exists and is a directory using single stat() call to avoid TOCTOU
+        try:
+            path_stat = os.stat(resolved_path)
+            if not stat.S_ISDIR(path_stat.st_mode):
+                raise WorkspaceError(f"workspace_root must be a directory: {resolved_path}")
+        except OSError as e:
+            raise WorkspaceError(
+                f"workspace_root does not exist or is inaccessible: {resolved_path}"
+            ) from e
+
         self.workspace_root = resolved_path
         self.logger = logging.getLogger(__name__)
         self.conflict_detector = ConflictDetector()

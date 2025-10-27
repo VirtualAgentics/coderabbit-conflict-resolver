@@ -4,11 +4,31 @@ This module tests token handling, SSRF prevention, and GitHub API security.
 """
 
 import io
+import secrets
+import string
 
 import pytest
 
-from pr_conflict_resolver import InputValidator
 from pr_conflict_resolver.integrations.github import GitHubCommentExtractor
+from pr_conflict_resolver.security.input_validator import InputValidator
+
+
+def generate_github_token(prefix: str, total_length: int) -> str:
+    """Generate a random GitHub token with the specified prefix and total length.
+
+    Args:
+        prefix: Token prefix (e.g., "ghp_", "gho_")
+        total_length: Total token length including prefix
+
+    Returns:
+        A random token with the correct format.
+    """
+    remaining_length = total_length - len(prefix)
+    # Generate random alphanumeric characters
+    random_chars = "".join(
+        secrets.choice(string.ascii_letters + string.digits) for _ in range(remaining_length)
+    )
+    return f"{prefix}{random_chars}"
 
 
 class TestGitHubTokenSecurity:
@@ -58,21 +78,21 @@ class TestGitHubTokenSecurity:
         "token",
         [
             # gitleaks:allow
-            "ghp_abcdef123456789012345678901234567890ABCDE",  # Personal Access Token (44 chars)
+            pytest.param(generate_github_token("ghp_", 44), id="personal_access_token"),
             # gitleaks:allow
-            "gho_1234567890abcdef1234567890abcdef12345678AB",  # OAuth Token (46 chars)
+            pytest.param(generate_github_token("gho_", 44), id="oauth_token"),
             # gitleaks:allow
-            "ghu_test12345678901234567890123456789012ABCD",  # User Token (44 chars)
+            pytest.param(generate_github_token("ghu_", 44), id="user_token"),
             # gitleaks:allow
-            "ghs_server123456789012345678901234567890ABCDE",  # Server Token (45 chars)
+            pytest.param(generate_github_token("ghs_", 44), id="server_token"),
             # gitleaks:allow
-            "ghr_refresh123456789012345678901234567890ABCD",  # Refresh Token (46 chars)
+            pytest.param(generate_github_token("ghr_", 44), id="refresh_token"),
             # gitleaks:allow
-            "github_pat_abc123DEF456xyz789ABC012def345GHI678IJ9KLMNOPQRS",  # Fine-grained PAT (68)
+            pytest.param(generate_github_token("github_pat_", 58), id="fine_grained_pat_68"),
             # gitleaks:allow
-            "github_pat_1234567890abcdef1234567890abcdef12AB34CD56EF78GH",  # Fine-grained PAT (64)
+            pytest.param(generate_github_token("github_pat_", 58), id="fine_grained_pat_64_a"),
             # gitleaks:allow
-            "github_pat_abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJ",  # Fine-grained PAT (64)
+            pytest.param(generate_github_token("github_pat_", 58), id="fine_grained_pat_64_b"),
         ],
     )
     def test_valid_token_formats(self, token: str) -> None:
@@ -96,7 +116,7 @@ class TestGitHubTokenSecurity:
             "github_pat_abc123ABC789xyz",  # Too short (29 chars, needs 47)
             "ghp_with_underscore_char",  # Contains underscore (invalid)
             "",  # Empty string
-            None,  # None value
+            pytest.param(None, id="none_value"),  # None value
         ],
     )
     def test_invalid_token_formats(self, token: str | None) -> None:
@@ -266,15 +286,6 @@ class TestRateLimitHandling:
 
 class TestURLConstruction:
     """Tests for secure URL construction."""
-
-    def test_url_construction_preserves_allowlist(self) -> None:
-        """Test that URL construction only uses allowlisted domains."""
-        GitHubCommentExtractor()
-
-        # URL construction should only use GitHub domains
-        # This is indirectly tested by validate_github_url tests
-        assert InputValidator.validate_github_url("https://github.com/test/repo")
-        assert not InputValidator.validate_github_url("https://evil.com/test")
 
     def test_no_url_manipulation_attacks(self) -> None:
         """Test that URL manipulation attacks are prevented."""

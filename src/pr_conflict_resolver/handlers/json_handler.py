@@ -96,6 +96,7 @@ class JsonHandler(BaseHandler):
             return False
 
         # Resolve path relative to workspace_root
+        # (skip validation since InputValidator.validate_file_path already validated)
         file_path = resolve_file_path(path, self.workspace_root)
 
         # Parse original file
@@ -103,6 +104,7 @@ class JsonHandler(BaseHandler):
             original_content = file_path.read_text(encoding="utf-8")
             original_data = self._parse_json_dict(original_content, f"JSON file {file_path}")
             if original_data is None:
+                self.logger.error(f"Failed to parse JSON file {file_path}")
                 return False
         except (OSError, UnicodeDecodeError) as e:
             self.logger.error(f"Error reading JSON file {file_path}: {type(e).__name__}: {e}")

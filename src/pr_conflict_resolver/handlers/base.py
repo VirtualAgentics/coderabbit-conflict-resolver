@@ -30,7 +30,7 @@ class BaseHandler(ABC):
                 Can be str, PathLike, or None. If None, defaults to current
                 working directory.
         """
-        self.workspace_root = Path(workspace_root or os.getcwd()).resolve()
+        self.workspace_root = Path(workspace_root or Path.cwd()).resolve()
 
     @abstractmethod
     def can_handle(self, file_path: str) -> bool:
@@ -161,6 +161,7 @@ class BaseHandler(ABC):
         # Try to create backup file atomically with limited retries
         max_attempts = 5
         attempt = 0
+        backup_path = None
 
         while attempt < max_attempts:
             # Generate backup path with unique identifier
@@ -178,6 +179,7 @@ class BaseHandler(ABC):
 
             # Attempt atomic file creation with open fd for copy operation
             backup_fd = None
+            fdopen_succeeded = False
             try:
                 # Open backup atomically with O_CREAT|O_EXCL|O_WRONLY
                 backup_fd = os.open(
@@ -188,12 +190,14 @@ class BaseHandler(ABC):
 
                 # Wrap fd with file-like object for copying
                 with os.fdopen(backup_fd, "wb") as backup_file:
+                    fdopen_succeeded = True
                     # Copy source to backup via open fd
                     with open(file_path, "rb") as source_file:
                         shutil.copyfileobj(source_file, backup_file)
 
                     # Ensure data is written to disk before closing
-                    os.fsync(backup_fd)
+                    backup_file.flush()
+                    os.fsync(backup_file.fileno())
 
                 # Successfully created backup with secure permissions
                 return str(backup_path)
@@ -204,11 +208,11 @@ class BaseHandler(ABC):
                 continue
             except OSError as e:
                 # Close fd if open and clean up partial backup
-                if backup_fd is not None:
+                if backup_fd is not None and not fdopen_succeeded:
                     with contextlib.suppress(OSError):
                         os.close(backup_fd)
 
-                if backup_path and backup_path.exists():
+                if backup_path is not None and backup_path.exists():
                     with contextlib.suppress(OSError):
                         backup_path.unlink()
 

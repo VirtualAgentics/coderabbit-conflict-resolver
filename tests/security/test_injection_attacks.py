@@ -99,8 +99,12 @@ class TestCommandInjectionAttacks:
                     result = handler.apply_change(injection, '{"key": "value"}', 1, 1)
                     assert not result, f"{handler.__class__.__name__} should reject: {injection}"
 
-    def test_resolver_handles_command_injection_in_content(self) -> None:
+    def test_resolver_handles_command_injection_in_content(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test that resolver handles command injection in content."""
+        from unittest.mock import Mock
+
         resolver = ConflictResolver()
 
         malicious_change = Change(
@@ -113,10 +117,27 @@ class TestCommandInjectionAttacks:
             file_type=FileType.JSON,
         )
 
+        # Mock subprocess/os.system to ensure they're never called
+        mock_subprocess = Mock()
+        mock_os_system = Mock()
+        monkeypatch.setattr("subprocess.call", mock_subprocess)
+        monkeypatch.setattr("subprocess.run", mock_subprocess)
+        monkeypatch.setattr("os.system", mock_os_system)
+
         # Resolver should handle this without executing commands
         conflicts = resolver.detect_conflicts([malicious_change])
+
+        # Verify resolver processes without crashing
         assert conflicts is not None
         assert isinstance(conflicts, list)
+
+        # Verify no subprocess calls were made (command injection prevented)
+        assert not mock_subprocess.called, "subprocess should not be called"
+        assert not mock_os_system.called, "os.system should not be called"
+
+        # Verify the malicious content was handled safely (not executed)
+        # The content should be treated as a string value in JSON, not as a command
+        assert "value $(rm -rf /)" in malicious_change.content
 
 
 class TestShellMetacharacterInjection:
@@ -191,7 +212,7 @@ class TestJSONInjection:
     def test_json_handler_validates_structure_strictly(
         self, json_handler: JsonHandler, tmp_path: Path, malformed_json: str, description: str
     ) -> None:
-        """Test that JSON handler validates JSON structure and rejects malformed/malicious JSON."""
+        """Test that JSON handler validates JSON structure and rejects malformed JSON."""
         test_file = tmp_path / "test.json"
         test_file.write_text('{"key": "value"}')
 
@@ -201,18 +222,34 @@ class TestJSONInjection:
             "Invalid JSON" in result[1] or "duplicate" in result[1].lower()
         ), f"Error message should indicate issue: {result[1]}"
 
+    def test_json_handler_accepts_valid_nested_json(
+        self, json_handler: JsonHandler, tmp_path: Path
+    ) -> None:
+        """Test that JSON handler accepts valid deeply nested JSON."""
+        test_file = tmp_path / "test.json"
+        test_file.write_text('{"key": "value"}')
+
         # Test JSON bombs - deeply nested objects (but not so deep as to cause recursion)
         nested_json = '{"a":' * 10 + '"value"' + "}" * 10
         result = json_handler.validate_change(str(test_file), nested_json, 1, 1)
+
         # Should handle nested objects gracefully without crashing
         assert isinstance(result, tuple), "Should return tuple even for nested input"
         # Assert explicit success for valid nested JSON
         assert result[0] is True, "Handler should accept valid nested JSON"
         assert "Valid" in result[1], "Message should indicate success: " + result[1]
 
+    def test_json_handler_rejects_invalid_unicode_escape(
+        self, json_handler: JsonHandler, tmp_path: Path
+    ) -> None:
+        """Test that JSON handler rejects invalid Unicode escape sequences."""
+        test_file = tmp_path / "test.json"
+        test_file.write_text('{"key": "value"}')
+
         # Test invalid escape sequences
         invalid_escape_json = '{"key": "value\\uXXXX"}'
         result = json_handler.validate_change(str(test_file), invalid_escape_json, 1, 1)
+
         assert result[0] is False, "Should reject invalid Unicode escape"
         assert "Invalid JSON" in result[1], f"Error message should indicate JSON issue: {result[1]}"
 

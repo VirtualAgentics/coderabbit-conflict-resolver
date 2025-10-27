@@ -22,32 +22,23 @@ def mock_github_api() -> Generator[None, None, None]:
 class TestCLIPathValidation:
     """Test CLI path validation logic."""
 
-    def test_safe_relative_paths_allowed(self) -> None:
+    @pytest.mark.parametrize("path", ["myrepo", "my-repo", "my_repo"])
+    def test_safe_relative_paths_allowed(self, path: str) -> None:
         """Test that safe relative paths are accepted."""
         runner = CliRunner()
-        safe_paths = [
-            "myrepo",
-            "my-repo",
-            "my_repo",
-        ]
 
-        for path in safe_paths:
-            # Should fail for other reasons but not path validation
-            result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
-            # Primary assertion: exit code check (or expected output when successful)
-            output_lower = result.output.lower()
-            if result.exit_code == 0:
-                assert "analyzing" in output_lower or "fetching" in output_lower
-            # Safe paths should not trigger validation error messages
-            validation_messages = [
-                "invalid value for '--repo'",
-                "identifier must be a single segment",
-                "repository name must be a single segment",
-            ]
-            for msg in validation_messages:
-                assert (
-                    msg not in output_lower
-                ), f"Safe path should not trigger validation error: {path}"
+        # Should fail for other reasons but not path validation
+        result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
+        output_lower = result.output.lower()
+        # Safe paths should not trigger validation error messages
+        validation_messages = [
+            "invalid value for '--repo'",
+            "identifier must be a single segment",
+            "repository name must be a single segment",
+        ]
+        assert not any(
+            msg in output_lower for msg in validation_messages
+        ), f"Safe path should not trigger validation error: {path}"
 
     def test_slash_in_repo_name_rejected(self) -> None:
         """Test that repo names with slashes are rejected by new validation."""

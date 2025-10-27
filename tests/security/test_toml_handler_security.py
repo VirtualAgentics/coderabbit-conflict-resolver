@@ -22,8 +22,6 @@ def enable_toml_for_tests() -> Generator[None, None, None]:
 
     This ensures all tests exercise the same TOML-enabled code path consistently.
     """
-
-    # Use module-level monkeypatch since function-scoped monkeypatch isn't available
     import pr_conflict_resolver.handlers.toml_handler as toml_handler_module
 
     original_value = getattr(toml_handler_module, "TOML_READ_AVAILABLE", True)
@@ -360,17 +358,16 @@ class TestTomlHandlerContentSecurity:
             assert valid is True, f"Handler should accept valid TOML with {description}"
             assert "Valid TOML" in msg, f"Expected success message for {description}, got: {msg}"
 
-    def test_apply_change_handles_large_content(self) -> None:
+    def test_apply_change_handles_large_content(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that apply_change handles large content safely."""
-        import os
-
         handler = TomlHandler()
 
-        # Create large but valid TOML content
-        large_content = "key = '" + "x" * 10000 + "'"
+        # Create large but valid TOML content (~1MB)
+        large_content = "key = '" + "x" * 1_000_000 + "'"
 
         # Set environment variable to allow temp files outside workspace
-        os.environ["ALLOW_TEMP_OUTSIDE_WORKSPACE"] = "true"
+        # Using monkeypatch ensures automatic cleanup and prevents test interference
+        monkeypatch.setenv("ALLOW_TEMP_OUTSIDE_WORKSPACE", "true")
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
             # Write original TOML
@@ -386,11 +383,9 @@ class TestTomlHandlerContentSecurity:
             # Verify file was updated
             with open(original_path) as f:
                 updated_content = f.read()
-            assert "x" * 10000 in updated_content, "File should contain the large content"
+            assert "x" * 1_000_000 in updated_content, "File should contain the large content"
             assert "key" in updated_content, "File should have the key from large_content"
 
         finally:
             if os.path.exists(original_path):
                 os.unlink(original_path)
-            # Clean up environment variable
-            os.environ.pop("ALLOW_TEMP_OUTSIDE_WORKSPACE", None)

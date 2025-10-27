@@ -118,6 +118,11 @@ class TestValidateGitHubUsername:
         with pytest.raises(BadParameter, match="username contains invalid characters"):
             validate_github_username(mock_ctx, mock_param, "invalid-")
 
+    def test_consecutive_hyphens_rejected(self, mock_ctx: Context, mock_param: Mock) -> None:
+        """Test that username with consecutive hyphens is rejected."""
+        with pytest.raises(BadParameter, match="username contains invalid characters"):
+            validate_github_username(mock_ctx, mock_param, "my--repo")
+
     def test_max_length_boundary(self, mock_ctx: Context, mock_param: Mock) -> None:
         """Test that username at max length passes."""
         max_length_username = "a" * MAX_GITHUB_USERNAME_LENGTH
