@@ -44,6 +44,13 @@ class TomlHandler(BaseHandler):
         Args:
             workspace_root: Root directory for validating absolute paths.
                 If None, defaults to current working directory.
+
+        Returns:
+            None
+
+        Raises:
+            TypeError: If workspace_root has an invalid type.
+            OSError: If workspace_root path cannot be accessed.
         """
         super().__init__(workspace_root)
         self.logger = logging.getLogger(__name__)
@@ -84,17 +91,31 @@ class TomlHandler(BaseHandler):
         """
         # Validate file path to prevent path traversal attacks
         # Use workspace root for absolute path containment check
-        # Exception: allow absolute paths outside workspace for actual temp files
         if not InputValidator.validate_file_path(
             path, allow_absolute=True, base_dir=str(self.workspace_root)
         ):
-            # Check if this is a temporary file outside workspace (allow for tests)
-            tempdir = Path(tempfile.gettempdir())
+            # Check if opt-in flag allows temp files outside workspace
+            allow_temp_outside = os.getenv("ALLOW_TEMP_OUTSIDE_WORKSPACE") == "true"
             path_obj = Path(path)
-            if path_obj.is_absolute() and self._is_temp_file(path_obj, tempdir):
-                self.logger.debug(f"Allowing temp file outside workspace: {path}")
+
+            if path_obj.is_absolute() and allow_temp_outside:
+                tempdir = Path(tempfile.gettempdir())
+                if self._is_temp_file(path_obj, tempdir):
+                    self.logger.debug(
+                        f"Allowing temp file outside workspace: {path} "
+                        f"(ALLOW_TEMP_OUTSIDE_WORKSPACE={allow_temp_outside})"
+                    )
+                else:
+                    self.logger.error(
+                        f"Invalid file path rejected (not in temp dir): {path} "
+                        f"(ALLOW_TEMP_OUTSIDE_WORKSPACE={allow_temp_outside})"
+                    )
+                    return False
             else:
-                self.logger.error(f"Invalid file path rejected: {path}")
+                self.logger.error(
+                    f"Invalid file path rejected: {path} "
+                    f"(ALLOW_TEMP_OUTSIDE_WORKSPACE={allow_temp_outside})"
+                )
                 return False
 
         if not TOML_READ_AVAILABLE:

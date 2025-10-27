@@ -362,10 +362,15 @@ class TestTomlHandlerContentSecurity:
 
     def test_apply_change_handles_large_content(self) -> None:
         """Test that apply_change handles large content safely."""
+        import os
+
         handler = TomlHandler()
 
         # Create large but valid TOML content
         large_content = "key = '" + "x" * 10000 + "'"
+
+        # Set environment variable to allow temp files outside workspace
+        os.environ["ALLOW_TEMP_OUTSIDE_WORKSPACE"] = "true"
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
             # Write original TOML
@@ -387,3 +392,5 @@ class TestTomlHandlerContentSecurity:
         finally:
             if os.path.exists(original_path):
                 os.unlink(original_path)
+            # Clean up environment variable
+            os.environ.pop("ALLOW_TEMP_OUTSIDE_WORKSPACE", None)

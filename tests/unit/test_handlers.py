@@ -677,9 +677,9 @@ def test_handler(tmp_path: Path) -> Any:
 class TestBaseHandlerBackupRestore:
     """Test BaseHandler backup and restore functionality."""
 
+    @pytest.mark.skipif(os.name == "nt", reason="POSIX file mode semantics on Windows")
     def test_backup_file_success(self, test_handler: Any, tmp_path: Path) -> None:
         """Test successful backup file creation."""
-        import os
         import stat
         from pathlib import Path
 
@@ -696,8 +696,7 @@ class TestBaseHandlerBackupRestore:
         assert backup_path.endswith(".backup")
 
         # Verify backup file has secure permissions (0o600) on POSIX systems
-        if os.name != "nt":  # Skip on Windows
-            assert stat.S_IMODE(Path(backup_path).stat().st_mode) == 0o600
+        assert stat.S_IMODE(Path(backup_path).stat().st_mode) == 0o600
 
     def test_backup_file_nonexistent(self, test_handler: Any, tmp_path: Path) -> None:
         """Test backup_file with non-existent file raises FileNotFoundError."""
@@ -742,6 +741,9 @@ class TestBaseHandlerBackupRestore:
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
 
+        # Capture original os.open before patching
+        original_os_open = os.open
+
         # Patch os.open to raise FileExistsError for all 5 attempts
         # This simulates the collision scenario where each backup file already exists
         attempt_count = [0]
@@ -753,8 +755,8 @@ class TestBaseHandlerBackupRestore:
                 attempt_count[0] += 1
                 if attempt_count[0] < 6:  # Allow 5 failed attempts
                     raise FileExistsError("File exists")
-                # On 6th attempt, don't raise to allow success for cleanup
-            return os.open(path, flags, mode)
+                # On 6th attempt, call original for cleanup
+            return original_os_open(path, flags, mode)
 
         with (
             patch("os.open", side_effect=mock_open),
