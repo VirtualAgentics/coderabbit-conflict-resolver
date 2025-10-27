@@ -161,11 +161,13 @@ class JsonHandler(BaseHandler):
             self.logger.error(
                 f"Error writing JSON file {path}: {e} (temp: {temp_path_str}, target: {file_path})"
             )
-            # Clean up temp file if it exists
-            if temp_path and temp_path.exists():
+            return False
+
+        finally:
+            # Always clean up temp file if it exists
+            if temp_path is not None and temp_path.exists():
                 with contextlib.suppress(OSError):
                     temp_path.unlink()  # Ignore cleanup errors
-            return False
 
     def validate_change(
         self, path: str, content: str, start_line: int, end_line: int

@@ -221,7 +221,7 @@ class BaseHandler(ABC):
 
         # This should never be reached, but included for completeness
         raise OSError(
-            f"Failed to create unique backup filename after {max_attempts} attempts "
+            f"Unable to create unique backup filename after {max_attempts} attempts "
             f"for: {file_path}"
         )
 

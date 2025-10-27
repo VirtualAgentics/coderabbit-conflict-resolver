@@ -753,7 +753,7 @@ class TestBaseHandlerBackupRestore:
             # Check if O_EXCL flag is set (attempting to create exclusively)
             if flags & os.O_EXCL:
                 attempt_count[0] += 1
-                if attempt_count[0] < 6:  # Allow 5 failed attempts
+                if attempt_count[0] <= 5:  # Fail the first 5 attempts
                     raise FileExistsError("File exists")
                 # On 6th attempt, call original for cleanup
             return original_os_open(path, flags, mode)
@@ -761,7 +761,7 @@ class TestBaseHandlerBackupRestore:
         with (
             patch("os.open", side_effect=mock_open),
             pytest.raises(
-                OSError, match=r"Failed to create unique backup filename after 5 attempts"
+                OSError, match=r"Unable to create unique backup filename after 5 attempts"
             ),
         ):
             test_handler.backup_file(str(test_file))

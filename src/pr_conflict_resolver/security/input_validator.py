@@ -61,6 +61,10 @@ class InputValidator:
     GITHUB_PAT_MIN_LENGTH = 47  # Fine-grained Personal Access Token minimum length
     GITHUB_CLASSIC_MIN_LENGTH = 40  # Classic token minimum length
 
+    # GitHub token prefix lengths
+    GITHUB_PAT_PREFIX_LENGTH = 11  # "github_pat_" prefix length
+    GITHUB_CLASSIC_PREFIX_LENGTH = 4  # "ghp_", "gho_", etc. prefix length
+
     @staticmethod
     def validate_file_path(
         path: str, base_dir: str | None = None, allow_absolute: bool = False
@@ -545,20 +549,30 @@ class InputValidator:
         # Fine-grained PAT: prefix (11 chars) + ~47 base62 = ~58 total
         # Classic tokens (ghp_/gho_/ghu_/ghs_/ghr_): prefix (4 chars) + ~40 base62 = ~44 total
         if token.startswith("github_pat_"):
-            # Fine-grained PAT: prefix (11 chars) + ~47 base62 = ~58 total
-            if len(token) < 58:
+            # Compute expected length dynamically
+            expected_length = (
+                InputValidator.GITHUB_PAT_PREFIX_LENGTH
+                + InputValidator.GITHUB_PAT_MIN_LENGTH
+            )
+            if len(token) < expected_length:
                 logger.warning(
                     "GitHub token validation failed: github_pat_ token too short "
-                    "(expected ~58 chars, got %d)",
+                    "(expected %d chars, got %d)",
+                    expected_length,
                     len(token),
                 )
                 return False
         else:
-            # Classic tokens: prefix (4 chars) + ~40 base62 = ~44 total
-            if len(token) < 44:
+            # Compute expected length dynamically for classic tokens
+            expected_length = (
+                InputValidator.GITHUB_CLASSIC_PREFIX_LENGTH
+                + InputValidator.GITHUB_CLASSIC_MIN_LENGTH
+            )
+            if len(token) < expected_length:
                 logger.warning(
                     "GitHub token validation failed: classic token too short "
-                    "(expected ~44 chars, got %d)",
+                    "(expected %d chars, got %d)",
+                    expected_length,
                     len(token),
                 )
                 return False
