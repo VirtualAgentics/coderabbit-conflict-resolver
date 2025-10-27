@@ -1,8 +1,22 @@
 """Unit tests for CLI input validation."""
 
+from collections.abc import Generator
+from unittest.mock import patch
+
+import pytest
 from click.testing import CliRunner
 
 from pr_conflict_resolver.cli.main import cli
+
+
+@pytest.fixture(autouse=True)
+def mock_github_api() -> Generator[None, None, None]:
+    """Mock GitHub API calls to prevent network access in tests."""
+    with patch(
+        "pr_conflict_resolver.integrations.github.GitHubCommentExtractor.fetch_pr_comments",
+        return_value=[],
+    ):
+        yield
 
 
 class TestCLIPathValidation:
