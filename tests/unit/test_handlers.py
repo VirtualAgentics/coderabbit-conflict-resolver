@@ -3,7 +3,6 @@
 import os
 import stat
 import tempfile
-from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -11,27 +10,6 @@ from unittest.mock import patch
 import pytest
 
 from pr_conflict_resolver import JsonHandler, TomlHandler, YamlHandler
-
-
-@pytest.fixture(scope="function")
-def enable_toml_support() -> Generator[None, None, None]:
-    """Enable TOML support for tests that opt in to use this fixture.
-
-    Tests that need TOML support should include this fixture as a parameter.
-    Tests that assert TOML unavailability should not use this fixture.
-    """
-    import pr_conflict_resolver.handlers.toml_handler as toml_handler
-
-    # Store original value
-    original_value = toml_handler.TOML_READ_AVAILABLE
-
-    # Set to True for tests
-    toml_handler.TOML_READ_AVAILABLE = True
-
-    yield
-
-    # Restore original value
-    toml_handler.TOML_READ_AVAILABLE = original_value
 
 
 class TestJsonHandler:
@@ -511,6 +489,7 @@ class TestTomlHandler:
             finally:
                 Path(f.name).unlink()
 
+    @pytest.mark.skipif(os.name == "nt", reason="POSIX file mode semantics on Windows")
     def test_apply_change_success_with_permissions(self) -> None:
         """Test apply_change successfully preserves file permissions."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
