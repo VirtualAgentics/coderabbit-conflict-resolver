@@ -58,21 +58,21 @@ class TestGitHubTokenSecurity:
         "token",
         [
             # gitleaks:allow
-            "ghp_abcdef123456789012345678901234567890",  # Personal Access Token (40 chars)
+            "ghp_abcdef123456789012345678901234567890ABCDE",  # Personal Access Token (44 chars)
             # gitleaks:allow
-            "gho_1234567890abcdef1234567890abcdef12345678",  # OAuth Token (42 chars)
+            "gho_1234567890abcdef1234567890abcdef12345678AB",  # OAuth Token (46 chars)
             # gitleaks:allow
-            "ghu_test12345678901234567890123456789012",  # User Token (40 chars)
+            "ghu_test12345678901234567890123456789012ABCD",  # User Token (44 chars)
             # gitleaks:allow
-            "ghs_server123456789012345678901234567890",  # Server Token (41 chars)
+            "ghs_server123456789012345678901234567890ABCDE",  # Server Token (45 chars)
             # gitleaks:allow
-            "ghr_refresh123456789012345678901234567890",  # Refresh Token (43 chars)
+            "ghr_refresh123456789012345678901234567890ABCD",  # Refresh Token (46 chars)
             # gitleaks:allow
-            "github_pat_abc123DEF456xyz789ABC012def345GHI678",  # Fine-grained PAT
+            "github_pat_abc123DEF456xyz789ABC012def345GHI678IJ9KLMNOPQRS",  # Fine-grained PAT (68)
             # gitleaks:allow
-            "github_pat_1234567890abcdef1234567890abcdef12AB",  # Fine-grained PAT
+            "github_pat_1234567890abcdef1234567890abcdef12AB34CD56EF78GH",  # Fine-grained PAT (64)
             # gitleaks:allow
-            "github_pat_abcdefghijklmnopqrstuvwxyz0123456789012",  # Fine-grained PAT
+            "github_pat_abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJ",  # Fine-grained PAT (64)
         ],
     )
     def test_valid_token_formats(self, token: str) -> None:

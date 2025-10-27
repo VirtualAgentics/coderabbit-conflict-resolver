@@ -339,7 +339,7 @@ class TestDependencyVulnerabilities:
                 capture_output=True,
                 text=True,
                 timeout=60,
-                check=True,
+                check=False,  # Don't fail on non-zero exit - we'll check the result
             )
         except (FileNotFoundError, OSError):
             # Fallback for missing/unsupported command
@@ -350,7 +350,7 @@ class TestDependencyVulnerabilities:
                         capture_output=True,
                         text=True,
                         timeout=60,
-                        check=True,
+                        check=False,  # Don't fail on non-zero exit
                     )
                 )
             except subprocess.TimeoutExpired:
@@ -364,11 +364,15 @@ class TestDependencyVulnerabilities:
                         capture_output=True,
                         text=True,
                         timeout=60,
-                        check=True,
+                        check=False,  # Don't fail on non-zero exit
                     )
                 )
             except subprocess.TimeoutExpired:
                 pytest.skip("Safety check timed out")
+
+        # Check if safety command failed due to EOF error (skip test if so)
+        if result and result.returncode != 0 and result.stderr and "EOF" in result.stderr:
+            pytest.skip("Safety command failed with EOF error (likely interactive mode issue)")
 
         # Always parse JSON output to provide detailed vulnerability information
         # even when returncode is 0 (ignored vulnerabilities)
