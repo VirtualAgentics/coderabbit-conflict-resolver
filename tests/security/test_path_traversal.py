@@ -115,15 +115,15 @@ class TestHandlerPathTraversal:
     def test_handlers_reject_symlink_attacks(self) -> None:
         """Test that handlers handle symlink attacks."""
         handlers = [
-            JsonHandler(),
-            YamlHandler(),
-            TomlHandler(),
+            (JsonHandler(), "link.json", '{"key": "value"}'),
+            (YamlHandler(), "link.yaml", "key: value"),
+            (TomlHandler(), "link.toml", 'key = "value"'),
         ]
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a symlink pointing outside the temp directory
             symlink_target = Path("/etc/passwd")
-            symlink_path = Path(tmpdir) / "link.json"
+            symlink_path = Path(tmpdir) / symlink_target.name
 
             try:
                 symlink_path.symlink_to(symlink_target)
@@ -132,15 +132,60 @@ class TestHandlerPathTraversal:
                 pytest.skip("Cannot create symlink (permissions issue)")
 
             try:
-                for handler in handlers:
+                for handler, filename, content in handlers:
+                    # Create appropriate symlink for each handler
+                    handler_symlink = Path(tmpdir) / filename
+                    handler_symlink.unlink(missing_ok=True)  # Clean up previous
+                    handler_symlink.symlink_to(symlink_target)
+
                     # The handler should validate the path properly
                     assert not handler.apply_change(
-                        str(symlink_path), '{"key": "value"}', 1, 1
+                        str(handler_symlink), content, 1, 1
                     ), f"{handler.__class__.__name__} should handle symlinks safely"
+
+                    # Clean up symlink
+                    if handler_symlink.exists():
+                        handler_symlink.unlink()
             finally:
                 # Cleanup symlink if it exists
                 if symlink_path.exists():
                     symlink_path.unlink()
+
+    def test_handlers_reject_symlink_in_parent_directories(self) -> None:
+        """Test that handlers reject files when any parent directory is a symlink."""
+        handler = TomlHandler()
+        content = 'key = "value"'
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_path = Path(tmpdir)
+
+            # Create a normal subdirectory structure
+            subdir = base_path / "subdir" / "nested"
+            subdir.mkdir(parents=True, exist_ok=True)
+
+            # Create a file within the nested directory
+            nested_file = subdir / "config.toml"
+            nested_file.write_text('name = "test"')
+
+            # Create a symlink pointing to /etc
+            symlink_target = Path("/etc")
+            symlink_parent = base_path / "evil_symlink"
+            symlink_target_file = symlink_parent / "nested" / "config.toml"
+
+            try:
+                symlink_parent.symlink_to(symlink_target)
+            except OSError:
+                pytest.skip("Cannot create symlink (permissions issue)")
+
+            try:
+                # Try to access a file where one parent is a symlink
+                assert not handler.apply_change(
+                    str(symlink_target_file), content, 1, 2
+                ), "Handler should reject path when parent directory is a symlink"
+            finally:
+                # Cleanup
+                if symlink_parent.exists():
+                    symlink_parent.unlink()
 
 
 class TestResolverPathTraversal:

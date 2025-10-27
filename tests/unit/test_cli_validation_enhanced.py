@@ -4,6 +4,8 @@ This module provides comprehensive tests for the CLI validation functions
 including validate_github_username and sanitize_for_output.
 """
 
+import hashlib
+import logging
 from unittest.mock import Mock
 
 import pytest
@@ -225,6 +227,34 @@ class TestSanitizeForOutput:
         """Test that whitespace-only string passes through."""
         result = sanitize_for_output("   ")
         assert result == "   "
+
+    def test_logs_safe_metadata_for_control_characters(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test that logging uses length and hash instead of raw value."""
+        test_value = "sensitive\ndata\x00here"
+
+        # Capture logs at DEBUG level
+        with caplog.at_level(logging.DEBUG, logger="pr_conflict_resolver.cli.main"):
+            result = sanitize_for_output(test_value)
+
+        # Function should return redacted value
+        assert result == "[REDACTED]"
+
+        # Verify length and hash are computed correctly
+        value_bytes = test_value.encode("utf-8")
+        expected_hash = hashlib.sha256(value_bytes).hexdigest()
+        expected_length = len(test_value)
+
+        # Get captured log messages
+        log_messages = caplog.text
+
+        # Check that logs contain length and hash but not the raw value
+        assert f"length={expected_length}" in log_messages
+        assert f"hash={expected_hash}" in log_messages
+        # Ensure the sensitive data itself is NOT in any log message
+        assert "sensitive" not in log_messages
+        assert "data" not in log_messages
 
 
 class TestCLIIntegration:

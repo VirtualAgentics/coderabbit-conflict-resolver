@@ -105,6 +105,19 @@ class TomlHandler(BaseHandler):
         # Allow absolute paths for test files outside workspace
         file_path = resolve_file_path(path, self.workspace_root, allow_absolute=True)
 
+        # Check for symlinks in the target path and all parent components before any file I/O
+        if file_path.is_symlink():
+            self.logger.error(f"Symlink detected, rejecting path for security: {file_path}")
+            return False
+
+        # Check all parent directories for symlinks
+        for parent in file_path.parents:
+            if parent.is_symlink():
+                self.logger.error(
+                    f"Symlink detected in path hierarchy, rejecting for security: {parent}"
+                )
+                return False
+
         # Read original file as lines to preserve formatting
         try:
             original_content = file_path.read_text(encoding="utf-8")

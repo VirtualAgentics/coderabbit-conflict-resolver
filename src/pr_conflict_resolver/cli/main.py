@@ -1,5 +1,6 @@
 """Command-line interface for pr-conflict-resolver."""
 
+import hashlib
 import logging
 import re
 
@@ -37,8 +38,8 @@ def sanitize_for_output(value: str) -> str:
     """Redact control characters before printing.
 
     Detects control characters (null bytes, line breaks, etc.) and returns
-    a redacted placeholder if any are present. Logs original value at debug
-    level for troubleshooting.
+    a redacted placeholder if any are present. Logs safe metadata (length and
+    hash) at debug level for troubleshooting without exposing the original value.
 
     Args:
         value (str): The string to sanitize for terminal output.
@@ -47,7 +48,14 @@ def sanitize_for_output(value: str) -> str:
         str: "[REDACTED]" if control characters are found; otherwise the original string.
     """
     if _INJECTION_PATTERN.search(value):
-        logger.debug("Redacting value containing control characters: %r", value)
+        # Compute SHA-256 hash to avoid logging sensitive content
+        value_bytes = value.encode("utf-8")
+        value_hash = hashlib.sha256(value_bytes).hexdigest()
+        logger.debug(
+            "Redacting value containing control characters: length=%d, hash=%s",
+            len(value),
+            value_hash,
+        )
         return "[REDACTED]"
     return value
 
