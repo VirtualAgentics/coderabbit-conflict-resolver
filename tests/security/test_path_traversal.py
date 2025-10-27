@@ -49,37 +49,37 @@ class TestHandlerPathTraversal:
 
     def test_json_handler_rejects_windows_path_traversal(self) -> None:
         """Test that JSON handler rejects Windows-style path traversal."""
-        handler = JsonHandler()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_path = Path(tmpdir)
+            handler = JsonHandler(workspace_root=str(base_path))
 
-        # Test Windows path traversal
-        assert not handler.apply_change(
-            "..\\..\\..\\windows\\system32", '{"key": "value"}', 1, 1
-        ), "Windows path traversal should be rejected"
+            # Test Windows path traversal
+            assert not handler.apply_change(
+                "..\\..\\..\\windows\\system32", '{"key": "value"}', 1, 1
+            ), "Windows path traversal should be rejected"
 
     def test_json_handler_rejects_url_encoded_traversal(self) -> None:
         """Test that JSON handler rejects URL-encoded path traversal."""
-        handler = JsonHandler()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_path = Path(tmpdir)
+            handler = JsonHandler(workspace_root=str(base_path))
 
-        # Test URL-encoded traversal
-        assert not handler.apply_change(
-            "..%2F..%2Fetc%2Fpasswd", '{"key": "value"}', 1, 1
-        ), "URL-encoded traversal should be rejected"
+            # Test URL-encoded traversal
+            assert not handler.apply_change(
+                "..%2F..%2Fetc%2Fpasswd", '{"key": "value"}', 1, 1
+            ), "URL-encoded traversal should be rejected"
 
-    def test_yaml_handler_rejects_path_traversal(self) -> None:
+    def test_yaml_handler_rejects_path_traversal(self, yaml_handler: YamlHandler) -> None:
         """Test that YAML handler rejects path traversal attempts."""
-        handler = YamlHandler()
-
         # Test path traversal
-        assert not handler.apply_change(
+        assert not yaml_handler.apply_change(
             "../../../etc/passwd", "key: value", 1, 1
         ), "Path traversal should be rejected"
 
-    def test_toml_handler_rejects_path_traversal(self) -> None:
+    def test_toml_handler_rejects_path_traversal(self, toml_handler: TomlHandler) -> None:
         """Test that TOML handler rejects path traversal attempts."""
-        handler = TomlHandler()
-
         # Test path traversal
-        assert not handler.apply_change(
+        assert not toml_handler.apply_change(
             "../../../etc/passwd", 'key = "value"', 1, 1
         ), "Path traversal should be rejected"
 
@@ -87,11 +87,11 @@ class TestHandlerPathTraversal:
         self, setup_test_files: tuple[Path, Path, Path]
     ) -> None:
         """Test that handlers reject absolute paths."""
-        _, _, outside_file = setup_test_files
+        base_path, _, outside_file = setup_test_files
         handlers = [
-            JsonHandler(),
-            YamlHandler(),
-            TomlHandler(),
+            JsonHandler(workspace_root=str(base_path)),
+            YamlHandler(workspace_root=str(base_path)),
+            TomlHandler(workspace_root=str(base_path)),
         ]
 
         for handler in handlers:
@@ -131,11 +131,16 @@ class TestHandlerPathTraversal:
                 # Symlink creation may fail due to permissions
                 pytest.skip("Cannot create symlink (permissions issue)")
 
-            for handler in handlers:
-                # The handler should validate the path properly
-                assert not handler.apply_change(
-                    str(symlink_path), '{"key": "value"}', 1, 1
-                ), f"{handler.__class__.__name__} should handle symlinks safely"
+            try:
+                for handler in handlers:
+                    # The handler should validate the path properly
+                    assert not handler.apply_change(
+                        str(symlink_path), '{"key": "value"}', 1, 1
+                    ), f"{handler.__class__.__name__} should handle symlinks safely"
+            finally:
+                # Cleanup symlink if it exists
+                if symlink_path.exists():
+                    symlink_path.unlink()
 
 
 class TestResolverPathTraversal:
@@ -162,6 +167,17 @@ class TestResolverPathTraversal:
         # Should not cause errors, should handle gracefully
         assert conflicts is not None, "Resolver should handle malicious paths without crashing"
         assert isinstance(conflicts, list), "Should return a list of conflicts"
+
+        # Verify dual-defense: either resolver detects conflict OR handler rejects path
+        handler = JsonHandler()
+        handler_rejects = not handler.apply_change(
+            malicious_change.path, malicious_change.content, 1, 1
+        )
+        resolver_detects = any(c.file_path == malicious_change.path for c in conflicts)
+
+        assert (
+            handler_rejects or resolver_detects
+        ), "Either resolver should detect conflict or handler should reject malicious path"
 
     def test_resolver_rejects_multiple_path_traversal_attempts(self) -> None:
         """Test that resolver rejects multiple path traversal attempts."""

@@ -6,10 +6,11 @@ but extensible to other code review bots.
 """
 
 import hashlib
-import os
 from os import PathLike
 from pathlib import Path
 from typing import Any
+
+import requests
 
 from ..analysis.conflict_detector import ConflictDetector
 from ..handlers.json_handler import JsonHandler
@@ -40,10 +41,16 @@ class ConflictResolver:
                 directory.
         """
         self.config = config or {}
-        # Coerce workspace_root to string, handling PathLike objects
-        self.workspace_root = (
-            os.fspath(workspace_root) if workspace_root is not None else os.getcwd()
-        )
+        # Convert input to Path, handling None and PathLike objects
+        workspace_path = Path(workspace_root) if workspace_root is not None else Path.cwd()
+        # Resolve to absolute path
+        resolved_path = workspace_path.resolve()
+        # Validate path exists and is a directory
+        if not resolved_path.exists():
+            raise ValueError(f"workspace_root does not exist: {resolved_path}")
+        if not resolved_path.is_dir():
+            raise ValueError(f"workspace_root must be a directory: {resolved_path}")
+        self.workspace_root = str(resolved_path)
         self.conflict_detector = ConflictDetector()
         self.handlers = {
             FileType.JSON: JsonHandler(self.workspace_root),
@@ -496,7 +503,13 @@ class ConflictResolver:
         """
         try:
             return self.github_extractor.fetch_pr_comments(owner, repo, pr_number)
-        except (RuntimeError, ConnectionError, TimeoutError, Exception) as e:
+        except (
+            RuntimeError,
+            ConnectionError,
+            TimeoutError,
+            requests.RequestException,
+            Exception,
+        ) as e:
             raise RuntimeError(
                 f"Failed to fetch PR comments "
                 f"(owner={owner}, repo={repo}, pr_number={pr_number}): {e}"

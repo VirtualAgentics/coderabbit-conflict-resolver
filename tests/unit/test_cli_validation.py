@@ -20,10 +20,17 @@ class TestCLIPathValidation:
         for path in safe_paths:
             # Should fail for other reasons but not path validation
             result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
-            # If it mentions path validation, that's wrong
-            assert (
-                "invalid value for '--repo'" not in result.output.lower()
-            ), f"Safe path should not trigger validation error: {path}"
+            # Check that none of the validation error messages appear
+            validation_messages = [
+                "invalid value for '--repo'",
+                "identifier must be a single segment",
+                "repository name must be a single segment",
+            ]
+            output_lower = result.output.lower()
+            for msg in validation_messages:
+                assert (
+                    msg not in output_lower
+                ), f"Safe path should not trigger validation error: {path}"
 
     def test_slash_in_repo_name_rejected(self) -> None:
         """Test that repo names with slashes are rejected by new validation."""

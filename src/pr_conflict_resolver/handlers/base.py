@@ -7,6 +7,7 @@ import contextlib
 import os
 import shutil
 import time
+import uuid
 from abc import ABC, abstractmethod
 from os import PathLike
 from pathlib import Path
@@ -151,47 +152,78 @@ class BaseHandler(ABC):
         if not file_path.is_file():
             raise ValueError(f"Source path is not a regular file: {file_path}")
 
-        # Generate initial backup path
-        backup_path = file_path.with_suffix(file_path.suffix + ".backup")
+        # Use atomic file creation with race-free operations
+        # Generate deterministic unique suffixes per attempt (timestamp + pid + optional uuid)
+        timestamp = int(time.time())
+        pid = os.getpid()
+        base_suffix = f"{timestamp}.{pid}"
 
-        # Handle backup file collisions by appending timestamp or incrementing suffix
-        if backup_path.exists():
-            # Try timestamp-based naming first
-            timestamp = int(time.time())
-            backup_path = file_path.with_suffix(f"{file_path.suffix}.backup.{timestamp}")
+        # Try to create backup file atomically with limited retries
+        max_attempts = 5
+        attempt = 0
 
-            # If timestamp collision still exists, use incrementing suffix
-            counter = 1
-            while backup_path.exists():
+        while attempt < max_attempts:
+            # Generate backup path with unique identifier
+            if attempt == 0:
+                # First attempt: try original backup path
+                backup_path = file_path.with_suffix(file_path.suffix + ".backup")
+            elif attempt == 1:
+                # Second attempt: use timestamp only for deterministic test results
+                backup_path = file_path.with_suffix(f"{file_path.suffix}.backup.{timestamp}")
+            else:
+                # Subsequent attempts: add UUID for uniqueness
                 backup_path = file_path.with_suffix(
-                    f"{file_path.suffix}.backup.{timestamp}.{counter}"
+                    f"{file_path.suffix}.backup.{base_suffix}.{uuid.uuid4().hex[:8]}"
                 )
-                counter += 1
 
-                # Prevent infinite loop (safety check)
-                if counter > 1000:
+            # Attempt atomic file creation with open fd for copy operation
+            backup_fd = None
+            try:
+                # Open backup atomically with O_CREAT|O_EXCL|O_WRONLY
+                backup_fd = os.open(
+                    backup_path,
+                    os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+                    0o600,  # Secure permissions from start
+                )
+
+                # Wrap fd with file-like object for copying
+                with os.fdopen(backup_fd, "wb") as backup_file:
+                    # Copy source to backup via open fd
+                    with open(file_path, "rb") as source_file:
+                        shutil.copyfileobj(source_file, backup_file)
+
+                    # Ensure data is written to disk before closing
+                    os.fsync(backup_fd)
+
+                # Successfully created backup with secure permissions
+                return str(backup_path)
+
+            except FileExistsError:
+                # File exists, try next attempt
+                attempt += 1
+                continue
+            except OSError as e:
+                # Close fd if open and clean up partial backup
+                if backup_fd is not None:
+                    with contextlib.suppress(OSError):
+                        os.close(backup_fd)
+
+                if backup_path and backup_path.exists():
+                    with contextlib.suppress(OSError):
+                        backup_path.unlink()
+
+                attempt += 1
+                if attempt >= max_attempts:
                     raise OSError(
-                        f"Unable to create unique backup filename after 1000 attempts "
+                        f"Unable to create unique backup filename after {max_attempts} attempts "
                         f"for: {file_path}"
-                    )
+                    ) from e
 
-        try:
-            # Copy the file with metadata preservation
-            shutil.copy2(file_path, backup_path)
-
-            # Explicitly set secure permissions (0o600) on the backup file
-            os.chmod(backup_path, 0o600)
-
-            return str(backup_path)
-
-        except OSError as e:
-            # Clean up partial backup if it was created
-            if backup_path.exists():
-                with contextlib.suppress(OSError):
-                    backup_path.unlink()  # Ignore cleanup errors
-
-            # Re-raise with context
-            raise OSError(f"Failed to create backup of {file_path}: {e}") from e
+        # This should never be reached, but included for completeness
+        raise OSError(
+            f"Failed to create unique backup filename after {max_attempts} attempts "
+            f"for: {file_path}"
+        )
 
     def restore_file(self, backup_path: str, original_path: str) -> bool:
         """Restore an original file by copying it from a backup and removing the backup file.

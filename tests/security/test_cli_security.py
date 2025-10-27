@@ -12,7 +12,7 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from pr_conflict_resolver.cli.main import MAX_CLI_NAME_LENGTH, cli
+from pr_conflict_resolver.cli.main import MAX_GITHUB_USERNAME_LENGTH, cli
 
 
 class TestArgumentInjectionPrevention:
@@ -233,10 +233,11 @@ class TestCommandLineParsingSecurity:
         assert isinstance(result.exit_code, int)
 
     def test_unicode_in_arguments_handled(self) -> None:
-        """Test that Unicode characters in arguments are rejected by Click validation.
+        """Test that Unicode characters in arguments are rejected by validate_github_identifier.
 
-        The validate_github_identifier callback should reject invalid characters
-        including null bytes, control characters, and path traversal patterns.
+        The CLI uses GitHub username validation rules: only ASCII letters (A-Za-z),
+        digits (0-9), and hyphens are allowed. No leading/trailing hyphens, no consecutive
+        hyphens, no control/null characters, and no path separators (/, \\) are permitted.
         """
         runner = CliRunner()
 
@@ -322,22 +323,27 @@ class TestInputValidation:
         """Test that maximum input size is enforced."""
 
         # Mock GitHub API to avoid actual network calls
-        def mock_fetch_pr_comments(owner: str, repo: str, pr_number: int) -> list[dict[str, str]]:
+        def mock_fetch_pr_comments(
+            self: object, owner: str, repo: str, pr_number: int
+        ) -> list[dict[str, str]]:
             return []
 
         monkeypatch.setattr(
-            "pr_conflict_resolver.core.resolver.GitHubCommentExtractor.fetch_pr_comments",
+            "pr_conflict_resolver.integrations.github.GitHubCommentExtractor.fetch_pr_comments",
             mock_fetch_pr_comments,
         )
 
         runner = CliRunner()
 
-        # Boundary: exactly at limit should pass
-        max_len = MAX_CLI_NAME_LENGTH
-        at_limit = "x" * max_len
+        # Boundary: exactly at limit should pass (use valid username pattern)
+        max_len = MAX_GITHUB_USERNAME_LENGTH
+        at_limit = "a" * (max_len - 2) + "bc"  # Valid: no trailing hyphens, alphanum
         ok_result = runner.invoke(
             cli, ["analyze", "--pr", "1", "--owner", at_limit, "--repo", "test"]
         )
+        if ok_result.exit_code != 0:
+            # Log debug info for test failures
+            pass  # Test will fail on assertion below with relevant error
         assert ok_result.exit_code == 0
 
         # Above limit should be rejected with Click-style invalid message

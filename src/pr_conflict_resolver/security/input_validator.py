@@ -535,22 +535,32 @@ class InputValidator:
         )
         pattern = rf"^(?:{prefix_pattern})[A-Za-z0-9]+$"
         if not re.match(pattern, token):
-            logger.warning("GitHub token validation failed: invalid prefix or characters")
-            return False
-
-        # Length validation: enforce per-prefix minimum lengths
-        # Use constants for documented minimum lengths
-        min_length = (
-            InputValidator.GITHUB_PAT_MIN_LENGTH
-            if token.startswith("github_pat_")
-            else InputValidator.GITHUB_CLASSIC_MIN_LENGTH
-        )
-
-        if len(token) < min_length:
             logger.warning(
-                "GitHub token validation failed: token too short (minimum %d characters)",
-                min_length,
+                "GitHub token validation failed: invalid prefix or characters (expected one of %s)",
+                InputValidator.GITHUB_TOKEN_PREFIXES,
             )
             return False
+
+        # Length validation: enforce per-prefix expected lengths
+        # Fine-grained PAT: prefix (11 chars) + ~47 base62 = ~58 total
+        # Classic tokens (ghp_/gho_/ghu_/ghs_/ghr_): prefix (4 chars) + ~40 base62 = ~44 total
+        if token.startswith("github_pat_"):
+            # Fine-grained PAT: prefix (11 chars) + ~47 base62 = ~58 total
+            if len(token) < 58:
+                logger.warning(
+                    "GitHub token validation failed: github_pat_ token too short "
+                    "(expected ~58 chars, got %d)",
+                    len(token),
+                )
+                return False
+        else:
+            # Classic tokens: prefix (4 chars) + ~40 base62 = ~44 total
+            if len(token) < 44:
+                logger.warning(
+                    "GitHub token validation failed: classic token too short "
+                    "(expected ~44 chars, got %d)",
+                    len(token),
+                )
+                return False
 
         return True

@@ -27,6 +27,15 @@ except ImportError:
 class YamlHandler(BaseHandler):
     """Handler for YAML files with comment preservation and structure validation."""
 
+    # Dangerous YAML tags that could lead to code execution through Python object serialization
+    DANGEROUS_TAGS = (
+        "!!python/object",
+        "!!python/name",
+        "!!python/module",
+        "!!python/function",
+        "!!python/apply",
+    )
+
     def __init__(self, workspace_root: str | PathLike[str] | None = None) -> None:
         """Initialize the YAML handler.
 
@@ -175,16 +184,8 @@ class YamlHandler(BaseHandler):
 
         # Check for dangerous YAML tags that could lead to code execution
         # Defense-in-depth: keep substring check as first line of defense
-        dangerous_tags = [
-            "!!python/object",
-            "!!python/name",
-            "!!python/module",
-            "!!python/function",
-            "!!python/apply",
-        ]
-
         content_lower = content.lower()
-        for tag in dangerous_tags:
+        for tag in self.DANGEROUS_TAGS:
             if tag.lower() in content_lower:
                 return False, "YAML contains dangerous Python object tags"
 
@@ -234,9 +235,6 @@ class YamlHandler(BaseHandler):
                     if key not in key_changes:
                         key_changes[key] = []
                     key_changes[key].append(change)
-            except ValueError as e:
-                self.logger.warning("Failed to parse YAML change (path=%s): %s", path, e)
-                continue
             except Exception as e:  # ruamel.yaml raises base Exception
                 self.logger.warning("Failed to parse YAML change (path=%s): %s", path, e)
                 continue
@@ -328,8 +326,18 @@ class YamlHandler(BaseHandler):
         Returns:
             bool: True if dangerous characters are found, False otherwise.
         """
-        # Check for null bytes and other dangerous control characters
-        return any(ord(char) < 32 and char not in "\n\r\t " for char in content)
+        for char in content:
+            code_point = ord(char)
+            # C0 controls (except safe whitespace)
+            if code_point < 32 and char not in "\n\r\t":
+                return True
+            # C1 controls
+            if 0x80 <= code_point <= 0x9F:
+                return True
+            # Dangerous Unicode characters
+            if code_point in {0x200B, 0x200C, 0x200D, 0x202E, 0xFEFF}:
+                return True
+        return False
 
     def _contains_dangerous_tags(self, data: YAMLValue) -> bool:
         """Check if parsed YAML data contains dangerous Python-specific tags.

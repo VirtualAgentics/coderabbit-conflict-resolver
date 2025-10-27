@@ -19,17 +19,16 @@ class TestFilePermissionSecurity:
     """Tests for file permission security."""
 
     @pytest.mark.skipif(os.name == "nt", reason="POSIX file modes not available on Windows")
-    def test_handlers_create_backup_with_proper_permissions(self, tmp_path: Path) -> None:
+    def test_handlers_create_backup_with_proper_permissions(
+        self, tmp_path: Path, json_handler: JsonHandler
+    ) -> None:
         """Test that backups are created with secure permissions (0600)."""
         # Create test file in tmp_path
         test_file = tmp_path / "test.json"
         test_file.write_text('{"key": "value"}')
 
-        # Create handler with tmp_path as workspace root
-        handler = JsonHandler(workspace_root=str(tmp_path))
-
         # Create backup
-        backup_path = handler.backup_file(str(test_file))
+        backup_path = json_handler.backup_file(str(test_file))
 
         # Verify backup exists
         assert Path(backup_path).exists(), "Backup should be created"

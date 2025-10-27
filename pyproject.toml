@@ -56,8 +56,8 @@ dev = [
     "myst-parser==2.0.0",
 ]
 ml = [
-    "scikit-learn>=1.0.0,<2.0.0",
-    "numpy>=1.24.0,<2.0.0",
+    "numpy==2.3.4",
+    "scikit-learn==1.7.2",
 ]
 
 [project.urls]
@@ -131,7 +131,7 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 disallow_any_unimported = true
-disallow_any_explicit = false
+disallow_any_explicit = false  # Disabled: 35 Any usages in external API integrations require Any types
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
@@ -141,9 +141,7 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
-# Note: pydantic.mypy plugin disabled due to dependency issues
-# To enable: pip install pydantic-plugin, then uncomment below
-# plugins = ["pydantic.mypy"]
+# plugins = ["pydantic.mypy"]  # Temporarily disabled
 
 [[tool.mypy.overrides]]
 module = [
@@ -188,4 +186,16 @@ exclude_dirs = [
 ]
 skips = [
     "B101",
+]
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "tests/*",
+    "**/tests/*",
+    "**/fixtures/*",
+    "conftest.py",
+    "**/conftest.py",
+    "pyproject.toml",
+    "**/settings.py",
 ]

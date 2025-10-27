@@ -105,14 +105,8 @@ class JsonHandler(BaseHandler):
                 )
                 return False
             original_data = original_data_raw
-        except (OSError, UnicodeDecodeError) as e:
-            self.logger.error(f"Error reading JSON file {file_path}: {e}")
-            return False
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Error parsing original JSON in {file_path}: {e}")
-            return False
-        except ValueError as e:
-            self.logger.error(f"Invalid JSON in {file_path}: {e}")
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as e:
+            self.logger.error(f"Error processing JSON file {file_path}: {type(e).__name__}: {e}")
             return False
 
         # Parse suggestion
@@ -169,8 +163,9 @@ class JsonHandler(BaseHandler):
             return True
 
         except OSError as e:
+            temp_path_str = str(temp_path) if temp_path is not None else "N/A"
             self.logger.error(
-                f"Error writing JSON file {path}: {e} (temp: {temp_path}, target: {file_path})"
+                f"Error writing JSON file {path}: {e} (temp: {temp_path_str}, target: {file_path})"
             )
             # Clean up temp file if it exists
             if temp_path and temp_path.exists():

@@ -25,7 +25,6 @@ def cli() -> None:
     """
 
 
-MAX_CLI_NAME_LENGTH = 512
 MAX_GITHUB_USERNAME_LENGTH = 39
 MAX_GITHUB_REPO_LENGTH = 100
 
@@ -129,7 +128,7 @@ def validate_github_repo(ctx: click.Context, param: click.Parameter, value: str)
     # Disallow slashes and whitespace
     if "/" in value or "\\" in value or any(ch.isspace() for ch in value):
         raise click.BadParameter(
-            "repository name must be a single segment (no slashes or spaces)",
+            "identifier must be a single segment (no slashes or spaces)",
             param=param,
             ctx=ctx,
         )
@@ -154,6 +153,29 @@ def validate_github_repo(ctx: click.Context, param: click.Parameter, value: str)
     return value
 
 
+def validate_pr_number(ctx: click.Context, param: click.Parameter, value: int) -> int:
+    """Validate that PR number is positive.
+
+    Args:
+        ctx: Click context.
+        param: Parameter being validated.
+        value: The PR number to validate.
+
+    Returns:
+        int: The validated PR number.
+
+    Raises:
+        click.BadParameter: If PR number is less than 1.
+    """
+    if value < 1:
+        raise click.BadParameter(
+            "PR number must be positive (>= 1)",
+            ctx=ctx,
+            param=param,
+        )
+    return value
+
+
 # NOTE: File path validation for CLI options is not yet needed.
 # Current CLI commands use identifiers (--owner, --repo, --pr) which are validated
 # by validate_github_identifier(). If file path options are added in the future
@@ -162,7 +184,9 @@ def validate_github_repo(ctx: click.Context, param: click.Parameter, value: str)
 
 
 @cli.command()
-@click.option("--pr", required=True, type=int, help="Pull request number")
+@click.option(
+    "--pr", required=True, type=int, callback=validate_pr_number, help="Pull request number"
+)
 @click.option(
     "--owner",
     required=True,
@@ -236,7 +260,9 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
 
 
 @cli.command()
-@click.option("--pr", required=True, type=int, help="Pull request number")
+@click.option(
+    "--pr", required=True, type=int, callback=validate_pr_number, help="Pull request number"
+)
 @click.option(
     "--owner",
     required=True,
@@ -305,7 +331,9 @@ def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
 
 
 @cli.command()
-@click.option("--pr", required=True, type=int, help="Pull request number")
+@click.option(
+    "--pr", required=True, type=int, callback=validate_pr_number, help="Pull request number"
+)
 @click.option(
     "--owner",
     required=True,

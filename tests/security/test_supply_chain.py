@@ -3,15 +3,146 @@
 This module tests dependency security, package validation, and supply chain attacks.
 """
 
+import importlib.util
+import json
 import logging
 import os
 import re
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 from typing import Any
 
 import pytest
+
+from pr_conflict_resolver.utils.version_utils import validate_version_constraint
+
+
+def _extract_json_boundaries(content: str, start_char: str, end_char: str) -> str:
+    """Extract JSON content between start and end characters.
+
+    Args:
+        content: The content to extract from
+        start_char: Opening character (e.g., '{' or '[')
+        end_char: Closing character (e.g., '}' or ']')
+
+    Returns:
+        Extracted JSON substring, or an empty string if the start character is not
+        present, the end character occurs before the start, or no valid JSON
+        boundaries are found.
+    """
+    start_idx = content.find(start_char)
+    if start_idx < 0:
+        return ""
+
+    end_idx = content.rfind(end_char)
+    if end_idx < start_idx:
+        return ""
+
+    return content[start_idx : end_idx + 1]
+
+
+def _parse_safety_json(stdout: str) -> dict[str, Any] | None:
+    """Parse JSON from safety command output using multiple strategies.
+
+    Args:
+        stdout: Raw stdout from safety command.
+
+    Returns:
+        Parsed JSON dict, or None if parsing failed.
+    """
+    stdout_content = stdout.strip()
+    safety_data = None
+
+    # Try multiple JSON extraction strategies
+    strategies = [
+        stdout_content,  # Full stripped stdout
+        _extract_json_boundaries(stdout_content, "{", "}"),  # First '{' to last '}'
+        _extract_json_boundaries(stdout_content, "[", "]"),  # First '[' to last ']'
+    ]
+
+    for strategy_content in strategies:
+        if not strategy_content:
+            continue
+        try:
+            safety_data = json.loads(strategy_content)
+            break  # Success, exit the loop
+        except json.JSONDecodeError:
+            continue  # Try next strategy
+
+    return safety_data
+
+
+def _extract_vulnerabilities(data: Any) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Extract vulnerability and ignored_vulnerability lists from JSON.
+
+    Args:
+        data: Parsed safety JSON output.
+
+    Returns:
+        Tuple of (vulnerabilities, ignored_vulnerabilities).
+    """
+    vulnerabilities = []
+    ignored_vulnerabilities = []
+
+    if isinstance(data, list):
+        vulnerabilities = data
+    elif isinstance(data, dict):
+        # Check common keys for vulnerability data
+        for key in ["vulnerabilities", "vulnerability", "issues", "findings"]:
+            if key in data and isinstance(data[key], list):
+                vulnerabilities = data[key]
+                break
+
+        # Also check for ignored_vulnerabilities
+        if "ignored_vulnerabilities" in data and isinstance(data["ignored_vulnerabilities"], list):
+            ignored_vulnerabilities = data["ignored_vulnerabilities"]
+
+    return vulnerabilities, ignored_vulnerabilities
+
+
+def _format_vulnerability_details(
+    vulnerabilities: list[dict[str, Any]], is_ignored: bool = False
+) -> list[str]:
+    """Format vulnerability dictionaries into human-readable strings.
+
+    Args:
+        vulnerabilities: List of vulnerability dictionaries.
+        is_ignored: Whether these are ignored vulnerabilities (adds IGNORED prefix).
+
+    Returns:
+        List of formatted vulnerability strings.
+    """
+    vulnerability_details = []
+
+    for vuln in vulnerabilities:
+        if isinstance(vuln, dict):
+            package = vuln.get("package", vuln.get("name", vuln.get("package_name", "unknown")))
+            version = vuln.get(
+                "installed_version",
+                vuln.get("version", vuln.get("current_version", "unknown")),
+            )
+            vulnerability_id = vuln.get(
+                "vulnerability_id", vuln.get("cve", vuln.get("id", "unknown"))
+            )
+            advisory = vuln.get(
+                "advisory",
+                vuln.get("description", vuln.get("summary", "No advisory available")),
+            )
+
+            if is_ignored:
+                ignored_reason = vuln.get("ignored_reason", "Ignored")
+                vulnerability_details.append(
+                    f"  • {package}=={version} - {vulnerability_id}: "
+                    f"{advisory} (IGNORED: {ignored_reason})"
+                )
+            else:
+                vulnerability_details.append(
+                    f"  • {package}=={version} - {vulnerability_id}: {advisory}"
+                )
+
+    return vulnerability_details
 
 
 class TestDependencyPinning:
@@ -30,33 +161,12 @@ class TestDependencyPinning:
             lines = f.readlines()
 
         for line_num, line in enumerate(lines, 1):
-            line = line.strip()
-            # Skip comments and empty lines
-            if not line or line.startswith("#"):
-                continue
+            # Check if version constraint is valid using utility
+            require_exact_pin = file_path.name == "requirements.txt"
+            is_valid, error_message = validate_version_constraint(line, require_exact_pin)
 
-            # Skip -r includes
-            if line.startswith(("-r ", "--requirement")):
-                continue
-
-            # Check if version is pinned or has reasonable constraints
-            # Allow ==, ~=, or range constraints like >=x.y.z,<a.b.c
-            version_pattern = r"(==|~=|>=)(?=\d)[\d\w\.\-\+]+"
-            has_version_constraint = re.search(version_pattern, line)
-
-            # For production requirements.txt, require exact pinning (== or ~=)
-            if file_path.name == "requirements.txt":
-                exact_pin_pattern = r"(==|~=)(?=\d)[\d\w\.\-\+]+"
-                assert re.search(exact_pin_pattern, line), (
-                    f"Line {line_num}: '{line}' does not specify exact version pinning. "
-                    f"Production dependencies must use '==1.2.3' or '~=1.2.3' for security"
-                )
-            else:
-                # For dev requirements, allow range constraints but require some constraint
-                assert has_version_constraint, (
-                    f"Line {line_num}: '{line}' does not specify a version constraint. "
-                    f"Use '==1.2.3', '~=1.2.3', or '>=1.2.3,<2.0.0' for security"
-                )
+            if not is_valid:
+                raise AssertionError(f"Line {line_num}: {error_message}")
 
     @pytest.mark.parametrize("filename", ["requirements.txt", "requirements-dev.txt"])
     def test_requirements_files_versions_pinned(self, filename: str) -> None:
@@ -76,12 +186,10 @@ class TestDependencyPinning:
             pytest.skip("pyproject.toml not found")
 
         # Parse the TOML file
-        import tomllib
-
         with open(pyproject_file, "rb") as f:
             data = tomllib.load(f)
 
-        def extract_string_dependencies(deps_data: Any) -> list[str]:
+        def extract_string_dependencies(deps_data: Any) -> list[str]:  # TOML data is untyped
             """Safely extract string dependencies from various data structures."""
             result: list[str] = []
 
@@ -177,6 +285,13 @@ class TestGitHubActionsPinning:
                 # Match lines with "uses:" that don't have "@" for version pinning
                 # Handle both single-line (- uses: action) and multi-line (uses: action) formats
                 if re.search(r"^\s*-?\s*uses:\s+[\w/_-]+", line) and "@" not in line:
+                    # Extract the uses value to check if it's a local action path
+                    match = re.search(r"uses:\s+([^\s]+)", line)
+                    if match:
+                        uses_value = match.group(1).strip()
+                        # Skip local action paths (./ or ../)
+                        if uses_value.startswith(("./", "../")):
+                            continue
                     unpinned_actions.append((str(workflow_file), line_num))
 
         # Assert that no unpinned actions were found
@@ -195,8 +310,6 @@ class TestDependencyVulnerabilities:
 
     def test_no_known_vulnerable_versions(self) -> None:
         """Test that dependencies are not using known vulnerable versions."""
-        import importlib.util
-
         if importlib.util.find_spec("safety") is None:
             pytest.skip("safety package not installed")
 
@@ -213,8 +326,8 @@ class TestDependencyVulnerabilities:
         # Fallback to deprecated check command if scan fails
         result = None
         try:
-            # Primary call uses full path from shutil.which() (no S607 needed)
-            result = subprocess.run(  # noqa: S603
+            # Try primary command
+            result = subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
                 [
                     safety_cmd,
                     "scan",
@@ -225,125 +338,62 @@ class TestDependencyVulnerabilities:
                 ],
                 capture_output=True,
                 text=True,
-                timeout=60,  # Add timeout to prevent hanging
+                timeout=60,
+                check=True,
             )
+        except (FileNotFoundError, OSError):
+            # Fallback for missing/unsupported command
+            try:
+                result = (
+                    subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
+                        [safety_cmd, "check", "--file", str(requirements_file), "--json"],
+                        capture_output=True,
+                        text=True,
+                        timeout=60,
+                        check=True,
+                    )
+                )
+            except subprocess.TimeoutExpired:
+                pytest.skip("Safety check timed out")
         except subprocess.TimeoutExpired:
-            # Fallback uses partial path "safety" - needs both S603 and S607
-            result = subprocess.run(  # noqa: S603
-                ["safety", "check", "--file", str(requirements_file), "--json"],  # noqa: S607
-                capture_output=True,
-                text=True,
-            )
+            # Try fallback on timeout
+            try:
+                result = (
+                    subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
+                        [safety_cmd, "check", "--file", str(requirements_file), "--json"],
+                        capture_output=True,
+                        text=True,
+                        timeout=60,
+                        check=True,
+                    )
+                )
+            except subprocess.TimeoutExpired:
+                pytest.skip("Safety check timed out")
 
         # Always parse JSON output to provide detailed vulnerability information
         # even when returncode is 0 (ignored vulnerabilities)
         if result and result.stdout:
             try:
-                import json
-
-                # Extract JSON from output using robust strategy
-                stdout_content = result.stdout.strip()
-                safety_data = None
-
-                # Try multiple JSON extraction strategies
-                # Store start indices to avoid redundant find() calls
-                start_brace = stdout_content.find("{")
-                start_bracket = stdout_content.find("[")
-
-                strategies = [
-                    stdout_content,  # Full stripped stdout
-                    (
-                        stdout_content[start_brace : stdout_content.rfind("}") + 1]
-                        if start_brace >= 0
-                        else ""
-                    ),  # First '{' to last '}'
-                    (
-                        stdout_content[start_bracket : stdout_content.rfind("]") + 1]
-                        if start_bracket >= 0
-                        else ""
-                    ),  # First '[' to last ']'
-                ]
-
-                for strategy_content in strategies:
-                    if not strategy_content:
-                        continue
-                    try:
-                        safety_data = json.loads(strategy_content)
-                        break  # Success, exit the loop
-                    except json.JSONDecodeError:
-                        continue  # Try next strategy
+                # Parse JSON using helper function
+                safety_data = _parse_safety_json(result.stdout)
 
                 if safety_data is None:
-                    raise json.JSONDecodeError("No valid JSON found in output", stdout_content, 0)
+                    logging.warning(
+                        "Failed to parse safety JSON output, using fallback: %s",
+                        result.stdout[:200] if result.stdout else "empty",
+                    )
+                    # Let fallback logic continue
 
-                # Format vulnerability details based on different JSON structures
-                vulnerability_details = []
-                ignored_vulnerability_details = []
+                # Extract vulnerabilities using helper function
+                vulnerabilities, ignored_vulnerabilities = _extract_vulnerabilities(safety_data)
 
-                # Handle different JSON structures
-                vulnerabilities = []
-                ignored_vulnerabilities = []
-
-                if isinstance(safety_data, list):
-                    vulnerabilities = safety_data
-                elif isinstance(safety_data, dict):
-                    # Check common keys for vulnerability data
-                    for key in ["vulnerabilities", "vulnerability", "issues", "findings"]:
-                        if key in safety_data and isinstance(safety_data[key], list):
-                            vulnerabilities = safety_data[key]
-                            break
-
-                    # Also check for ignored_vulnerabilities
-                    if "ignored_vulnerabilities" in safety_data and isinstance(
-                        safety_data["ignored_vulnerabilities"], list
-                    ):
-                        ignored_vulnerabilities = safety_data["ignored_vulnerabilities"]
-
-                # Process actual vulnerabilities
-                for vuln in vulnerabilities:
-                    if isinstance(vuln, dict):
-                        package = vuln.get(
-                            "package", vuln.get("name", vuln.get("package_name", "unknown"))
-                        )
-                        version = vuln.get(
-                            "installed_version",
-                            vuln.get("version", vuln.get("current_version", "unknown")),
-                        )
-                        vulnerability_id = vuln.get(
-                            "vulnerability_id", vuln.get("cve", vuln.get("id", "unknown"))
-                        )
-                        advisory = vuln.get(
-                            "advisory",
-                            vuln.get("description", vuln.get("summary", "No advisory available")),
-                        )
-
-                        vulnerability_details.append(
-                            f"  • {package}=={version} - {vulnerability_id}: {advisory}"
-                        )
-
-                # Process ignored vulnerabilities
-                for vuln in ignored_vulnerabilities:
-                    if isinstance(vuln, dict):
-                        package = vuln.get(
-                            "package", vuln.get("name", vuln.get("package_name", "unknown"))
-                        )
-                        version = vuln.get(
-                            "installed_version",
-                            vuln.get("version", vuln.get("current_version", "unknown")),
-                        )
-                        vulnerability_id = vuln.get(
-                            "vulnerability_id", vuln.get("cve", vuln.get("id", "unknown"))
-                        )
-                        advisory = vuln.get(
-                            "advisory",
-                            vuln.get("description", vuln.get("summary", "No advisory available")),
-                        )
-                        ignored_reason = vuln.get("ignored_reason", "Ignored")
-
-                        ignored_vulnerability_details.append(
-                            f"  • {package}=={version} - {vulnerability_id}: {advisory} "
-                            f"(IGNORED: {ignored_reason})"
-                        )
+                # Format vulnerability details using helper functions
+                vulnerability_details = _format_vulnerability_details(
+                    vulnerabilities, is_ignored=False
+                )
+                ignored_vulnerability_details = _format_vulnerability_details(
+                    ignored_vulnerabilities, is_ignored=True
+                )
 
                 # Fail if there are actual vulnerabilities
                 if vulnerability_details:
@@ -421,7 +471,7 @@ class TestPackageValidity:
         dangerous_patterns = [
             r"git\+",
             r"http://",
-            r"https://(?!files\.pythonhosted\.org|pypi\.org)",
+            r"https://(?!(?:files\.pythonhosted\.org|pypi\.org)(?:[:/]|$))",
         ]
 
         dangerous_urls = []

@@ -425,7 +425,7 @@ class TestTomlHandler:
 
     @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", False)
     def test_toml_not_available(self) -> None:
-        """Test behavior when tomllib is not available."""
+        """Test behavior when TOML_READ_AVAILABLE is False."""
         handler = TomlHandler()
 
         valid, msg = handler.validate_change("test.toml", "key = 'value'", 1, 3)
@@ -478,7 +478,7 @@ class TestTomlHandler:
                 result = handler.apply_change(f.name, "key = 'value'", 1, 3)
                 assert result is False
             finally:
-                os.unlink(f.name)
+                Path(f.name).unlink()
 
     def test_apply_change_toml_parse_error(self) -> None:
         """Test apply_change handles TOML parse errors."""
@@ -493,7 +493,7 @@ class TestTomlHandler:
                 result = handler.apply_change(f.name, "key = 'value'", 1, 3)
                 assert result is False
             finally:
-                os.unlink(f.name)
+                Path(f.name).unlink()
 
     def test_apply_change_suggestion_parse_error(self) -> None:
         """Test apply_change handles suggestion parse errors."""
@@ -509,7 +509,7 @@ class TestTomlHandler:
                 result = handler.apply_change(f.name, "invalid suggestion [", 1, 3)
                 assert result is False
             finally:
-                os.unlink(f.name)
+                Path(f.name).unlink()
 
     def test_apply_change_success_with_permissions(self) -> None:
         """Test apply_change successfully preserves file permissions."""
@@ -534,7 +534,7 @@ class TestTomlHandler:
                 current_mode = stat.S_IMODE(os.stat(f.name).st_mode)
                 assert current_mode == original_mode
             finally:
-                os.unlink(f.name)
+                Path(f.name).unlink()
 
     def test_apply_change_atomic_replacement(self) -> None:
         """Test apply_change uses targeted line-based replacement."""
@@ -559,7 +559,7 @@ class TestTomlHandler:
                 assert "key = 'newvalue'" in content  # Line 2 replaced
                 assert "anotherkey = 'anothervalue'" in content  # Line 3 preserved
             finally:
-                os.unlink(f.name)
+                Path(f.name).unlink()
 
     def test_validate_change_only_parses_toml(self) -> None:
         """Test that validate_change only validates TOML content, not file paths."""
@@ -730,44 +730,31 @@ class TestBaseHandlerBackupRestore:
         assert backup_path.endswith(".backup.1234567890")
 
     def test_backup_file_collision_counter_limit(self, test_handler: Any, tmp_path: Path) -> None:
-        """Test backup file collision handling with >1000 attempts raises OSError."""
+        """Test backup file collision handling with 5 attempts raises OSError."""
         import os
-        from pathlib import Path
         from unittest.mock import patch
 
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
 
-        # Create the initial .backup file to trigger timestamp-based naming
-        backup_base = test_file.with_suffix(f"{test_file.suffix}.backup")
-        backup_base.write_text("initial backup")
+        # Patch os.open to raise FileExistsError for all 5 attempts
+        # This simulates the collision scenario where each backup file already exists
+        attempt_count = [0]
 
-        # Mock exists() behavior for backup collision testing.
-        # Returns True for backup paths (ending with ".backup" or containing ".backup.")
-        # to simulate persistent collisions, forcing the timestamp/counter branch to
-        # loop until hitting the 1000-attempt limit.
-        # Uses os.path.exists() for non-backup paths to avoid recursion into the
-        # patched Path.exists when checking the source file.
-        def exists_side_effect(path: Path) -> bool:
-            path_str = str(path)
-            if path_str.endswith(".backup") or ".backup." in path_str:
-                # Always return True for backup files to simulate infinite collisions
-                return True
-            # For source file validation, use os.path.exists() to avoid recursion
-            # into the patched Path.exists method
-            return os.path.exists(str(path))
+        def mock_open(path: str, flags: int, mode: int = 0o777) -> int:
+            """Mock os.open that raises FileExistsError for first 5 attempts."""
+            # Check if O_EXCL flag is set (attempting to create exclusively)
+            if flags & os.O_EXCL:
+                attempt_count[0] += 1
+                if attempt_count[0] < 6:  # Allow 5 failed attempts
+                    raise FileExistsError("File exists")
+                # On 6th attempt, don't raise to allow success for cleanup
+            return os.open(path, flags, mode)
 
-        # Mock Path.exists with side_effect that only affects backup files
-        # autospec=True ensures the mock maintains the same signature as Path.exists
-        # This prevents recursion when the handler calls Path methods internally
         with (
-            patch(
-                "pathlib.Path.exists",
-                side_effect=exists_side_effect,
-                autospec=True,
-            ),
+            patch("os.open", side_effect=mock_open),
             pytest.raises(
-                OSError, match="Unable to create unique backup filename after 1000 attempts"
+                OSError, match=r"Failed to create unique backup filename after 5 attempts"
             ),
         ):
             test_handler.backup_file(str(test_file))
@@ -779,10 +766,12 @@ class TestBaseHandlerBackupRestore:
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
 
-        # Mock shutil.copy2 to raise OSError
+        # Mock os.open to raise OSError immediately to test the permission error path
         with (
-            patch("shutil.copy2", side_effect=OSError("Permission denied")),
-            pytest.raises(OSError, match="Failed to create backup"),
+            patch("os.open", side_effect=OSError("Permission denied")),
+            pytest.raises(
+                OSError, match=r"Unable to create unique backup filename after 5 attempts"
+            ),
         ):
             test_handler.backup_file(str(test_file))
 

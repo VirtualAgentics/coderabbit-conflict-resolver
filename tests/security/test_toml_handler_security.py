@@ -7,6 +7,7 @@ atomic operations, permission handling, and error cleanup.
 import os
 import stat
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import patch
 
@@ -16,22 +17,29 @@ from pr_conflict_resolver.handlers.toml_handler import TomlHandler
 
 
 @pytest.fixture(scope="module", autouse=True)
-def enable_toml_for_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+def enable_toml_for_tests() -> Generator[None, None, None]:
     """Enable TOML support globally for all tests in this module.
 
     This ensures all tests exercise the same TOML-enabled code path consistently.
     """
-    monkeypatch.setattr("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", True)
+
+    # Use module-level monkeypatch since function-scoped monkeypatch isn't available
+    import pr_conflict_resolver.handlers.toml_handler as toml_handler_module
+
+    original_value = getattr(toml_handler_module, "TOML_READ_AVAILABLE", True)
+    toml_handler_module.TOML_READ_AVAILABLE = True
+
+    yield
+
+    toml_handler_module.TOML_READ_AVAILABLE = original_value
 
 
 class TestTomlHandlerPathSecurity:
     """Test TOML handler path security validation."""
 
-    def test_apply_change_rejects_path_traversal(self) -> None:
-        """Test that apply_change rejects path traversal attempts."""
-        handler = TomlHandler()
-
-        traversal_paths = [
+    @pytest.mark.parametrize(
+        "path",
+        [
             "../../../etc/passwd",
             "../../sensitive",
             "../parent",
@@ -39,17 +47,26 @@ class TestTomlHandlerPathSecurity:
             "C:\\Windows\\System32",
             "/etc/passwd",
             "/var/log/secure",
-        ]
-
-        for path in traversal_paths:
-            result = handler.apply_change(path, "key = 'value'", 1, 3)
-            assert result is False, f"Should reject traversal path: {path}"
-
-    def test_apply_change_rejects_absolute_paths(self) -> None:
-        """Test that apply_change rejects absolute paths."""
+        ],
+        ids=[
+            "traversal-etc-passwd",
+            "traversal-sensitive",
+            "traversal-parent",
+            "traversal-windows",
+            "windows-system32",
+            "absolute-etc-passwd",
+            "absolute-var-log",
+        ],
+    )
+    def test_apply_change_rejects_path_traversal(self, path: str) -> None:
+        """Test that apply_change rejects path traversal attempts."""
         handler = TomlHandler()
+        result = handler.apply_change(path, "key = 'value'", 1, 3)
+        assert result is False, f"Should reject traversal path: {path}"
 
-        absolute_paths = [
+    @pytest.mark.parametrize(
+        "path",
+        [
             "/etc/passwd",
             "/var/log/secure",
             "/root/.ssh/id_rsa",
@@ -59,16 +76,31 @@ class TestTomlHandlerPathSecurity:
             "D:\\Program Files",
             "C:/Windows/System32",
             "\\\\server\\share\\repo",
-        ]
+        ],
+        ids=[
+            "absolute-etc-passwd",
+            "absolute-var-log",
+            "absolute-root-ssh",
+            "absolute-usr-local",
+            "absolute-home-documents",
+            "windows-system32",
+            "windows-program-files",
+            "windows-slash-format",
+            "unc-network-path",
+        ],
+    )
+    def test_apply_change_rejects_absolute_paths(self, path: str) -> None:
+        """Test that apply_change rejects absolute paths."""
+        handler = TomlHandler()
+        result = handler.apply_change(path, "key = 'value'", 1, 3)
+        assert result is False, f"Should reject absolute path: {path}"
 
-        for path in absolute_paths:
-            result = handler.apply_change(path, "key = 'value'", 1, 3)
-            assert result is False, f"Should reject absolute path: {path}"
-
-    def test_apply_change_accepts_relative_paths(self, tmp_path: Path) -> None:
+    def test_apply_change_accepts_relative_paths(
+        self, tmp_path: Path, toml_handler: TomlHandler
+    ) -> None:
         """Test that apply_change accepts safe relative paths with actual files."""
-        # Create handler with temp directory as workspace root
-        handler = TomlHandler(workspace_root=str(tmp_path))
+        # Use shared fixture instead of manual instantiation
+        handler = toml_handler
 
         safe_paths = [
             "config.toml",
@@ -309,7 +341,7 @@ class TestTomlHandlerErrorHandling:
 class TestTomlHandlerContentSecurity:
     """Test TOML handler content security validation."""
 
-    def test_validate_change_rejects_malicious_content(self) -> None:
+    def test_validate_change_accepts_potentially_harmful_content(self) -> None:
         """Test that validate_change handles potentially harmful but valid TOML content."""
         handler = TomlHandler()
 
