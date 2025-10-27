@@ -23,8 +23,9 @@ def resolve_file_path(path: str, workspace_root: Path, allow_absolute: bool = Fa
         ValueError: If path is None, empty string, or whitespace-only. If
             workspace_root does not exist or is not a directory. If resolved path
             is outside workspace_root when allow_absolute=False.
-        OSError: If path resolution fails due to permission errors, missing
-            files, or broken symlinks (propagated from Path.resolve()).
+        OSError: If path resolution fails due to permission errors or broken
+            symlinks. Note: Path.resolve() is called without strict=True, so
+            non-existent paths will not raise OSError.
         RuntimeError: If path resolution encounters an unexpected error
             (propagated from Path.resolve()).
 

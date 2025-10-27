@@ -11,6 +11,7 @@ import logging
 import os
 import stat
 import tempfile
+from os import PathLike
 from pathlib import Path
 from typing import Any
 
@@ -19,11 +20,13 @@ from ..security.input_validator import InputValidator
 from ..utils.path_utils import resolve_file_path
 from .base import BaseHandler
 
+type JsonValue = dict[str, Any] | list[Any] | str | int | float | bool | None
+
 
 class JsonHandler(BaseHandler):
     """Handler for JSON files with duplicate key detection and smart merging."""
 
-    def __init__(self, workspace_root: str | None = None) -> None:
+    def __init__(self, workspace_root: str | PathLike[str] | None = None) -> None:
         """Initialize the JsonHandler instance and configure a module-level logger.
 
         Args:
@@ -98,25 +101,16 @@ class JsonHandler(BaseHandler):
         # Parse original file
         try:
             original_content = file_path.read_text(encoding="utf-8")
-            original_data_raw = self._loads_strict(original_content)
-            if not isinstance(original_data_raw, dict):
-                self.logger.error(
-                    f"Expected JSON object in {file_path}, got {type(original_data_raw).__name__}"
-                )
+            original_data = self._parse_json_dict(original_content, f"JSON file {file_path}")
+            if original_data is None:
                 return False
-            original_data = original_data_raw
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as e:
-            self.logger.error(f"Error processing JSON file {file_path}: {type(e).__name__}: {e}")
+        except (OSError, UnicodeDecodeError) as e:
+            self.logger.error(f"Error reading JSON file {file_path}: {type(e).__name__}: {e}")
             return False
 
         # Parse suggestion
-        try:
-            suggestion_data_raw = self._loads_strict(content)
-            if not isinstance(suggestion_data_raw, dict):
-                self.logger.error("Expected JSON object in suggestion")
-                return False
-            suggestion_data = suggestion_data_raw
-        except (json.JSONDecodeError, ValueError):
+        suggestion_data = self._parse_json_dict(content, "JSON suggestion")
+        if suggestion_data is None:
             # Suggestion might be partial or has duplicate keys - try smart merge
             return self._apply_partial_suggestion(
                 file_path, original_data, content, start_line, end_line
@@ -405,14 +399,38 @@ class JsonHandler(BaseHandler):
         self.logger.warning("Partial JSON suggestion detected, using fallback method")
         return False
 
-    def _loads_strict(self, s: str) -> dict[str, Any] | list[Any]:
+    def _parse_json_dict(self, content: str, context: str) -> dict[str, Any] | None:
+        """Parse JSON content and validate it's a dictionary.
+
+        Args:
+            content: JSON string to parse.
+            context: Context string for error messages.
+
+        Returns:
+            Parsed dict on success, None on failure.
+
+        Raises:
+            json.JSONDecodeError: If JSON is malformed.
+            ValueError: If duplicate keys are detected.
+        """
+        try:
+            result = self._loads_strict(content)
+            if not isinstance(result, dict):
+                self.logger.error(f"Expected JSON object in {context}, got {type(result).__name__}")
+                return None
+            return result
+        except (json.JSONDecodeError, ValueError) as e:
+            self.logger.error(f"Error parsing {context}: {type(e).__name__}: {e}")
+            return None
+
+    def _loads_strict(self, s: str) -> JsonValue:
         """Parse JSON and raise ValueError on duplicate keys.
 
         Args:
             s: JSON string to parse.
 
         Returns:
-            Parsed JSON data (dict or list).
+            Parsed JSON data (dict, list, or primitive).
 
         Raises:
             json.JSONDecodeError: If the JSON is malformed.
@@ -427,7 +445,5 @@ class JsonHandler(BaseHandler):
                 obj[k] = v
             return obj
 
-        result: dict[str, Any] | list[Any] = json.loads(
-            s, object_pairs_hook=_no_dupes_object_pairs_hook
-        )
+        result: JsonValue = json.loads(s, object_pairs_hook=_no_dupes_object_pairs_hook)
         return result

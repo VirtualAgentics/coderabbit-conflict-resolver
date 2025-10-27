@@ -7,6 +7,8 @@ including YAML deserialization, command injection, and other malicious content.
 import re
 from pathlib import Path
 
+import pytest
+
 from pr_conflict_resolver import ConflictResolver
 from pr_conflict_resolver.core.models import Change, FileType
 from pr_conflict_resolver.handlers.json_handler import JsonHandler
@@ -177,27 +179,27 @@ class TestJSONInjection:
         assert result[0] is True, "JSON handler should accept valid JSON with string values"
         assert isinstance(result, tuple), "Result should be a tuple"
 
+    @pytest.mark.parametrize(
+        "malformed_json,description",
+        [
+            ('{"key": "value",}', "Trailing comma"),
+            ('{"key": value}', "Missing quotes around value"),
+            ('{"key": "value"', "Unclosed brace"),
+            ('{"key": "value" "key2": "value2"}', "Missing comma"),
+        ],
+    )
     def test_json_handler_validates_structure_strictly(
-        self, json_handler: JsonHandler, tmp_path: Path
+        self, json_handler: JsonHandler, tmp_path: Path, malformed_json: str, description: str
     ) -> None:
         """Test that JSON handler validates JSON structure and rejects malformed/malicious JSON."""
         test_file = tmp_path / "test.json"
         test_file.write_text('{"key": "value"}')
 
-        # Test cases for malformed JSON syntax
-        malformed_cases = [
-            ('{"key": "value",}', "Trailing comma"),
-            ('{"key": value}', "Missing quotes around value"),
-            ('{"key": "value"', "Unclosed brace"),
-            ('{"key": "value" "key2": "value2"}', "Missing comma"),
-        ]
-
-        for malformed_json, description in malformed_cases:
-            result = json_handler.validate_change(str(test_file), malformed_json, 1, 1)
-            assert result[0] is False, f"Should reject {description}: {malformed_json}"
-            assert (
-                "Invalid JSON" in result[1] or "duplicate" in result[1].lower()
-            ), f"Error message should indicate issue: {result[1]}"
+        result = json_handler.validate_change(str(test_file), malformed_json, 1, 1)
+        assert result[0] is False, f"Should reject {description}: {malformed_json}"
+        assert (
+            "Invalid JSON" in result[1] or "duplicate" in result[1].lower()
+        ), f"Error message should indicate issue: {result[1]}"
 
         # Test JSON bombs - deeply nested objects (but not so deep as to cause recursion)
         nested_json = '{"a":' * 10 + '"value"' + "}" * 10

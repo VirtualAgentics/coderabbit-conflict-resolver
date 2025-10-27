@@ -6,6 +6,7 @@ but extensible to other code review bots.
 """
 
 import hashlib
+import logging
 from os import PathLike
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,10 @@ from ..integrations.github import GitHubCommentExtractor
 from ..strategies.priority_strategy import PriorityStrategy
 from ..utils.text import normalize_content
 from .models import Change, Conflict, FileType, Resolution, ResolutionResult
+
+
+class WorkspaceError(ValueError):
+    """Error raised when workspace_root is invalid."""
 
 
 class ConflictResolver:
@@ -47,17 +52,18 @@ class ConflictResolver:
         resolved_path = workspace_path.resolve()
         # Validate path exists and is a directory
         if not resolved_path.exists():
-            raise ValueError(f"workspace_root does not exist: {resolved_path}")
+            raise WorkspaceError(f"workspace_root does not exist: {resolved_path}")
         if not resolved_path.is_dir():
-            raise ValueError(f"workspace_root must be a directory: {resolved_path}")
-        self.workspace_root = str(resolved_path)
+            raise WorkspaceError(f"workspace_root must be a directory: {resolved_path}")
+        self.workspace_root = resolved_path
+        self.logger = logging.getLogger(__name__)
         self.conflict_detector = ConflictDetector()
         self.handlers = {
             FileType.JSON: JsonHandler(self.workspace_root),
             FileType.YAML: YamlHandler(self.workspace_root),
             FileType.TOML: TomlHandler(self.workspace_root),
         }
-        self.strategy = PriorityStrategy(config)
+        self.strategy = PriorityStrategy(self.config)
         self.github_extractor = GitHubCommentExtractor()
 
     def detect_file_type(self, path: str) -> FileType:

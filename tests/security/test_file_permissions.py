@@ -40,11 +40,6 @@ class TestFilePermissionSecurity:
         # Backup should have secure permissions (0o600: owner read/write only)
         assert mode_bits == 0o600, f"Backup should have 0o600 permissions, got {oct(mode_bits)}"
 
-        # Explicitly ensure world bits are zero (no world permissions)
-        assert (
-            mode_bits & 0o007
-        ) == 0, f"Backup should have no world permissions, got {oct(mode_bits)}"
-
     @pytest.mark.parametrize(
         "new_content,expected_string",
         [

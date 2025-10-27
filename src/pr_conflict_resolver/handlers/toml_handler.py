@@ -8,6 +8,7 @@ import logging
 import os
 import stat
 import tempfile
+import warnings
 from os import PathLike
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,9 @@ from pr_conflict_resolver.core.models import Change, Conflict
 from pr_conflict_resolver.handlers.base import BaseHandler
 from pr_conflict_resolver.security.input_validator import InputValidator
 from pr_conflict_resolver.utils.path_utils import resolve_file_path
+
+# Module-level flag to ensure warning is emitted only once
+_warned_about_temp_workspace = False
 
 try:
     import tomllib
@@ -397,8 +401,22 @@ class TomlHandler(BaseHandler):
         Returns:
             bool: True if the path is relative to the temp directory, False otherwise.
         """
+        global _warned_about_temp_workspace
         try:
             path.relative_to(tempdir)
+            # Check if ALLOW_TEMP_OUTSIDE_WORKSPACE is set and emit warning once
+            if (
+                not _warned_about_temp_workspace
+                and os.getenv("ALLOW_TEMP_OUTSIDE_WORKSPACE") == "true"
+            ):
+                _warned_about_temp_workspace = True
+                warnings.warn(
+                    "ALLOW_TEMP_OUTSIDE_WORKSPACE=true is set. This bypasses workspace containment "
+                    "and is a SECURITY RISK in production. Disable this environment variable in "
+                    "production environments.",
+                    category=RuntimeWarning,
+                    stacklevel=3,
+                )
             return True
         except ValueError:
             return False
