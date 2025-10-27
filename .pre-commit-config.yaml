@@ -43,6 +43,7 @@ repos:
           - rich
           - ruamel.yaml
           - tomli-w
+          - pydantic
         pass_filenames: false
         args:
           - --strict
