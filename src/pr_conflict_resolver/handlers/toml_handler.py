@@ -158,6 +158,15 @@ class TomlHandler(BaseHandler):
         # Join lines and write atomically with preserved permissions
         merged_content = "".join(new_lines)
 
+        # Validate that merged content parses as valid TOML before writing
+        try:
+            tomllib.loads(merged_content)
+        except tomllib.TOMLDecodeError as e:
+            self.logger.error(
+                f"Error parsing merged TOML content after applying suggestion to {file_path}: {e}"
+            )
+            return False
+
         return self._write_atomically(file_path, merged_content)
 
     def _write_atomically(self, file_path: Path, content: str) -> bool:
