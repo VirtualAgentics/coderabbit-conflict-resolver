@@ -19,41 +19,32 @@ class TestFilePermissionSecurity:
     """Tests for file permission security."""
 
     @pytest.mark.skipif(os.name == "nt", reason="POSIX file modes not available on Windows")
-    def test_handlers_create_backup_with_proper_permissions(self) -> None:
+    def test_handlers_create_backup_with_proper_permissions(self, tmp_path: Path) -> None:
         """Test that backups are created with secure permissions (0600)."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            f.write('{"key": "value"}')
-            f.flush()
-            temp_dir = os.path.dirname(f.name)
+        # Create test file in tmp_path
+        test_file = tmp_path / "test.json"
+        test_file.write_text('{"key": "value"}')
 
-            # Create handler with temp directory as workspace root
-            handler = JsonHandler(workspace_root=temp_dir)
+        # Create handler with tmp_path as workspace root
+        handler = JsonHandler(workspace_root=str(tmp_path))
 
-            try:
-                # Create backup
-                backup_path = handler.backup_file(f.name)
+        # Create backup
+        backup_path = handler.backup_file(str(test_file))
 
-                # Verify backup exists
-                assert Path(backup_path).exists(), "Backup should be created"
+        # Verify backup exists
+        assert Path(backup_path).exists(), "Backup should be created"
 
-                # Get backup permissions
-                backup_perms = os.stat(backup_path).st_mode
-                mode_bits = backup_perms & 0o777
+        # Get backup permissions
+        backup_perms = os.stat(backup_path).st_mode
+        mode_bits = backup_perms & 0o777
 
-                # Backup should have secure permissions (0o600: owner read/write only)
-                assert (
-                    mode_bits == 0o600
-                ), f"Backup should have 0o600 permissions, got {oct(mode_bits)}"
+        # Backup should have secure permissions (0o600: owner read/write only)
+        assert mode_bits == 0o600, f"Backup should have 0o600 permissions, got {oct(mode_bits)}"
 
-                # Explicitly ensure world bits are zero (no world permissions)
-                assert (
-                    mode_bits & 0o007
-                ) == 0, f"Backup should have no world permissions, got {oct(mode_bits)}"
-
-                # Clean up
-                Path(backup_path).unlink()
-            finally:
-                Path(f.name).unlink()
+        # Explicitly ensure world bits are zero (no world permissions)
+        assert (
+            mode_bits & 0o007
+        ) == 0, f"Backup should have no world permissions, got {oct(mode_bits)}"
 
     @pytest.mark.parametrize(
         "new_content,expected_string",

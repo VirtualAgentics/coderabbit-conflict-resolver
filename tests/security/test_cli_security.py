@@ -318,8 +318,18 @@ class TestInputValidation:
                 "invalid value" in output_lower or "not a valid integer" in output_lower
             ), f"CLI should show integer validation error for {flag} value: {value}"
 
-    def test_max_input_size_enforced(self) -> None:
+    def test_max_input_size_enforced(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that maximum input size is enforced."""
+
+        # Mock GitHub API to avoid actual network calls
+        def mock_fetch_pr_comments(owner: str, repo: str, pr_number: int) -> list[dict[str, str]]:
+            return []
+
+        monkeypatch.setattr(
+            "pr_conflict_resolver.core.resolver.GitHubCommentExtractor.fetch_pr_comments",
+            mock_fetch_pr_comments,
+        )
+
         runner = CliRunner()
 
         # Boundary: exactly at limit should pass

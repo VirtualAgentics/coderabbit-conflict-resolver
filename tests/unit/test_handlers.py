@@ -13,12 +13,12 @@ import pytest
 from pr_conflict_resolver import JsonHandler, TomlHandler, YamlHandler
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function")
 def enable_toml_support() -> Generator[None, None, None]:
-    """Enable TOML support for all tests in this module by default.
+    """Enable TOML support for tests that opt in to use this fixture.
 
-    Individual tests can override this by using @patch decorators if they
-    need to test behavior when TOML support is unavailable.
+    Tests that need TOML support should include this fixture as a parameter.
+    Tests that assert TOML unavailability should not use this fixture.
     """
     import pr_conflict_resolver.handlers.toml_handler as toml_handler
 
@@ -351,20 +351,10 @@ class TestYamlHandler:
 
         # Should handle unparseable content gracefully
         conflicts = handler.detect_conflicts("test.yaml", changes)
-        # Handler should skip unparseable changes and process only valid ones
-        assert isinstance(conflicts, list)
 
-        # If conflicts are returned, they should only relate to parseable changes
-        if conflicts:
-            for conflict in conflicts:
-                for change in conflict.changes:
-                    # Unparseable changes should not appear in conflicts
-                    assert (
-                        change.fingerprint == "test2"
-                    ), "Only parseable change should be in conflicts"
-        else:
-            # No conflicts expected for single valid change
-            pass
+        # No conflicts expected for single parseable change
+        # The unparseable change is skipped, leaving only one valid change
+        assert conflicts == [], "No conflicts expected for single parseable change"
 
     @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
     def test_apply_change_invalid_path(self) -> None:

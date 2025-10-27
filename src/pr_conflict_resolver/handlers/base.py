@@ -120,7 +120,7 @@ class BaseHandler(ABC):
             FileNotFoundError: If the source file doesn't exist or isn't a regular file.
 
         Example:
-            >>> handler = JsonHandler()
+            >>> handler = JsonHandler(workspace_root="/path/to/workspace")
             >>> backup_path = handler.backup_file("config.json")
             >>> print(backup_path)
             config.json.backup

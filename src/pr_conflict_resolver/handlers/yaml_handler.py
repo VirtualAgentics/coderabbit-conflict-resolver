@@ -5,6 +5,7 @@ and comment preservation using ruamel.yaml.
 """
 
 import logging
+from os import PathLike
 from typing import Any
 
 from ..core.models import Change, Conflict
@@ -26,7 +27,7 @@ except ImportError:
 class YamlHandler(BaseHandler):
     """Handler for YAML files with comment preservation and structure validation."""
 
-    def __init__(self, workspace_root: str | None = None) -> None:
+    def __init__(self, workspace_root: str | PathLike[str] | None = None) -> None:
         """Initialize the YAML handler.
 
         Args:

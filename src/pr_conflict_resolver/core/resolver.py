@@ -38,9 +38,6 @@ class ConflictResolver:
             workspace_root: Root directory for validating absolute file paths. Accepts a
                 string path or any path-like object. If None, defaults to current working
                 directory.
-
-        Returns:
-            None: This constructor does not return a value.
         """
         self.config = config or {}
         # Coerce workspace_root to string, handling PathLike objects

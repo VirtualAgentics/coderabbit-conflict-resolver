@@ -4,7 +4,6 @@ This module tests that handlers and the resolver properly prevent injection atta
 including YAML deserialization, command injection, and other malicious content.
 """
 
-import tempfile
 from pathlib import Path
 
 from pr_conflict_resolver import ConflictResolver
@@ -17,61 +16,50 @@ from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
 class TestYAMLDeserializationAttacks:
     """Tests for YAML deserialization attack prevention."""
 
-    def test_yaml_handler_rejects_python_object_serialization(self) -> None:
+    def test_yaml_handler_rejects_python_object_serialization(self, tmp_path: Path) -> None:
         """Test that YAML handler rejects Python object serialization."""
-        handler = YamlHandler()
+        handler = YamlHandler(workspace_root=str(tmp_path))
+        test_file = tmp_path / "test.yaml"
 
         # YAML deserialization attack
         malicious_content = "!!python/object/apply:os.system\nargs: ['rm -rf /']"
+        test_file.write_text(malicious_content)
 
-        # Handler should reject or sanitize this
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            f.write(malicious_content)
-            f.flush()
+        # Handler should validate and reject malicious content
+        result = handler.validate_change(str(test_file), malicious_content, 1, 1)
+        # Explicitly assert validation rejected the malicious content
+        assert result[0] is False, "Handler should reject malicious YAML with python/object"
+        # Explicitly assert sanitized content contains no dangerous tokens
+        assert (
+            "python/object" not in result[1].lower()
+        ), f"Sanitized content should not contain 'python/object' token: {result[1]}"
 
-            try:
-                # Handler should validate and reject malicious content
-                result = handler.validate_change(f.name, malicious_content, 1, 1)
-                # Explicitly assert validation rejected the malicious content
-                assert result[0] is False, "Handler should reject malicious YAML with python/object"
-                # Explicitly assert sanitized content contains no dangerous tokens
-                assert (
-                    "python/object" not in result[1].lower()
-                ), f"Sanitized content should not contain 'python/object' token: {result[1]}"
-            finally:
-                Path(f.name).unlink()
-
-    def test_yaml_handler_rejects_module_imports(self) -> None:
+    def test_yaml_handler_rejects_module_imports(self, tmp_path: Path) -> None:
         """Test that YAML handler rejects module imports."""
-        handler = YamlHandler()
+        handler = YamlHandler(workspace_root=str(tmp_path))
+        test_file = tmp_path / "test.yaml"
 
         malicious_content = "!!python/object/apply:subprocess.call\nargs: [['cat', '/etc/passwd']]"
+        test_file.write_text(malicious_content)
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            f.write(malicious_content)
-            f.flush()
-
-            try:
-                result = handler.validate_change(f.name, malicious_content, 1, 1)
-                # Explicitly assert validation rejected the malicious content
-                assert result[0] is False, "Handler should reject malicious YAML with python/object"
-                # Explicitly assert sanitized content contains no dangerous tokens
-                assert (
-                    "python/object" not in result[1].lower()
-                ), f"Sanitized content should not contain 'python/object' token: {result[1]}"
-            finally:
-                Path(f.name).unlink()
+        result = handler.validate_change(str(test_file), malicious_content, 1, 1)
+        # Explicitly assert validation rejected the malicious content
+        assert result[0] is False, "Handler should reject malicious YAML with python/object"
+        # Explicitly assert sanitized content contains no dangerous tokens
+        assert (
+            "python/object" not in result[1].lower()
+        ), f"Sanitized content should not contain 'python/object' token: {result[1]}"
 
 
 class TestCommandInjectionAttacks:
     """Tests for command injection prevention."""
 
-    def test_handlers_reject_command_substitution(self) -> None:
+    def test_handlers_reject_command_substitution(self, tmp_path: Path) -> None:
         """Test that handlers reject command substitution attempts."""
         handlers = [
-            JsonHandler(),
-            YamlHandler(),
-            TomlHandler(),
+            JsonHandler(workspace_root=str(tmp_path)),
+            YamlHandler(workspace_root=str(tmp_path)),
+            TomlHandler(workspace_root=str(tmp_path)),
         ]
 
         injection_attempts = [
@@ -113,9 +101,9 @@ class TestCommandInjectionAttacks:
 class TestShellMetacharacterInjection:
     """Tests for shell metacharacter injection prevention."""
 
-    def test_handlers_reject_shell_metacharacters_in_paths(self) -> None:
+    def test_handlers_reject_shell_metacharacters_in_paths(self, tmp_path: Path) -> None:
         """Test that handlers reject shell metacharacters in paths."""
-        handler = JsonHandler()
+        handler = JsonHandler(workspace_root=str(tmp_path))
 
         dangerous_chars = [";", "|", "&", "`", "$", "(", ")", ">", "<", "\n", "\r"]
 
@@ -129,27 +117,22 @@ class TestShellMetacharacterInjection:
 class TestJSONInjection:
     """Tests for JSON injection prevention."""
 
-    def test_json_handler_validates_structure(self) -> None:
+    def test_json_handler_validates_structure(self, tmp_path: Path) -> None:
         """Test that JSON handler validates JSON structure."""
-        handler = JsonHandler()
+        handler = JsonHandler(workspace_root=str(tmp_path))
+        test_file = tmp_path / "test.json"
+        test_file.write_text('{"key": "value"}')
 
         malicious_json = '{"key": "value", "key": "duplicate", "exec": "malicious"}'
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            f.write('{"key": "value"}')
-            f.flush()
+        # Should detect and reject duplicate keys
+        result = handler.validate_change(str(test_file), malicious_json, 1, 1)
+        assert result[0] is False, "Handler should reject duplicate keys"
+        assert (
+            "duplicate" in result[1].lower()
+        ), f"Error message should mention duplicate: {result[1]}"
 
-            try:
-                # Should detect and reject duplicate keys
-                result = handler.validate_change(f.name, malicious_json, 1, 1)
-                assert result[0] is False, "Handler should reject duplicate keys"
-                assert (
-                    "duplicate" in result[1].lower()
-                ), f"Error message should mention duplicate: {result[1]}"
-            finally:
-                Path(f.name).unlink()
-
-    def test_json_handler_parses_string_values_safely(self) -> None:
+    def test_json_handler_parses_string_values_safely(self, tmp_path: Path) -> None:
         """Test that JSON handler safely parses string values without XSS filtering.
 
         Note: JSON parsing should not perform XSS filtering. XSS prevention
@@ -158,30 +141,25 @@ class TestJSONInjection:
         validate JSON structure, not to filter content for specific contexts.
         See: OWASP XSS Prevention Cheat Sheet
         """
-        handler = JsonHandler()
+        handler = JsonHandler(workspace_root=str(tmp_path))
+        test_file = tmp_path / "test.json"
+        test_file.write_text('{"key": "value"}')
 
         # XSS payloads are valid JSON string content
         # Filtering/encoding is the responsibility of output handlers
         malicious_content = '{"script": "<script>alert(\'xss\')</script>"}'
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            f.write('{"key": "value"}')
-            f.flush()
+        result = handler.validate_change(str(test_file), malicious_content, 1, 1)
+        # JSON handler should accept valid JSON regardless of string content
+        # XSS filtering is not the JSON handler's responsibility
+        assert result[0] is True, "JSON handler should accept valid JSON with string values"
+        assert isinstance(result, tuple), "Result should be a tuple"
 
-            try:
-                # Use relative path to avoid absolute path validation issues
-                relative_path = Path(f.name).name
-                result = handler.validate_change(relative_path, malicious_content, 1, 1)
-                # JSON handler should accept valid JSON regardless of string content
-                # XSS filtering is not the JSON handler's responsibility
-                assert result[0] is True, "JSON handler should accept valid JSON with string values"
-                assert isinstance(result, tuple), "Result should be a tuple"
-            finally:
-                Path(f.name).unlink()
-
-    def test_json_handler_validates_structure_strictly(self) -> None:
+    def test_json_handler_validates_structure_strictly(self, tmp_path: Path) -> None:
         """Test that JSON handler validates JSON structure and rejects malformed/malicious JSON."""
-        handler = JsonHandler()
+        handler = JsonHandler(workspace_root=str(tmp_path))
+        test_file = tmp_path / "test.json"
+        test_file.write_text('{"key": "value"}')
 
         # Test cases for malformed JSON syntax
         malformed_cases = [
@@ -192,87 +170,53 @@ class TestJSONInjection:
         ]
 
         for malformed_json, description in malformed_cases:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-                f.write('{"key": "value"}')
-                f.flush()
-
-                try:
-                    # Use relative path to avoid absolute path validation issues
-                    relative_path = Path(f.name).name
-                    result = handler.validate_change(relative_path, malformed_json, 1, 1)
-                    assert result[0] is False, f"Should reject {description}: {malformed_json}"
-                    assert (
-                        "Invalid JSON" in result[1] or "duplicate" in result[1].lower()
-                    ), f"Error message should indicate issue: {result[1]}"
-                finally:
-                    Path(f.name).unlink()
+            result = handler.validate_change(str(test_file), malformed_json, 1, 1)
+            assert result[0] is False, f"Should reject {description}: {malformed_json}"
+            assert (
+                "Invalid JSON" in result[1] or "duplicate" in result[1].lower()
+            ), f"Error message should indicate issue: {result[1]}"
 
         # Test JSON bombs - deeply nested objects (but not so deep as to cause recursion)
         nested_json = '{"a":' * 10 + '"value"' + "}" * 10
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            f.write('{"key": "value"}')
-            f.flush()
-
-            try:
-                # Use relative path to avoid absolute path validation issues
-                relative_path = Path(f.name).name
-                result = handler.validate_change(relative_path, nested_json, 1, 1)
-                # Should handle nested objects gracefully without crashing
-                assert isinstance(result, tuple), "Should return tuple even for nested input"
-                # Note: The handler may accept or reject this depending on implementation
-                # The important thing is it doesn't crash
-            finally:
-                Path(f.name).unlink()
+        result = handler.validate_change(str(test_file), nested_json, 1, 1)
+        # Should handle nested objects gracefully without crashing
+        assert isinstance(result, tuple), "Should return tuple even for nested input"
+        # Note: The handler may accept or reject this depending on implementation
+        # The important thing is it doesn't crash
 
         # Test invalid escape sequences
         invalid_escape_json = '{"key": "value\\uXXXX"}'
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            f.write('{"key": "value"}')
-            f.flush()
-
-            try:
-                # Use relative path to avoid absolute path validation issues
-                relative_path = Path(f.name).name
-                result = handler.validate_change(relative_path, invalid_escape_json, 1, 1)
-                assert result[0] is False, "Should reject invalid Unicode escape"
-                assert (
-                    "Invalid JSON" in result[1]
-                ), f"Error message should indicate JSON issue: {result[1]}"
-            finally:
-                Path(f.name).unlink()
+        result = handler.validate_change(str(test_file), invalid_escape_json, 1, 1)
+        assert result[0] is False, "Should reject invalid Unicode escape"
+        assert "Invalid JSON" in result[1], f"Error message should indicate JSON issue: {result[1]}"
 
 
 class TestTOMLInjection:
     """Tests for TOML injection prevention."""
 
-    def test_toml_handler_validates_structure(self) -> None:
+    def test_toml_handler_validates_structure(self, tmp_path: Path) -> None:
         """Test that TOML handler validates TOML structure."""
-        handler = TomlHandler()
+        handler = TomlHandler(workspace_root=str(tmp_path))
+        test_file = tmp_path / "test.toml"
+        test_file.write_text('[section]\nkey = "value"')
 
         malicious_toml = '[section]\nkey = "value" $rm -rf /'
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-            f.write('[section]\nkey = "value"')
-            f.flush()
-
-            try:
-                result = handler.validate_change(f.name, malicious_toml, 1, 2)
-                # Should reject TOML with shell metacharacters
-                assert isinstance(result, tuple), "Should return tuple"
-                assert result[0] is False, "Should reject TOML with shell metacharacters"
-                assert (
-                    "Invalid" in result[1] or "detected" in result[1].lower()
-                ), f"Error message should indicate security issue: {result[1]}"
-            finally:
-                Path(f.name).unlink()
+        result = handler.validate_change(str(test_file), malicious_toml, 1, 2)
+        # Should reject TOML with shell metacharacters
+        assert isinstance(result, tuple), "Should return tuple"
+        assert result[0] is False, "Should reject TOML with shell metacharacters"
+        assert (
+            "Invalid" in result[1] or "detected" in result[1].lower()
+        ), f"Error message should indicate security issue: {result[1]}"
 
 
 class TestEnvironmentVariableInjection:
     """Tests for environment variable injection prevention."""
 
-    def test_handlers_reject_env_var_injection_in_paths(self) -> None:
+    def test_handlers_reject_env_var_injection_in_paths(self, tmp_path: Path) -> None:
         """Test that handlers reject environment variable injection in paths."""
-        handler = JsonHandler()
+        handler = JsonHandler(workspace_root=str(tmp_path))
 
         injection_attempts = [
             "$HOME/file.json",
@@ -288,34 +232,28 @@ class TestEnvironmentVariableInjection:
 class TestContentSanitization:
     """Tests for content sanitization across handlers."""
 
-    def test_handlers_reject_null_bytes(self) -> None:
+    def test_handlers_reject_null_bytes(self, tmp_path: Path) -> None:
         """Test that handlers reject content containing null bytes."""
         handlers = [
-            JsonHandler(),
-            YamlHandler(),
-            TomlHandler(),
+            JsonHandler(workspace_root=str(tmp_path)),
+            YamlHandler(workspace_root=str(tmp_path)),
+            TomlHandler(workspace_root=str(tmp_path)),
         ]
+
+        test_file = tmp_path / "test.json"
+        test_file.write_text('{"key": "value"}')
 
         malicious_content = '{"key": "value\x00malicious"}'
 
         for handler in handlers:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-                f.write('{"key": "value"}')
-                f.flush()
+            result = handler.validate_change(str(test_file), malicious_content, 1, 1)
 
-                try:
-                    # Use relative path to avoid absolute path validation issues
-                    relative_path = Path(f.name).name
-                    result = handler.validate_change(relative_path, malicious_content, 1, 1)
-
-                    # Should reject content with null bytes
-                    assert isinstance(result, tuple), "Result should be a tuple"
-                    assert (
-                        result[0] is False
-                    ), f"{handler.__class__.__name__} should reject content with null bytes"
-                    assert (
-                        "Invalid" in result[1]
-                    ), f"Error message should indicate invalid content: {result[1]}"
-                    assert "\x00" not in result[1], "Error message should not contain null bytes"
-                finally:
-                    Path(f.name).unlink()
+            # Should reject content with null bytes
+            assert isinstance(result, tuple), "Result should be a tuple"
+            assert (
+                result[0] is False
+            ), f"{handler.__class__.__name__} should reject content with null bytes"
+            assert (
+                "Invalid" in result[1]
+            ), f"Error message should indicate invalid content: {result[1]}"
+            assert "\x00" not in result[1], "Error message should not contain null bytes"
