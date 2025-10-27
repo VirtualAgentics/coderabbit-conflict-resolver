@@ -57,13 +57,13 @@ class InputValidator:
         "ghr_",  # Refresh Token
     )
 
-    # GitHub token minimum length requirements
-    GITHUB_PAT_MIN_LENGTH = 47  # Fine-grained Personal Access Token minimum length
-    GITHUB_CLASSIC_MIN_LENGTH = 40  # Classic token minimum length
+    # GitHub token minimum length requirements (post-prefix body length)
+    GITHUB_PAT_BODY_MIN_LENGTH = 47  # Fine-grained Personal Access Token minimum body length
+    GITHUB_CLASSIC_BODY_MIN_LENGTH = 40  # Classic token minimum body length
 
-    # GitHub token prefix lengths
-    GITHUB_PAT_PREFIX_LENGTH = 11  # "github_pat_" prefix length
-    GITHUB_CLASSIC_PREFIX_LENGTH = 4  # "ghp_", "gho_", etc. prefix length
+    # GitHub token prefix lengths (computed dynamically from GITHUB_TOKEN_PREFIXES)
+    GITHUB_PAT_PREFIX_LENGTH = len("github_pat_")  # "github_pat_" prefix length
+    GITHUB_CLASSIC_PREFIX_LENGTH = len("ghp_")  # "ghp_", "gho_", etc. prefix length
 
     @staticmethod
     def validate_file_path(
@@ -516,7 +516,9 @@ class InputValidator:
             bool: True if token has valid GitHub format, False otherwise.
 
         Example:
-            >>> InputValidator.validate_github_token("ghp_abcdef123456789012345678901234567890")
+            >>> InputValidator.validate_github_token(
+            ...     "ghp_abcdef123456789012345678901234567890"
+            ... )  # gitleaks:allow - docstring example
             True
             >>> token = "github_pat_abc123DEF456xyz789ABC012def345GHI678"
             >>> InputValidator.validate_github_token(token)
@@ -551,7 +553,7 @@ class InputValidator:
         if token.startswith("github_pat_"):
             # Compute expected length dynamically
             expected_length = (
-                InputValidator.GITHUB_PAT_PREFIX_LENGTH + InputValidator.GITHUB_PAT_MIN_LENGTH
+                InputValidator.GITHUB_PAT_PREFIX_LENGTH + InputValidator.GITHUB_PAT_BODY_MIN_LENGTH
             )
             if len(token) < expected_length:
                 logger.warning(
@@ -565,7 +567,7 @@ class InputValidator:
             # Compute expected length dynamically for classic tokens
             expected_length = (
                 InputValidator.GITHUB_CLASSIC_PREFIX_LENGTH
-                + InputValidator.GITHUB_CLASSIC_MIN_LENGTH
+                + InputValidator.GITHUB_CLASSIC_BODY_MIN_LENGTH
             )
             if len(token) < expected_length:
                 logger.warning(

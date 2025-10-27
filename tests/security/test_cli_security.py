@@ -14,6 +14,9 @@ from click.testing import CliRunner
 
 from pr_conflict_resolver.cli.main import MAX_GITHUB_USERNAME_LENGTH, cli
 
+# Redaction placeholders used to verify CLI output sanitization
+REDACTION_PLACEHOLDERS = ("[REDACTED]", "<redacted>", "[SANITIZED]", "<sanitized>")
+
 
 class TestArgumentInjectionPrevention:
     """Tests for command-line argument injection prevention."""
@@ -102,9 +105,8 @@ class TestEnvironmentVariableHandling:
         # Second requirement: if CLI succeeds (exit_code == 0), output must be sanitized
         if result.exit_code == 0:
             # Must contain redaction placeholder to prove sanitization occurred
-            redaction_placeholders = ["[REDACTED]", "<redacted>", "[SANITIZED]", "<sanitized>"]
             has_redaction = any(
-                placeholder in result.output for placeholder in redaction_placeholders
+                placeholder in result.output for placeholder in REDACTION_PLACEHOLDERS
             )
             assert has_redaction, (
                 f"CLI succeeded but output not sanitized for injection '{injection}'. "
@@ -232,7 +234,7 @@ class TestCommandLineParsingSecurity:
 
         # Should handle multiple flags without issues
         # Exit code doesn't matter for this test, just that it doesn't crash
-        assert isinstance(result.exit_code, int)
+        assert result.exception is None, f"CLI raised unexpected exception: {result.exception}"
 
     def test_unicode_in_arguments_handled(self) -> None:
         """Test that Unicode characters in arguments are rejected by validate_github_identifier.
@@ -260,7 +262,7 @@ class TestCommandLineParsingSecurity:
             # Should reject invalid identifiers with non-zero exit code
             assert result.exit_code != 0, f"CLI should reject invalid identifier: {unicode_input!r}"
             # Should show appropriate error message
-            assert "Error:" not in result.output or "error" in result.output.lower()
+            assert "Error:" in result.output or "error" in result.output.lower()
 
     @pytest.mark.parametrize(
         "path",
@@ -337,9 +339,6 @@ class TestInputValidation:
         ok_result = runner.invoke(
             cli, ["analyze", "--pr", "1", "--owner", at_limit, "--repo", "test"]
         )
-        if ok_result.exit_code != 0:
-            # Log debug info for test failures
-            pass  # Test will fail on assertion below with relevant error
         assert ok_result.exit_code == 0
 
         # Above limit should be rejected with Click-style invalid message

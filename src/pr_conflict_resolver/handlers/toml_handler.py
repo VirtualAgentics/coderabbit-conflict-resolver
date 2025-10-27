@@ -18,9 +18,6 @@ from pr_conflict_resolver.handlers.base import BaseHandler
 from pr_conflict_resolver.security.input_validator import InputValidator
 from pr_conflict_resolver.utils.path_utils import resolve_file_path
 
-# Module-level flag to ensure warning is emitted only once
-_warned_about_temp_workspace = False
-
 try:
     import tomllib
 
@@ -31,6 +28,8 @@ except ImportError:
 
 class TomlHandler(BaseHandler):
     """Handler for TOML files with structure validation."""
+
+    _warned_about_temp_workspace: bool
 
     def __init__(self, workspace_root: str | PathLike[str] | None = None) -> None:
         """Initialize the TOML handler.
@@ -54,6 +53,7 @@ class TomlHandler(BaseHandler):
         """
         super().__init__(workspace_root)
         self.logger = logging.getLogger(__name__)
+        self._warned_about_temp_workspace = False
         if not TOML_READ_AVAILABLE:
             self.logger.warning("TOML parsing support unavailable. Install tomllib (Python 3.11+)")
 
@@ -83,11 +83,9 @@ class TomlHandler(BaseHandler):
             end_line (int): One-based end line of the region to replace (inclusive).
 
         Returns:
-            bool: True if the suggestion was applied successfully; False otherwise.
-
-        Raises:
-            ValueError: If start_line < 1, end_line < start_line, or end_line > file length.
-                The method logs the error and returns False instead of raising
+            bool: True if the suggestion was applied successfully; False if validation
+                fails (e.g., invalid line ranges, path traversal detected, invalid TOML syntax).
+                When returning False, the method logs an error message with details.
         """
         # Validate file path to prevent path traversal attacks
         # Use workspace root for absolute path containment check
@@ -95,7 +93,8 @@ class TomlHandler(BaseHandler):
             path, allow_absolute=True, base_dir=str(self.workspace_root)
         ):
             # Check if opt-in flag allows temp files outside workspace
-            allow_temp_outside = os.getenv("ALLOW_TEMP_OUTSIDE_WORKSPACE") == "true"
+            env_val = (os.getenv("ALLOW_TEMP_OUTSIDE_WORKSPACE") or "").strip().lower()
+            allow_temp_outside = env_val in {"1", "true", "yes", "on"}
             path_obj = Path(path)
 
             if path_obj.is_absolute() and allow_temp_outside:
@@ -249,13 +248,12 @@ class TomlHandler(BaseHandler):
             os.replace(temp_path, file_path)
 
             # Ensure directory durability by fsyncing the parent directory
-            dir_fd = None
             try:
                 dir_fd = os.open(temp_dir, os.O_RDONLY)
                 os.fsync(dir_fd)
             except OSError:
-                # Log at debug level but continue to ignore the error
-                self.logger.debug("directory fsync failed for %s", temp_dir, exc_info=True)
+                # Log at warning level so filesystem/permission issues are visible in production
+                self.logger.warning("directory fsync failed for %s", temp_dir, exc_info=True)
             finally:
                 if dir_fd is not None:
                     os.close(dir_fd)
@@ -411,15 +409,26 @@ class TomlHandler(BaseHandler):
     ) -> dict[str, Any]:
         """Merge two TOML mappings by applying suggestion top-level keys onto the original.
 
-        NOTE: This method is deprecated and no longer used by apply_change, which now uses
-        line-based targeted replacement to preserve formatting and comments. This method is
-        retained for backward compatibility with external code that may call it directly.
+        .. deprecated:: 0.1.0
+           This method is deprecated and will be removed in version 0.2.0 or within 2 releases.
+           It is no longer used by `apply_change`, which now uses line-based targeted replacement
+           to preserve formatting and comments.
+
+        **Migration Guide for External Callers:**
+
+        - **Recommended**: Use `apply_change(path, content, start_line, end_line)` which performs
+          line-based targeted replacement and preserves all formatting and comments. This is the
+          standard approach for applying changes to TOML files.
+
+        - If you need compatibility with the current behavior or have concerns about the timeline,
+          please open an issue at https://github.com/VirtualAgentics/coderabbit-conflict-resolver/issues
+          to discuss your use case.
 
         The suggestion's top-level keys overwrite or add to the original mapping; nested tables
         are not merged recursively. The start_line and end_line parameters are accepted for API
         compatibility but do not affect the merge behavior.
 
-        Parameters:
+        Args:
             original (dict[str, Any]): Original TOML data as a mapping.
             suggestion (dict[str, Any]): Suggested TOML data to apply on top of the original.
             start_line (int): Starting line of the change (ignored).
@@ -427,7 +436,19 @@ class TomlHandler(BaseHandler):
 
         Returns:
             dict[str, Any]: A new mapping containing the merged TOML data.
+
+        Warns:
+            DeprecationWarning: Raised to alert callers that this method is deprecated.
         """
+        warnings.warn(
+            "`_smart_merge_toml` is deprecated and will be removed in version 0.2.0 "
+            "or within 2 releases. Use `apply_change(path, content, start_line, end_line)` "
+            "for applying changes to TOML files. See the docstring for migration guidance or "
+            "open an issue if you need compatibility.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         # For TOML, we typically want to merge at the top level
         result = original.copy()
         for key, value in suggestion.items():
@@ -444,22 +465,22 @@ class TomlHandler(BaseHandler):
         Returns:
             bool: True if the path is relative to the temp directory, False otherwise.
         """
-        global _warned_about_temp_workspace
         try:
             path.relative_to(tempdir)
             # Check if ALLOW_TEMP_OUTSIDE_WORKSPACE is set and emit warning once
-            if (
-                not _warned_about_temp_workspace
-                and os.getenv("ALLOW_TEMP_OUTSIDE_WORKSPACE") == "true"
-            ):
-                _warned_about_temp_workspace = True
-                warnings.warn(
-                    "ALLOW_TEMP_OUTSIDE_WORKSPACE=true is set. This bypasses workspace containment "
-                    "and is a SECURITY RISK in production. Disable this environment variable in "
-                    "production environments.",
-                    category=RuntimeWarning,
-                    stacklevel=3,
-                )
+            if not self._warned_about_temp_workspace:
+                env_val = (os.getenv("ALLOW_TEMP_OUTSIDE_WORKSPACE") or "").strip().lower()
+                if env_val in {"1", "true", "yes", "on"}:
+                    self._warned_about_temp_workspace = True
+                    warnings.warn(
+                        "ALLOW_TEMP_OUTSIDE_WORKSPACE is set. "
+                        "This bypasses workspace containment "
+                        "and is a SECURITY RISK in production. "
+                        "Disable this environment variable in "
+                        "production environments.",
+                        category=RuntimeWarning,
+                        stacklevel=3,
+                    )
             return True
         except ValueError:
             return False

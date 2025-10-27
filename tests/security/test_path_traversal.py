@@ -20,31 +20,72 @@ from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
 class TestHandlerPathTraversal:
     """Tests for handler path traversal prevention."""
 
-    @pytest.fixture
-    def setup_test_files(self) -> Generator[tuple[Path, Path, Path], None, None]:
-        """Create temporary directory with test JSON file."""
+    def _create_handler_and_content(
+        self, file_type: str, base_path: Path
+    ) -> tuple[JsonHandler | YamlHandler | TomlHandler, str]:
+        """Create handler and content for given file type.
+
+        Args:
+            file_type: Type of file ("json", "yaml", or "toml")
+            base_path: Base path for the handler workspace
+
+        Returns:
+            Tuple of (handler, content) for the file type
+        """
+        if file_type == "json":
+            return JsonHandler(workspace_root=str(base_path)), '{"key": "value"}'
+        elif file_type == "yaml":
+            return YamlHandler(workspace_root=str(base_path)), "key: value"
+        else:  # toml
+            return TomlHandler(workspace_root=str(base_path)), 'key = "value"'
+
+    @pytest.fixture(params=["json", "yaml", "toml"])
+    def setup_test_files(
+        self, request: pytest.FixtureRequest
+    ) -> Generator[tuple[Path, Path, Path, str], None, None]:
+        """Create temporary directory with test file for different file types.
+
+        Returns:
+            A tuple of (base_path, test_file, outside_file, file_type) where:
+            - base_path: Temporary base directory Path
+            - test_file: Created test file Path (e.g., test.json/test.yaml/test.toml)
+            - outside_file: Outside file Path (e.g., /etc/passwd)
+            - file_type: File type string ("json", "yaml", or "toml")
+        """
+        file_type = request.param
+
         with tempfile.TemporaryDirectory() as tmpdir:
             base_path = Path(tmpdir)
-            test_file = base_path / "test.json"
-            test_file.write_text('{"key": "value"}')
-
             outside_file = Path("/etc/passwd")
 
-            yield base_path, test_file, outside_file
+            # Create appropriate test file based on type
+            if file_type == "json":
+                test_file = base_path / "test.json"
+                test_file.write_text('{"key": "value"}')
+            elif file_type == "yaml":
+                test_file = base_path / "test.yaml"
+                test_file.write_text("key: value\n")
+            elif file_type == "toml":
+                test_file = base_path / "test.toml"
+                test_file.write_text('key = "value"\n')
 
-    def test_json_handler_rejects_unix_path_traversal(
-        self, setup_test_files: tuple[Path, Path, Path]
+            yield base_path, test_file, outside_file, file_type
+
+    def test_handlers_reject_unix_path_traversal(
+        self, setup_test_files: tuple[Path, Path, Path, str]
     ) -> None:
-        """Test that JSON handler rejects Unix-style path traversal."""
-        base_path, test_file, _ = setup_test_files
-        handler = JsonHandler(workspace_root=str(base_path))
+        """Test that handlers reject Unix-style path traversal."""
+        base_path, test_file, _, file_type = setup_test_files
+
+        # Create handler and content using helper function
+        handler, content = self._create_handler_and_content(file_type, base_path)
 
         # Test valid path
         assert handler.can_handle(str(test_file)), "Valid path should be handled"
 
         # Test path traversal attempts
         assert not handler.apply_change(
-            "../../../etc/passwd", '{"key": "value"}', 1, 1
+            "../../../etc/passwd", content, 1, 1
         ), "Unix path traversal should be rejected"
 
     def test_json_handler_rejects_windows_path_traversal(self) -> None:
@@ -84,10 +125,10 @@ class TestHandlerPathTraversal:
         ), "Path traversal should be rejected"
 
     def test_handlers_reject_absolute_paths(
-        self, setup_test_files: tuple[Path, Path, Path]
+        self, setup_test_files: tuple[Path, Path, Path, str]
     ) -> None:
         """Test that handlers reject absolute paths."""
-        base_path, _, outside_file = setup_test_files
+        base_path, _, outside_file, _file_type = setup_test_files
         handlers = [
             JsonHandler(workspace_root=str(base_path)),
             YamlHandler(workspace_root=str(base_path)),
@@ -213,16 +254,15 @@ class TestResolverPathTraversal:
         assert conflicts is not None, "Resolver should handle malicious paths without crashing"
         assert isinstance(conflicts, list), "Should return a list of conflicts"
 
-        # Verify dual-defense: either resolver detects conflict OR handler rejects path
+        # Verify handler unambiguously rejects malicious path
         handler = JsonHandler()
-        handler_rejects = not handler.apply_change(
+        handler_rejected_path = not handler.apply_change(
             malicious_change.path, malicious_change.content, 1, 1
         )
-        resolver_detects = any(c.file_path == malicious_change.path for c in conflicts)
 
         assert (
-            handler_rejects or resolver_detects
-        ), "Either resolver should detect conflict or handler should reject malicious path"
+            handler_rejected_path
+        ), "Handler must unambiguously reject malicious paths to prevent path traversal"
 
     def test_resolver_rejects_multiple_path_traversal_attempts(self) -> None:
         """Test that resolver rejects multiple path traversal attempts."""
@@ -256,23 +296,43 @@ class TestResolverPathTraversal:
     def test_resolver_handles_unicode_path_traversal(self) -> None:
         """Test that resolver handles Unicode path traversal attempts."""
         resolver = ConflictResolver()
+        handler = JsonHandler()
 
-        # Unicode characters that can normalize to '..'
-        changes = [
-            Change(
-                path="file\u2024\u2024/etc/passwd",
+        # Unicode attack vectors that normalize to '..' or similar
+        attack_paths = [
+            # Fullwidth dots that normalize to '..'
+            "\uff0e\uff0e/etc/passwd",
+            # Fullwidth dots with slashes
+            "\uff0e\uff0e/\uff0e\uff0e/etc/passwd",
+            # Multiple fullwidth dot variations
+            "file\uff0e\uff0e/etc/passwd",
+            # Mixed fullwidth and regular dots
+            "\uff0e./etc/passwd",
+            # Regular dots (normalized form)
+            "\u002e\u002e/etc/passwd",  # Regular dots
+            "\u002e\u002e/\u002e\u002e/etc/passwd",  # Multiple regular dots
+        ]
+
+        for attack_path in attack_paths:
+            change = Change(
+                path=attack_path,
                 start_line=1,
                 end_line=1,
                 content="malicious",
                 metadata={},
-                fingerprint="test",
+                fingerprint=f"test-{attack_path}",
                 file_type=FileType.JSON,
-            ),
-        ]
+            )
 
-        conflicts = resolver.detect_conflicts(changes)
-        assert conflicts is not None, "Resolver should handle Unicode traversal attempts"
-        assert isinstance(conflicts, list), "Should return a list"
+            conflicts = resolver.detect_conflicts([change])
+            assert (
+                conflicts is not None
+            ), f"Resolver should handle Unicode traversal attempt: {attack_path}"
+            assert isinstance(conflicts, list), f"Should return a list for attack: {attack_path}"
+
+            # Handler must reject Unicode path traversal attempts
+            handler_result = handler.apply_change(attack_path, "malicious", 1, 1)
+            assert not handler_result, f"Handler must reject Unicode traversal: {attack_path}"
 
 
 class TestCrossPlatformPathTraversal:

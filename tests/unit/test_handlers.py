@@ -10,6 +10,14 @@ from unittest.mock import patch
 import pytest
 
 from pr_conflict_resolver import JsonHandler, TomlHandler, YamlHandler
+from pr_conflict_resolver.core.models import Change
+
+
+class MockTaggedObject:
+    """Mock object for testing YAML tagged object detection."""
+
+    def __init__(self, tag: str) -> None:
+        self.tag = tag
 
 
 class TestJsonHandler:
@@ -232,20 +240,19 @@ class TestYamlHandler:
         ]
         assert set(expected_keys) <= set(keys)
 
+    @pytest.mark.parametrize(
+        "dangerous_yaml",
+        [
+            "key: !!python/object/apply:os.system ['rm -rf /']",
+            "key: !!python/name:os.system",
+        ],
+    )
     @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
-    def test_validate_change_dangerous_tags(self) -> None:
+    def test_validate_change_dangerous_tags(self, dangerous_yaml: str) -> None:
         """Test validation rejects dangerous YAML tags."""
         handler = YamlHandler()
 
-        # Test dangerous Python object tags
-        dangerous_yaml = "key: !!python/object/apply:os.system ['rm -rf /']"
         valid, msg = handler.validate_change("test.yaml", dangerous_yaml, 1, 3)
-        assert valid is False
-        assert "dangerous Python object tags" in msg
-
-        # Test other dangerous tags
-        dangerous_yaml2 = "key: !!python/name:os.system"
-        valid, msg = handler.validate_change("test.yaml", dangerous_yaml2, 1, 3)
         assert valid is False
         assert "dangerous Python object tags" in msg
 
@@ -269,11 +276,6 @@ class TestYamlHandler:
         """Test _contains_dangerous_tags with nested dictionaries."""
         handler = YamlHandler()
 
-        # Create a mock tagged object
-        class MockTaggedObject:
-            def __init__(self, tag: str):
-                self.tag = tag
-
         dangerous_data = {
             "safe_key": "safe_value",
             "dangerous_key": MockTaggedObject("!!python/object"),
@@ -285,11 +287,6 @@ class TestYamlHandler:
     def test_contains_dangerous_tags_nested_list(self) -> None:
         """Test _contains_dangerous_tags with nested lists."""
         handler = YamlHandler()
-
-        # Create a mock tagged object
-        class MockTaggedObject:
-            def __init__(self, tag: str):
-                self.tag = tag
 
         dangerous_data = [
             "safe_item",
@@ -456,7 +453,7 @@ class TestTomlHandler:
                 result = handler.apply_change(f.name, "key = 'value'", 1, 3)
                 assert result is False
             finally:
-                Path(f.name).unlink()
+                Path(f.name).unlink(missing_ok=True)
 
     def test_apply_change_toml_parse_error(self) -> None:
         """Test apply_change handles TOML parse errors."""
@@ -471,7 +468,7 @@ class TestTomlHandler:
                 result = handler.apply_change(f.name, "key = 'value'", 1, 3)
                 assert result is False
             finally:
-                Path(f.name).unlink()
+                Path(f.name).unlink(missing_ok=True)
 
     def test_apply_change_suggestion_parse_error(self) -> None:
         """Test apply_change handles suggestion parse errors."""
@@ -487,7 +484,7 @@ class TestTomlHandler:
                 result = handler.apply_change(f.name, "invalid suggestion [", 1, 3)
                 assert result is False
             finally:
-                Path(f.name).unlink()
+                Path(f.name).unlink(missing_ok=True)
 
     @pytest.mark.skipif(os.name == "nt", reason="POSIX file mode semantics on Windows")
     def test_apply_change_success_with_permissions(self) -> None:
@@ -513,7 +510,7 @@ class TestTomlHandler:
                 current_mode = stat.S_IMODE(os.stat(f.name).st_mode)
                 assert current_mode == original_mode
             finally:
-                Path(f.name).unlink()
+                Path(f.name).unlink(missing_ok=True)
 
     def test_apply_change_atomic_replacement(self) -> None:
         """Test apply_change uses targeted line-based replacement."""
@@ -538,7 +535,7 @@ class TestTomlHandler:
                 assert "key = 'newvalue'" in content  # Line 2 replaced
                 assert "anotherkey = 'anothervalue'" in content  # Line 3 preserved
             finally:
-                Path(f.name).unlink()
+                Path(f.name).unlink(missing_ok=True)
 
     def test_apply_change_rejects_invalid_merged_content(self) -> None:
         """Test apply_change rejects when merged content is invalid TOML."""
@@ -564,7 +561,7 @@ class TestTomlHandler:
                 # Verify original file content is unchanged
                 assert Path(f.name).read_text() == original_content
             finally:
-                Path(f.name).unlink()
+                Path(f.name).unlink(missing_ok=True)
 
     def test_validate_change_only_parses_toml(self) -> None:
         """Test that validate_change only validates TOML content, not file paths."""
@@ -584,19 +581,22 @@ class TestTomlHandler:
         assert valid is False
         assert "not available" in msg.lower()
 
-    def test_validate_change_parse_validation(self) -> None:
+    @pytest.mark.parametrize(
+        "content,expected_valid,expected_msg",
+        [
+            ("key = 'value'", True, "valid toml"),
+            ("invalid toml [", False, "invalid toml"),
+        ],
+    )
+    def test_validate_change_parse_validation(
+        self, content: str, expected_valid: bool, expected_msg: str
+    ) -> None:
         """Test validate_change validates TOML parsing."""
         handler = TomlHandler()
 
-        # Valid TOML
-        valid, msg = handler.validate_change("test.toml", "key = 'value'", 1, 3)
-        assert valid is True
-        assert "valid toml" in msg.lower()
-
-        # Invalid TOML
-        valid, msg = handler.validate_change("test.toml", "invalid toml [", 1, 3)
-        assert valid is False
-        assert "invalid toml" in msg.lower()
+        valid, msg = handler.validate_change("test.toml", content, 1, 3)
+        assert valid is expected_valid
+        assert expected_msg in msg.lower()
 
     def test_detect_conflicts_section_overlap(self) -> None:
         """Test detect_conflicts identifies section conflicts."""
@@ -654,6 +654,8 @@ class TestTomlHandler:
 @pytest.fixture
 def test_handler(tmp_path: Path) -> Any:
     """Fixture providing a concrete TestHandler instance for testing BaseHandler functionality."""
+    from typing import cast
+
     from pr_conflict_resolver.handlers.base import BaseHandler
 
     class TestHandler(BaseHandler):
@@ -668,10 +670,10 @@ def test_handler(tmp_path: Path) -> Any:
         ) -> tuple[bool, str]:
             return True, "Valid"
 
-        def detect_conflicts(self, path: str, changes: list[Any]) -> list[Any]:
+        def detect_conflicts(self, path: str, changes: list[Change]) -> list[Any]:
             return []
 
-    return TestHandler(workspace_root=str(tmp_path))
+    return cast(BaseHandler, TestHandler(workspace_root=str(tmp_path)))
 
 
 class TestBaseHandlerBackupRestore:
@@ -680,9 +682,6 @@ class TestBaseHandlerBackupRestore:
     @pytest.mark.skipif(os.name == "nt", reason="POSIX file mode semantics on Windows")
     def test_backup_file_success(self, test_handler: Any, tmp_path: Path) -> None:
         """Test successful backup file creation."""
-        import stat
-        from pathlib import Path
-
         # Create test file in tmp_path (same workspace_root as handler)
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
@@ -715,9 +714,6 @@ class TestBaseHandlerBackupRestore:
 
     def test_backup_file_collision_handling(self, test_handler: Any, tmp_path: Path) -> None:
         """Test backup file collision handling with timestamp and counter."""
-        from pathlib import Path
-        from unittest.mock import patch
-
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
 
@@ -735,9 +731,6 @@ class TestBaseHandlerBackupRestore:
 
     def test_backup_file_collision_counter_limit(self, test_handler: Any, tmp_path: Path) -> None:
         """Test backup file collision handling with 5 attempts raises OSError."""
-        import os
-        from unittest.mock import patch
-
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
 
@@ -768,8 +761,6 @@ class TestBaseHandlerBackupRestore:
 
     def test_backup_file_permission_error(self, test_handler: Any, tmp_path: Path) -> None:
         """Test backup file creation with permission errors triggers cleanup."""
-        from unittest.mock import patch
-
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
 
@@ -785,9 +776,6 @@ class TestBaseHandlerBackupRestore:
 
     def test_restore_file_success(self, test_handler: Any) -> None:
         """Test successful file restoration."""
-        import tempfile
-        from pathlib import Path
-
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create original file
             original_file = Path(tmpdir) / "original.txt"
@@ -807,8 +795,6 @@ class TestBaseHandlerBackupRestore:
 
     def test_restore_file_failure(self, test_handler: Any) -> None:
         """Test restore_file failure returns False."""
-        from unittest.mock import patch
-
         # Mock shutil.copy2 to raise an exception
         with patch("shutil.copy2", side_effect=OSError("Copy failed")):
             result = test_handler.restore_file(

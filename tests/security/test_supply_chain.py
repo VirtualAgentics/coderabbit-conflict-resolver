@@ -102,6 +102,75 @@ def _extract_vulnerabilities(data: Any) -> tuple[list[dict[str, Any]], list[dict
     return vulnerabilities, ignored_vulnerabilities
 
 
+def _parse_vulnerability_report(
+    result: Any,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str | None]:
+    """Parse vulnerability report from safety command output.
+
+    Args:
+        result: Completed process result from safety command.
+
+    Returns:
+        Tuple of (vulnerabilities, ignored_vulnerabilities, optional_error_message).
+        If error_message is set, it indicates parsing failed and fallback should be used.
+    """
+    if not result or not result.stdout:
+        return [], [], None
+
+    try:
+        safety_data = _parse_safety_json(result.stdout)
+        if safety_data is None:
+            logging.warning(
+                "Failed to parse safety JSON output, using fallback: %s",
+                result.stdout[:200] if result.stdout else "empty",
+            )
+            return [], [], "Failed to parse safety JSON output"
+
+        vulnerabilities, ignored_vulnerabilities = _extract_vulnerabilities(safety_data)
+        return vulnerabilities, ignored_vulnerabilities, None
+
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return [], [], "JSON parsing failed"
+
+
+def _validate_no_vulnerabilities(
+    vulnerabilities: list[dict[str, Any]], ignored: list[dict[str, Any]]
+) -> None:
+    """Validate that no real vulnerabilities exist and log ignored ones.
+
+    Args:
+        vulnerabilities: List of actual vulnerability dictionaries.
+        ignored: List of ignored vulnerability dictionaries.
+
+    Raises:
+        AssertionError: If real vulnerabilities are found.
+    """
+    vulnerability_details = _format_vulnerability_details(vulnerabilities, is_ignored=False)
+    ignored_vulnerability_details = _format_vulnerability_details(ignored, is_ignored=True)
+
+    # Fail if there are actual vulnerabilities
+    if vulnerability_details:
+        error_msg = f"Found {len(vulnerability_details)} vulnerable dependencies:\n"
+        error_msg += "\n".join(vulnerability_details)
+        error_msg += (
+            "\n\nRun 'safety scan --output json --target "
+            f"{Path('requirements.txt').parent}' for more details."
+        )
+        raise AssertionError(error_msg)
+
+    # Warn about ignored vulnerabilities but don't fail
+    if ignored_vulnerability_details:
+        logging.warning(
+            "Found %d ignored vulnerabilities: %s",
+            len(ignored_vulnerability_details),
+            "; ".join(ignored_vulnerability_details),
+        )
+        logging.warning(
+            "These vulnerabilities are ignored due to unpinned dependencies. "
+            "Consider pinning dependencies for better security."
+        )
+
+
 def _format_vulnerability_details(
     vulnerabilities: list[dict[str, Any]], is_ignored: bool = False
 ) -> list[str]:
@@ -145,6 +214,85 @@ def _format_vulnerability_details(
     return vulnerability_details
 
 
+def _extract_string_dependencies(deps_data: Any) -> list[str]:
+    """Safely extract string dependencies from various data structures.
+
+    Args:
+        deps_data: Dependency data from TOML file (dict, list, or str).
+
+    Returns:
+        List of dependency strings extracted from the data structure.
+    """
+    result: list[str] = []
+
+    if isinstance(deps_data, dict):
+        for value in deps_data.values():
+            if isinstance(value, str):
+                result.append(value)
+            elif (
+                isinstance(value, dict) and "version" in value and isinstance(value["version"], str)
+            ):
+                result.append(value["version"])
+    elif isinstance(deps_data, list):
+        for item in deps_data:
+            if isinstance(item, str):
+                result.append(item)
+            elif isinstance(item, dict) and "version" in item and isinstance(item["version"], str):
+                result.append(item["version"])
+    elif isinstance(deps_data, str):
+        result.append(deps_data)
+
+    return result
+
+
+def _run_safety_scan(
+    safety_cmd: str, requirements_file: Path, timeout: int = 60
+) -> subprocess.CompletedProcess[str] | None:
+    """Run safety CLI scan with fallback to legacy command.
+
+    Args:
+        safety_cmd: Path to safety executable.
+        requirements_file: Path to requirements.txt file.
+        timeout: Timeout in seconds for subprocess.
+
+    Returns:
+        CompletedProcess object on success, None on timeout.
+    """
+    # Try new "scan --output json --target <parent>" command
+    try:
+        return subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
+            [safety_cmd, "scan", "--output", "json", "--target", str(requirements_file.parent)],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except (FileNotFoundError, OSError):
+        # Fallback to legacy "check --file <requirements_file> --json" command
+        try:
+            return subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
+                [safety_cmd, "check", "--file", str(requirements_file), "--json"],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return None
+    except subprocess.TimeoutExpired:
+        # Try fallback on timeout
+        try:
+            return subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
+                [safety_cmd, "check", "--file", str(requirements_file), "--json"],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return None
+
+
 class TestDependencyPinning:
     """Tests for dependency version pinning."""
 
@@ -163,10 +311,10 @@ class TestDependencyPinning:
         for line_num, line in enumerate(lines, 1):
             # Check if version constraint is valid using utility
             require_exact_pin = file_path.name == "requirements.txt"
-            is_valid, error_message = validate_version_constraint(line, require_exact_pin)
+            result = validate_version_constraint(line, require_exact_pin)
 
-            if not is_valid:
-                raise AssertionError(f"Line {line_num}: {error_message}")
+            if not result.is_valid:
+                pytest.fail(f"Line {line_num}: {result.message}")
 
     @pytest.mark.parametrize("filename", ["requirements.txt", "requirements-dev.txt"])
     def test_requirements_files_versions_pinned(self, filename: str) -> None:
@@ -189,51 +337,18 @@ class TestDependencyPinning:
         with open(pyproject_file, "rb") as f:
             data = tomllib.load(f)
 
-        def extract_string_dependencies(deps_data: Any) -> list[str]:  # TOML data is untyped
-            """Safely extract string dependencies from various data structures."""
-            result: list[str] = []
-
-            if isinstance(deps_data, dict):
-                for value in deps_data.values():
-                    if isinstance(value, str):
-                        result.append(value)
-                    elif (
-                        isinstance(value, dict)
-                        and "version" in value
-                        and isinstance(value["version"], str)
-                    ):
-                        # Extract version if present, otherwise skip
-                        result.append(value["version"])
-                        # Skip non-string dict values for safety
-            elif isinstance(deps_data, list):
-                for item in deps_data:
-                    if isinstance(item, str):
-                        result.append(item)
-                    elif (
-                        isinstance(item, dict)
-                        and "version" in item
-                        and isinstance(item["version"], str)
-                    ):
-                        # Extract version if present, otherwise skip
-                        result.append(item["version"])
-                        # Skip non-string dict items for safety
-            elif isinstance(deps_data, str):
-                result.append(deps_data)
-
-            return result
-
         # Check for dependencies in various locations
         dependencies: list[str] = []
 
         # Project dependencies: [project].dependencies
         if "project" in data and "dependencies" in data["project"]:
             deps = data["project"]["dependencies"]
-            dependencies.extend(extract_string_dependencies(deps))
+            dependencies.extend(_extract_string_dependencies(deps))
 
         # Poetry format: [tool.poetry.dependencies]
         if "tool" in data and "poetry" in data["tool"] and "dependencies" in data["tool"]["poetry"]:
             poetry_deps = data["tool"]["poetry"]["dependencies"]
-            dependencies.extend(extract_string_dependencies(poetry_deps))
+            dependencies.extend(_extract_string_dependencies(poetry_deps))
 
         # Ensure we found dependencies
         assert dependencies, "No dependencies found in pyproject.toml"
@@ -282,17 +397,21 @@ class TestGitHubActionsPinning:
 
             # Find all uses statements
             for line_num, line in enumerate(content.split("\n"), 1):
-                # Match lines with "uses:" that don't have "@" for version pinning
-                # Handle both single-line (- uses: action) and multi-line (uses: action) formats
-                if re.search(r"^\s*-?\s*uses:\s+[\w/_-]+", line) and "@" not in line:
-                    # Extract the uses value to check if it's a local action path
-                    match = re.search(r"uses:\s+([^\s]+)", line)
-                    if match:
-                        uses_value = match.group(1).strip()
-                        # Skip local action paths (./ or ../)
-                        if uses_value.startswith(("./", "../")):
-                            continue
-                    unpinned_actions.append((str(workflow_file), line_num))
+                # Check line is not a comment
+                if line.strip().startswith("#"):
+                    continue
+
+                # Match uses: with proper action format
+                match = re.search(r"^\s*-?\s*uses:\s+([^\s#]+)", line)
+                if match:
+                    uses_value = match.group(1).strip()
+
+                    # Skip local action paths and already pinned actions
+                    is_not_local = not uses_value.startswith(("./", "../"))
+                    is_not_pinned = "@" not in uses_value
+                    if is_not_local and is_not_pinned and "/" in uses_value:
+                        # Verify it looks like a GitHub action (owner/repo format)
+                        unpinned_actions.append((str(workflow_file), line_num))
 
         # Assert that no unpinned actions were found
         if unpinned_actions:
@@ -322,113 +441,35 @@ class TestDependencyVulnerabilities:
         if not safety_cmd:
             pytest.skip("safety command not found in PATH")
 
-        # Run safety scan against requirements.txt (new command)
-        # Fallback to deprecated check command if scan fails
-        result = None
-        try:
-            # Try primary command
-            result = subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
-                [
-                    safety_cmd,
-                    "scan",
-                    "--output",
-                    "json",
-                    "--target",
-                    str(requirements_file.parent),
-                ],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                check=False,  # Don't fail on non-zero exit - we'll check the result
-            )
-        except (FileNotFoundError, OSError):
-            # Fallback for missing/unsupported command
-            try:
-                result = (
-                    subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
-                        [safety_cmd, "check", "--file", str(requirements_file), "--json"],
-                        capture_output=True,
-                        text=True,
-                        timeout=60,
-                        check=False,  # Don't fail on non-zero exit
-                    )
-                )
-            except subprocess.TimeoutExpired:
-                pytest.skip("Safety check timed out")
-        except subprocess.TimeoutExpired:
-            # Try fallback on timeout
-            try:
-                result = (
-                    subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
-                        [safety_cmd, "check", "--file", str(requirements_file), "--json"],
-                        capture_output=True,
-                        text=True,
-                        timeout=60,
-                        check=False,  # Don't fail on non-zero exit
-                    )
-                )
-            except subprocess.TimeoutExpired:
-                pytest.skip("Safety check timed out")
+        # Run safety scan with fallback
+        result = _run_safety_scan(safety_cmd, requirements_file)
 
-        # Check if safety command failed due to EOF error (skip test if so)
-        if result and result.returncode != 0 and result.stderr and "EOF" in result.stderr:
+        # Skip if command timed out
+        if result is None:
+            pytest.skip("Safety check timed out")
+
+        # Check if safety command failed due to EOF error
+        if result.returncode != 0 and result.stderr and "EOF" in result.stderr:
             pytest.skip("Safety command failed with EOF error (likely interactive mode issue)")
 
-        # Always parse JSON output to provide detailed vulnerability information
-        # even when returncode is 0 (ignored vulnerabilities)
-        if result and result.stdout:
-            try:
-                # Parse JSON using helper function
-                safety_data = _parse_safety_json(result.stdout)
+        # Parse vulnerability report using helper function
+        vulnerabilities, ignored_vulnerabilities, error_message = _parse_vulnerability_report(
+            result
+        )
 
-                if safety_data is None:
-                    logging.warning(
-                        "Failed to parse safety JSON output, using fallback: %s",
-                        result.stdout[:200] if result.stdout else "empty",
-                    )
-                    # Let fallback logic continue
-
-                # Extract vulnerabilities using helper function
-                vulnerabilities, ignored_vulnerabilities = _extract_vulnerabilities(safety_data)
-
-                # Format vulnerability details using helper functions
-                vulnerability_details = _format_vulnerability_details(
-                    vulnerabilities, is_ignored=False
+        # Handle parsing errors with fallback assertion
+        if error_message:
+            if result.returncode != 0:
+                error_msg = (
+                    "Vulnerable dependencies found. Run 'safety scan' for details. "
+                    f"Output: {result.stdout[:500] if result.stdout else 'no output'}..."
                 )
-                ignored_vulnerability_details = _format_vulnerability_details(
-                    ignored_vulnerabilities, is_ignored=True
-                )
-
-                # Fail if there are actual vulnerabilities
-                if vulnerability_details:
-                    error_msg = f"Found {len(vulnerability_details)} vulnerable dependencies:\n"
-                    error_msg += "\n".join(vulnerability_details)
-                    error_msg += (
-                        f"\n\nRun 'safety scan --output json --target "
-                        f"{requirements_file.parent}' for more details."
-                    )
-                    raise AssertionError(error_msg)
-
-                # Warn about ignored vulnerabilities but don't fail
-                if ignored_vulnerability_details:
-                    logging.warning(
-                        "Found %d ignored vulnerabilities: %s",
-                        len(ignored_vulnerability_details),
-                        "; ".join(ignored_vulnerability_details),
-                    )
-                    logging.warning(
-                        "These vulnerabilities are ignored due to unpinned dependencies. "
-                        "Consider pinning dependencies for better security."
-                    )
-
-            except (json.JSONDecodeError, KeyError, TypeError):
-                # Fallback to plain text if JSON parsing fails
-                if result.returncode != 0:
-                    error_msg = (
-                        "Vulnerable dependencies found. Run 'safety scan' for details. "
-                        f"Output: {result.stdout[:500]}..."
-                    )
-                    raise AssertionError(error_msg) from None
+                raise AssertionError(error_msg)
+            # If returncode is 0 but parsing failed, skip (no vulnerabilities detected)
+            pytest.skip("Failed to parse safety output but command succeeded")
+        else:
+            # Validate no real vulnerabilities exist
+            _validate_no_vulnerabilities(vulnerabilities, ignored_vulnerabilities)
 
 
 class TestLicenseCompliance:
