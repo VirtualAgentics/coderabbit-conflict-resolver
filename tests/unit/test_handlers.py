@@ -774,6 +774,7 @@ class TestBaseHandlerBackupRestore:
         test_file.write_text("test content")
 
         # Mock os.open to raise OSError immediately to test the permission error path
+        # This triggers the OSError exception handler which uses "Unable" message
         with (
             patch("os.open", side_effect=OSError("Permission denied")),
             pytest.raises(
