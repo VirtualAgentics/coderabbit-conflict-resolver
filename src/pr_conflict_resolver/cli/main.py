@@ -1,5 +1,6 @@
 """Command-line interface for pr-conflict-resolver."""
 
+import logging
 import re
 
 import click
@@ -10,6 +11,7 @@ from pr_conflict_resolver.config.presets import PresetConfig
 from pr_conflict_resolver.core.resolver import ConflictResolver
 
 console = Console()
+logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -36,7 +38,8 @@ def sanitize_for_output(value: str) -> str:
     """Redact control characters before printing.
 
     Detects control characters (null bytes, line breaks, etc.) and returns
-    a redacted placeholder if any are present.
+    a redacted placeholder if any are present. Logs original value at debug
+    level for troubleshooting.
 
     Args:
         value (str): The string to sanitize for terminal output.
@@ -45,6 +48,7 @@ def sanitize_for_output(value: str) -> str:
         str: "[REDACTED]" if control characters are found; otherwise the original string.
     """
     if _INJECTION_PATTERN.search(value):
+        logger.debug("Redacting value containing control characters: %r", value)
         return "[REDACTED]"
     return value
 
@@ -138,6 +142,15 @@ def validate_github_repo(ctx: click.Context, param: click.Parameter, value: str)
             param=param,
             ctx=ctx,
         )
+
+    # Reject reserved names
+    if value in (".", ".."):
+        raise click.BadParameter("repository name cannot be '.' or '..'", param=param, ctx=ctx)
+
+    # Reject names ending with .git (case-insensitive)
+    if value.lower().endswith(".git"):
+        raise click.BadParameter("repository name cannot end with '.git'", param=param, ctx=ctx)
+
     return value
 
 

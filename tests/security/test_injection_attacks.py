@@ -150,11 +150,18 @@ class TestJSONInjection:
                 Path(f.name).unlink()
 
     def test_json_handler_parses_string_values_safely(self) -> None:
-        """Test that JSON handler safely parses string values without XSS filtering."""
+        """Test that JSON handler safely parses string values without XSS filtering.
+
+        Note: JSON parsing should not perform XSS filtering. XSS prevention
+        belongs to the presentation layer (templates, output encoding, or
+        sanitization middleware). The JSON handler's role is to parse and
+        validate JSON structure, not to filter content for specific contexts.
+        See: OWASP XSS Prevention Cheat Sheet
+        """
         handler = JsonHandler()
 
-        # XSS payload in JSON string - this is valid JSON and should be accepted
-        # XSS prevention is the responsibility of the presentation layer, not JSON parsing
+        # XSS payloads are valid JSON string content
+        # Filtering/encoding is the responsibility of output handlers
         malicious_content = '{"script": "<script>alert(\'xss\')</script>"}'
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:

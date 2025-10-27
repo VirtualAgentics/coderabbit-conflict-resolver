@@ -752,16 +752,19 @@ class TestBaseHandlerBackupRestore:
         backup_base = test_file.with_suffix(f"{test_file.suffix}.backup")
         backup_base.write_text("initial backup")
 
-        # Mock exists() behavior for backup collision testing
-        # Returns True for backup paths to simulate persistent collisions.
-        # Uses os.path.exists for non-backup paths to avoid recursion and preserve
-        # real-file checks. This ensures the mock only affects backup file detection.
+        # Mock exists() behavior for backup collision testing.
+        # Returns True for backup paths (ending with ".backup" or containing ".backup.")
+        # to simulate persistent collisions, forcing the timestamp/counter branch to
+        # loop until hitting the 1000-attempt limit.
+        # Uses os.path.exists() for non-backup paths to avoid recursion into the
+        # patched Path.exists when checking the source file.
         def exists_side_effect(path: Path) -> bool:
             path_str = str(path)
             if path_str.endswith(".backup") or ".backup." in path_str:
                 # Always return True for backup files to simulate infinite collisions
                 return True
             # For source file validation, use os.path.exists() to avoid recursion
+            # into the patched Path.exists method
             return os.path.exists(str(path))
 
         # Mock Path.exists with side_effect that only affects backup files
