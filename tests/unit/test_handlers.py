@@ -540,6 +540,32 @@ class TestTomlHandler:
             finally:
                 Path(f.name).unlink()
 
+    def test_apply_change_rejects_invalid_merged_content(self) -> None:
+        """Test apply_change rejects when merged content is invalid TOML."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
+            # Write original TOML with opening brace
+            original_content = "key = { 'value'\n"
+            f.write(original_content)
+            f.flush()
+            temp_dir = os.path.dirname(f.name)
+
+            # Create handler with temp directory as workspace root
+            handler = TomlHandler(workspace_root=temp_dir)
+
+            try:
+                # Apply change that would create invalid TOML when merged
+                # The suggestion is valid TOML, but when merged with the rest of the file
+                # (which has an opening brace without closing), it becomes invalid
+                result = handler.apply_change(f.name, "otherkey = 'value'", 2, 2)
+
+                # Should return False because merged content is invalid
+                assert result is False
+
+                # Verify original file content is unchanged
+                assert Path(f.name).read_text() == original_content
+            finally:
+                Path(f.name).unlink()
+
     def test_validate_change_only_parses_toml(self) -> None:
         """Test that validate_change only validates TOML content, not file paths."""
         handler = TomlHandler()

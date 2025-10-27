@@ -327,43 +327,45 @@ class TestDependencyVulnerabilities:
         result = None
         try:
             # Try primary command
-            result = (
-                subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
-                    [
-                        safety_cmd,
-                        "scan",
-                        "--output",
-                        "json",
-                        "--target",
-                        str(requirements_file.parent),
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                    check=False,  # Don't fail on non-zero exit - we'll check the result
-                )
+            result = subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
+                [
+                    safety_cmd,
+                    "scan",
+                    "--output",
+                    "json",
+                    "--target",
+                    str(requirements_file.parent),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,  # Don't fail on non-zero exit - we'll check the result
             )
         except (FileNotFoundError, OSError):
             # Fallback for missing/unsupported command
             try:
-                result = subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
-                    [safety_cmd, "check", "--file", str(requirements_file), "--json"],
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                    check=False,  # Don't fail on non-zero exit
+                result = (
+                    subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
+                        [safety_cmd, "check", "--file", str(requirements_file), "--json"],
+                        capture_output=True,
+                        text=True,
+                        timeout=60,
+                        check=False,  # Don't fail on non-zero exit
+                    )
                 )
             except subprocess.TimeoutExpired:
                 pytest.skip("Safety check timed out")
         except subprocess.TimeoutExpired:
             # Try fallback on timeout
             try:
-                result = subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
-                    [safety_cmd, "check", "--file", str(requirements_file), "--json"],
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                    check=False,  # Don't fail on non-zero exit
+                result = (
+                    subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
+                        [safety_cmd, "check", "--file", str(requirements_file), "--json"],
+                        capture_output=True,
+                        text=True,
+                        timeout=60,
+                        check=False,  # Don't fail on non-zero exit
+                    )
                 )
             except subprocess.TimeoutExpired:
                 pytest.skip("Safety check timed out")
