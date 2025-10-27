@@ -551,8 +551,7 @@ class InputValidator:
         if token.startswith("github_pat_"):
             # Compute expected length dynamically
             expected_length = (
-                InputValidator.GITHUB_PAT_PREFIX_LENGTH
-                + InputValidator.GITHUB_PAT_MIN_LENGTH
+                InputValidator.GITHUB_PAT_PREFIX_LENGTH + InputValidator.GITHUB_PAT_MIN_LENGTH
             )
             if len(token) < expected_length:
                 logger.warning(
