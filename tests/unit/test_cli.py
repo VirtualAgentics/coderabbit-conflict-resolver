@@ -99,8 +99,24 @@ def test_cli_simulate_mixed_conflicts(mock_resolver: Any) -> None:
     ]
 
     # Mock resolve_conflicts to return Resolution objects with applied/skipped changes
-    change1 = Change("a.json", 1, 2, "change 1", {}, "fp1", FileType.JSON)
-    change2 = Change("b.json", 1, 2, "change 2", {}, "fp2", FileType.JSON)
+    change1 = Change(
+        path="a.json",
+        start_line=1,
+        end_line=2,
+        content="change 1",
+        metadata={},
+        fingerprint="fp1",
+        file_type=FileType.JSON,
+    )
+    change2 = Change(
+        path="b.json",
+        start_line=1,
+        end_line=2,
+        content="change 2",
+        metadata={},
+        fingerprint="fp2",
+        file_type=FileType.JSON,
+    )
     mock_inst.resolve_conflicts.return_value = [
         Resolution(
             strategy="priority",

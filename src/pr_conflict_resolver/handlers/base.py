@@ -186,7 +186,8 @@ class BaseHandler(ABC):
                 # Subsequent attempts: add UUID for uniqueness
                 candidate_suffix = f"{file_path.suffix}.backup.{base_suffix}.{uuid.uuid4().hex[:8]}"
                 # If name would be too long, use deterministic hash-based fixed suffix
-                if len(file_path.with_suffix(candidate_suffix).name) >= NAME_MAX:
+                candidate_name = file_path.with_suffix(candidate_suffix).name
+                if len(candidate_name.encode("utf-8")) >= NAME_MAX:
                     # Create deterministic hash from original filename and base_suffix
                     hash_input = f"{file_path.name}_{base_suffix}".encode()
                     h = hashlib.sha256(hash_input).hexdigest()[:12]
@@ -194,7 +195,7 @@ class BaseHandler(ABC):
                 backup_path = file_path.with_suffix(candidate_suffix)
 
                 # Validate final filename length
-                if len(backup_path.name) >= NAME_MAX:
+                if len(backup_path.name.encode("utf-8")) >= NAME_MAX:
                     raise OSError(
                         f"Cannot create backup filename within {NAME_MAX} char limit "
                         f"for: {file_path} (name length: {len(backup_path.name)})"

@@ -9,8 +9,8 @@ from unittest.mock import patch
 
 import pytest
 
-from pr_conflict_resolver import JsonHandler, TomlHandler, YamlHandler
-from pr_conflict_resolver.core.models import Change
+from pr_conflict_resolver import FileType, JsonHandler, TomlHandler, YamlHandler
+from pr_conflict_resolver.core.models import Change, Conflict
 from pr_conflict_resolver.handlers.base import BaseHandler
 
 
@@ -72,8 +72,6 @@ class TestJsonHandler:
             "key_conflict", and that the conflict includes the two related changes.
         """
         handler = JsonHandler()
-
-        from pr_conflict_resolver import Change, FileType
 
         changes = [
             Change(
@@ -283,8 +281,6 @@ class TestYamlHandler:
     def test_detect_conflicts_unparseable_content(self) -> None:
         """Test detect_conflicts with unparseable change content."""
         handler = YamlHandler()
-
-        from pr_conflict_resolver import Change, FileType
 
         # Create changes with unparseable content
         changes = [
@@ -586,8 +582,6 @@ class TestTomlHandler:
         """Test detect_conflicts identifies section conflicts."""
         handler = TomlHandler()
 
-        from pr_conflict_resolver import Change, FileType
-
         changes = [
             Change(
                 path="test.toml",
@@ -651,7 +645,7 @@ def test_handler(tmp_path: Path) -> BaseHandler:
         ) -> tuple[bool, str]:
             return True, "Valid"
 
-        def detect_conflicts(self, path: str, changes: list[Change]) -> list[Any]:
+        def detect_conflicts(self, path: str, changes: list[Change]) -> list[Conflict]:
             return []
 
     return TestHandler(workspace_root=tmp_path)
@@ -743,6 +737,9 @@ class TestBaseHandlerBackupRestore:
             ),
         ):
             test_handler.backup_file(str(test_file))
+
+        # Verify exactly 5 collision attempts were made
+        assert attempt_count[0] == 5
 
     def test_backup_file_permission_error(self, test_handler: BaseHandler, tmp_path: Path) -> None:
         """Test backup file creation with permission errors fails fast."""
