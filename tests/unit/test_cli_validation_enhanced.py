@@ -388,7 +388,7 @@ class TestCLIIntegration:
                 "repository name cannot be '.' or '..'",
                 "repository name cannot end with '.git'",
             ]
-            for error_msg in identifier_errors:
+            for error_msg in (s.lower() for s in identifier_errors):
                 assert (
                     error_msg not in output_lower
-                ), f"Command should not fail with username validation error: {error_msg}"
+                ), f"Command should not fail with identifier validation error: {error_msg}"

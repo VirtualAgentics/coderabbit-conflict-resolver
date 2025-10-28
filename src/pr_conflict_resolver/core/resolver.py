@@ -371,30 +371,39 @@ class ConflictResolver:
     def _calculate_overlap_percentage(
         self, change1: Change, conflicting_changes: list[Change]
     ) -> float:
-        """Compute the overlap percentage between changes using inclusive line ranges.
+        """Compute overlap = (intersection / union) * 100 for inclusive line ranges.
+
+        Args:
+            change1: The primary change to analyze.
+            conflicting_changes: List of changes that conflict with change1.
 
         Returns:
             float: Percentage (0.0-100.0) of the combined span covered by the intersection;
-                `0.0` if `conflicting_changes` is empty or there is no overlap.
+                `float(0)` if `conflicting_changes` is empty or there is no overlap.
         """
         if not conflicting_changes:
-            return 0.0
+            return float(0)
 
-        change2 = conflicting_changes[0]  # Use first conflicting change
-        overlap_start = max(change1.start_line, change2.start_line)
-        overlap_end = min(change1.end_line, change2.end_line)
+        # Consider the combined span of change1 and all conflicting changes
+        min_start = min([change1.start_line, *[c.start_line for c in conflicting_changes]])
+        max_end = max([change1.end_line, *[c.end_line for c in conflicting_changes]])
 
-        if overlap_start > overlap_end:
-            return 0.0
+        # Intersection against the first conflicting change as baseline
+        c = conflicting_changes[0]
+        inter_start = max(change1.start_line, c.start_line)
+        inter_end = min(change1.end_line, c.end_line)
 
-        overlap_size = overlap_end - overlap_start + 1
-        total_size = (
-            max(change1.end_line, change2.end_line)
-            - min(change1.start_line, change2.start_line)
-            + 1
-        )
+        if inter_start > inter_end:
+            return float(0)
 
-        return (overlap_size / total_size) * 100
+        intersection = inter_end - inter_start + 1
+        union = max_end - min_start + 1
+
+        # Explicit zero-division guard
+        if union <= 0:
+            return float(0)
+
+        return (intersection / union) * 100.0
 
     def resolve_conflicts(self, conflicts: list[Conflict]) -> list[Resolution]:
         """Resolve each provided conflict using the configured priority strategy.

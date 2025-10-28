@@ -7,9 +7,10 @@ based on priority levels and user preferences.
 from typing import Any
 
 from ..core.models import Change, Conflict, Resolution
+from .base import ResolutionStrategy
 
 
-class PriorityStrategy:
+class PriorityStrategy(ResolutionStrategy):
     """Priority-based conflict resolution strategy."""
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:

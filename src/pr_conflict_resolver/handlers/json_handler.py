@@ -115,21 +115,30 @@ class JsonHandler(BaseHandler):
             self.logger.error(f"Error reading JSON file {file_path}: {type(e).__name__}: {e}")
             return False
 
-        # Parse suggestion
-        suggestion_data = self._parse_json_dict(content, "JSON suggestion")
-        if suggestion_data is None:
-            # Suggestion might be partial or has duplicate keys - try smart merge
+        # Parse suggestion - support both dict and non-dict JSON
+        try:
+            suggestion_value = self._loads_strict(content)
+        except (json.JSONDecodeError, ValueError):
+            # Invalid JSON - try partial suggestion fallback
             return self._apply_partial_suggestion(
                 file_path, original_data, content, start_line, end_line
             )
 
-        # Apply suggestion
-        merged_data = self._smart_merge_json(original_data, suggestion_data, start_line, end_line)
+        # Handle dict vs non-dict JSON
+        merged_data: dict[str, Any] | list[Any] | str | int | float | bool | None
+        if isinstance(suggestion_value, dict):
+            # Dict: merge with original
+            merged_data = self._smart_merge_json(
+                original_data, suggestion_value, start_line, end_line
+            )
 
-        # Validate merged result
-        if self._has_duplicate_keys(merged_data):
-            self.logger.error("Merge would create duplicate keys")
-            return False
+            # Validate merged result
+            if self._has_duplicate_keys(merged_data):
+                self.logger.error("Merge would create duplicate keys")
+                return False
+        else:
+            # Valid non-dict JSON (array, primitive) -> full replacement
+            merged_data = suggestion_value
 
         # Write with atomic operation
         original_mode = None
