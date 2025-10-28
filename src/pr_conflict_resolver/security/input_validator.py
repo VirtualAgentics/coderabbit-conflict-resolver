@@ -4,6 +4,7 @@ import json
 import logging
 import re
 import tomllib
+import unicodedata
 from collections.abc import Set
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
@@ -82,7 +83,7 @@ class InputValidator:
             - Absolute path containment checking
             - Unsafe character detection (;, |, &, `, $, etc.)
             - Null byte detection
-            - Unicode normalization attack prevention
+            - Unicode normalization (NFC) applied before validation to prevent homograph attacks
 
         Args:
             path: File path to validate.
@@ -133,8 +134,11 @@ class InputValidator:
             logger.warning("File path validation failed: path is None or not a string")
             return False
 
+        # Normalize path to NFC to prevent Unicode homograph attacks
+        path = unicodedata.normalize("NFC", path)
+
         try:
-            # Create Path object from input
+            # Create Path object from normalized input
             input_path = Path(path)
 
             # Check for directory traversal attempts by examining path parts
@@ -164,8 +168,10 @@ class InputValidator:
             for part in input_path.parts:
                 if part in anchors:
                     continue  # Skip drive/root/anchor (e.g., 'C:' or '/' on POSIX/Windows)
+                # Normalize each segment to NFC before validation
+                normalized_part = unicodedata.normalize("NFC", part)
                 # Validate each part against segment-safe pattern (no '/')
-                if part and not InputValidator.SAFE_PART_PATTERN.match(part):
+                if normalized_part and not InputValidator.SAFE_PART_PATTERN.match(normalized_part):
                     logger.warning("Unsafe path segment detected in: %s", path)
                     return False
 

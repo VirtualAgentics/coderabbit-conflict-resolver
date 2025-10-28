@@ -57,7 +57,7 @@ class JsonHandler(BaseHandler):
             - Safe JSON parsing with proper error handling
             - File existence verification before processing
 
-        Parameters:
+        Args:
             path (str): Filesystem path to the target JSON file. Must pass security validation.
             content (str): Suggested JSON content; may be a complete JSON object or a
                 partial fragment.
@@ -161,6 +161,19 @@ class JsonHandler(BaseHandler):
 
             # Atomically replace the original file
             os.replace(temp_path, file_path)
+
+            # Best-effort directory fsync for durability
+            try:
+                parent_dir = file_path.parent
+                dir_fd = os.open(parent_dir, os.O_DIRECTORY | os.O_RDONLY)
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
+            except (OSError, AttributeError) as e:
+                # Ignore fsync errors (may not be supported on all platforms)
+                self.logger.debug(f"Directory fsync failed (non-fatal): {e}")
+
             return True
 
         except OSError as e:
@@ -190,7 +203,7 @@ class JsonHandler(BaseHandler):
             - Duplicate key detection to prevent structure corruption
             - Safe JSON parsing without side effects
 
-        Parameters:
+        Args:
             path (str): File path of the JSON being validated. Must pass security validation.
             content (str): JSON text to validate.
             start_line (int): Start line of the suggested change (contextual; not used for
@@ -239,17 +252,17 @@ class JsonHandler(BaseHandler):
     def detect_conflicts(self, path: str, changes: list[Change]) -> list[Conflict]:
         """Identify key-based conflicts among JSON changes for a given file.
 
-        Parameters:
+        Args:
             path (str): Path to the JSON file being analyzed.
             changes (list[Change]): List of Change objects whose `content` is expected to be
                 JSON; changes with unparsable JSON are ignored.
 
         Returns:
             list[Conflict]: Conflicts where multiple changes target the same top-level JSON key.
-                Each Conflict contains the file path, a line range spanning the first to last
-                involved change, the list of conflicting changes, a `conflict_type` of
-                `"key_conflict"`, a `severity` of `"medium"`, and an `overlap_percentage`
-                quantifying how much the changes' line ranges overlap.
+                Each Conflict contains the file path, a line range spanning the minimum start line
+                to maximum end line of involved changes, the list of conflicting changes, a
+                `conflict_type` of `"key_conflict"`, a `severity` of `"medium"`, and an
+                `overlap_percentage` quantifying how much the changes' line ranges overlap.
         """
         conflicts: list[Conflict] = []
 
@@ -272,10 +285,14 @@ class JsonHandler(BaseHandler):
                 # Calculate actual overlap percentage
                 overlap_percentage = self._calculate_overlap_percentage(key_change_list)
 
+                # Compute min/max lines to handle unsorted changes
+                min_start = min(c.start_line for c in key_change_list)
+                max_end = max(c.end_line for c in key_change_list)
+
                 conflicts.append(
                     Conflict(
                         file_path=path,
-                        line_range=(key_change_list[0].start_line, key_change_list[-1].end_line),
+                        line_range=(min_start, max_end),
                         changes=key_change_list,
                         conflict_type="key_conflict",
                         severity="medium",
@@ -288,7 +305,7 @@ class JsonHandler(BaseHandler):
     def _calculate_overlap_percentage(self, changes: list[Change]) -> float:
         """Calculate the percentage of overlapping line coverage among multiple changes.
 
-        Parameters:
+        Args:
             changes (list[Change]): List of Change objects; each must have `start_line` and
                 `end_line` attributes defining the inclusive line range of the change.
 
@@ -335,7 +352,7 @@ class JsonHandler(BaseHandler):
     ) -> bool:
         """Detects whether a JSON-like structure contains duplicate object keys.
 
-        Parameters:
+        Args:
             obj (dict | list | str | int | float | bool | None): JSON-like value to inspect;
                 may be a mapping, sequence, or primitive.
 
@@ -358,7 +375,7 @@ class JsonHandler(BaseHandler):
     ) -> dict[str, Any]:
         """Merge a suggested JSON object into the original JSON.
 
-        Parameters:
+        Args:
             original (dict[str, Any]): The existing JSON object from the file.
             suggestion (dict[str, Any]): The suggested JSON fragment to apply.
             start_line (int): The starting line number of the suggestion in the file (1-based).
@@ -405,7 +422,7 @@ class JsonHandler(BaseHandler):
     ) -> bool:
         """Attempt to apply a partial (non-parseable) JSON suggestion to an existing JSON file.
 
-        Parameters:
+        Args:
             file_path (Path): Path to the JSON file being modified.
             original_data (dict[str, Any]): Parsed JSON content of the original file.
             suggestion (str): Suggested content that is not valid/complete JSON.

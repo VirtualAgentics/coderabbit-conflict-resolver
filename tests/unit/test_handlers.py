@@ -774,24 +774,24 @@ class TestBaseHandlerBackupRestore:
         ):
             test_handler.backup_file(str(test_file))
 
-    def test_restore_file_success(self, test_handler: Any) -> None:
+    def test_restore_file_success(self, test_handler: Any, tmp_path: Path) -> None:
         """Test successful file restoration."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Create original file
-            original_file = Path(tmpdir) / "original.txt"
-            original_file.write_text("original content")
+        # Create files within handler's workspace_root (tmp_path)
+        # Create original file
+        original_file = tmp_path / "original.txt"
+        original_file.write_text("original content")
 
-            # Create backup file
-            backup_file = Path(tmpdir) / "backup.txt"
-            backup_file.write_text("backup content")
+        # Create backup file
+        backup_file = tmp_path / "backup.txt"
+        backup_file.write_text("backup content")
 
-            # Restore file
-            result = test_handler.restore_file(str(backup_file), str(original_file))
+        # Restore file
+        result = test_handler.restore_file(str(backup_file), str(original_file))
 
-            # Verify restoration
-            assert result is True
-            assert original_file.read_text() == "backup content"
-            assert not backup_file.exists()  # Backup should be removed
+        # Verify restoration
+        assert result is True
+        assert original_file.read_text() == "backup content"
+        assert not backup_file.exists()  # Backup should be removed
 
     def test_restore_file_failure(self, test_handler: Any) -> None:
         """Test restore_file failure returns False."""

@@ -18,7 +18,9 @@ from ..handlers.json_handler import JsonHandler
 from ..handlers.toml_handler import TomlHandler
 from ..handlers.yaml_handler import YamlHandler
 from ..integrations.github import GitHubCommentExtractor
+from ..security.input_validator import InputValidator
 from ..strategies.priority_strategy import PriorityStrategy
+from ..utils.path_utils import resolve_file_path
 from ..utils.text import normalize_content
 from .models import Change, Conflict, FileType, Resolution, ResolutionResult
 
@@ -105,7 +107,7 @@ class ConflictResolver:
     def generate_fingerprint(self, path: str, start: int, end: int, content: str) -> str:
         """Create a short deterministic fingerprint that identifies a proposed change in a file.
 
-        Parameters:
+        Args:
             path (str): File path the change targets.
             start (int): Starting line number of the change.
             end (int): Ending line number of the change.
@@ -127,7 +129,7 @@ class ConflictResolver:
         suggestion the returned Change includes computed fingerprint, detected file type,
         and metadata about the comment.
 
-        Parameters:
+        Args:
             comments (list[dict[str, Any]]): List of GitHub comment dictionaries. Each
                 comment may contain keys used by this function:
                   - "path": repository file path the comment targets (required to extract).
@@ -187,7 +189,7 @@ class ConflictResolver:
     def _parse_comment_suggestions(self, body: str) -> list[dict[str, Any]]:
         """Extract suggestion blocks from a GitHub-style comment body.
 
-        Parameters:
+        Args:
             body (str): Raw comment text which may contain fenced suggestion code blocks.
 
         Returns:
@@ -315,7 +317,7 @@ class ConflictResolver:
     def _classify_conflict_type(self, change1: Change, conflicting_changes: list[Change]) -> str:
         """Determine the category of conflict between changes.
 
-        Parameters:
+        Args:
             change1 (Change): The primary change to classify against other changes.
             conflicting_changes (list[Change]): Other changes that overlap with `change1`.
 
@@ -340,13 +342,13 @@ class ConflictResolver:
     def _assess_conflict_severity(self, change1: Change, conflicting_changes: list[Change]) -> str:
         """Determine conflict severity based on the contents of the involved changes.
 
-        Parameters:
+        Args:
             change1 (Change): The primary change participating in the conflict.
             conflicting_changes (list[Change]): Other changes that overlap or conflict with the
                 primary change.
 
         Returns:
-            severity (str): `"high"` if any involved change contains security-related keywords,
+            str: `"high"` if any involved change contains security-related keywords,
             `"medium"` if none are security-related but any contain syntax/error-related keywords,
             `"low"` otherwise.
         """
@@ -397,7 +399,7 @@ class ConflictResolver:
     def resolve_conflicts(self, conflicts: list[Conflict]) -> list[Resolution]:
         """Resolve each provided conflict using the configured priority strategy.
 
-        Parameters:
+        Args:
             conflicts (list[Conflict]): Detected conflicts to resolve.
 
         Returns:
@@ -414,7 +416,7 @@ class ConflictResolver:
     def apply_resolutions(self, resolutions: list[Resolution]) -> ResolutionResult:
         """Apply a sequence of resolution decisions to the repository.
 
-        Parameters:
+        Args:
             resolutions (list[Resolution]): Resolutions to process; entries with `success == True`
                 will have their associated changes applied, while others are counted as conflicts.
 
@@ -480,14 +482,32 @@ class ConflictResolver:
         `change.end_line` (1-based, inclusive) with `change.content`, clamps out-of-range indices
         to the file bounds, ensures the file ends with a newline, and writes the result back.
 
-        Parameters:
+        Args:
             change (Change): Change describing the target `path`, 1-based `start_line` and
                 `end_line`, and the replacement `content`.
 
         Returns:
-            True if the file was successfully updated, False otherwise.
+            bool: True if the file was successfully updated, False otherwise.
         """
-        file_path = Path(change.path)
+        # Validate and resolve path within workspace
+        if not InputValidator.validate_file_path(
+            change.path, base_dir=str(self.workspace_root), allow_absolute=True
+        ):
+            self.logger.error(f"Invalid or unsafe path rejected: {change.path}")
+            return False
+
+        try:
+            file_path = resolve_file_path(
+                change.path,
+                self.workspace_root,
+                allow_absolute=True,
+                validate_workspace=True,
+                enforce_containment=True,
+            )
+        except (ValueError, OSError) as e:
+            self.logger.error(f"Failed to resolve path {change.path}: {e}")
+            return False
+
         try:
             lines = file_path.read_text(encoding="utf-8").splitlines()
             replacement = change.content.split("\n")
@@ -515,7 +535,7 @@ class ConflictResolver:
     ) -> list[dict[str, Any]]:
         """Fetch PR comments with proper error context.
 
-        Parameters:
+        Args:
             owner (str): Repository owner.
             repo (str): Repository name.
             pr_number (int): Pull request number.
@@ -570,7 +590,7 @@ class ConflictResolver:
     def analyze_conflicts(self, owner: str, repo: str, pr_number: int) -> list[Conflict]:
         """Analyze conflicts in a pull request without applying any changes.
 
-        Parameters:
+        Args:
             owner (str): Repository owner.
             repo (str): Repository name.
             pr_number (int): Pull request number.

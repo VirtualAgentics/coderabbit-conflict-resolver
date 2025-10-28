@@ -23,7 +23,7 @@ class PriorityStrategy:
         - regular_suggestions: 50
         - formatting: 10
 
-        Parameters:
+        Args:
             config (dict[str, Any] | None): Optional configuration dictionary that may include a
                 "priority_rules" key to override the defaults.
         """
@@ -42,7 +42,7 @@ class PriorityStrategy:
     def resolve(self, conflict: Conflict) -> Resolution:
         """Selects the highest-priority change from a conflict.
 
-        Parameters:
+        Args:
             conflict (Conflict): The conflict containing candidate changes to resolve.
 
         Returns:
@@ -91,7 +91,7 @@ class PriorityStrategy:
     def _calculate_priority(self, change: Change) -> int:
         """Compute the numeric priority for a Change based on configured rules.
 
-        Parameters:
+        Args:
             change (Change): The change to evaluate. Uses change.metadata["option_label"] (if
                 present) to prefer user selections and change.metadata["author"] to apply
                 author-based adjustments.
@@ -129,7 +129,7 @@ class PriorityStrategy:
     def _is_security_related(self, change: Change) -> bool:
         """Determine whether a Change's content indicates a security-related modification.
 
-        Parameters:
+        Args:
             change (Change): Change object whose content will be inspected for security-related
                 keywords.
 
@@ -156,8 +156,11 @@ class PriorityStrategy:
     def _is_syntax_error_fix(self, change: Change) -> bool:
         """Determine whether a change addresses a syntax-related error.
 
+        Args:
+            change (Change): The change to evaluate.
+
         Returns:
-            True if the change's content contains syntax-related keywords, False otherwise.
+            bool: True if the change's content contains syntax-related keywords, False otherwise.
         """
         content = change.content.lower()
         syntax_keywords = [
@@ -182,8 +185,11 @@ class PriorityStrategy:
         Scans the change's content for common formatting tool names and other formatting-related
             keywords.
 
+        Args:
+            change (Change): The change to evaluate.
+
         Returns:
-            `true` if the change appears to be formatting-related, `false` otherwise.
+            bool: True if the change appears to be formatting-related, False otherwise.
         """
         content = change.content.lower()
         formatting_keywords = [
@@ -231,7 +237,7 @@ class PriorityStrategy:
     def update_priority_rules(self, new_rules: dict[str, int]) -> None:
         """Update the strategy's priority rules with the provided mapping.
 
-        Parameters:
+        Args:
             new_rules (dict[str, int]): Mapping of priority rule names to integer priority
                 values. Keys present in this mapping override the existing rules; other rules
                 remain unchanged. The method also updates the strategy's internal configuration

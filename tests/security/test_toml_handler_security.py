@@ -94,9 +94,7 @@ class TestTomlHandlerPathSecurity:
         result = handler.apply_change(path, "key = 'value'", 1, 3)
         assert result is False, f"Should reject absolute path: {path}"
 
-    def test_apply_change_accepts_relative_paths(
-        self, tmp_path: Path, toml_handler: TomlHandler
-    ) -> None:
+    def test_apply_change_accepts_relative_paths(self, toml_handler: TomlHandler) -> None:
         """Test that apply_change accepts safe relative paths with actual files."""
         # Use shared fixture instead of manual instantiation
         handler = toml_handler
@@ -108,8 +106,8 @@ class TestTomlHandlerPathSecurity:
         ]
 
         for path in safe_paths:
-            # Create a temporary file with valid TOML content
-            test_file = tmp_path / path
+            # Create the file inside the handler's configured workspace
+            test_file = Path(handler.workspace_root) / path
             test_file.write_text("original = 'value'")
 
             # Apply change to the existing file
@@ -181,30 +179,38 @@ class TestTomlHandlerAtomicOperations:
             if os.path.exists(original_path):
                 os.unlink(original_path)
 
-    def test_apply_change_temp_file_cleanup(self) -> None:
-        """Test that temporary files are cleaned up on error."""
-        handler = TomlHandler()
+    def test_apply_change_early_return_on_invalid_toml(self) -> None:
+        """Test that apply_change returns early when file contains invalid TOML.
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
-            # Write invalid TOML to trigger error
-            f.write("invalid toml [")
-            f.flush()
-            original_path = f.name
+        This test verifies early-return behavior: no temp file is created because
+        the original file contains invalid TOML which is detected during parsing
+        before any temp file creation occurs.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            handler = TomlHandler(workspace_root=tmpdir)
 
-        try:
-            # This should fail and clean up temp files
-            result = handler.apply_change(original_path, "key = 'value'", 1, 3)
-            assert result is False
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".toml", dir=tmpdir, delete=False
+            ) as f:
+                # Write invalid TOML to trigger early return
+                f.write("invalid toml [")
+                f.flush()
+                original_path = f.name
 
-            # Verify no temp files were left behind
-            temp_dir = os.path.dirname(original_path)
-            expected_prefix = f".{os.path.basename(original_path)}.tmp"
-            temp_files = [f for f in os.listdir(temp_dir) if f.startswith(expected_prefix)]
-            assert len(temp_files) == 0, "Temporary files should be cleaned up"
+            try:
+                # This should fail early during TOML parsing, before temp file creation
+                result = handler.apply_change(original_path, "key = 'value'", 1, 3)
+                assert result is False
 
-        finally:
-            if os.path.exists(original_path):
-                os.unlink(original_path)
+                # Verify no temp files were created (early return before temp file creation)
+                temp_dir = os.path.dirname(original_path)
+                expected_prefix = f".{os.path.basename(original_path)}.tmp"
+                temp_files = [f for f in os.listdir(temp_dir) if f.startswith(expected_prefix)]
+                assert len(temp_files) == 0, "No temporary files should be created on early return"
+
+            finally:
+                if os.path.exists(original_path):
+                    os.unlink(original_path)
 
     def test_apply_change_preserves_file_permissions(self) -> None:
         """Test that apply_change preserves original file permissions."""

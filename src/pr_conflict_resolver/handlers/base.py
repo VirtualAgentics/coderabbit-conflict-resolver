@@ -4,6 +4,7 @@ This module provides the abstract base class that all file handlers must impleme
 """
 
 import contextlib
+import logging
 import os
 import shutil
 import time
@@ -15,6 +16,8 @@ from pathlib import Path
 from ..core.models import Change, Conflict
 from ..security.input_validator import InputValidator
 from ..utils.path_utils import resolve_file_path
+
+logger = logging.getLogger(__name__)
 
 
 class BaseHandler(ABC):
@@ -198,6 +201,14 @@ class BaseHandler(ABC):
                     backup_file.flush()
                     os.fsync(backup_file.fileno())
 
+                # Best-effort directory fsync for durability
+                with contextlib.suppress(OSError, AttributeError):
+                    dir_fd = os.open(str(Path(backup_path).parent), os.O_RDONLY)
+                    try:
+                        os.fsync(dir_fd)
+                    finally:
+                        os.close(dir_fd)
+
                 # Successfully created backup with secure permissions
                 return str(backup_path)
 
@@ -260,14 +271,44 @@ class BaseHandler(ABC):
                 return True
             except (OSError, ValueError) as e:
                 # Log at debug level to aid diagnostics without noise in normal runs
-                import logging
-
-                logging.getLogger(__name__).debug(
-                    "Relaxed path validation failed for %s: %s", path_str, e
-                )
+                logger.debug("Relaxed path validation failed for %s: %s", path_str, e)
                 return False
 
         if not (_validate_or_relax(original_path) and _validate_or_relax(backup_path)):
+            return False
+
+        # Enforce same-directory restore and workspace containment
+        try:
+            backup_p = Path(backup_path).resolve(strict=False)
+            original_p = Path(original_path).resolve(strict=False)
+
+            # Require both paths to share the same parent directory
+            if backup_p.parent != original_p.parent:
+                logger.warning(
+                    "Restore rejected: backup and original must be in same directory. "
+                    "Backup parent: %s, Original parent: %s",
+                    backup_p.parent,
+                    original_p.parent,
+                )
+                return False
+
+            # Keep restores within workspace containment when workspace_root is set
+            if self.workspace_root:
+                workspace_resolved = Path(self.workspace_root).resolve(strict=False)
+                if not (
+                    backup_p.is_relative_to(workspace_resolved)
+                    and original_p.is_relative_to(workspace_resolved)
+                ):
+                    logger.warning(
+                        "Restore rejected: paths must be within workspace. "
+                        "Workspace: %s, Backup: %s, Original: %s",
+                        workspace_resolved,
+                        backup_p,
+                        original_p,
+                    )
+                    return False
+        except (OSError, ValueError) as e:
+            logger.error("Path resolution failed during restore validation: %s", e)
             return False
 
         try:

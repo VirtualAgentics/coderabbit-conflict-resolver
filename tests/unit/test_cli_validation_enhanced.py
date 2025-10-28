@@ -159,12 +159,12 @@ class TestValidateGitHubRepo:
 
     def test_repo_reserved_dot_names_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
         """Reserved names '.' and '..' should be rejected with explicit message."""
-        with pytest.raises(BadParameter):
+        with pytest.raises(BadParameter, match=r"repository name cannot be '\.' or '\.\.'"):
             validate_github_repo(mock_ctx, mock_param, ".")
 
     def test_repo_git_suffix_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
         """Names ending with .git should be rejected with explicit message."""
-        with pytest.raises(BadParameter):
+        with pytest.raises(BadParameter, match=r"repository name cannot end with '\.git'"):
             validate_github_repo(mock_ctx, mock_param, "name.git")
 
     @pytest.mark.parametrize("name", ["repo", "my-repo", "repo_1", "repo.1"])
