@@ -15,6 +15,21 @@ from click.testing import CliRunner
 
 from pr_conflict_resolver.cli.main import MAX_GITHUB_USERNAME_LENGTH, cli
 
+
+@pytest.fixture(autouse=True)
+def _stub_github(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prevent real GitHub calls in CLI tests."""
+
+    def _no_comments(self: object, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
+        return []
+
+    monkeypatch.setattr(
+        "pr_conflict_resolver.integrations.github.GitHubCommentExtractor.fetch_pr_comments",
+        _no_comments,
+        raising=True,
+    )
+
+
 # Redaction placeholders used to verify CLI output sanitization
 REDACTION_PLACEHOLDERS = ("[REDACTED]", "<redacted>", "[SANITIZED]", "<sanitized>")
 

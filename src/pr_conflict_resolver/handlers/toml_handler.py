@@ -122,10 +122,26 @@ class TomlHandler(BaseHandler):
             return False
 
         # Resolve path relative to workspace_root
-        # Allow absolute paths for test files outside workspace; disable containment enforcement
-        file_path = resolve_file_path(
-            path, self.workspace_root, allow_absolute=True, enforce_containment=False
-        )
+        # Security model:
+        # - Normal case: enforce containment within workspace_root
+        # - Temp bypass: if allowed and path is in temp dir, resolve directly (explicit risk)
+        path_obj = Path(path)
+        env_val = (os.getenv("ALLOW_TEMP_OUTSIDE_WORKSPACE") or "").strip().lower()
+        allow_temp_outside = env_val in {"1", "true", "yes", "on"}
+        if (
+            path_obj.is_absolute()
+            and allow_temp_outside
+            and self._is_temp_file(path_obj, Path(tempfile.gettempdir()))
+        ):
+            file_path = path_obj.resolve(strict=False)
+        else:
+            file_path = resolve_file_path(
+                path,
+                self.workspace_root,
+                allow_absolute=True,
+                validate_workspace=False,
+                enforce_containment=True,
+            )
 
         # Check for symlinks in the target path and all parent components before any file I/O
         if file_path.is_symlink():

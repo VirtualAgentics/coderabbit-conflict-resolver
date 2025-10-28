@@ -53,11 +53,20 @@ def resolve_file_path(
         >>> resolve_file_path('/absolute/path.json', workspace)
         Traceback (most recent call last):
         ...
-        ValueError: Path '/absolute/path.json' resolved to '/absolute/path.json'\
- which is outside workspace_root: /workspace
-        >>> resolve_file_path('/workspace/path.json', workspace)
-        PosixPath('/workspace/path.json')
-        >>> resolve_file_path('/absolute/path.json', workspace, allow_absolute=True)
+        ValueError: Path '/absolute/path.json' resolved to '/absolute/path.json' which is
+        ... outside workspace_root: /workspace
+        >>> resolve_file_path('/workspace/file.json', workspace, allow_absolute=True)
+        PosixPath('/workspace/file.json')
+        >>> resolve_file_path(
+        ...     '/outside/path.json', workspace, allow_absolute=True, enforce_containment=True
+        ... )
+        Traceback (most recent call last):
+        ...
+        ValueError: Absolute path '/outside/path.json' resolved to '/outside/path.json' which is
+        ... outside workspace_root: /workspace
+        >>> resolve_file_path(
+        ...     '/absolute/path.json', workspace, allow_absolute=True, enforce_containment=False
+        ... )
         PosixPath('/absolute/path.json')
     """
     # Validate path input (accept str/Path/PathLike)

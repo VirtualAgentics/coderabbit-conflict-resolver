@@ -30,7 +30,7 @@ def validate_version_constraint(
         line: Line from requirements file (may contain leading/trailing whitespace).
         require_exact_pin: If True, require exact pins including '==', '~=', and '==='. If False,
             allow any version constraint (>=, <=, ~=, ==, ===, etc.). Wildcards ('*') are only
-            valid with '==' and '!='.
+            valid with '==' and '!=' (not with '===', which performs arbitrary string equality).
         dependency_type: Type of dependency for error messages
             (e.g., "dependency", "dev dependency").
 
