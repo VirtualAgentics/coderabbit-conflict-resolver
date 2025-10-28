@@ -40,7 +40,7 @@ class PriorityStrategy(ResolutionStrategy):
         """
         self.config = config or {}
         raw_rules = self.config.get("priority_rules")
-        self.priority_rules = self._coerce_priority_rules(raw_rules)
+        self.priority_rules: PriorityRules = self._coerce_priority_rules(raw_rules)
 
     def _coerce_priority_rules(self, raw: object) -> PriorityRules:
         """Normalize and type-safe priority_rules from config.
@@ -121,12 +121,10 @@ class PriorityStrategy(ResolutionStrategy):
 
         # Select highest priority change
         highest_priority = prioritized_changes[0][0]
-        selected_changes = [
-            change for priority, change in prioritized_changes if priority == highest_priority
-        ]
-
-        # If multiple changes have same priority, use first one
-        applied_change = selected_changes[0]
+        tied = [c for p, c in prioritized_changes if p == highest_priority]
+        # Deterministic tie-break: earliest start_line, then alphabetically by path
+        # This ensures consistent, reproducible selection across runs
+        applied_change = sorted(tied, key=lambda c: (c.start_line, c.path))[0]
         skipped_changes = [
             change for priority, change in prioritized_changes if change is not applied_change
         ]

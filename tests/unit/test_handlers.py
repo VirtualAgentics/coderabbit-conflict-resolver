@@ -776,11 +776,19 @@ class TestBaseHandlerBackupRestore:
         assert original_file.read_text() == "backup content"
         assert not backup_file.exists()  # Backup should be removed
 
-    def test_restore_file_failure(self, test_handler: BaseHandler) -> None:
-        """Test restore_file failure returns False."""
+    def test_restore_file_failure(
+        self, test_handler: BaseHandler, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test restore_file failure returns False and logs error."""
+        # Create temporary files under tmp_path to pass containment checks
+        backup = tmp_path / "b.txt"
+        original = tmp_path / "o.txt"
+        backup.write_text("data")
+
         # Mock shutil.copy2 to raise an exception
         with patch("shutil.copy2", side_effect=OSError("Copy failed")):
-            result = test_handler.restore_file(
-                "/nonexistent/backup.txt", "/nonexistent/original.txt"
-            )
+            result = test_handler.restore_file(str(backup), str(original))
             assert result is False
+            # Verify error was logged with context
+            assert "Restore failed" in caplog.text
+            assert str(backup) in caplog.text

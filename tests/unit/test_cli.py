@@ -91,8 +91,6 @@ def test_cli_apply_success(mock_resolver: Any) -> None:
 @patch("pr_conflict_resolver.cli.main.ConflictResolver")
 def test_cli_simulate_mixed_conflicts(mock_resolver: Any) -> None:
     """simulate reports how many would be applied vs skipped."""
-    from pr_conflict_resolver.core.models import Change, FileType, Resolution
-
     mock_inst = mock_resolver.return_value
     # One 'low' (would apply) and one 'high' (would skip)
     mock_inst.analyze_conflicts.return_value = [

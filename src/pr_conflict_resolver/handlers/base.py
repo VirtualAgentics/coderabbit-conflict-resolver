@@ -4,6 +4,7 @@ This module provides the abstract base class that all file handlers must impleme
 """
 
 import contextlib
+import hashlib
 import logging
 import os
 import shutil
@@ -170,6 +171,9 @@ class BaseHandler(ABC):
         attempt = 0
         backup_path = None
 
+        # OS filename limit is typically 255 bytes; keep a safety margin
+        NAME_MAX = 240
+
         while attempt < max_attempts:
             # Generate backup path with unique identifier
             if attempt == 0:
@@ -180,9 +184,21 @@ class BaseHandler(ABC):
                 backup_path = file_path.with_suffix(f"{file_path.suffix}.backup.{timestamp}")
             else:
                 # Subsequent attempts: add UUID for uniqueness
-                backup_path = file_path.with_suffix(
-                    f"{file_path.suffix}.backup.{base_suffix}.{uuid.uuid4().hex[:8]}"
-                )
+                candidate_suffix = f"{file_path.suffix}.backup.{base_suffix}.{uuid.uuid4().hex[:8]}"
+                # If name would be too long, use deterministic hash-based fixed suffix
+                if len(file_path.with_suffix(candidate_suffix).name) >= NAME_MAX:
+                    # Create deterministic hash from original filename and base_suffix
+                    hash_input = f"{file_path.name}_{base_suffix}".encode()
+                    h = hashlib.sha256(hash_input).hexdigest()[:12]
+                    candidate_suffix = f"{file_path.suffix}.backup.{h}"
+                backup_path = file_path.with_suffix(candidate_suffix)
+
+                # Validate final filename length
+                if len(backup_path.name) >= NAME_MAX:
+                    raise OSError(
+                        f"Cannot create backup filename within {NAME_MAX} char limit "
+                        f"for: {file_path} (name length: {len(backup_path.name)})"
+                    )
 
             # Attempt atomic file creation with open fd for copy operation
             backup_fd = None
@@ -318,5 +334,6 @@ class BaseHandler(ABC):
             shutil.copy2(backup_path, original_path)
             Path(backup_path).unlink()  # Remove backup
             return True
-        except OSError:
+        except OSError as e:
+            logger.error("Restore failed: %s -> %s: %s", backup_path, original_path, e)
             return False
