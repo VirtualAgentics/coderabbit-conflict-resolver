@@ -252,8 +252,8 @@ class TestCommandLineParsingSecurity:
         )
 
         # Should handle multiple flags without issues
-        # Exit code doesn't matter for this test, just that it doesn't crash
-        assert result.exception is None, f"CLI raised unexpected exception: {result.exception}"
+        assert result.exit_code == 0, "CLI should parse multiple flags successfully"
+        assert "error" not in result.output.lower(), "CLI should not show errors for valid flags"
 
     def test_unicode_in_arguments_handled(self) -> None:
         """Test that Unicode characters in arguments are rejected by validate_github_identifier.
@@ -338,17 +338,6 @@ class TestInputValidation:
 
     def test_max_input_size_enforced(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that maximum input size is enforced."""
-
-        # Mock GitHub API to avoid actual network calls
-        def mock_fetch_pr_comments(
-            self: object, owner: str, repo: str, pr_number: int
-        ) -> list[dict[str, Any]]:
-            return []
-
-        monkeypatch.setattr(
-            "pr_conflict_resolver.integrations.github.GitHubCommentExtractor.fetch_pr_comments",
-            mock_fetch_pr_comments,
-        )
 
         runner = CliRunner()
 

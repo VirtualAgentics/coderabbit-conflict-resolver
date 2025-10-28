@@ -36,14 +36,14 @@ repos:
       - id: mypy
         language_version: python3.12
         additional_dependencies:
-          - click
-          - types-requests
-          - types-PyYAML
-          - pytest
-          - rich
-          - ruamel.yaml
-          - tomli-w
-          - pydantic
+          - click==8.3.0
+          - types-requests==2.32.4.20250913
+          - types-PyYAML==6.0.12.20250915
+          - pytest==8.4.2
+          - rich==14.2.0
+          - ruamel.yaml==0.18.16
+          - tomli-w==1.2.0
+          - pydantic==2.12.3
         pass_filenames: false
         args:
           - --strict

@@ -56,9 +56,9 @@ class TestTomlHandlerPathSecurity:
             "absolute-var-log",
         ],
     )
-    def test_apply_change_rejects_path_traversal(self, path: str) -> None:
+    def test_apply_change_rejects_path_traversal(self, tmp_path: Path, path: str) -> None:
         """Test that apply_change rejects path traversal attempts."""
-        handler = TomlHandler()
+        handler = TomlHandler(workspace_root=str(tmp_path))
         result = handler.apply_change(path, "key = 'value'", 1, 3)
         assert result is False, f"Should reject traversal path: {path}"
 

@@ -89,27 +89,22 @@ class TestHandlerPathTraversal:
             "../../../etc/passwd", content, 1, 1
         ), "Unix path traversal should be rejected"
 
-    def test_json_handler_rejects_windows_path_traversal(self) -> None:
-        """Test that JSON handler rejects Windows-style path traversal."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            base_path = Path(tmpdir)
-            handler = JsonHandler(workspace_root=str(base_path))
-
-            # Test Windows path traversal
-            assert not handler.apply_change(
-                "..\\..\\..\\windows\\system32", '{"key": "value"}', 1, 1
-            ), "Windows path traversal should be rejected"
-
-    def test_json_handler_rejects_url_encoded_traversal(self) -> None:
-        """Test that JSON handler rejects URL-encoded path traversal."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            base_path = Path(tmpdir)
-            handler = JsonHandler(workspace_root=str(base_path))
-
-            # Test URL-encoded traversal
-            assert not handler.apply_change(
-                "..%2F..%2Fetc%2Fpasswd", '{"key": "value"}', 1, 1
-            ), "URL-encoded traversal should be rejected"
+    @pytest.mark.parametrize(
+        "attack_path",
+        [
+            "../../../etc/passwd",
+            "..\\..\\..\\windows\\system32",
+            "..%2F..%2Fetc%2Fpasswd",
+        ],
+    )
+    def test_json_handler_rejects_path_traversal_variants(
+        self, tmp_path: Path, attack_path: str
+    ) -> None:
+        """Parametrized test covering Unix, Windows, and URL-encoded traversal paths."""
+        handler = JsonHandler(workspace_root=str(tmp_path))
+        assert not handler.apply_change(
+            attack_path, '{"key": "value"}', 1, 1
+        ), f"Path traversal should be rejected: {attack_path}"
 
     def test_yaml_handler_rejects_path_traversal(self, yaml_handler: YamlHandler) -> None:
         """Test that YAML handler rejects path traversal attempts."""
@@ -259,6 +254,8 @@ class TestResolverPathTraversal:
         assert isinstance(conflicts, list), "Should return a list of conflicts"
 
         # Verify handler unambiguously rejects malicious path
+        # Instantiate without workspace_root to ensure rejection is independent of
+        # workspace configuration
         handler = JsonHandler()
         handler_rejected_path = not handler.apply_change(
             malicious_change.path, malicious_change.content, 1, 1

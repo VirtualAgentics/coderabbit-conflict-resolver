@@ -36,14 +36,15 @@ def resolve_file_path(
         Path: Resolved absolute Path object
 
     Raises:
-        ValueError: If path is not a string, empty/whitespace-only, or if
-            workspace_root does not exist/is not a directory. Also raised when
-            the resolved path is outside workspace_root and allow_absolute=False.
+        TypeError: If `path` is not a `str` or `os.PathLike[str]` (raised by
+            `os.fspath(path)`).
+        ValueError: If `path` is empty/whitespace-only, or if `workspace_root`
+            does not exist/is not a directory. Also raised when an absolute
+            path is provided while `allow_absolute=False`, or when a resolved
+            path is outside `workspace_root` (per containment rules).
         OSError: In rare OS-level failures during resolution (platform-specific).
-            Note: resolve() is called with strict=False, so non-existent paths
-            typically do not raise.
-        RuntimeError: If path resolution encounters an unexpected error
-            (propagated from Path.resolve()).
+            Note: `Path.resolve()` is called with `strict=False`, so non-existent
+            paths typically do not raise.
 
     Example:
         >>> from pathlib import Path
@@ -53,8 +54,7 @@ def resolve_file_path(
         >>> resolve_file_path('/absolute/path.json', workspace)
         Traceback (most recent call last):
         ...
-        ValueError: Path '/absolute/path.json' resolved to '/absolute/path.json' which is
-        ... outside workspace_root: /workspace
+        ValueError: Absolute paths are not allowed when allow_absolute=False: /absolute/path.json
         >>> resolve_file_path('/workspace/file.json', workspace, allow_absolute=True)
         PosixPath('/workspace/file.json')
         >>> resolve_file_path(
