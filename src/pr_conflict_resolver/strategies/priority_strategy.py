@@ -77,7 +77,7 @@ class PriorityStrategy:
         # If multiple changes have same priority, use first one
         applied_change = selected_changes[0]
         skipped_changes = [
-            change for priority, change in prioritized_changes if change != applied_change
+            change for priority, change in prioritized_changes if change is not applied_change
         ]
 
         return Resolution(

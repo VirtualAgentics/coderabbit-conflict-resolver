@@ -87,7 +87,7 @@ class ChangeMetadata(TypedDict, total=False):
 type LineRange = tuple[int, int]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Change:
     """Represents a single change suggestion."""
 
