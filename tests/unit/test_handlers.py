@@ -745,17 +745,15 @@ class TestBaseHandlerBackupRestore:
             test_handler.backup_file(str(test_file))
 
     def test_backup_file_permission_error(self, test_handler: BaseHandler, tmp_path: Path) -> None:
-        """Test backup file creation with permission errors triggers cleanup."""
+        """Test backup file creation with permission errors fails fast."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
 
         # Mock os.open to raise OSError immediately to test the permission error path
-        # This triggers the OSError exception handler which uses "Unable" message
+        # Non-collision errors fail immediately instead of retrying
         with (
             patch("os.open", side_effect=OSError("Permission denied")),
-            pytest.raises(
-                OSError, match=r"Unable to create unique backup filename after 5 attempts"
-            ),
+            pytest.raises(OSError, match=r"Backup failed for.*: Permission denied"),
         ):
             test_handler.backup_file(str(test_file))
 

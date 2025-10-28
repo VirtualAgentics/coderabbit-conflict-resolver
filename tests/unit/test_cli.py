@@ -91,11 +91,33 @@ def test_cli_apply_success(mock_resolver: Any) -> None:
 @patch("pr_conflict_resolver.cli.main.ConflictResolver")
 def test_cli_simulate_mixed_conflicts(mock_resolver: Any) -> None:
     """simulate reports how many would be applied vs skipped."""
+    from pr_conflict_resolver.core.models import Change, FileType, Resolution
+
     mock_inst = mock_resolver.return_value
     # One 'low' (would apply) and one 'high' (would skip)
     mock_inst.analyze_conflicts.return_value = [
         _sample_conflict("a.json", "low"),
         _sample_conflict("b.json", "high"),
+    ]
+
+    # Mock resolve_conflicts to return Resolution objects with applied/skipped changes
+    change1 = Change("a.json", 1, 2, "change 1", {}, "fp1", FileType.JSON)
+    change2 = Change("b.json", 1, 2, "change 2", {}, "fp2", FileType.JSON)
+    mock_inst.resolve_conflicts.return_value = [
+        Resolution(
+            strategy="priority",
+            applied_changes=[change1],
+            skipped_changes=[],
+            success=True,
+            message="",
+        ),
+        Resolution(
+            strategy="priority",
+            applied_changes=[],
+            skipped_changes=[change2],
+            success=True,
+            message="",
+        ),
     ]
 
     runner = CliRunner()

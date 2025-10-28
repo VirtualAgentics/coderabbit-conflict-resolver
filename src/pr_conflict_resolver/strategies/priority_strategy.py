@@ -39,14 +39,54 @@ class PriorityStrategy(ResolutionStrategy):
                 "priority_rules" key to override the defaults.
         """
         self.config = config or {}
-        self.priority_rules: PriorityRules = self.config.get(
-            "priority_rules",
+        raw_rules = self.config.get("priority_rules")
+        self.priority_rules = self._coerce_priority_rules(raw_rules)
+
+    def _coerce_priority_rules(self, raw: object) -> PriorityRules:
+        """Normalize and type-safe priority_rules from config.
+
+        Coerces input to a PriorityRules TypedDict, filtering to allowed keys and
+        ensuring all values are integers. Returns defaults if input is invalid.
+
+        Args:
+            raw (object): Raw priority rules from configuration
+                (may be dict, None, or invalid type).
+
+        Returns:
+            PriorityRules: Validated and type-safe priority rules dictionary.
+        """
+        defaults: PriorityRules = {
+            "user_selections": 100,
+            "security_fixes": 90,
+            "syntax_errors": 80,
+            "regular_suggestions": 50,
+            "formatting": 10,
+        }
+        if not isinstance(raw, dict):
+            return defaults
+
+        # Explicitly assign each key to satisfy MyPy strict mode
+        def coerce_int(val: object, default: int) -> int:
+            """Coerce value to int, using default if conversion fails."""
+            if val is None:
+                return default
+            if isinstance(val, int):
+                return val
+            if isinstance(val, (str, float)):
+                try:
+                    return int(val)
+                except ValueError:
+                    return default
+            return default
+
+        return cast(
+            PriorityRules,
             {
-                "user_selections": 100,
-                "security_fixes": 90,
-                "syntax_errors": 80,
-                "regular_suggestions": 50,
-                "formatting": 10,
+                "user_selections": coerce_int(raw.get("user_selections"), 100),
+                "security_fixes": coerce_int(raw.get("security_fixes"), 90),
+                "syntax_errors": coerce_int(raw.get("syntax_errors"), 80),
+                "regular_suggestions": coerce_int(raw.get("regular_suggestions"), 50),
+                "formatting": coerce_int(raw.get("formatting"), 10),
             },
         )
 
@@ -162,7 +202,8 @@ class PriorityStrategy(ResolutionStrategy):
             "secret",
             "credential",
             "permission",
-            "access",
+            "access token",
+            "access control",
             "login",
         ]
         return any(keyword in content for keyword in security_keywords)
@@ -267,5 +308,5 @@ class PriorityStrategy(ResolutionStrategy):
             "formatting",
         }
         filtered_rules = {k: v for k, v in new_rules.items() if k in allowed_keys}
-        self.priority_rules.update(filtered_rules)  # type: ignore[typeddict-item]
+        self.priority_rules = cast(PriorityRules, {**self.priority_rules, **filtered_rules})
         self.config["priority_rules"] = self.priority_rules

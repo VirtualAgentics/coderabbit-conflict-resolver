@@ -13,9 +13,9 @@ from abc import ABC, abstractmethod
 from os import PathLike
 from pathlib import Path
 
-from ..core.models import Change, Conflict
-from ..security.input_validator import InputValidator
-from ..utils.path_utils import resolve_file_path
+from pr_conflict_resolver.core.models import Change, Conflict
+from pr_conflict_resolver.security.input_validator import InputValidator
+from pr_conflict_resolver.utils.path_utils import resolve_file_path
 
 logger = logging.getLogger(__name__)
 
@@ -220,6 +220,7 @@ class BaseHandler(ABC):
                 attempt += 1
                 continue
             except OSError as e:
+                # Non-collision error: fail fast with accurate context
                 # Close fd if open and clean up partial backup
                 if backup_fd is not None:
                     with contextlib.suppress(OSError):
@@ -229,12 +230,8 @@ class BaseHandler(ABC):
                     with contextlib.suppress(OSError):
                         backup_path.unlink()
 
-                attempt += 1
-                if attempt >= max_attempts:
-                    raise OSError(
-                        f"Unable to create unique backup filename after {max_attempts} attempts "
-                        f"for: {file_path}"
-                    ) from e
+                # Don't retry non-collision errors (permission denied, disk full, etc.)
+                raise OSError(f"Backup failed for {file_path}: {e}") from e
 
         # If we exhausted attempts only due to FileExistsError collisions, raise here
         raise OSError(  # pragma: no cover

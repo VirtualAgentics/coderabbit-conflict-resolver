@@ -41,6 +41,9 @@ def sanitize_for_output(value: str) -> str:
     a redacted placeholder if any are present. Logs safe metadata (length and
     hash) at debug level for troubleshooting without exposing the original value.
 
+    Note: This function does NOT remove visible shell metacharacters (;, |, $, etc.).
+    Only control characters are detected and trigger redaction.
+
     Args:
         value (str): The string to sanitize for terminal output.
 
@@ -404,11 +407,13 @@ def simulate(pr: int, owner: str, repo: str, config: str) -> None:
             console.print("✅ No conflicts detected")
             return
 
-        # Simulate resolution
+        # Simulate resolution using actual strategy
+        resolutions = resolver.resolve_conflicts(conflicts)
+
         total_changes = sum(len(conflict.changes) for conflict in conflicts)
-        would_apply = sum(1 for conflict in conflicts if conflict.severity != "high")
-        would_skip = len(conflicts) - would_apply
-        success_rate = (would_apply / len(conflicts)) * 100 if conflicts else 0
+        would_apply = sum(len(resolution.applied_changes) for resolution in resolutions)
+        would_skip = sum(len(resolution.skipped_changes) for resolution in resolutions)
+        success_rate = (would_apply / total_changes) * 100 if total_changes else 0
 
         console.print("📊 Simulation Results:")
         console.print(f"  • Total changes: {total_changes}")
