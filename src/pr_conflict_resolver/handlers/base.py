@@ -110,10 +110,13 @@ class BaseHandler(ABC):
             - Automatic cleanup on failure
 
         Args:
-            path (str): Path to the file to back up. Must be a valid, accessible file path.
+            path: Path to the file to back up. Must be a valid, accessible file path.
+                InputValidator.validate_file_path() is invoked with allow_absolute=True and
+                base_dir=self.workspace_root to ensure any absolute path is contained within
+                the configured workspace root.
 
         Returns:
-            str: Path to the created backup file with .backup suffix.
+            Path to the created backup file with .backup suffix.
 
         Raises:
             ValueError: If the path is invalid, contains path traversal, or file doesn't exist.
@@ -129,11 +132,6 @@ class BaseHandler(ABC):
             >>> import os
             >>> oct(os.stat(backup_path).st_mode & 0o777)
             '0o600'
-
-        Note:
-            This method uses InputValidator.validate_file_path() with allow_absolute=True
-            and base_dir set to the workspace_root, ensuring absolute paths are validated
-            for containment within the workspace root directory.
         """
         # Validate file path for security (path traversal protection)
         # Use workspace root for absolute path containment check
@@ -179,7 +177,6 @@ class BaseHandler(ABC):
 
             # Attempt atomic file creation with open fd for copy operation
             backup_fd = None
-            fdopen_succeeded = False
             try:
                 # Open backup atomically with O_CREAT|O_EXCL|O_WRONLY
                 backup_fd = os.open(
@@ -190,7 +187,6 @@ class BaseHandler(ABC):
 
                 # Wrap fd with file-like object for copying
                 with os.fdopen(backup_fd, "wb") as backup_file:
-                    fdopen_succeeded = True
                     # Copy source to backup via open fd
                     with open(file_path, "rb") as source_file:
                         shutil.copyfileobj(source_file, backup_file)
@@ -208,7 +204,7 @@ class BaseHandler(ABC):
                 continue
             except OSError as e:
                 # Close fd if open and clean up partial backup
-                if backup_fd is not None and not fdopen_succeeded:
+                if backup_fd is not None:
                     with contextlib.suppress(OSError):
                         os.close(backup_fd)
 

@@ -45,8 +45,8 @@ def validate_version_constraint(
     if not line or line.startswith("#"):
         return ValidationResult(is_valid=True, message="")
 
-    # Skip -r includes
-    if line.startswith(("-r ", "--requirement")):
+    # Skip -r includes (accept both with and without space)
+    if line.startswith(("-r", "--requirement")):
         return ValidationResult(is_valid=True, message="")
 
     # Skip hash-only lines (continuation lines for package hashes)
@@ -57,13 +57,16 @@ def validate_version_constraint(
     line_without_comment = line.split("#", 1)[0].rstrip()
 
     # Check if version is pinned or has reasonable constraints
-    # Allow ==, ~=, or range constraints like >=x.y.z,<a.b.c
-    version_pattern = r"(>=|<=|==|~=|!=|>|<)\s*\d[0-9A-Za-z.+-]*"
+    # Allow wildcards (*) only with equality/inequality (==, !=). Other operators must not use '*'.
+    version_pattern = (
+        r"((==|!=)\s*\d[0-9A-Za-z.*+-]*|"  # == or != may include '*'
+        r"(>=|<=|~=|===|>|<)\s*\d[0-9A-Za-z.+-]*)"  # others must not include '*'
+    )
     has_version_constraint = bool(re.search(version_pattern, line_without_comment))
 
     if require_exact_pin:
         # For production requirements.txt, require exact pinning (== or ~=)
-        exact_pin_pattern = r"(==|~=)\s*\d[0-9A-Za-z.+-]*"
+        exact_pin_pattern = r"(==|~=|===)\s*\d[0-9A-Za-z.*+-]*"
         has_exact_pin = bool(re.search(exact_pin_pattern, line_without_comment))
 
         if not has_exact_pin:
@@ -72,7 +75,7 @@ def validate_version_constraint(
                 message=(
                     f"'{line}' does not specify exact version pinning. "
                     f"{dependency_type.capitalize()} dependencies must use "
-                    f"'==1.2.3' or '~=1.2.3' for security"
+                    f"'==1.2.3', '~=1.2.3', or '===1.2.3' for security"
                 ),
             )
         return ValidationResult(is_valid=True, message="")

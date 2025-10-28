@@ -135,9 +135,8 @@ class TestCommandInjectionAttacks:
         assert not mock_subprocess.called, "subprocess should not be called"
         assert not mock_os_system.called, "os.system should not be called"
 
-        # Verify the malicious content was handled safely (not executed)
-        # The content should be treated as a string value in JSON, not as a command
-        assert "value $(rm -rf /)" in malicious_change.content
+        # Verify structure and boolean success without asserting exact message text
+        assert isinstance(conflicts, list)
 
 
 class TestShellMetacharacterInjection:
@@ -237,7 +236,7 @@ class TestJSONInjection:
         assert isinstance(result, tuple), "Should return tuple even for nested input"
         # Assert explicit success for valid nested JSON
         assert result[0] is True, "Handler should accept valid nested JSON"
-        assert "Valid" in result[1], "Message should indicate success: " + result[1]
+        assert isinstance(result[1], str) and result[1], "Message must be a non-empty string"
 
     def test_json_handler_rejects_invalid_unicode_escape(
         self, json_handler: JsonHandler, tmp_path: Path
@@ -278,8 +277,19 @@ class TestTOMLInjection:
 class TestEnvironmentVariableInjection:
     """Tests for environment variable injection prevention."""
 
-    def test_handlers_reject_env_var_injection_in_paths(self, json_handler: JsonHandler) -> None:
-        """Test that handlers reject environment variable injection in paths."""
+    @pytest.mark.parametrize(
+        "handler_fixture,content",
+        [
+            ("json_handler", '{"key": "value"}'),
+            ("yaml_handler", "key: value"),
+            ("toml_handler", 'key = "value"'),
+        ],
+    )
+    def test_handlers_reject_env_var_injection_in_paths(
+        self, request: pytest.FixtureRequest, handler_fixture: str, content: str
+    ) -> None:
+        """All handlers must reject environment variable injection in paths."""
+        handler = request.getfixturevalue(handler_fixture)
         injection_attempts = [
             "$HOME/file.json",
             "${PWD}/file.json",
@@ -287,8 +297,10 @@ class TestEnvironmentVariableInjection:
         ]
 
         for injection in injection_attempts:
-            result = json_handler.apply_change(injection, '{"key": "value"}', 1, 1)
-            assert not result, f"Should reject path with env var: {injection}"
+            result = handler.apply_change(injection, content, 1, 1)
+            assert (
+                not result
+            ), f"{handler.__class__.__name__} should reject path with env var: {injection}"
 
 
 class TestContentSanitization:

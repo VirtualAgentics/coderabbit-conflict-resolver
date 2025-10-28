@@ -62,8 +62,8 @@ class InputValidator:
     GITHUB_CLASSIC_BODY_MIN_LENGTH = 40  # Classic token minimum body length
 
     # GitHub token prefix lengths (computed dynamically from GITHUB_TOKEN_PREFIXES)
-    GITHUB_PAT_PREFIX_LENGTH = len("github_pat_")  # "github_pat_" prefix length
-    GITHUB_CLASSIC_PREFIX_LENGTH = len("ghp_")  # "ghp_", "gho_", etc. prefix length
+    GITHUB_PAT_PREFIX_LENGTH = len(GITHUB_TOKEN_PREFIXES[0])  # Computed dynamically
+    GITHUB_CLASSIC_PREFIX_LENGTH = len(GITHUB_TOKEN_PREFIXES[1])  # Computed dynamically
 
     @staticmethod
     def validate_file_path(
@@ -517,10 +517,10 @@ class InputValidator:
 
         Example:
             >>> InputValidator.validate_github_token(
-            ...     "ghp_abcdef123456789012345678901234567890"
-            ... )  # gitleaks:allow - docstring example
+            ...     "ghp_example_token_not_real"
+            ... )
             True
-            >>> token = "github_pat_abc123DEF456xyz789ABC012def345GHI678"
+            >>> token = "github_pat_FAKE_TOKEN_EXAMPLE_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
             >>> InputValidator.validate_github_token(token)
             True
             >>> InputValidator.validate_github_token("invalid_token")

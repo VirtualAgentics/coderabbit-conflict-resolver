@@ -119,3 +119,30 @@ class TestFilePermissionSecurity:
                 # Restore permissions for cleanup
                 os.chmod(f.name, 0o644)
                 Path(f.name).unlink()
+
+    @pytest.mark.skipif(os.name == "nt", reason="POSIX file modes not available on Windows")
+    def test_json_preserves_permissions(self) -> None:
+        """Ensure JsonHandler preserves original file permissions on atomic write."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            handler = JsonHandler(workspace_root=tmpdir)
+            test_file = Path(tmpdir) / "test.json"
+            test_file.write_text('{"key": "value"}')
+
+            # Make file read-only and then record the mode to preserve
+            os.chmod(test_file, 0o444)
+            original_mode = os.stat(test_file).st_mode
+            original_mode_bits = original_mode & 0o777
+
+            try:
+                # Perform atomic write via handler
+                result = handler.apply_change(str(test_file), '{"key": "new"}', 1, 1)
+                assert result is True
+
+                # Permissions should be preserved
+                current_mode_bits = os.stat(test_file).st_mode & 0o777
+                assert (
+                    current_mode_bits == original_mode_bits
+                ), f"Permissions changed: {oct(current_mode_bits)} != {oct(original_mode_bits)}"
+            finally:
+                # Restore for cleanup
+                os.chmod(test_file, 0o644)

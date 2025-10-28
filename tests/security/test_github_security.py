@@ -40,8 +40,8 @@ class TestGitHubTokenSecurity:
 
         from requests import RequestException
 
-        # Test token that should not appear in error messages
-        test_token = "ghp_test123456789012345678901234567890"  # gitleaks:allow  # noqa: S105
+        # Test token that should not appear in error messages (synthetic example)
+        test_token = "ghp_example_token_not_real"  # noqa: S105
 
         # Create GitHubCommentExtractor with test token
         extractor = GitHubCommentExtractor(token=test_token)
@@ -60,6 +60,10 @@ class TestGitHubTokenSecurity:
             assert (
                 test_token not in log_output
             ), f"Token '{test_token}' found in log output: {log_output}"
+
+        # Clear previous logs before the next scenario to isolate assertions
+        github_logger_capture.truncate(0)
+        github_logger_capture.seek(0)
 
         # Test with a different error scenario - network timeout
         with patch.object(extractor.session, "get") as mock_get:
@@ -88,11 +92,11 @@ class TestGitHubTokenSecurity:
             # gitleaks:allow
             pytest.param(generate_github_token("ghr_", 44), id="refresh_token"),
             # gitleaks:allow
-            pytest.param(generate_github_token("github_pat_", 58), id="fine_grained_pat_68"),
+            pytest.param(generate_github_token("github_pat_", 68), id="fine_grained_pat_68"),
             # gitleaks:allow
-            pytest.param(generate_github_token("github_pat_", 58), id="fine_grained_pat_64_a"),
+            pytest.param(generate_github_token("github_pat_", 64), id="fine_grained_pat_64_a"),
             # gitleaks:allow
-            pytest.param(generate_github_token("github_pat_", 58), id="fine_grained_pat_64_b"),
+            pytest.param(generate_github_token("github_pat_", 64), id="fine_grained_pat_64_b"),
         ],
     )
     def test_valid_token_formats(self, token: str) -> None:

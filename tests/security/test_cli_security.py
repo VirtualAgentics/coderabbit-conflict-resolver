@@ -65,7 +65,7 @@ class TestArgumentInjectionPrevention:
             if len(parts) >= 3:
                 result = runner.invoke(cli, parts)
                 # CLI must not echo raw injection
-                malicious_input = " ".join(parts) if isinstance(parts, list) else dangerous
+                malicious_input = " ".join(parts)
                 assert (
                     malicious_input not in result.output
                 ), f"CLI must not echo raw injection: {malicious_input}"
@@ -170,7 +170,10 @@ class TestTokenExposurePrevention:
             "ghr_",
             "password",
             "secret",
-            "key",
+            # More specific credential names to avoid false positives
+            r"\bapi_key\b",
+            r"\baccess_key\b",
+            r"\bsecret_key\b",
         ]
 
         for pattern in sensitive_patterns:

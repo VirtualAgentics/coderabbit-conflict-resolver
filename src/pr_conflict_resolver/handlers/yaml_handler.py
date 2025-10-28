@@ -92,24 +92,32 @@ class YamlHandler(BaseHandler):
         file_path = resolve_file_path(path, self.workspace_root, validate_workspace=False)
 
         # Check for symlinks in the target path and all parent components before any file I/O
-        if file_path.is_symlink():
-            self.logger.error(f"Symlink detected, rejecting path for security: {file_path}")
-            return False
-
-        # Check all parent directories for symlinks
-        for parent in file_path.parents:
-            if parent.is_symlink():
+        # Single traversal over the path and its parents to avoid duplicate probes
+        for component in (file_path, *file_path.parents):
+            try:
+                # Probe if the component is a symlink (detects even broken symlinks)
+                if component.is_symlink():
+                    self.logger.error(
+                        f"Symlink detected in path hierarchy, rejecting for security: {component}"
+                    )
+                    return False
+            except OSError:
+                # If probing fails, treat as unsafe
                 self.logger.error(
-                    f"Symlink detected in path hierarchy, rejecting for security: {parent}"
+                    f"Error probing filesystem component (possible symlink), rejecting: {component}"
                 )
                 return False
 
         # Parse original file
         try:
-            yaml = YAML()
-            yaml.preserve_quotes = True
             original_content = file_path.read_text(encoding="utf-8")
-            original_data = yaml.load(original_content)
+            # Step 1: validate structure safely (no object construction)
+            safe_yaml = YAML(typ="safe")
+            _ = safe_yaml.load(original_content)
+            # Step 2: re-parse with round-trip loader for formatting preservation
+            yaml_rt = YAML(typ="rt")
+            yaml_rt.preserve_quotes = True
+            original_data = yaml_rt.load(original_content)
         except (OSError, ValueError) as e:
             self.logger.error(f"Error parsing original YAML: {e}")
             return False
@@ -119,8 +127,12 @@ class YamlHandler(BaseHandler):
 
         # Parse suggestion
         try:
-            yaml_suggestion = YAML()
-            suggestion_data = yaml_suggestion.load(content)
+            # Step 1: validate safely to prevent object construction
+            safe_yaml_suggestion = YAML(typ="safe")
+            _ = safe_yaml_suggestion.load(content)
+            # Step 2: round-trip parse for structure with formatting support
+            yaml_suggestion_rt = YAML(typ="rt")
+            suggestion_data = yaml_suggestion_rt.load(content)
         except ValueError as e:
             self.logger.error(f"Error parsing YAML suggestion: {e}")
             return False
@@ -133,7 +145,10 @@ class YamlHandler(BaseHandler):
 
         # Write with proper formatting and comment preservation
         try:
-            yaml.dump(merged_data, file_path)
+            yaml_rt = YAML(typ="rt")
+            yaml_rt.preserve_quotes = True
+            with file_path.open("w", encoding="utf-8") as fh:
+                yaml_rt.dump(merged_data, fh)
             return True
         except (OSError, ValueError) as e:
             self.logger.error(f"Error writing YAML: {e}")

@@ -91,6 +91,26 @@ key3 = "value3"        # Normal spacing
         assert 'key2="updated"' in content  # Replacement applied
         assert 'key3 = "value3"' in content  # Normal spacing preserved
 
+    def test_invalid_ranges_no_mutation(
+        self, toml_handler: TomlHandler, temp_workspace: Path
+    ) -> None:
+        """Invalid line ranges should return False and not change the file."""
+        test_file = temp_workspace / "bad_range.toml"
+        original_content = """[section]
+key = "value"
+"""
+        test_file.write_text(original_content)
+
+        # Start/end far beyond EOF
+        result_far = toml_handler.apply_change(str(test_file), 'key = "new"', 99, 99)
+        assert result_far is False
+        assert test_file.read_text() == original_content
+
+        # Inverted range where start > end
+        result_inverted = toml_handler.apply_change(str(test_file), 'key = "new"', 3, 2)
+        assert result_inverted is False
+        assert test_file.read_text() == original_content
+
     def test_replaces_multiple_lines(self, toml_handler: TomlHandler, temp_workspace: Path) -> None:
         """Test replacing multiple lines while preserving surrounding content."""
         test_file = temp_workspace / "test.toml"
@@ -104,7 +124,7 @@ line3 = "old3"
 """
         test_file.write_text(original_content)
 
-        # Replace lines 4-5 (line1 and line2)
+        # Replace lines 4-5 (line1 and line2) so "# Before" remains
         replacement = """line1 = "new1"
 line2 = "new2"
 """

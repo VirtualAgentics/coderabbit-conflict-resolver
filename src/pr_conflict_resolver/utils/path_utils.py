@@ -28,8 +28,8 @@ def resolve_file_path(
         ValueError: If path is not a string, empty string, or whitespace-only. If
             workspace_root does not exist or is not a directory. If resolved path
             is outside workspace_root when allow_absolute=False.
-        OSError: If path resolution fails due to permission errors or broken
-            symlinks. Note: Path.resolve() is called without strict=True, so
+        OSError:             If path resolution fails due to permission errors or broken
+            symlinks. Note: Path.resolve() is called with strict=False, so
             non-existent paths will not raise OSError.
         RuntimeError: If path resolution encounters an unexpected error
             (propagated from Path.resolve()).
@@ -60,9 +60,9 @@ def resolve_file_path(
 
     path_obj = Path(path)
     if path_obj.is_absolute():
-        resolved = path_obj.resolve()
+        resolved = path_obj.resolve(strict=False)
     else:
-        resolved = (workspace_root_resolved / path_obj).resolve()
+        resolved = (workspace_root_resolved / path_obj).resolve(strict=False)
 
     # Check if resolved path is within workspace_root (unless allow_absolute=True)
     if not allow_absolute and not resolved.is_relative_to(workspace_root_resolved):

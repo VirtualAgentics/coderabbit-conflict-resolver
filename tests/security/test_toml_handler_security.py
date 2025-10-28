@@ -18,18 +18,18 @@ from pr_conflict_resolver.handlers.toml_handler import TomlHandler
 
 @pytest.fixture(scope="module", autouse=True)
 def enable_toml_for_tests() -> Generator[None, None, None]:
-    """Enable TOML support globally for all tests in this module.
+    """Enable TOML read/write support globally for this test module.
 
-    This ensures all tests exercise the same TOML-enabled code path consistently.
+    Ensures all tests exercise the TOML-enabled code path consistently.
     """
     import pr_conflict_resolver.handlers.toml_handler as toml_handler_module
 
-    original_value = getattr(toml_handler_module, "TOML_READ_AVAILABLE", True)
+    original_read = getattr(toml_handler_module, "TOML_READ_AVAILABLE", True)
     toml_handler_module.TOML_READ_AVAILABLE = True
 
     yield
 
-    toml_handler_module.TOML_READ_AVAILABLE = original_value
+    toml_handler_module.TOML_READ_AVAILABLE = original_read
 
 
 class TestTomlHandlerPathSecurity:

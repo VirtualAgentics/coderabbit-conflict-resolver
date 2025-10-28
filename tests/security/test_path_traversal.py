@@ -12,6 +12,7 @@ import pytest
 
 from pr_conflict_resolver import ConflictResolver
 from pr_conflict_resolver.core.models import Change, FileType
+from pr_conflict_resolver.handlers.base import BaseHandler
 from pr_conflict_resolver.handlers.json_handler import JsonHandler
 from pr_conflict_resolver.handlers.toml_handler import TomlHandler
 from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
@@ -140,12 +141,12 @@ class TestHandlerPathTraversal:
                 str(outside_file), "test content", 1, 1
             ), f"{handler.__class__.__name__} should reject absolute paths"
 
-    def test_handlers_reject_null_bytes_in_path(self) -> None:
+    def test_handlers_reject_null_bytes_in_path(self, tmp_path: Path) -> None:
         """Test that handlers reject paths containing null bytes."""
         handlers = [
-            JsonHandler(),
-            YamlHandler(),
-            TomlHandler(),
+            JsonHandler(workspace_root=str(tmp_path)),
+            YamlHandler(workspace_root=str(tmp_path)),
+            TomlHandler(workspace_root=str(tmp_path)),
         ]
 
         for handler in handlers:
@@ -156,49 +157,52 @@ class TestHandlerPathTraversal:
     def test_handlers_reject_symlink_attacks(self) -> None:
         """Test that handlers handle symlink attacks."""
         handlers = [
-            (JsonHandler(), "link.json", '{"key": "value"}'),
-            (YamlHandler(), "link.yaml", "key: value"),
-            (TomlHandler(), "link.toml", 'key = "value"'),
+            ("json", "link.json", '{"key": "value"}'),
+            ("yaml", "link.yaml", "key: value"),
+            ("toml", "link.toml", 'key = "value"'),
         ]
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create a symlink pointing outside the temp directory
+            # Create a symlink target outside the temp directory
             symlink_target = Path("/etc/passwd")
-            symlink_path = Path(tmpdir) / symlink_target.name
 
             try:
-                symlink_path.symlink_to(symlink_target)
-            except OSError:
-                # Symlink creation may fail due to permissions
-                pytest.skip("Cannot create symlink (permissions issue)")
+                for kind, filename, content in handlers:
+                    base_path = Path(tmpdir)
+                    # Instantiate handler with workspace_root bound to tmpdir
+                    if kind == "json":
+                        handler: BaseHandler = JsonHandler(workspace_root=str(base_path))
+                    elif kind == "yaml":
+                        handler = YamlHandler(workspace_root=str(base_path))
+                    else:
+                        handler = TomlHandler(workspace_root=str(base_path))
 
-            try:
-                for handler, filename, content in handlers:
-                    # Create appropriate symlink for each handler
-                    handler_symlink = Path(tmpdir) / filename
-                    handler_symlink.unlink(missing_ok=True)  # Clean up previous
-                    handler_symlink.symlink_to(symlink_target)
+                    # Create symlink within workspace pointing to external target
+                    handler_symlink = base_path / filename
+                    handler_symlink.unlink(missing_ok=True)
+                    try:
+                        handler_symlink.symlink_to(symlink_target)
+                    except OSError:
+                        pytest.skip("Cannot create symlink (permissions issue)")
 
-                    # The handler should validate the path properly
+                    # The handler should validate the path properly and reject
                     assert not handler.apply_change(
                         str(handler_symlink), content, 1, 1
                     ), f"{handler.__class__.__name__} should handle symlinks safely"
 
-                    # Clean up symlink
+                    # Clean up symlink for next iteration
                     if handler_symlink.exists():
                         handler_symlink.unlink()
             finally:
-                # Cleanup symlink if it exists
-                if symlink_path.exists():
-                    symlink_path.unlink()
+                pass
 
     def test_handlers_reject_symlink_in_parent_directories(self) -> None:
         """Test that handlers reject files when any parent directory is a symlink."""
-        handler = TomlHandler()
         content = 'key = "value"'
 
         with tempfile.TemporaryDirectory() as tmpdir:
             base_path = Path(tmpdir)
+            handler = TomlHandler(workspace_root=str(base_path))
 
             # Create a normal subdirectory structure
             subdir = base_path / "subdir" / "nested"
@@ -219,7 +223,7 @@ class TestHandlerPathTraversal:
                 pytest.skip("Cannot create symlink (permissions issue)")
 
             try:
-                # Try to access a file where one parent is a symlink
+                # Try to access a file where one parent is a symlink; provide workspace_root
                 assert not handler.apply_change(
                     str(symlink_target_file), content, 1, 2
                 ), "Handler should reject path when parent directory is a symlink"

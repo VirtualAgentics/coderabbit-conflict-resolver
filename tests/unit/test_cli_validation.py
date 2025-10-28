@@ -29,6 +29,8 @@ class TestCLIPathValidation:
 
         # Should fail for other reasons but not path validation
         result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
+        # Command should succeed for safe values
+        assert result.exit_code == 0
         output_lower = result.output.lower()
         # Safe paths should not trigger validation error messages
         validation_messages = [

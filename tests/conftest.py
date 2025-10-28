@@ -156,11 +156,18 @@ def github_logger_capture() -> Generator[io.StringIO, None, None]:
 
     # Get the logger for the GitHub module
     github_logger = logging.getLogger("pr_conflict_resolver.integrations.github")
+    # Save original state
+    original_level = github_logger.level
+    original_propagate = github_logger.propagate
+
     github_logger.addHandler(handler)
     github_logger.setLevel(logging.ERROR)
+    github_logger.propagate = False
 
     try:
         yield log_capture
     finally:
-        # Clean up logging handler
+        # Clean up logging handler and restore state
         github_logger.removeHandler(handler)
+        github_logger.setLevel(original_level)
+        github_logger.propagate = original_propagate
