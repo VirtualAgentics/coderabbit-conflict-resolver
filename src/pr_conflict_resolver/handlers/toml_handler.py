@@ -84,8 +84,12 @@ class TomlHandler(BaseHandler):
 
         Returns:
             bool: True if the suggestion was applied successfully; False if validation
-                fails (e.g., invalid line ranges, path traversal detected, invalid TOML syntax).
+                fails (e.g., path traversal detected, invalid TOML syntax).
                 When returning False, the method logs an error message with details.
+
+        Raises:
+            ValueError: If line range is invalid (start_line < 1, end_line < start_line,
+                or end_line > total_lines).
         """
         # Validate file path to prevent path traversal attacks
         # Use workspace root for absolute path containment check
@@ -139,7 +143,7 @@ class TomlHandler(BaseHandler):
                 path,
                 self.workspace_root,
                 allow_absolute=True,
-                validate_workspace=False,
+                validate_workspace=True,
                 enforce_containment=True,
             )
 
@@ -174,19 +178,16 @@ class TomlHandler(BaseHandler):
         # Validate line range bounds (1-based indices)
         total_lines = len(original_lines)
         if start_line < 1:
-            self.logger.error(f"Invalid line range: start_line must be >= 1, got {start_line}")
-            return False
+            raise ValueError(f"Invalid line range for {file_path}: start_line={start_line} (<1)")
         if end_line < start_line:
-            self.logger.error(
-                f"Invalid line range: end_line ({end_line}) must be >= start_line ({start_line})"
+            raise ValueError(
+                f"Invalid line range for {file_path}: end_line={end_line} < start_line={start_line}"
             )
-            return False
         if end_line > total_lines:
-            self.logger.error(
-                f"Invalid line range: end_line ({end_line}) exceeds file length "
-                f"({total_lines} lines)"
+            raise ValueError(
+                f"Invalid line range for {file_path}: "
+                f"end_line={end_line} > total_lines={total_lines}"
             )
-            return False
 
         # Validate suggestion is proper TOML
         try:

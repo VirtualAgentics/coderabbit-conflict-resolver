@@ -67,7 +67,7 @@ def validate_version_constraint(
         r"("  # start group
         r"===\s*[^*\s]+"  # identity, any non-space string without '*'
         r"|"  # or
-        r"(==|!=)\s*[0-9A-Za-z.+\-.*]+"  # equality/inequality may include '*'
+        r"(==|!=)\s*\d[0-9A-Za-z.+-]*(?:\.\*)?"  # equality/inequality with optional trailing '.*'
         r"|"  # or
         r"~=\s*[0-9A-Za-z.+\-]+"  # compatible release, no '*'
         r"|"  # or

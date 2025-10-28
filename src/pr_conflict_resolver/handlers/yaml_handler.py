@@ -9,10 +9,10 @@ from os import PathLike
 from pathlib import Path
 from typing import Any, ClassVar
 
-from ..core.models import Change, Conflict
-from ..security.input_validator import InputValidator
-from ..utils.path_utils import resolve_file_path
-from .base import BaseHandler
+from pr_conflict_resolver.core.models import Change, Conflict
+from pr_conflict_resolver.handlers.base import BaseHandler
+from pr_conflict_resolver.security.input_validator import InputValidator
+from pr_conflict_resolver.utils.path_utils import resolve_file_path
 
 # Type alias for YAML values to avoid Any usage
 YAMLValue = dict[str, Any] | list[Any] | str | int | float | bool | None
@@ -183,6 +183,15 @@ class YamlHandler(BaseHandler):
             if orig_mode is not None:
                 os.chmod(tmp_path, stat.S_IMODE(orig_mode))
             os.replace(tmp_path, file_path)
+            # Best-effort directory fsync
+            try:
+                dir_fd = os.open(str(file_path.parent), os.O_RDONLY)
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
+            except (OSError, AttributeError):
+                self.logger.debug("Directory fsync failed (non-fatal)", exc_info=True)
             return True
         except (OSError, ValueError) as e:
             self.logger.error(f"Error writing YAML: {e}")

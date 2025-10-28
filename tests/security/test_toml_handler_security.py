@@ -6,6 +6,7 @@ atomic operations, permission handling, and error cleanup.
 
 import os
 import stat
+import sys
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
@@ -22,8 +23,6 @@ def enable_toml_for_tests() -> Generator[None, None, None]:
 
     Ensures all tests exercise the TOML-enabled code path consistently.
     """
-    from unittest.mock import patch
-
     import pr_conflict_resolver.handlers.toml_handler as toml_handler_module
 
     with (
@@ -212,6 +211,7 @@ class TestTomlHandlerAtomicOperations:
                 if os.path.exists(original_path):
                     os.unlink(original_path)
 
+    @pytest.mark.skipif(sys.platform.startswith("win"), reason="chmod semantics differ on Windows")
     def test_apply_change_preserves_file_permissions(self) -> None:
         """Test that apply_change preserves original file permissions."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
@@ -287,7 +287,7 @@ class TestTomlHandlerErrorHandling:
             try:
                 # Mock os.replace to raise an error
                 with patch("os.replace", side_effect=OSError("Write error")):
-                    result = handler.apply_change(original_path, "newkey = 'newvalue'", 1, 3)
+                    result = handler.apply_change(original_path, "newkey = 'newvalue'", 1, 1)
                     assert result is False
 
                 # Verify no temp files were left behind after error
@@ -317,7 +317,7 @@ class TestTomlHandlerErrorHandling:
             try:
                 # Mock fsync to raise an error
                 with patch("os.fsync", side_effect=OSError("Fsync error")):
-                    result = handler.apply_change(original_path, "newkey = 'newvalue'", 1, 3)
+                    result = handler.apply_change(original_path, "newkey = 'newvalue'", 1, 1)
                     # Should fail due to fsync error
                     assert result is False
                     # Verify file content remained unchanged (no partial write)

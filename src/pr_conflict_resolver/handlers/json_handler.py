@@ -111,7 +111,7 @@ class JsonHandler(BaseHandler):
         # Reject symlinks in the target path or any parent within the workspace
         try:
             for p in (file_path, *file_path.parents):
-                if p == self.workspace_root.parent:
+                if p == self.workspace_root:
                     break  # don't traverse above workspace root
                 if p.is_symlink():
                     self.logger.error(f"Symlink detected in path component: {p}")

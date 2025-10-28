@@ -6,6 +6,8 @@ section ordering when applying changes using line-based targeted replacement.
 
 from pathlib import Path
 
+import pytest
+
 from pr_conflict_resolver.handlers.toml_handler import TomlHandler
 
 
@@ -94,7 +96,7 @@ key3 = "value3"        # Normal spacing
     def test_invalid_ranges_no_mutation(
         self, toml_handler: TomlHandler, temp_workspace: Path
     ) -> None:
-        """Invalid line ranges should return False and not change the file."""
+        """Invalid line ranges should raise ValueError and not change the file."""
         test_file = temp_workspace / "bad_range.toml"
         original_content = """[section]
 key = "value"
@@ -102,13 +104,13 @@ key = "value"
         test_file.write_text(original_content)
 
         # Start/end far beyond EOF
-        result_far = toml_handler.apply_change(str(test_file), 'key = "new"', 99, 99)
-        assert result_far is False
+        with pytest.raises(ValueError, match="end_line=99 > total_lines"):
+            toml_handler.apply_change(str(test_file), 'key = "new"', 99, 99)
         assert test_file.read_text() == original_content
 
         # Inverted range where start > end
-        result_inverted = toml_handler.apply_change(str(test_file), 'key = "new"', 3, 2)
-        assert result_inverted is False
+        with pytest.raises(ValueError, match="end_line=2 < start_line=3"):
+            toml_handler.apply_change(str(test_file), 'key = "new"', 3, 2)
         assert test_file.read_text() == original_content
 
     def test_replaces_multiple_lines(self, toml_handler: TomlHandler, temp_workspace: Path) -> None:
@@ -143,13 +145,13 @@ line2 = "new2"
     def test_rejects_start_line_below_one(
         self, toml_handler: TomlHandler, temp_workspace: Path
     ) -> None:
-        """apply_change should reject start_line < 1 and not mutate the file."""
+        """apply_change should raise ValueError for start_line < 1 and not mutate the file."""
         test_file = temp_workspace / "guard.toml"
         original_content = """[section]
 key = "value"
 """
         test_file.write_text(original_content)
 
-        result = toml_handler.apply_change(str(test_file), 'key = "new"', 0, 1)
-        assert result is False
+        with pytest.raises(ValueError, match="start_line=0 \\(<1\\)"):
+            toml_handler.apply_change(str(test_file), 'key = "new"', 0, 1)
         assert test_file.read_text() == original_content

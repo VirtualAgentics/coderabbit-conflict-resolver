@@ -661,7 +661,7 @@ class TestBaseHandlerBackupRestore:
     """Test BaseHandler backup and restore functionality."""
 
     @pytest.mark.skipif(os.name == "nt", reason="POSIX file mode semantics on Windows")
-    def test_backup_file_success(self, test_handler: Any, tmp_path: Path) -> None:
+    def test_backup_file_success(self, test_handler: BaseHandler, tmp_path: Path) -> None:
         """Test successful backup file creation."""
         # Create test file in tmp_path (same workspace_root as handler)
         test_file = tmp_path / "test.txt"
@@ -678,7 +678,7 @@ class TestBaseHandlerBackupRestore:
         # Verify backup file has secure permissions (0o600) on POSIX systems
         assert stat.S_IMODE(Path(backup_path).stat().st_mode) == 0o600
 
-    def test_backup_file_nonexistent(self, test_handler: Any, tmp_path: Path) -> None:
+    def test_backup_file_nonexistent(self, test_handler: BaseHandler, tmp_path: Path) -> None:
         """Test backup_file with non-existent file raises FileNotFoundError."""
 
         # Create a valid path that doesn't exist (within tmp_path)
@@ -687,13 +687,15 @@ class TestBaseHandlerBackupRestore:
         with pytest.raises(FileNotFoundError, match="Source file does not exist"):
             test_handler.backup_file(str(nonexistent_file))
 
-    def test_backup_file_directory(self, test_handler: Any, tmp_path: Path) -> None:
+    def test_backup_file_directory(self, test_handler: BaseHandler, tmp_path: Path) -> None:
         """Test backup_file with directory instead of file raises ValueError."""
         # Use tmp_path as the directory (within workspace_root)
         with pytest.raises(ValueError, match="Source path is not a regular file"):
             test_handler.backup_file(str(tmp_path))
 
-    def test_backup_file_collision_handling(self, test_handler: Any, tmp_path: Path) -> None:
+    def test_backup_file_collision_handling(
+        self, test_handler: BaseHandler, tmp_path: Path
+    ) -> None:
         """Test backup file collision handling with timestamp and counter."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
@@ -710,7 +712,9 @@ class TestBaseHandlerBackupRestore:
         assert Path(backup_path).exists()
         assert backup_path.endswith(".backup.1234567890")
 
-    def test_backup_file_collision_counter_limit(self, test_handler: Any, tmp_path: Path) -> None:
+    def test_backup_file_collision_counter_limit(
+        self, test_handler: BaseHandler, tmp_path: Path
+    ) -> None:
         """Test backup file collision handling with 5 attempts raises OSError."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
@@ -740,7 +744,7 @@ class TestBaseHandlerBackupRestore:
         ):
             test_handler.backup_file(str(test_file))
 
-    def test_backup_file_permission_error(self, test_handler: Any, tmp_path: Path) -> None:
+    def test_backup_file_permission_error(self, test_handler: BaseHandler, tmp_path: Path) -> None:
         """Test backup file creation with permission errors triggers cleanup."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
@@ -755,7 +759,7 @@ class TestBaseHandlerBackupRestore:
         ):
             test_handler.backup_file(str(test_file))
 
-    def test_restore_file_success(self, test_handler: Any, tmp_path: Path) -> None:
+    def test_restore_file_success(self, test_handler: BaseHandler, tmp_path: Path) -> None:
         """Test successful file restoration."""
         # Create files within handler's workspace_root (tmp_path)
         # Create original file
@@ -774,7 +778,7 @@ class TestBaseHandlerBackupRestore:
         assert original_file.read_text() == "backup content"
         assert not backup_file.exists()  # Backup should be removed
 
-    def test_restore_file_failure(self, test_handler: Any) -> None:
+    def test_restore_file_failure(self, test_handler: BaseHandler) -> None:
         """Test restore_file failure returns False."""
         # Mock shutil.copy2 to raise an exception
         with patch("shutil.copy2", side_effect=OSError("Copy failed")):
