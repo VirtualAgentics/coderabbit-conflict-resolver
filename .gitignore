@@ -187,3 +187,7 @@ safety-report.json
 
 # Local development tools (should not be committed)
 git
+
+# Claude local configuration (exclude from repo)
+.claude/
+claude.md
