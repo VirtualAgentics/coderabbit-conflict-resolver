@@ -5,7 +5,7 @@ This module provides the abstract base class that all resolution strategies must
 
 from abc import ABC, abstractmethod
 
-from ..core.models import Conflict, Resolution
+from pr_conflict_resolver.core.models import Conflict, Resolution
 
 
 class ResolutionStrategy(ABC):
@@ -23,10 +23,10 @@ class ResolutionStrategy(ABC):
             conflict: The conflict to resolve, containing all conflicting changes and metadata.
 
         Returns:
-            Resolution object containing:
-            - selected_change: The change that was chosen (or None if deferred)
+            Resolution: Object containing:
+            - applied_changes: List of changes that were applied (often a single item)
             - skipped_changes: List of changes that were not applied
-            - reason: Explanation for the resolution decision
+            - message: Explanation for the resolution decision
             - success: Whether the resolution was successful
 
         Raises:

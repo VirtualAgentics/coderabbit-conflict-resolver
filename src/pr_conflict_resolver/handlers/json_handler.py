@@ -104,12 +104,13 @@ class JsonHandler(BaseHandler):
             enforce_containment=True,
         )
 
-        # Parse original file
+        # Parse original file (accept any valid JSON, not only dict)
         try:
             original_content = file_path.read_text(encoding="utf-8")
-            original_data = self._parse_json_dict(original_content, f"JSON file {file_path}")
-            if original_data is None:
-                self.logger.error(f"Failed to parse JSON file {file_path}")
+            try:
+                original_value = self._loads_strict(original_content)
+            except (json.JSONDecodeError, ValueError) as pe:
+                self.logger.error(f"Error parsing JSON file {file_path}: {type(pe).__name__}: {pe}")
                 return False
         except (OSError, UnicodeDecodeError) as e:
             self.logger.error(f"Error reading JSON file {file_path}: {type(e).__name__}: {e}")
@@ -119,25 +120,24 @@ class JsonHandler(BaseHandler):
         try:
             suggestion_value = self._loads_strict(content)
         except (json.JSONDecodeError, ValueError):
-            # Invalid JSON - try partial suggestion fallback
-            return self._apply_partial_suggestion(
-                file_path, original_data, content, start_line, end_line
-            )
+            # Invalid JSON - try partial suggestion fallback only if original is dict
+            if isinstance(original_value, dict):
+                return self._apply_partial_suggestion(
+                    file_path, original_value, content, start_line, end_line
+                )
+            else:
+                self.logger.error("Partial suggestion not supported for non-dict JSON")
+                return False
 
         # Handle dict vs non-dict JSON
         merged_data: dict[str, Any] | list[Any] | str | int | float | bool | None
-        if isinstance(suggestion_value, dict):
-            # Dict: merge with original
+        if isinstance(suggestion_value, dict) and isinstance(original_value, dict):
+            # Dict+dict: merge
             merged_data = self._smart_merge_json(
-                original_data, suggestion_value, start_line, end_line
+                original_value, suggestion_value, start_line, end_line
             )
-
-            # Validate merged result
-            if self._has_duplicate_keys(merged_data):
-                self.logger.error("Merge would create duplicate keys")
-                return False
         else:
-            # Valid non-dict JSON (array, primitive) -> full replacement
+            # Any non-dict on either side -> full replacement with suggestion
             merged_data = suggestion_value
 
         # Write with atomic operation

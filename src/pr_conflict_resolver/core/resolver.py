@@ -5,6 +5,7 @@ conflict resolution for GitHub PR comments, specifically designed for CodeRabbit
 but extensible to other code review bots.
 """
 
+import contextlib
 import hashlib
 import logging
 import os
@@ -13,16 +14,22 @@ from os import PathLike
 from pathlib import Path
 from typing import Any
 
-from ..analysis.conflict_detector import ConflictDetector
-from ..handlers.json_handler import JsonHandler
-from ..handlers.toml_handler import TomlHandler
-from ..handlers.yaml_handler import YamlHandler
-from ..integrations.github import GitHubCommentExtractor
-from ..security.input_validator import InputValidator
-from ..strategies.priority_strategy import PriorityStrategy
-from ..utils.path_utils import resolve_file_path
-from ..utils.text import normalize_content
-from .models import Change, Conflict, FileType, Resolution, ResolutionResult
+from pr_conflict_resolver.analysis.conflict_detector import ConflictDetector
+from pr_conflict_resolver.core.models import (
+    Change,
+    Conflict,
+    FileType,
+    Resolution,
+    ResolutionResult,
+)
+from pr_conflict_resolver.handlers.json_handler import JsonHandler
+from pr_conflict_resolver.handlers.toml_handler import TomlHandler
+from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
+from pr_conflict_resolver.integrations.github import GitHubCommentExtractor
+from pr_conflict_resolver.security.input_validator import InputValidator
+from pr_conflict_resolver.strategies.priority_strategy import PriorityStrategy
+from pr_conflict_resolver.utils.path_utils import resolve_file_path
+from pr_conflict_resolver.utils.text import normalize_content
 
 
 class WorkspaceError(ValueError):
@@ -294,9 +301,13 @@ class ConflictResolver:
                     change1, conflicting_changes
                 )
 
+                # Use union of all involved changes for conflict line_range
+                min_start = min(c.start_line for c in all_changes)
+                max_end = max(c.end_line for c in all_changes)
+
                 conflict = Conflict(
                     file_path=file_path,
-                    line_range=(change1.start_line, change1.end_line),
+                    line_range=(min_start, max_end),
                     changes=all_changes,
                     conflict_type=conflict_type,
                     severity=severity,
@@ -332,7 +343,11 @@ class ConflictResolver:
             change2 = conflicting_changes[0]
             if change1.start_line == change2.start_line and change1.end_line == change2.end_line:
                 return "exact"
-            elif change1.start_line <= change2.start_line and change1.end_line >= change2.end_line:
+            elif (
+                change1.start_line <= change2.start_line and change1.end_line >= change2.end_line
+            ) or (
+                change2.start_line <= change1.start_line and change2.end_line >= change1.end_line
+            ):
                 return "major"
             else:
                 return "partial"
@@ -371,39 +386,50 @@ class ConflictResolver:
     def _calculate_overlap_percentage(
         self, change1: Change, conflicting_changes: list[Change]
     ) -> float:
-        """Compute overlap = (intersection / union) * 100 for inclusive line ranges.
+        """Compute percentage of lines covered by >=2 changes over the union of all lines.
+
+        Uses a line-sweep algorithm to accurately compute overlaps across multiple changes.
 
         Args:
             change1: The primary change to analyze.
             conflicting_changes: List of changes that conflict with change1.
 
         Returns:
-            float: Percentage (0.0-100.0) of the combined span covered by the intersection;
-                `float(0)` if `conflicting_changes` is empty or there is no overlap.
+            float: Percentage (0.0-100.0) of lines covered by 2+ changes relative to total
+                union; `float(0)` if fewer than 2 changes or no overlap.
         """
-        if not conflicting_changes:
+        changes = [change1, *conflicting_changes]
+        if len(changes) < 2:
             return float(0)
 
-        # Consider the combined span of change1 and all conflicting changes
-        min_start = min([change1.start_line, *[c.start_line for c in conflicting_changes]])
-        max_end = max([change1.end_line, *[c.end_line for c in conflicting_changes]])
+        # Build sweep events for inclusive ranges
+        events: list[tuple[int, int]] = []
+        for c in changes:
+            start = min(c.start_line, c.end_line)
+            end = max(c.start_line, c.end_line)
+            events.append((start, +1))
+            events.append((end + 1, -1))
 
-        # Intersection against the first conflicting change as baseline
-        c = conflicting_changes[0]
-        inter_start = max(change1.start_line, c.start_line)
-        inter_end = min(change1.end_line, c.end_line)
+        events.sort()
+        active = 0
+        prev: int | None = None
+        union_len = 0
+        overlap_len = 0
 
-        if inter_start > inter_end:
+        for pos, delta in events:
+            if prev is not None:
+                span = pos - prev
+                if active > 0:
+                    union_len += span
+                if active > 1:
+                    overlap_len += span
+            active += delta
+            prev = pos
+
+        if union_len <= 0:
             return float(0)
 
-        intersection = inter_end - inter_start + 1
-        union = max_end - min_start + 1
-
-        # Explicit zero-division guard
-        if union <= 0:
-            return float(0)
-
-        return (intersection / union) * 100.0
+        return (overlap_len / union_len) * 100.0
 
     def resolve_conflicts(self, conflicts: list[Conflict]) -> list[Resolution]:
         """Resolve each provided conflict using the configured priority strategy.
@@ -469,12 +495,9 @@ class ConflictResolver:
         """Apply the provided Change to its target file.
 
         Returns:
-            `true` if the change was successfully applied, `false` otherwise.
+            True if the change was successfully applied, False otherwise.
         """
-        file_path = Path(change.path)
-        if not file_path.exists():
-            return False
-
+        # Existence and safety checks are delegated to handlers/plaintext path resolver.
         # Get appropriate handler
         handler = self.handlers.get(change.file_type)
         if not handler:
@@ -517,6 +540,9 @@ class ConflictResolver:
             self.logger.error(f"Failed to resolve path {change.path}: {e}")
             return False
 
+        import tempfile
+
+        temp_path: Path | None = None
         try:
             lines = file_path.read_text(encoding="utf-8").splitlines()
             replacement = change.content.split("\n")
@@ -530,7 +556,41 @@ class ConflictResolver:
                 end_idx = len(lines)
 
             new_lines = lines[:start_idx] + replacement + lines[end_idx:]
-            file_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+            new_text = "\n".join(new_lines) + "\n"
+
+            # Atomic write with permission preservation
+            original_mode = None
+            if file_path.exists():
+                original_mode = os.stat(file_path).st_mode
+
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=file_path.parent,
+                prefix=f".{file_path.name}.tmp",
+                delete=False,
+            ) as tmp:
+                temp_path = Path(tmp.name)
+                tmp.write(new_text)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+
+            if original_mode is not None:
+                os.chmod(temp_path, stat.S_IMODE(original_mode))
+
+            os.replace(temp_path, file_path)
+            temp_path = None
+
+            # Best-effort parent dir fsync
+            try:
+                dir_fd = os.open(file_path.parent, os.O_RDONLY)
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
+            except OSError:
+                self.logger.debug("Directory fsync failed for %s", file_path.parent, exc_info=True)
+
             return True
         except (OSError, UnicodeDecodeError, UnicodeEncodeError) as e:
             self.logger.error(
@@ -538,6 +598,11 @@ class ConflictResolver:
                 f"(lines {change.start_line}-{change.end_line}): {e}"
             )
             return False
+        finally:
+            # Clean up temp file if it still exists
+            if temp_path and temp_path.exists():
+                with contextlib.suppress(OSError):
+                    temp_path.unlink()
 
     def _fetch_comments_with_error_context(
         self, owner: str, repo: str, pr_number: int

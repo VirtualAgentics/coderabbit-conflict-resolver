@@ -6,8 +6,8 @@ based on priority levels and user preferences.
 
 from typing import Any
 
-from ..core.models import Change, Conflict, Resolution
-from .base import ResolutionStrategy
+from pr_conflict_resolver.core.models import Change, Conflict, Resolution
+from pr_conflict_resolver.strategies.base import ResolutionStrategy
 
 
 class PriorityStrategy(ResolutionStrategy):

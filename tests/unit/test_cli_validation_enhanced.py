@@ -1,7 +1,7 @@
 """Enhanced unit tests for CLI validation functions.
 
-This module provides comprehensive tests for the CLI validation functions
-including validate_github_username and sanitize_for_output.
+This module provides comprehensive tests for CLI validation:
+validate_github_username, validate_github_repo, validate_pr_number, and sanitize_for_output.
 """
 
 import hashlib
@@ -142,6 +142,11 @@ class TestValidateGitHubRepo:
         with pytest.raises(BadParameter, match="repository name required"):
             validate_github_repo(mock_ctx, mock_param, "")
 
+    def test_repo_none_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
+        """Non-string (None) should raise 'repository name required'."""
+        with pytest.raises(BadParameter, match="repository name required"):
+            validate_github_repo(mock_ctx, mock_param, None)  # type: ignore[arg-type]
+
     def test_repo_too_long_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
         """Names exceeding max length should raise error."""
         with pytest.raises(BadParameter, match="repository name too long"):
@@ -151,6 +156,16 @@ class TestValidateGitHubRepo:
         """Names with slashes should raise single-segment error."""
         with pytest.raises(BadParameter, match="identifier must be a single segment"):
             validate_github_repo(mock_ctx, mock_param, "a/b")
+
+    def test_repo_backslash_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
+        """Backslash should raise single-segment error."""
+        with pytest.raises(BadParameter, match="identifier must be a single segment"):
+            validate_github_repo(mock_ctx, mock_param, "a\\b")
+
+    def test_repo_whitespace_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
+        """Whitespace should raise single-segment error."""
+        with pytest.raises(BadParameter, match="identifier must be a single segment"):
+            validate_github_repo(mock_ctx, mock_param, "a b")
 
     def test_repo_invalid_characters_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
         """Names with invalid characters should be rejected."""
@@ -167,7 +182,7 @@ class TestValidateGitHubRepo:
         with pytest.raises(BadParameter, match=r"repository name cannot end with '\.git'"):
             validate_github_repo(mock_ctx, mock_param, "name.git")
 
-    @pytest.mark.parametrize("name", ["repo", "my-repo", "repo_1", "repo.1"])
+    @pytest.mark.parametrize("name", ["repo", "my-repo", "repo_1", "repo.1", "Repo", "REPO-1"])
     def test_valid_repo_names_pass(self, mock_ctx: Context, mock_param: Mock, name: str) -> None:
         """Known-valid repository names should pass validation."""
         assert validate_github_repo(mock_ctx, mock_param, name) == name
@@ -373,6 +388,8 @@ class TestCLIIntegration:
 
         for cmd in commands:
             result = runner.invoke(cli, cmd)
+            # Not a Click usage/option parsing error
+            assert result.exit_code != 2, f"Unexpected Click usage error: {result.output}"
             # Should not fail due to validation errors - check for specific identifier errors
             output_lower = result.output.lower()
             # Check for specific identifier validation error messages
