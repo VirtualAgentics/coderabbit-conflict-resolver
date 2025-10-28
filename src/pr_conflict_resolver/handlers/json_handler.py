@@ -15,10 +15,10 @@ from os import PathLike
 from pathlib import Path
 from typing import Any
 
-from ..core.models import Change, Conflict
-from ..security.input_validator import InputValidator
-from ..utils.path_utils import resolve_file_path
-from .base import BaseHandler
+from pr_conflict_resolver.core.models import Change, Conflict
+from pr_conflict_resolver.handlers.base import BaseHandler
+from pr_conflict_resolver.security.input_validator import InputValidator
+from pr_conflict_resolver.utils.path_utils import resolve_file_path
 
 type JsonValue = dict[str, Any] | list[Any] | str | int | float | bool | None
 
@@ -257,12 +257,13 @@ class JsonHandler(BaseHandler):
         key_changes: dict[str, list[Change]] = {}
         for change in changes:
             try:
-                data = json.loads(change.content)
-                for key in data:
-                    if key not in key_changes:
-                        key_changes[key] = []
-                    key_changes[key].append(change)
-            except json.JSONDecodeError:
+                data = self._loads_strict(change.content)
+                if isinstance(data, dict):
+                    for key in data:
+                        if key not in key_changes:
+                            key_changes[key] = []
+                        key_changes[key].append(change)
+            except (json.JSONDecodeError, ValueError):
                 continue
 
         # Find conflicts (multiple changes to same key)
@@ -299,22 +300,35 @@ class JsonHandler(BaseHandler):
         if len(changes) < 2:
             return 0.0
 
-        # Build set of covered lines for each change
-        all_lines: set[int] = set()
-        overlap_lines: set[int] = set()
+        # Line-sweep algorithm: convert each inclusive range to two events (start:+1, end+1:-1),
+        # sort events, sweep while tracking active count; accumulate union when active>0 and
+        # overlap when active>1. Using end+1 models inclusive ranges correctly.
+        events: list[tuple[int, int]] = []
+        for c in changes:
+            start = min(c.start_line, c.end_line)
+            end = max(c.start_line, c.end_line)
+            events.append((start, +1))
+            events.append((end + 1, -1))  # inclusive end
+        events.sort()
 
-        for change in changes:
-            change_lines = set(range(change.start_line, change.end_line + 1))
-            overlap_lines.update(all_lines.intersection(change_lines))
-            all_lines.update(change_lines)
+        active = 0
+        prev: int | None = None
+        union_len = 0
+        overlap_len = 0
 
-        if not all_lines:
+        for pos, delta in events:
+            if prev is not None:
+                span = pos - prev
+                if active > 0:
+                    union_len += span
+                if active > 1:
+                    overlap_len += span
+            active += delta
+            prev = pos
+
+        if union_len <= 0:
             return 0.0
-
-        total_span = len(all_lines)
-        overlap_count = len(overlap_lines)
-
-        return (overlap_count / total_span) * 100.0
+        return (overlap_len / union_len) * 100.0
 
     def _has_duplicate_keys(
         self, obj: dict[str, Any] | list[Any] | str | int | float | bool | None
@@ -416,11 +430,9 @@ class JsonHandler(BaseHandler):
             context: Context string for error messages.
 
         Returns:
-            Parsed dict on success, None on failure.
-
-        Raises:
-            json.JSONDecodeError: If JSON is malformed.
-            ValueError: If duplicate keys are detected.
+            dict[str, Any] | None: Parsed dict on success; None if parsing fails or the
+            content is not a JSON object. Parsing errors (including malformed JSON or
+            duplicate keys) are caught and logged; they are not propagated.
         """
         try:
             result = self._loads_strict(content)

@@ -44,7 +44,7 @@ class BaseHandler(ABC):
     def apply_change(self, path: str, content: str, start_line: int, end_line: int) -> bool:
         """Apply a replacement to a file's line range.
 
-        Parameters:
+        Args:
             path (str): Path to the target file.
             content (str): New content to insert in place of the specified lines.
             start_line (int): 1-indexed starting line number (inclusive).
@@ -64,7 +64,7 @@ class BaseHandler(ABC):
     ) -> tuple[bool, str]:
         """Validate a proposed edit to a file's specified line range without applying it.
 
-        Parameters:
+        Args:
             path (str): File path whose contents are validated against the change.
             content (str): New content to substitute into the file for the given range.
             start_line (int): 1-indexed starting line of the replacement range (inclusive).
@@ -239,7 +239,20 @@ class BaseHandler(ABC):
             `True` if the file was restored and the backup removed, `False` if an error
                 occurred.
         """
+        # Validate paths: enforce containment against workspace_root
+        if not InputValidator.validate_file_path(
+            original_path, base_dir=str(self.workspace_root), allow_absolute=True
+        ):
+            return False
+        if not InputValidator.validate_file_path(
+            backup_path, base_dir=str(self.workspace_root), allow_absolute=True
+        ):
+            return False
+
         try:
+            # Ensure backup exists and is a regular file
+            if not Path(backup_path).is_file():
+                return False
             shutil.copy2(backup_path, original_path)
             Path(backup_path).unlink()  # Remove backup
             return True

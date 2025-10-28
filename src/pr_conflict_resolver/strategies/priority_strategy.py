@@ -117,7 +117,8 @@ class PriorityStrategy:
             base_priority = self.priority_rules.get("formatting", 10)
 
         # Apply author-based adjustments AFTER priority determination
-        author = change.metadata.get("author", "").lower()
+        author_value = change.metadata.get("author", "")
+        author = author_value.lower() if isinstance(author_value, str) else ""
         if "coderabbit" in author:
             base_priority += 10  # Slight boost for CodeRabbit
         elif "bot" in author:

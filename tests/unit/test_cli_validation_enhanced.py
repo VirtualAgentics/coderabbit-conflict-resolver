@@ -13,6 +13,7 @@ from click import BadParameter, Context
 from click.testing import CliRunner
 
 from pr_conflict_resolver.cli.main import (
+    MAX_GITHUB_REPO_LENGTH,
     MAX_GITHUB_USERNAME_LENGTH,
     cli,
     sanitize_for_output,
@@ -144,7 +145,7 @@ class TestValidateGitHubRepo:
     def test_repo_too_long_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
         """Names exceeding max length should raise error."""
         with pytest.raises(BadParameter, match="repository name too long"):
-            validate_github_repo(mock_ctx, mock_param, "a" * 101)
+            validate_github_repo(mock_ctx, mock_param, "a" * (MAX_GITHUB_REPO_LENGTH + 1))
 
     def test_repo_multi_segment_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
         """Names with slashes should raise single-segment error."""

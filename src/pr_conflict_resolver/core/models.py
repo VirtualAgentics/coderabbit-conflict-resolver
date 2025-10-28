@@ -39,8 +39,9 @@ With arbitrary/custom dict fields (backward compatible):
 Both forms are accepted. Use ChangeMetadata for type safety, or use dict for flexibility.
 
 Safe metadata access and narrowing:
-    >>> # Prefer safe .get() access with runtime narrowing
-    >>> meta = change.metadata or {}
+    >>> # Prefer safe .get() access with runtime narrowing on a Mapping
+    >>> from typing import Mapping
+    >>> meta: Mapping[str, object] = change.metadata
     >>> token = meta.get("token")
     >>> if isinstance(token, str) and token:
     ...     # token is safely narrowed to non-empty str here
@@ -53,9 +54,10 @@ Validation points:
       to narrow arbitrary dicts at runtime.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, TypedDict
+from typing import TypedDict
 
 
 class FileType(Enum):
@@ -81,7 +83,11 @@ class ChangeMetadata(TypedDict, total=False):
     option_label: str
 
 
-@dataclass
+# Type aliases for clarity and strict typing
+type LineRange = tuple[int, int]
+
+
+@dataclass(frozen=True, slots=True)
 class Change:
     """Represents a single change suggestion."""
 
@@ -89,24 +95,24 @@ class Change:
     start_line: int
     end_line: int
     content: str
-    metadata: ChangeMetadata | dict[str, Any]  # Known fields typed, allows unknown fields
+    metadata: ChangeMetadata | Mapping[str, object]  # Known fields typed; allow arbitrary mapping
     fingerprint: str
     file_type: FileType
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class Conflict:
     """Represents a conflict between two or more changes."""
 
     file_path: str
-    line_range: tuple[int, int]
+    line_range: LineRange
     changes: list[Change]
     conflict_type: str
     severity: str
     overlap_percentage: float
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class Resolution:
     """Represents a resolution for a conflict."""
 
@@ -117,7 +123,7 @@ class Resolution:
     message: str
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ResolutionResult:
     """Result of conflict resolution."""
 

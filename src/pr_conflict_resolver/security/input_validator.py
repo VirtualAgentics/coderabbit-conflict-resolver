@@ -32,6 +32,8 @@ class InputValidator:
 
     # Safe path pattern - alphanumeric, dots, underscores, hyphens, forward slashes
     SAFE_PATH_PATTERN = re.compile(r"^[a-zA-Z0-9_./-]+$")
+    # Safe part pattern (single segment) - excludes path separators
+    SAFE_PART_PATTERN = re.compile(r"^[a-zA-Z0-9_.-]+$")
 
     # Maximum file size: 10MB
     MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -156,9 +158,14 @@ class InputValidator:
                     )
                     return False
 
-            # Check for safe characters in each path segment
+            # Check for safe characters in non-anchor segments only
+            anchors = {input_path.drive, input_path.root, input_path.anchor}
+            anchors.discard("")  # remove empties
             for part in input_path.parts:
-                if part and not InputValidator.SAFE_PATH_PATTERN.match(part):
+                if part in anchors:
+                    continue  # Skip drive/root/anchor (e.g., 'C:' or '/' on POSIX/Windows)
+                # Validate each part against segment-safe pattern (no '/')
+                if part and not InputValidator.SAFE_PART_PATTERN.match(part):
                     logger.warning("Unsafe path segment detected in: %s", path)
                     return False
 

@@ -29,9 +29,6 @@ class WorkspaceError(ValueError):
     Indicates that the provided workspace_root path does not exist, is not a
     directory, or cannot be accessed. Also raised when the current working
     directory cannot be determined.
-
-    Attributes:
-        msg: Error message describing the workspace validation failure.
     """
 
 
@@ -73,7 +70,7 @@ class ConflictResolver:
                 f"workspace_root does not exist or is inaccessible: {resolved_path}"
             ) from e
 
-        self.workspace_root = resolved_path
+        self.workspace_root: Path = resolved_path
         self.logger = logging.getLogger(__name__)
         self.conflict_detector = ConflictDetector()
         self.handlers = {
@@ -506,7 +503,11 @@ class ConflictResolver:
             new_lines = lines[:start_idx] + replacement + lines[end_idx:]
             file_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
             return True
-        except (OSError, UnicodeDecodeError, UnicodeEncodeError):
+        except (OSError, UnicodeDecodeError, UnicodeEncodeError) as e:
+            self.logger.error(
+                f"Failed to apply plaintext change to {file_path} "
+                f"(lines {change.start_line}-{change.end_line}): {e}"
+            )
             return False
 
     def _fetch_comments_with_error_context(
@@ -557,9 +558,14 @@ class ConflictResolver:
 
         # Apply resolutions
         result = self.apply_resolutions(resolutions)
-        result.conflicts = conflicts
-
-        return result
+        # Recreate result with conflicts set, as dataclasses are frozen
+        return ResolutionResult(
+            applied_count=result.applied_count,
+            conflict_count=result.conflict_count,
+            success_rate=result.success_rate,
+            resolutions=result.resolutions,
+            conflicts=conflicts,
+        )
 
     def analyze_conflicts(self, owner: str, repo: str, pr_number: int) -> list[Conflict]:
         """Analyze conflicts in a pull request without applying any changes.
