@@ -352,13 +352,12 @@ class TomlHandler(BaseHandler):
                 # Calculate actual overlap percentage
                 overlap_percentage = self._calculate_overlap_percentage(section_change_list)
 
+                min_start = min(c.start_line for c in section_change_list)
+                max_end = max(c.end_line for c in section_change_list)
                 conflicts.append(
                     Conflict(
                         file_path=path,
-                        line_range=(
-                            section_change_list[0].start_line,
-                            section_change_list[-1].end_line,
-                        ),
+                        line_range=(min_start, max_end),
                         changes=section_change_list,
                         conflict_type="section_conflict",
                         severity="medium",

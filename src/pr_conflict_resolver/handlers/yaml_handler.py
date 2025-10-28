@@ -306,8 +306,8 @@ class YamlHandler(BaseHandler):
         key_changes: dict[str, list[Change]] = {}
         for change in changes:
             try:
-                yaml = YAML()
-                data = yaml.load(change.content)
+                yaml_safe = YAML(typ="safe")
+                data = yaml_safe.load(change.content)
                 keys = self._extract_keys(data)
                 for key in keys:
                     if key not in key_changes:
@@ -320,18 +320,54 @@ class YamlHandler(BaseHandler):
         # Find conflicts (multiple changes to same key)
         for _key, key_change_list in key_changes.items():
             if len(key_change_list) > 1:
+                overlap_percentage = self._calculate_overlap_percentage(key_change_list)
+                min_start = min(c.start_line for c in key_change_list)
+                max_end = max(c.end_line for c in key_change_list)
                 conflicts.append(
                     Conflict(
                         file_path=path,
-                        line_range=(key_change_list[0].start_line, key_change_list[-1].end_line),
+                        line_range=(min_start, max_end),
                         changes=key_change_list,
                         conflict_type="key_conflict",
                         severity="medium",
-                        overlap_percentage=100.0,
+                        overlap_percentage=overlap_percentage,
                     )
                 )
 
         return conflicts
+
+    def _calculate_overlap_percentage(self, changes: list[Change]) -> float:
+        """Compute the percentage of line-range overlap among multiple changes.
+
+        Args:
+            changes (list[Change]): List of Change objects each containing `start_line` and
+                `end_line`.
+
+        Returns:
+            float: Overlap percentage between 0.0 and 100.0. Returns 0.0 if fewer than two changes
+                or if there is no overlapping range.
+        """
+        if len(changes) < 2:
+            return 0.0
+
+        # Gather all line ranges
+        starts = [change.start_line for change in changes]
+        ends = [change.end_line for change in changes]
+
+        # Calculate intersection (overlapping lines)
+        intersection_start = max(starts)
+        intersection_end = min(ends)
+        intersection_lines = max(0, intersection_end - intersection_start + 1)
+
+        # Calculate union (total span)
+        union_start = min(starts)
+        union_end = max(ends)
+        union_lines = union_end - union_start + 1
+
+        if union_lines == 0:
+            return 0.0
+
+        return (intersection_lines / union_lines) * 100.0
 
     def _smart_merge_yaml(
         self, original: YAMLValue, suggestion: YAMLValue, start_line: int, end_line: int

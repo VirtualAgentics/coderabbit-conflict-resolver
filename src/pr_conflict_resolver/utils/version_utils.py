@@ -69,9 +69,9 @@ def validate_version_constraint(
         r"|"  # or
         r"(==|!=)\s*\d[0-9A-Za-z.+-]*(?:\.\*)?"  # equality/inequality with optional trailing '.*'
         r"|"  # or
-        r"~=\s*[0-9A-Za-z.+\-]+"  # compatible release, no '*'
+        r"~=\s*\d[0-9A-Za-z.+\-]*"  # compatible release, no '*'
         r"|"  # or
-        r"(>=|<=|>|<)\s*[0-9A-Za-z.+\-]+"  # ranges, no '*'
+        r"(>=|<=|>|<)\s*\d[0-9A-Za-z.+\-]*"  # ranges, no '*'
         r")"
     )
     has_version_constraint = bool(re.search(version_pattern, line_without_comment))
@@ -84,15 +84,12 @@ def validate_version_constraint(
         exact_pin_ok = False
 
         # Identity pin
-        if re.search(r"===\s*[^*\s]+", line_without_comment):
+        if re.search(r"===\s*[^*\s]+", line_without_comment) or re.search(
+            r"~=\s*\d[0-9A-Za-z.+\-]*", line_without_comment
+        ):
             exact_pin_ok = True
-
-        # Compatible release (no '*')
-        if not exact_pin_ok and re.search(r"~=\s*[0-9A-Za-z.+\-]+", line_without_comment):
-            exact_pin_ok = True
-
         # Equality with optional trailing wildcard on final segment
-        if not exact_pin_ok:
+        else:
             m = re.search(r"==\s*([0-9A-Za-z.+\-.*]+)", line_without_comment)
             if m:
                 ver = m.group(1)
