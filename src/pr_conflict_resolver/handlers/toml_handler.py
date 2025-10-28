@@ -102,21 +102,21 @@ class TomlHandler(BaseHandler):
 
         # Validate file path to prevent path traversal attacks
         # Use workspace root for absolute path containment check
-        if InputValidator.validate_file_path(
+        validation_passed = InputValidator.validate_file_path(
             path, allow_absolute=True, base_dir=str(self.workspace_root)
-        ):
-            # Path validation passed, proceed
-            pass
-        elif is_temp_file:
-            # Validation failed but temp file bypass is enabled
+        )
+
+        # Early return: validation failed and no bypass applies
+        if not validation_passed and not is_temp_file:
+            self.logger.error(f"Invalid file path rejected: {path}")
+            return False
+
+        # Early bypass: validation failed but temp file bypass is enabled
+        if not validation_passed and is_temp_file:
             self.logger.debug(
                 f"Allowing temp file outside workspace: {path} "
                 f"(ALLOW_TEMP_OUTSIDE_WORKSPACE=True)"
             )
-        else:
-            # Validation failed and no bypass applies
-            self.logger.error(f"Invalid file path rejected: {path}")
-            return False
 
         if not TOML_READ_AVAILABLE:
             self.logger.error("TOML parsing support unavailable. Install tomllib (Python 3.11+)")
