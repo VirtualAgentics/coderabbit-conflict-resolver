@@ -83,20 +83,35 @@ class TestCommandInjectionAttacks:
         """Test that handlers reject command substitution attempts."""
         handlers = [json_handler, yaml_handler, toml_handler]
 
-        injection_attempts = [
-            "file$(whoami).json",
-            "file`cat /etc/passwd`.json",
+        ext_map = {
+            type(json_handler): ".json",
+            type(yaml_handler): ".yaml",
+            type(toml_handler): ".toml",
+        }
+        base = [
+            "file$(whoami)",
+            "file`cat /etc/passwd`",
             "file;rm -rf /",
             "file|cat /etc/passwd",
         ]
 
+        def payload_for(h: object) -> str:
+            if isinstance(h, JsonHandler):
+                return '{"key": "value"}'
+            if isinstance(h, YamlHandler):
+                return "key: value"
+            return 'key = "value"'
+
         for handler in handlers:
-            for injection in injection_attempts:
-                # First check if handler would accept the extension
+            ext = ext_map[type(handler)]
+            for base_name in base:
+                injection = (
+                    f"{base_name}{ext}"
+                    if not base_name.endswith((".json", ".yaml", ".toml"))
+                    else base_name
+                )
                 if handler.can_handle(injection):
-                    # If handler accepts the extension, it must still reject
-                    # command injection in the path
-                    result = handler.apply_change(injection, '{"key": "value"}', 1, 1)
+                    result = handler.apply_change(injection, payload_for(handler), 1, 1)
                     assert not result, f"{handler.__class__.__name__} should reject: {injection}"
 
     def test_resolver_handles_command_injection_in_content(
@@ -142,14 +157,28 @@ class TestCommandInjectionAttacks:
 class TestShellMetacharacterInjection:
     """Tests for shell metacharacter injection prevention."""
 
-    def test_handlers_reject_shell_metacharacters_in_paths(self, json_handler: JsonHandler) -> None:
-        """Test that handlers reject shell metacharacters in paths."""
+    @pytest.mark.parametrize(
+        "handler,payload",
+        [
+            (JsonHandler(), '{"key": "value"}'),
+            (YamlHandler(), "key: value"),
+            (TomlHandler(), 'key = "value"'),
+        ],
+    )
+    def test_handlers_reject_shell_metacharacters_in_paths(
+        self, handler: object, payload: str
+    ) -> None:
+        """All handlers should reject shell metacharacters in paths."""
         dangerous_chars = [";", "|", "&", "`", "$", "(", ")", ">", "<", "\n", "\r"]
 
         for char in dangerous_chars:
-            test_path = f"test{char}file.json"
-            # Should be rejected
-            result = json_handler.apply_change(test_path, '{"key": "value"}', 1, 1)
+            ext = (
+                ".json"
+                if isinstance(handler, JsonHandler)
+                else (".yaml" if isinstance(handler, YamlHandler) else ".toml")
+            )
+            test_path = f"test{char}file{ext}"
+            result = handler.apply_change(test_path, payload, 1, 1)  # type: ignore[attr-defined]
             assert not result, f"Should reject path with character: {char!r}"
 
 

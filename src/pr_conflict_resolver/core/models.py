@@ -37,6 +37,20 @@ With arbitrary/custom dict fields (backward compatible):
     ... )
 
 Both forms are accepted. Use ChangeMetadata for type safety, or use dict for flexibility.
+
+Safe metadata access and narrowing:
+    >>> # Prefer safe .get() access with runtime narrowing
+    >>> meta = change.metadata or {}
+    >>> token = meta.get("token")
+    >>> if isinstance(token, str) and token:
+    ...     # token is safely narrowed to non-empty str here
+    ...     pass
+
+Validation points:
+    - Required fields (if any) should be validated at parse time.
+    - Use TypedDict keys (url/author/source/option_label) when present.
+    - Consider adding a helper like `is_change_metadata(value) -> TypeGuard[ChangeMetadata]`
+      to narrow arbitrary dicts at runtime.
 """
 
 from dataclasses import dataclass

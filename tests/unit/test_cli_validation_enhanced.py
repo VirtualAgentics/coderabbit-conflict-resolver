@@ -16,7 +16,9 @@ from pr_conflict_resolver.cli.main import (
     MAX_GITHUB_USERNAME_LENGTH,
     cli,
     sanitize_for_output,
+    validate_github_repo,
     validate_github_username,
+    validate_pr_number,
 )
 
 
@@ -129,6 +131,60 @@ class TestValidateGitHubUsername:
 
         result = validate_github_username(mock_ctx, mock_param, max_length_username)
         assert result == max_length_username
+
+
+class TestValidateGitHubRepo:
+    """Unit tests for validate_github_repo with explicit cases and messages."""
+
+    def test_repo_empty_string_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
+        """Empty value should raise 'repository name required'."""
+        with pytest.raises(BadParameter, match="repository name required"):
+            validate_github_repo(mock_ctx, mock_param, "")
+
+    def test_repo_too_long_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
+        """Names exceeding max length should raise error."""
+        with pytest.raises(BadParameter, match="repository name too long"):
+            validate_github_repo(mock_ctx, mock_param, "a" * 101)
+
+    def test_repo_multi_segment_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
+        """Names with slashes should raise single-segment error."""
+        with pytest.raises(BadParameter, match="identifier must be a single segment"):
+            validate_github_repo(mock_ctx, mock_param, "a/b")
+
+    def test_repo_invalid_characters_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
+        """Names with invalid characters should be rejected."""
+        with pytest.raises(BadParameter, match="repository name contains invalid characters"):
+            validate_github_repo(mock_ctx, mock_param, "bad@name")
+
+    def test_repo_reserved_dot_names_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
+        """Reserved names '.' and '..' should be rejected with explicit message."""
+        with pytest.raises(BadParameter):
+            validate_github_repo(mock_ctx, mock_param, ".")
+
+    def test_repo_git_suffix_raises(self, mock_ctx: Context, mock_param: Mock) -> None:
+        """Names ending with .git should be rejected with explicit message."""
+        with pytest.raises(BadParameter):
+            validate_github_repo(mock_ctx, mock_param, "name.git")
+
+    @pytest.mark.parametrize("name", ["repo", "my-repo", "repo_1", "repo.1"])
+    def test_valid_repo_names_pass(self, mock_ctx: Context, mock_param: Mock, name: str) -> None:
+        """Known-valid repository names should pass validation."""
+        assert validate_github_repo(mock_ctx, mock_param, name) == name
+
+
+class TestValidatePrNumber:
+    """Unit tests for validate_pr_number, including negative cases."""
+
+    @pytest.mark.parametrize("n", [0, -1, -5])
+    def test_pr_rejects_non_positive(self, mock_ctx: Context, mock_param: Mock, n: int) -> None:
+        """Zero or negative numbers should raise a positive-number error."""
+        with pytest.raises(BadParameter, match="PR number must be positive"):
+            validate_pr_number(mock_ctx, mock_param, n)
+
+    @pytest.mark.parametrize("n", [1, 2, 10])
+    def test_pr_accepts_positive(self, mock_ctx: Context, mock_param: Mock, n: int) -> None:
+        """Positive numbers should pass validation and be returned unchanged."""
+        assert validate_pr_number(mock_ctx, mock_param, n) == n
 
 
 class TestSanitizeForOutput:
@@ -324,6 +380,12 @@ class TestCLIIntegration:
                 "username too long",
                 "username must be a single segment",
                 "username contains invalid characters",
+                "repository name required",
+                "repository name too long",
+                "identifier must be a single segment",
+                "repository name contains invalid characters",
+                "repository name cannot be '.' or '..'",
+                "repository name cannot end with '.git'",
             ]
             for error_msg in identifier_errors:
                 assert (

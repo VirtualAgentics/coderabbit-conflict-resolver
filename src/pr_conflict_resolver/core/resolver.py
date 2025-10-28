@@ -13,8 +13,6 @@ from os import PathLike
 from pathlib import Path
 from typing import Any
 
-import requests
-
 from ..analysis.conflict_detector import ConflictDetector
 from ..handlers.json_handler import JsonHandler
 from ..handlers.toml_handler import TomlHandler
@@ -529,13 +527,7 @@ class ConflictResolver:
         """
         try:
             return self.github_extractor.fetch_pr_comments(owner, repo, pr_number)
-        except (
-            RuntimeError,
-            ConnectionError,
-            TimeoutError,
-            requests.RequestException,
-            Exception,
-        ) as e:
+        except Exception as e:
             raise RuntimeError(
                 f"Failed to fetch PR comments "
                 f"(owner={owner}, repo={repo}, pr_number={pr_number}): {e}"

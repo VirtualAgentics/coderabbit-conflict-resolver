@@ -223,7 +223,7 @@ class BaseHandler(ABC):
                     ) from e
 
         # If we exhausted attempts only due to FileExistsError collisions, raise here
-        raise OSError(
+        raise OSError(  # pragma: no cover
             f"Unable to create unique backup filename after {max_attempts} attempts "
             f"for: {file_path}"
         )

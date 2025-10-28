@@ -22,14 +22,15 @@ def enable_toml_for_tests() -> Generator[None, None, None]:
 
     Ensures all tests exercise the TOML-enabled code path consistently.
     """
+    from unittest.mock import patch
+
     import pr_conflict_resolver.handlers.toml_handler as toml_handler_module
 
-    original_read = getattr(toml_handler_module, "TOML_READ_AVAILABLE", True)
-    toml_handler_module.TOML_READ_AVAILABLE = True
-
-    yield
-
-    toml_handler_module.TOML_READ_AVAILABLE = original_read
+    with (
+        patch.object(toml_handler_module, "TOML_READ_AVAILABLE", True, create=True),
+        patch.object(toml_handler_module, "TOML_WRITE_AVAILABLE", True, create=True),
+    ):
+        yield
 
 
 class TestTomlHandlerPathSecurity:
