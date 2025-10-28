@@ -217,12 +217,11 @@ def validate_pr_number(ctx: click.Context, param: click.Parameter, value: int) -
 def analyze(pr: int, owner: str, repo: str, config: str) -> None:
     """Analyze conflicts in a pull request and print a summary to the console.
 
-    Parameters:
+    Args:
         pr (int): Pull request number.
         owner (str): Repository owner or organization.
         repo (str): Repository name.
-        config (str): Configuration preset name (e.g., "balanced"); falls back to
-            the default preset if not recognized.
+        config (str): Configuration preset (e.g., "balanced"); falls back to default if unknown.
 
     Raises:
         click.Abort: If an error occurs while analyzing conflicts.
@@ -298,7 +297,7 @@ def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
     processed without making changes. Otherwise, applies suggestions for the given
     PR using the specified strategy and reports counts and success rate.
 
-    Parameters:
+    Args:
         pr (int): Pull request number.
         owner (str): Repository owner or organization.
         repo (str): Repository name.
@@ -374,9 +373,12 @@ def simulate(pr: int, owner: str, repo: str, config: str) -> None:
     prints a simulation report showing total conflicting changes, how many would be
     applied or skipped, and the resulting success rate.
 
-    Parameters:
-        config (str): Name of the preset configuration to use (mapped to PresetConfig
-            by uppercasing); defaults to BALANCED if not found.
+    Args:
+        pr (int): Pull request number.
+        owner (str): Repository owner or organization.
+        repo (str): Repository name.
+        config (str): Preset configuration name (mapped via PresetConfig.<NAME>,
+            defaults to BALANCED).
 
     Raises:
         click.Abort: If an unexpected error occurs during analysis.

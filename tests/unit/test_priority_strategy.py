@@ -28,29 +28,40 @@ class TestPriorityStrategy:
         strategy = PriorityStrategy()
 
         # Regular change
-        change = Change("test.py", 10, 15, "regular change", {}, "fp1", FileType.PYTHON)
-        priority = strategy._calculate_priority(change)
+        regular_change = Change("test.py", 10, 15, "regular change", {}, "fp1", FileType.PYTHON)
+        priority = strategy._calculate_priority(regular_change)
         assert priority == strategy.priority_rules["regular_suggestions"]
 
         # User selection
-        change.metadata["option_label"] = "Option 1"
-        priority = strategy._calculate_priority(change)
+        user_change = Change(
+            "test.py",
+            10,
+            15,
+            "regular change",
+            {"option_label": "Option 1"},
+            "fp2",
+            FileType.PYTHON,
+        )
+        priority = strategy._calculate_priority(user_change)
         assert priority == strategy.priority_rules["user_selections"]
 
         # Security-related change
-        change.content = "security fix for vulnerability"
-        change.metadata = {}
-        priority = strategy._calculate_priority(change)
+        security_change = Change(
+            "test.py", 10, 15, "security fix for vulnerability", {}, "fp3", FileType.PYTHON
+        )
+        priority = strategy._calculate_priority(security_change)
         assert priority == strategy.priority_rules["security_fixes"]
 
         # Syntax error fix
-        change.content = "fix syntax error"
-        priority = strategy._calculate_priority(change)
+        syntax_change = Change("test.py", 10, 15, "fix syntax error", {}, "fp4", FileType.PYTHON)
+        priority = strategy._calculate_priority(syntax_change)
         assert priority == strategy.priority_rules["syntax_errors"]
 
         # Formatting change
-        change.content = "format code with prettier"
-        priority = strategy._calculate_priority(change)
+        formatting_change = Change(
+            "test.py", 10, 15, "format code with prettier", {}, "fp5", FileType.PYTHON
+        )
+        priority = strategy._calculate_priority(formatting_change)
         assert priority == strategy.priority_rules["formatting"]
 
     def test_is_security_related(self) -> None:

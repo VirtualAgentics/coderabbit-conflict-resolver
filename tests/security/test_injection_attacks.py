@@ -135,9 +135,10 @@ class TestCommandInjectionAttacks:
         # Mock subprocess/os.system to ensure they're never called
         mock_subprocess = Mock()
         mock_os_system = Mock()
-        monkeypatch.setattr("subprocess.call", mock_subprocess)
-        monkeypatch.setattr("subprocess.run", mock_subprocess)
-        monkeypatch.setattr("os.system", mock_os_system)
+        monkeypatch.setattr("subprocess.call", mock_subprocess, raising=True)
+        monkeypatch.setattr("subprocess.run", mock_subprocess, raising=True)
+        monkeypatch.setattr("subprocess.Popen", mock_subprocess, raising=True)
+        monkeypatch.setattr("os.system", mock_os_system, raising=True)
 
         # Resolver should handle this without executing commands
         conflicts = resolver.detect_conflicts([malicious_change])
@@ -166,7 +167,7 @@ class TestShellMetacharacterInjection:
         ],
     )
     def test_handlers_reject_shell_metacharacters_in_paths(
-        self, handler: object, payload: str
+        self, handler: JsonHandler | YamlHandler | TomlHandler, payload: str
     ) -> None:
         """All handlers should reject shell metacharacters in paths."""
         dangerous_chars = [";", "|", "&", "`", "$", "(", ")", ">", "<", "\n", "\r"]
@@ -178,7 +179,7 @@ class TestShellMetacharacterInjection:
                 else (".yaml" if isinstance(handler, YamlHandler) else ".toml")
             )
             test_path = f"test{char}file{ext}"
-            result = handler.apply_change(test_path, payload, 1, 1)  # type: ignore[attr-defined]
+            result = handler.apply_change(test_path, payload, 1, 1)
             assert not result, f"Should reject path with character: {char!r}"
 
 

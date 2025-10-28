@@ -4,7 +4,11 @@ This handler provides YAML-aware suggestion application with structure validatio
 and comment preservation using ruamel.yaml.
 """
 
+import contextlib
 import logging
+import os
+import stat
+import tempfile
 from os import PathLike
 from pathlib import Path
 from typing import Any, ClassVar
@@ -67,7 +71,7 @@ class YamlHandler(BaseHandler):
         positions, and writes the merged result back to the file. If parsing or writing fails, no
         changes are written.
 
-        Parameters:
+        Args:
             path (str): Filesystem path to the YAML file to update.
             content (str): YAML text containing the suggestion to apply.
             start_line (int): Starting line number in the original file used to guide merging.
@@ -90,7 +94,11 @@ class YamlHandler(BaseHandler):
 
         # Resolve path relative to workspace_root and enforce containment within workspace
         file_path = resolve_file_path(
-            path, self.workspace_root, allow_absolute=True, validate_workspace=True
+            path,
+            self.workspace_root,
+            allow_absolute=True,
+            validate_workspace=True,
+            enforce_containment=True,
         )
 
         # Check for symlinks in the target path and all parent components before any file I/O
@@ -160,11 +168,6 @@ class YamlHandler(BaseHandler):
         merged_data = self._smart_merge_yaml(original_data, suggestion_data, start_line, end_line)
 
         # Write atomically with comment preservation
-        import contextlib
-        import os
-        import stat
-        import tempfile
-
         try:
             yaml_rt = YAML(typ="rt")
             yaml_rt.preserve_quotes = True
@@ -290,7 +293,7 @@ class YamlHandler(BaseHandler):
         same key path, and returns a Conflict for each key that is modified by more than one
         change.
 
-        Parameters:
+        Args:
             path (str): File path the changes apply to; used as the Conflict.file_path.
             changes (list[Change]): List of Change objects whose `.content` contains YAML
                 snippets and which provide `start_line`/`end_line` for conflict ranges.
@@ -298,8 +301,7 @@ class YamlHandler(BaseHandler):
         Returns:
             list[Conflict]: A list of Conflict objects describing keys modified by multiple
                 changes. Each Conflict uses `conflict_type` "key_conflict", `severity` "medium",
-                and `overlap_percentage` 100.0; `line_range` spans from the first change's
-                start_line to the last change's end_line for that key.
+                and a computed `overlap_percentage`; `line_range` spans min start to max end.
         """
         conflicts: list[Conflict] = []
 

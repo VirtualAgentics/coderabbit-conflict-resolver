@@ -4,10 +4,20 @@ This module provides the PriorityStrategy class that resolves conflicts
 based on priority levels and user preferences.
 """
 
-from typing import Any
+from typing import Any, TypedDict, cast
 
 from pr_conflict_resolver.core.models import Change, Conflict, Resolution
 from pr_conflict_resolver.strategies.base import ResolutionStrategy
+
+
+class PriorityRules(TypedDict, total=False):
+    """Type definition for priority rules configuration."""
+
+    user_selections: int
+    security_fixes: int
+    syntax_errors: int
+    regular_suggestions: int
+    formatting: int
 
 
 class PriorityStrategy(ResolutionStrategy):
@@ -29,7 +39,7 @@ class PriorityStrategy(ResolutionStrategy):
                 "priority_rules" key to override the defaults.
         """
         self.config = config or {}
-        self.priority_rules = self.config.get(
+        self.priority_rules: PriorityRules = self.config.get(
             "priority_rules",
             {
                 "user_selections": 100,
@@ -144,7 +154,10 @@ class PriorityStrategy(ResolutionStrategy):
             "vulnerability",
             "auth",
             "token",
-            "key",
+            "api key",
+            "access key",
+            "secret key",
+            "private key",
             "password",
             "secret",
             "credential",
@@ -233,7 +246,8 @@ class PriorityStrategy(ResolutionStrategy):
             dict[str, int]: A copy of the priority rules where keys are rule names and values
                 are their integer priorities.
         """
-        return dict(self.priority_rules)
+        # TypedDict with total=False requires casting for type-safe conversion
+        return {k: cast(int, v) for k, v in self.priority_rules.items()}
 
     def update_priority_rules(self, new_rules: dict[str, int]) -> None:
         """Update the strategy's priority rules with the provided mapping.
@@ -244,5 +258,14 @@ class PriorityStrategy(ResolutionStrategy):
                 remain unchanged. The method also updates the strategy's internal configuration
                 to reflect the new rules.
         """
-        self.priority_rules.update(new_rules)
+        # Filter to only allowed PriorityRules keys
+        allowed_keys = {
+            "user_selections",
+            "security_fixes",
+            "syntax_errors",
+            "regular_suggestions",
+            "formatting",
+        }
+        filtered_rules = {k: v for k, v in new_rules.items() if k in allowed_keys}
+        self.priority_rules.update(filtered_rules)  # type: ignore[typeddict-item]
         self.config["priority_rules"] = self.priority_rules

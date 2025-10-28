@@ -61,34 +61,33 @@ class TestArgumentInjectionPrevention:
             cli, ["analyze", "--pr", "1", "--owner", malicious_input, "--repo", "test"]
         )
 
-        # CLI should either reject the input or not echo it back
-        assert result.exit_code != 0 or malicious_input not in result.output
+        # CLI should either reject with Click validation error, or not echo raw input
+        if result.exit_code != 0:
+            assert "invalid value for '--owner'" in result.output.lower()
+        else:
+            assert malicious_input not in result.output
 
-    def test_cli_rejects_dangerous_flags(self) -> None:
-        """Test that dangerous command-line flags are rejected."""
-        runner = CliRunner()
-
-        # Test with dangerous flag-like inputs
-        dangerous_flags = [
+    @pytest.mark.parametrize(
+        "cmd",
+        [
             "--help; rm -rf /",
             "--version && echo hacked",
             "--pr 1 --owner test --repo test; cat /etc/passwd",
-        ]
+        ],
+    )
+    def test_cli_rejects_dangerous_flags(self, cmd: str) -> None:
+        """Test that dangerous command-line flags are rejected."""
+        runner = CliRunner()
 
-        for dangerous in dangerous_flags:
-            # Split the dangerous input and test
-            parts = dangerous.split()
-            if len(parts) >= 3:
-                result = runner.invoke(cli, parts)
-                # CLI must not echo raw injection
-                malicious_input = " ".join(parts)
-                assert (
-                    malicious_input not in result.output
-                ), f"CLI must not echo raw injection: {malicious_input}"
-                # If command succeeds, verify no dangerous output
-                if result.exit_code == 0:
-                    assert "rm -rf" not in result.output
-                    assert "cat /etc/passwd" not in result.output
+        parts = cmd.split()
+        result = runner.invoke(cli, parts)
+        malicious_input = " ".join(parts)
+        assert (
+            malicious_input not in result.output
+        ), f"CLI must not echo raw injection: {malicious_input}"
+        if result.exit_code == 0:
+            assert "rm -rf" not in result.output
+            assert "cat /etc/passwd" not in result.output
 
 
 class TestEnvironmentVariableHandling:

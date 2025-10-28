@@ -144,9 +144,12 @@ class BaseHandler(ABC):
             raise ValueError(f"Invalid file path: {path}")
 
         # Resolve path relative to workspace_root (not CWD)
-        # (skip validation since InputValidator.validate_file_path already validated)
         file_path = resolve_file_path(
-            path, self.workspace_root, allow_absolute=True, validate_workspace=False
+            path,
+            self.workspace_root,
+            allow_absolute=True,
+            validate_workspace=True,
+            enforce_containment=True,
         )
 
         # Verify source file exists and is a regular file
