@@ -11,6 +11,7 @@ import pytest
 
 from pr_conflict_resolver import JsonHandler, TomlHandler, YamlHandler
 from pr_conflict_resolver.core.models import Change
+from pr_conflict_resolver.handlers.base import BaseHandler
 
 
 class MockTaggedObject:
@@ -635,11 +636,8 @@ class TestTomlHandler:
 
 
 @pytest.fixture
-def test_handler(tmp_path: Path) -> Any:
+def test_handler(tmp_path: Path) -> BaseHandler:
     """Fixture providing a concrete TestHandler instance for testing BaseHandler functionality."""
-    from typing import cast
-
-    from pr_conflict_resolver.handlers.base import BaseHandler
 
     class TestHandler(BaseHandler):
         def can_handle(self, file_path: str) -> bool:
@@ -656,7 +654,7 @@ def test_handler(tmp_path: Path) -> Any:
         def detect_conflicts(self, path: str, changes: list[Change]) -> list[Any]:
             return []
 
-    return cast(BaseHandler, TestHandler(workspace_root=str(tmp_path)))
+    return TestHandler(workspace_root=tmp_path)
 
 
 class TestBaseHandlerBackupRestore:

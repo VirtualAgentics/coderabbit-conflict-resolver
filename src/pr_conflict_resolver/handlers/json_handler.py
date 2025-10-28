@@ -108,6 +108,18 @@ class JsonHandler(BaseHandler):
             self.logger.error(f"Path resolution failed for {path}: {type(e).__name__}: {e}")
             return False
 
+        # Reject symlinks in the target path or any parent within the workspace
+        try:
+            for p in (file_path, *file_path.parents):
+                if p == self.workspace_root.parent:
+                    break  # don't traverse above workspace root
+                if p.is_symlink():
+                    self.logger.error(f"Symlink detected in path component: {p}")
+                    return False
+        except OSError as e:
+            self.logger.error(f"Symlink check failed for {file_path}: {e}")
+            return False
+
         # Parse original file (accept any valid JSON, not only dict)
         try:
             original_content = file_path.read_text(encoding="utf-8")
@@ -327,7 +339,7 @@ class JsonHandler(BaseHandler):
                 0.0 to 100.0. Returns 0.0 if fewer than two changes are provided or if no lines
                 are covered.
         """
-        if len(changes) < 2:
+        if not changes:
             return 0.0
 
         # Line-sweep algorithm: convert each inclusive range to two events (start:+1, end+1:-1),
@@ -356,9 +368,7 @@ class JsonHandler(BaseHandler):
             active += delta
             prev = pos
 
-        if union_len <= 0:
-            return 0.0
-        return (overlap_len / union_len) * 100.0
+        return 0.0 if union_len <= 0 else (overlap_len / union_len) * 100.0
 
     def _smart_merge_json(
         self, original: dict[str, Any], suggestion: dict[str, Any], start_line: int, end_line: int
