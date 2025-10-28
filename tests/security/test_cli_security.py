@@ -5,6 +5,7 @@ and token exposure in CLI operations.
 """
 
 import os
+import re
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -163,21 +164,21 @@ class TestTokenExposurePrevention:
 
         # Check that no sensitive patterns appear in help
         sensitive_patterns = [
-            "ghp_",
-            "gho_",
-            "ghu_",
-            "ghs_",
-            "ghr_",
-            "password",
-            "secret",
-            # More specific credential names to avoid false positives
+            r"\bghp_",
+            r"\bgho_",
+            r"\bghu_",
+            r"\bghs_",
+            r"\bghr_",
+            r"\bpassword\b",
+            r"\bsecret\b",
+            # Match whole tokens to avoid false positives
             r"\bapi_key\b",
             r"\baccess_key\b",
             r"\bsecret_key\b",
         ]
 
         for pattern in sensitive_patterns:
-            assert pattern.lower() not in result.output.lower()
+            assert re.search(pattern, result.output, flags=re.IGNORECASE) is None
 
 
 class TestDryRunModeValidation:

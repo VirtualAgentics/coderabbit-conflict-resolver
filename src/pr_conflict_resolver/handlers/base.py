@@ -141,7 +141,10 @@ class BaseHandler(ABC):
             raise ValueError(f"Invalid file path: {path}")
 
         # Resolve path relative to workspace_root (not CWD)
-        file_path = resolve_file_path(path, self.workspace_root)
+        # (skip validation since InputValidator.validate_file_path already validated)
+        file_path = resolve_file_path(
+            path, self.workspace_root, allow_absolute=True, validate_workspace=False
+        )
 
         # Verify source file exists and is a regular file
         if not file_path.exists():
@@ -219,7 +222,7 @@ class BaseHandler(ABC):
                         f"for: {file_path}"
                     ) from e
 
-        # This should never be reached, but included for completeness
+        # If we exhausted attempts only due to FileExistsError collisions, raise here
         raise OSError(
             f"Unable to create unique backup filename after {max_attempts} attempts "
             f"for: {file_path}"

@@ -88,8 +88,10 @@ class YamlHandler(BaseHandler):
             return False
 
         # Resolve path relative to workspace_root
-        # (skip validation since BaseHandler.__init__ already validated)
-        file_path = resolve_file_path(path, self.workspace_root, validate_workspace=False)
+        # (skip validation since InputValidator.validate_file_path already validated)
+        file_path = resolve_file_path(
+            path, self.workspace_root, allow_absolute=True, validate_workspace=False
+        )
 
         # Check for symlinks in the target path and all parent components before any file I/O
         # Single traversal over the path and its parents to avoid duplicate probes

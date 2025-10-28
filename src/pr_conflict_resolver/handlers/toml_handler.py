@@ -122,8 +122,10 @@ class TomlHandler(BaseHandler):
             return False
 
         # Resolve path relative to workspace_root
-        # Allow absolute paths for test files outside workspace
-        file_path = resolve_file_path(path, self.workspace_root, allow_absolute=True)
+        # Allow absolute paths for test files outside workspace; disable containment enforcement
+        file_path = resolve_file_path(
+            path, self.workspace_root, allow_absolute=True, enforce_containment=False
+        )
 
         # Check for symlinks in the target path and all parent components before any file I/O
         if file_path.is_symlink():

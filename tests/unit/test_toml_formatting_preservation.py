@@ -139,3 +139,17 @@ line2 = "new2"
         assert 'line1 = "new1"' in content
         assert 'line2 = "new2"' in content
         assert 'line3 = "old3"' in content
+
+    def test_rejects_start_line_below_one(
+        self, toml_handler: TomlHandler, temp_workspace: Path
+    ) -> None:
+        """apply_change should reject start_line < 1 and not mutate the file."""
+        test_file = temp_workspace / "guard.toml"
+        original_content = """[section]
+key = "value"
+"""
+        test_file.write_text(original_content)
+
+        result = toml_handler.apply_change(str(test_file), 'key = "new"', 0, 1)
+        assert result is False
+        assert test_file.read_text() == original_content

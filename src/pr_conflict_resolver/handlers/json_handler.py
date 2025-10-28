@@ -97,7 +97,9 @@ class JsonHandler(BaseHandler):
 
         # Resolve path relative to workspace_root
         # (skip validation since InputValidator.validate_file_path already validated)
-        file_path = resolve_file_path(path, self.workspace_root)
+        file_path = resolve_file_path(
+            path, self.workspace_root, allow_absolute=True, validate_workspace=False
+        )
 
         # Parse original file
         try:

@@ -4,9 +4,10 @@ from collections.abc import Generator
 from unittest.mock import patch
 
 import pytest
+from click import BadParameter, Context, Option
 from click.testing import CliRunner
 
-from pr_conflict_resolver.cli.main import cli
+from pr_conflict_resolver.cli.main import cli, validate_github_repo, validate_pr_number
 
 
 @pytest.fixture(autouse=True)
@@ -17,6 +18,24 @@ def mock_github_api() -> Generator[None, None, None]:
         return_value=[],
     ):
         yield
+
+
+@pytest.fixture()
+def click_ctx() -> Context:
+    """Provide a Click Context bound to the CLI group for validator tests."""
+    return Context(cli)
+
+
+@pytest.fixture()
+def repo_param() -> Option:
+    """Provide a Click Option instance for the '--repo' parameter."""
+    return Option(["--repo"])  # acts as a Parameter instance
+
+
+@pytest.fixture()
+def pr_param() -> Option:
+    """Provide a Click Option instance for the '--pr' parameter."""
+    return Option(["--pr"])  # acts as a Parameter instance
 
 
 class TestCLIPathValidation:
@@ -119,3 +138,43 @@ class TestCLIPathValidation:
         assert "invalid value for '--owner'" in result.output.lower()
         assert "--owner" in result.output.lower()
         assert "owner" in result.output.lower()
+
+
+class TestValidateGitHubRepo:
+    """Test GitHub repository name validation function."""
+
+    def test_repo_ending_with_git_rejected(self, click_ctx: Context, repo_param: Option) -> None:
+        """Test that repo names ending with .git are rejected."""
+        with pytest.raises(BadParameter, match=r"cannot end with '\.git'"):
+            validate_github_repo(click_ctx, repo_param, "myrepo.git")
+
+    @pytest.mark.parametrize("name", [".", ".."])
+    def test_repo_dot_or_dotdot_rejected(
+        self, name: str, click_ctx: Context, repo_param: Option
+    ) -> None:
+        """Repo names '.' or '..' are rejected."""
+        with pytest.raises(BadParameter, match=r"repository name cannot be '\.' or '\.\.'"):
+            validate_github_repo(click_ctx, repo_param, name)
+
+    def test_valid_repo_accepted(self, click_ctx: Context, repo_param: Option) -> None:
+        """Valid repo names should pass validation."""
+        assert validate_github_repo(click_ctx, repo_param, "my-repo_1") == "my-repo_1"
+        assert validate_github_repo(click_ctx, repo_param, "my.repo") == "my.repo"
+
+
+class TestValidatePRNumber:
+    """Test PR number validation function."""
+
+    def test_zero_pr_rejected(self, click_ctx: Context, pr_param: Option) -> None:
+        """Test that PR number 0 is rejected."""
+        with pytest.raises(BadParameter, match=r"PR number must be positive"):
+            validate_pr_number(click_ctx, pr_param, 0)
+
+    def test_negative_pr_rejected(self, click_ctx: Context, pr_param: Option) -> None:
+        """Negative PR numbers should be rejected."""
+        with pytest.raises(BadParameter, match=r"PR number must be positive"):
+            validate_pr_number(click_ctx, pr_param, -5)
+
+    def test_positive_pr_accepted(self, click_ctx: Context, pr_param: Option) -> None:
+        """Positive PR numbers should be accepted."""
+        assert validate_pr_number(click_ctx, pr_param, 42) == 42
