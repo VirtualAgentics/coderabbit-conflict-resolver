@@ -23,20 +23,6 @@ from pr_conflict_resolver.cli.main import (
 )
 
 
-@pytest.fixture
-def mock_ctx() -> Context:
-    """Provide a Click Context for testing."""
-    return Context(cli)
-
-
-@pytest.fixture
-def mock_param() -> Mock:
-    """Provide a Mock parameter with default name='test'."""
-    param = Mock()
-    param.name = "test"
-    return param
-
-
 class TestValidateGitHubUsername:
     """Test GitHub username validation function."""
 

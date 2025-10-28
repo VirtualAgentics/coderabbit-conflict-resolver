@@ -5,9 +5,12 @@ import logging
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
+from click import Context
 
+from pr_conflict_resolver.cli.main import cli
 from pr_conflict_resolver.handlers.json_handler import JsonHandler
 from pr_conflict_resolver.handlers.toml_handler import TomlHandler
 from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
@@ -171,3 +174,17 @@ def github_logger_capture() -> Generator[io.StringIO, None, None]:
         github_logger.removeHandler(handler)
         github_logger.setLevel(original_level)
         github_logger.propagate = original_propagate
+
+
+@pytest.fixture
+def mock_ctx() -> Context:
+    """Provide a Click Context for testing."""
+    return Context(cli)
+
+
+@pytest.fixture
+def mock_param() -> Mock:
+    """Provide a Mock parameter with default name='test'."""
+    param = Mock()
+    param.name = "test"
+    return param

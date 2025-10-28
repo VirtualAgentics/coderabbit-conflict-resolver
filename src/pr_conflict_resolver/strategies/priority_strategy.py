@@ -61,7 +61,7 @@ class PriorityStrategy(ResolutionStrategy):
             )
 
         # Calculate priorities for all changes
-        prioritized_changes = []
+        prioritized_changes: list[tuple[int, Change]] = []
         for change in conflict.changes:
             priority = self._calculate_priority(change)
             prioritized_changes.append((priority, change))

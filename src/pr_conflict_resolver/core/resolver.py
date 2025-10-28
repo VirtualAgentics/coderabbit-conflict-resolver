@@ -540,6 +540,20 @@ class ConflictResolver:
             self.logger.error(f"Failed to resolve path {change.path}: {e}")
             return False
 
+        # Check for symlinks in the target path and all parent components (consistent with handlers)
+        for component in (file_path, *file_path.parents):
+            try:
+                if component.is_symlink():
+                    self.logger.error(
+                        f"Symlink detected in path hierarchy, rejecting for security: {component}"
+                    )
+                    return False
+            except OSError:
+                self.logger.error(
+                    f"Error probing filesystem component (possible symlink), rejecting: {component}"
+                )
+                return False
+
         import tempfile
 
         temp_path: Path | None = None

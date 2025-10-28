@@ -32,23 +32,6 @@ class TestJsonHandler:
         assert handler.can_handle("test.yaml") is False
         assert handler.can_handle("test.txt") is False
 
-    def test_has_duplicate_keys(self) -> None:
-        """Test duplicate key detection."""
-        handler = JsonHandler()
-
-        # No duplicates
-        data = {"key1": "value1", "key2": "value2"}
-        assert handler._has_duplicate_keys(data) is False
-
-        # Test with string representation that would have duplicates
-        # Since Python dicts can't have duplicate keys, we test the logic differently
-        # This would be detected as duplicate if parsed as JSON string
-        assert handler._has_duplicate_keys({"key1": "value1"}) is False  # No duplicates in dict
-
-        # Nested structure without duplicates
-        nested_data: dict[str, Any] = {"outer": {"key1": "value1", "key2": "value2"}}
-        assert handler._has_duplicate_keys(nested_data) is False
-
     def test_validate_change(self) -> None:
         """
         Verify JsonHandler.validate_change accepts valid JSON and rejects malformed JSON.

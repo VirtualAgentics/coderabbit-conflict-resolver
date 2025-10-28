@@ -96,13 +96,17 @@ class JsonHandler(BaseHandler):
             return False
 
         # Resolve path relative to workspace_root with strict containment to workspace
-        file_path = resolve_file_path(
-            path,
-            self.workspace_root,
-            allow_absolute=True,
-            validate_workspace=True,
-            enforce_containment=True,
-        )
+        try:
+            file_path = resolve_file_path(
+                path,
+                self.workspace_root,
+                allow_absolute=True,
+                validate_workspace=True,
+                enforce_containment=True,
+            )
+        except (ValueError, OSError) as e:
+            self.logger.error(f"Path resolution failed for {path}: {type(e).__name__}: {e}")
+            return False
 
         # Parse original file (accept any valid JSON, not only dict)
         try:
@@ -356,29 +360,6 @@ class JsonHandler(BaseHandler):
             return 0.0
         return (overlap_len / union_len) * 100.0
 
-    def _has_duplicate_keys(
-        self, obj: dict[str, Any] | list[Any] | str | int | float | bool | None
-    ) -> bool:
-        """Detects whether a JSON-like structure contains duplicate object keys.
-
-        Args:
-            obj (dict | list | str | int | float | bool | None): JSON-like value to inspect;
-                may be a mapping, sequence, or primitive.
-
-        Returns:
-            bool: `True` if any mapping within `obj` contains duplicate keys, `False` otherwise.
-        """
-        if isinstance(obj, dict):
-            # Check current level
-            keys = list(obj.keys())
-            if len(keys) != len(set(keys)):
-                return True
-            # Check nested objects
-            return any(self._has_duplicate_keys(v) for v in obj.values())
-        elif isinstance(obj, list):
-            return any(self._has_duplicate_keys(item) for item in obj)
-        return False
-
     def _smart_merge_json(
         self, original: dict[str, Any], suggestion: dict[str, Any], start_line: int, end_line: int
     ) -> dict[str, Any]:
@@ -447,28 +428,6 @@ class JsonHandler(BaseHandler):
         # parsing of partial JSON structures
         self.logger.warning("Partial JSON suggestion detected, using fallback method")
         return False
-
-    def _parse_json_dict(self, content: str, context: str) -> dict[str, Any] | None:
-        """Parse JSON content and validate it's a dictionary.
-
-        Args:
-            content: JSON string to parse.
-            context: Context string for error messages.
-
-        Returns:
-            dict[str, Any] | None: Parsed dict on success; None if parsing fails or the
-            content is not a JSON object. Parsing errors (including malformed JSON or
-            duplicate keys) are caught and logged; they are not propagated.
-        """
-        try:
-            result = self._loads_strict(content)
-            if not isinstance(result, dict):
-                self.logger.error(f"Expected JSON object in {context}, got {type(result).__name__}")
-                return None
-            return result
-        except (json.JSONDecodeError, ValueError) as e:
-            self.logger.error(f"Error parsing {context}: {type(e).__name__}: {e}")
-            return None
 
     def _loads_strict(self, s: str) -> JsonValue:
         """Parse JSON and raise ValueError on duplicate keys.
