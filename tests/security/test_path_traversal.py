@@ -297,7 +297,9 @@ class TestResolverPathTraversal:
     def test_resolver_handles_unicode_path_traversal(self) -> None:
         """Test that resolver handles Unicode path traversal attempts."""
         resolver = ConflictResolver()
-        handler = JsonHandler()
+        json_handler = JsonHandler()
+        yaml_handler = YamlHandler()
+        toml_handler = TomlHandler()
 
         # Unicode attack vectors that normalize to '..' or similar
         attack_paths = [
@@ -331,9 +333,16 @@ class TestResolverPathTraversal:
             ), f"Resolver should handle Unicode traversal attempt: {attack_path}"
             assert isinstance(conflicts, list), f"Should return a list for attack: {attack_path}"
 
-            # Handler must reject Unicode path traversal attempts
-            handler_result = handler.apply_change(attack_path, "malicious", 1, 1)
-            assert not handler_result, f"Handler must reject Unicode traversal: {attack_path}"
+            # Handlers must reject Unicode path traversal attempts
+            assert not json_handler.apply_change(
+                attack_path, "malicious", 1, 1
+            ), f"JSON handler must reject Unicode traversal: {attack_path}"
+            assert not yaml_handler.apply_change(
+                attack_path, "malicious", 1, 1
+            ), f"YAML handler must reject Unicode traversal: {attack_path}"
+            assert not toml_handler.apply_change(
+                attack_path, "malicious", 1, 1
+            ), f"TOML handler must reject Unicode traversal: {attack_path}"
 
 
 class TestCrossPlatformPathTraversal:

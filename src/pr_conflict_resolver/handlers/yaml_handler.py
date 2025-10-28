@@ -6,6 +6,7 @@ and comment preservation using ruamel.yaml.
 
 import logging
 from os import PathLike
+from pathlib import Path
 from typing import Any, ClassVar
 
 from ..core.models import Change, Conflict
@@ -87,10 +88,9 @@ class YamlHandler(BaseHandler):
             self.logger.error("ruamel.yaml not available. Install with: pip install ruamel.yaml")
             return False
 
-        # Resolve path relative to workspace_root
-        # (skip validation since InputValidator.validate_file_path already validated)
+        # Resolve path relative to workspace_root and enforce containment within workspace
         file_path = resolve_file_path(
-            path, self.workspace_root, allow_absolute=True, validate_workspace=False
+            path, self.workspace_root, allow_absolute=True, validate_workspace=True
         )
 
         # Check for symlinks in the target path and all parent components before any file I/O
@@ -132,6 +132,19 @@ class YamlHandler(BaseHandler):
             # Step 1: validate safely to prevent object construction
             safe_yaml_suggestion = YAML(typ="safe")
             _ = safe_yaml_suggestion.load(content)
+
+            # Defense-in-depth: reject dangerous Python YAML tags before round-trip parse
+            lowered = content.lower()
+            if (
+                "!!python" in lowered
+                or "tag:yaml.org,2002:python" in lowered
+                or "!!python/object" in lowered
+                or "!!python/name" in lowered
+                or "!!python/object/new" in lowered
+                or "!!python/object/apply" in lowered
+            ):
+                raise ValueError("YAML contains dangerous Python object tags")
+
             # Step 2: round-trip parse for structure with formatting support
             yaml_suggestion_rt = YAML(typ="rt")
             suggestion_data = yaml_suggestion_rt.load(content)
@@ -145,12 +158,31 @@ class YamlHandler(BaseHandler):
         # Apply suggestion using smart merge
         merged_data = self._smart_merge_yaml(original_data, suggestion_data, start_line, end_line)
 
-        # Write with proper formatting and comment preservation
+        # Write atomically with comment preservation
+        import contextlib
+        import os
+        import stat
+        import tempfile
+
         try:
             yaml_rt = YAML(typ="rt")
             yaml_rt.preserve_quotes = True
-            with file_path.open("w", encoding="utf-8") as fh:
-                yaml_rt.dump(merged_data, fh)
+            orig_mode = os.stat(file_path).st_mode if file_path.exists() else None
+            tmp_path = None
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=file_path.parent,
+                prefix=f".{file_path.name}.tmp",
+                delete=False,
+            ) as tmp:
+                tmp_path = Path(tmp.name)
+                yaml_rt.dump(merged_data, tmp)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+            if orig_mode is not None:
+                os.chmod(tmp_path, stat.S_IMODE(orig_mode))
+            os.replace(tmp_path, file_path)
             return True
         except (OSError, ValueError) as e:
             self.logger.error(f"Error writing YAML: {e}")
@@ -158,6 +190,10 @@ class YamlHandler(BaseHandler):
         except Exception as e:  # ruamel.yaml raises base Exception
             self.logger.error(f"Error writing YAML: {e}")
             return False
+        finally:
+            if "tmp_path" in locals() and tmp_path and tmp_path.exists():
+                with contextlib.suppress(OSError):
+                    tmp_path.unlink()
 
     def validate_change(
         self, path: str, content: str, start_line: int, end_line: int

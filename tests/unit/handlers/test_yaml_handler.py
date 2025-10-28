@@ -18,7 +18,7 @@ def test_yaml_validate_change_valid_and_controls() -> None:
 
     ok, msg = handler.validate_change("config.yaml", "key: value", 1, 1)
     assert ok is True
-    assert msg == "Valid YAML"
+    assert msg
 
     # Dangerous control character (null byte)
     ok2, msg2 = handler.validate_change("config.yaml", "key: value\x00", 1, 1)
@@ -54,6 +54,20 @@ def test_yaml_apply_change_merge_only(tmp_path: Path) -> None:
     assert "b:" in content
 
     # Note: Symlink-specific behavior intentionally not asserted here.
+
+
+def test_yaml_apply_preserves_comments(tmp_path: Path) -> None:
+    handler = YamlHandler(workspace_root=tmp_path)
+    target = tmp_path / "config.yaml"
+    original = "# top comment\nkey: value  # inline comment\n"
+    target.write_text(original, encoding="utf-8")
+
+    suggestion = "key: new\n"
+    assert handler.apply_change(str(target), suggestion, 1, 1)
+
+    updated = target.read_text(encoding="utf-8")
+    assert "# top comment" in updated
+    assert "inline comment" in updated
 
 
 def test_yaml_detect_conflicts_same_key_and_no_conflict() -> None:

@@ -516,11 +516,13 @@ class InputValidator:
             bool: True if token has valid GitHub format, False otherwise.
 
         Example:
+            >>> # Classic token example (ghp_ + base62 body, realistic length)
             >>> InputValidator.validate_github_token(
-            ...     "ghp_example_token_not_real"
+            ...     "ghp_" + "A1b2C3d4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0U1V2W3"
             ... )
             True
-            >>> token = "github_pat_FAKE_TOKEN_EXAMPLE_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+            >>> # Fine-grained token example (github_pat_ + longer base62 body)
+            >>> token = "github_pat_" + "Z9Y8X7W6V5U4T3S2R1Q0P9O8N7M6L5K4J3I2H1G0F9E8D7C6B"
             >>> InputValidator.validate_github_token(token)
             True
             >>> InputValidator.validate_github_token("invalid_token")

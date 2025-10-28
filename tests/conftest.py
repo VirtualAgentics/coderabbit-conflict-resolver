@@ -102,7 +102,7 @@ def json_handler(temp_workspace: Path) -> JsonHandler:
     Returns:
         JsonHandler: Handler instance for testing.
     """
-    return JsonHandler(workspace_root=str(temp_workspace))
+    return JsonHandler(workspace_root=temp_workspace)
 
 
 @pytest.fixture
@@ -116,7 +116,7 @@ def yaml_handler(temp_workspace: Path) -> YamlHandler:
     Returns:
         YamlHandler: Handler instance for testing.
     """
-    return YamlHandler(workspace_root=str(temp_workspace))
+    return YamlHandler(workspace_root=temp_workspace)
 
 
 @pytest.fixture
@@ -130,7 +130,7 @@ def toml_handler(temp_workspace: Path) -> TomlHandler:
     Returns:
         TomlHandler: Handler instance for testing.
     """
-    return TomlHandler(workspace_root=str(temp_workspace))
+    return TomlHandler(workspace_root=temp_workspace)
 
 
 @pytest.fixture

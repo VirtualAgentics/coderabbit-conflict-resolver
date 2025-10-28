@@ -316,12 +316,29 @@ class TestContentSanitization:
         """Test that handlers reject content containing null bytes."""
         handlers = [json_handler, yaml_handler, toml_handler]
 
-        test_file = tmp_path / "test.json"
-        test_file.write_text('{"key": "value"}')
-
         malicious_content = '{"key": "value\x00malicious"}'
 
+        def _ext_for(h: object) -> str:
+            name = h.__class__.__name__.lower()
+            if "json" in name:
+                return ".json"
+            if "yaml" in name or "yml" in name:
+                return ".yaml"
+            if "toml" in name:
+                return ".toml"
+            return ".txt"
+
         for handler in handlers:
+            ext = _ext_for(handler)
+            test_file = tmp_path / f"test{ext}"
+            # create benign baseline content for the file
+            baseline = (
+                '{"key": "value"}'
+                if ext == ".json"
+                else ("key: value" if ext in (".yaml", ".yml") else 'key = "value"')
+            )
+            test_file.write_text(baseline)
+
             result = handler.validate_change(str(test_file), malicious_content, 1, 1)
 
             # Should reject content with null bytes

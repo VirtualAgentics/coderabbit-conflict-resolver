@@ -186,9 +186,15 @@ def validate_pr_number(ctx: click.Context, param: click.Parameter, value: int) -
 
 # NOTE: File path validation for CLI options is not yet needed.
 # Current CLI commands use identifiers (--owner, --repo, --pr) which are validated
-# by validate_github_identifier(). If file path options are added in the future
-# (e.g., --output, --config-path), add InputValidator.validate_file_path() as a
-# Click callback with appropriate allow_absolute setting.
+# by the validators above (validate_github_username and validate_github_repo).
+# If file path options are added in the future (e.g., --output, --config-path),
+# add InputValidator.validate_file_path() as a Click callback with an explicit
+# allow_absolute policy, for example:
+#   callback=lambda ctx, param, value: (
+#       value
+#       if InputValidator.validate_file_path(value, base_dir=str(Path.cwd()), allow_absolute=False)
+#       else (_ for _ in ()).throw(click.BadParameter("invalid file path"))
+#   )
 
 
 @cli.command()

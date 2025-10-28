@@ -58,35 +58,55 @@ def validate_version_constraint(
     line_without_comment = line.split("#", 1)[0].rstrip()
 
     # Check if version is pinned or has reasonable constraints
-    # Wildcards ('*') are only allowed with '==' and '!=', and are forbidden with '===' per PEP 440.
+    # PEP 440 compliance adjustments:
+    # - '===' accepts arbitrary string (non-numeric identifiers allowed), no '*'
+    # - '*' allowed only for '==' and '!=', as trailing wildcard (e.g. 1.2.* or 1.*)
+    #   We do not fully validate position here; stricter checks handled below when
+    #   require_exact_pin.
     version_pattern = (
         r"("  # start group
-        r"===\s*\d[0-9A-Za-z.+\-]*"  # identity, no '*'
+        r"===\s*[^*\s]+"  # identity, any non-space string without '*'
         r"|"  # or
-        r"(==|!=)\s*\d[0-9A-Za-z.*+\-]*"  # equality/inequality may include '*'
+        r"(==|!=)\s*[0-9A-Za-z.+\-.*]+"  # equality/inequality may include '*'
         r"|"  # or
-        r"~=\s*\d[0-9A-Za-z.+\-]*"  # compatible release, no '*'
+        r"~=\s*[0-9A-Za-z.+\-]+"  # compatible release, no '*'
         r"|"  # or
-        r"(>=|<=|>|<)\s*\d[0-9A-Za-z.+\-]*"  # ranges, no '*'
+        r"(>=|<=|>|<)\s*[0-9A-Za-z.+\-]+"  # ranges, no '*'
         r")"
     )
     has_version_constraint = bool(re.search(version_pattern, line_without_comment))
 
     if require_exact_pin:
         # For production requirements.txt, require exact pinning (==, ~=, or ===)
-        # Note: '===' and '~=' must not include '*'. '==' may include '*'.
-        exact_pin_pattern = (
-            r"("  # start group
-            r"===\s*\d[0-9A-Za-z.+\-]*"  # identity, no '*'
-            r"|"  # or
-            r"==\s*\d[0-9A-Za-z.*+\-]*"  # equality may include '*'
-            r"|"  # or
-            r"~=\s*\d[0-9A-Za-z.+\-]*"  # compatible release, no '*'
-            r")"
-        )
-        has_exact_pin = bool(re.search(exact_pin_pattern, line_without_comment))
+        # - '===' must not include '*', accepts arbitrary identifier
+        # - '~=' must not include '*'
+        # - '==' may include trailing wildcard only on final segment: v*, or 1.* or 1.2.*
+        exact_pin_ok = False
 
-        if not has_exact_pin:
+        # Identity pin
+        if re.search(r"===\s*[^*\s]+", line_without_comment):
+            exact_pin_ok = True
+
+        # Compatible release (no '*')
+        if not exact_pin_ok and re.search(r"~=\s*[0-9A-Za-z.+\-]+", line_without_comment):
+            exact_pin_ok = True
+
+        # Equality with optional trailing wildcard on final segment
+        if not exact_pin_ok:
+            m = re.search(r"==\s*([0-9A-Za-z.+\-.*]+)", line_without_comment)
+            if m:
+                ver = m.group(1)
+                if "*" not in ver:
+                    exact_pin_ok = True
+                else:
+                    # allow only forms like '1.*' or '1.2.*' (no middle wildcards like '1.*.2')
+                    if ver.endswith(".*") and ver.count("*") == 1:
+                        core = ver[:-2]
+                        # core must be digits and dots (PEP 440 segment approximation)
+                        if re.fullmatch(r"\d+(?:\.\d+)*", core):
+                            exact_pin_ok = True
+
+        if not exact_pin_ok:
             return ValidationResult(
                 is_valid=False,
                 message=(

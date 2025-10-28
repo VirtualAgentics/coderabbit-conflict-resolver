@@ -95,10 +95,13 @@ class JsonHandler(BaseHandler):
             self.logger.error(f"Invalid file path rejected: {path}")
             return False
 
-        # Resolve path relative to workspace_root
-        # (skip validation since InputValidator.validate_file_path already validated)
+        # Resolve path relative to workspace_root with strict containment to workspace
         file_path = resolve_file_path(
-            path, self.workspace_root, allow_absolute=True, validate_workspace=False
+            path,
+            self.workspace_root,
+            allow_absolute=True,
+            validate_workspace=True,
+            enforce_containment=True,
         )
 
         # Parse original file
