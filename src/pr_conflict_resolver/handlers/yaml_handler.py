@@ -131,17 +131,18 @@ class YamlHandler(BaseHandler):
         try:
             # Step 1: validate safely to prevent object construction
             safe_yaml_suggestion = YAML(typ="safe")
-            _ = safe_yaml_suggestion.load(content)
+            parsed_safe = safe_yaml_suggestion.load(content)
+
+            # Structural check: reject if dangerous tags found in parsed data
+            if self._contains_dangerous_tags(parsed_safe):
+                raise ValueError("YAML contains dangerous Python object tags in structure")
 
             # Defense-in-depth: reject dangerous Python YAML tags before round-trip parse
             lowered = content.lower()
             if (
                 "!!python" in lowered
                 or "tag:yaml.org,2002:python" in lowered
-                or "!!python/object" in lowered
-                or "!!python/name" in lowered
-                or "!!python/object/new" in lowered
-                or "!!python/object/apply" in lowered
+                or any(tag.lower() in lowered for tag in self.DANGEROUS_TAGS)
             ):
                 raise ValueError("YAML contains dangerous Python object tags")
 

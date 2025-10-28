@@ -91,52 +91,42 @@ class TomlHandler(BaseHandler):
             ValueError: If line range is invalid (start_line < 1, end_line < start_line,
                 or end_line > total_lines).
         """
+        # Parse temp bypass configuration once
+        env_val = (os.getenv("ALLOW_TEMP_OUTSIDE_WORKSPACE") or "").strip().lower()
+        allow_temp_outside = env_val in {"1", "true", "yes", "on"}
+        path_obj = Path(path)
+        tempdir = Path(tempfile.gettempdir())
+        is_temp_file = (
+            path_obj.is_absolute() and allow_temp_outside and self._is_temp_file(path_obj, tempdir)
+        )
+
         # Validate file path to prevent path traversal attacks
         # Use workspace root for absolute path containment check
-        if not InputValidator.validate_file_path(
+        if InputValidator.validate_file_path(
             path, allow_absolute=True, base_dir=str(self.workspace_root)
         ):
-            # Check if opt-in flag allows temp files outside workspace
-            env_val = (os.getenv("ALLOW_TEMP_OUTSIDE_WORKSPACE") or "").strip().lower()
-            allow_temp_outside = env_val in {"1", "true", "yes", "on"}
-            path_obj = Path(path)
-
-            if path_obj.is_absolute() and allow_temp_outside:
-                tempdir = Path(tempfile.gettempdir())
-                if self._is_temp_file(path_obj, tempdir):
-                    self.logger.debug(
-                        f"Allowing temp file outside workspace: {path} "
-                        f"(ALLOW_TEMP_OUTSIDE_WORKSPACE={allow_temp_outside})"
-                    )
-                else:
-                    self.logger.error(
-                        f"Invalid file path rejected (not in temp dir): {path} "
-                        f"(ALLOW_TEMP_OUTSIDE_WORKSPACE={allow_temp_outside})"
-                    )
-                    return False
-            else:
-                self.logger.error(
-                    f"Invalid file path rejected: {path} "
-                    f"(ALLOW_TEMP_OUTSIDE_WORKSPACE={allow_temp_outside})"
-                )
-                return False
+            # Path validation passed, proceed
+            pass
+        elif is_temp_file:
+            # Validation failed but temp file bypass is enabled
+            self.logger.debug(
+                f"Allowing temp file outside workspace: {path} "
+                f"(ALLOW_TEMP_OUTSIDE_WORKSPACE=True)"
+            )
+        else:
+            # Validation failed and no bypass applies
+            self.logger.error(f"Invalid file path rejected: {path}")
+            return False
 
         if not TOML_READ_AVAILABLE:
             self.logger.error("TOML parsing support unavailable. Install tomllib (Python 3.11+)")
             return False
 
-        # Resolve path relative to workspace_root
+        # Resolve path: temp bypass or workspace containment
         # Security model:
         # - Normal case: enforce containment within workspace_root
         # - Temp bypass: if allowed and path is in temp dir, resolve directly (explicit risk)
-        path_obj = Path(path)
-        env_val = (os.getenv("ALLOW_TEMP_OUTSIDE_WORKSPACE") or "").strip().lower()
-        allow_temp_outside = env_val in {"1", "true", "yes", "on"}
-        if (
-            path_obj.is_absolute()
-            and allow_temp_outside
-            and self._is_temp_file(path_obj, Path(tempfile.gettempdir()))
-        ):
+        if is_temp_file:
             file_path = path_obj.resolve(strict=False)
         else:
             file_path = resolve_file_path(
