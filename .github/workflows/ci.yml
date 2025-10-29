@@ -35,7 +35,7 @@ jobs:
         run: ruff check src/ tests/
 
       - name: Type check with MyPy
-        run: mypy src/ --strict
+        run: mypy src/ tests/ --strict
 
       - name: Security scan with Bandit
         run: bandit -r src/ -f json -o bandit-report.json || bandit -r src/
