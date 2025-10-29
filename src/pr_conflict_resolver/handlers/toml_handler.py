@@ -114,8 +114,7 @@ class TomlHandler(BaseHandler):
         # Early bypass: validation failed but temp file bypass is enabled
         if not validation_passed and is_temp_file:
             self.logger.debug(
-                f"Allowing temp file outside workspace: {path} "
-                f"(ALLOW_TEMP_OUTSIDE_WORKSPACE=True)"
+                f"Allowing temp file outside workspace: {path} (ALLOW_TEMP_OUTSIDE_WORKSPACE=True)"
             )
 
         if not TOML_READ_AVAILABLE:

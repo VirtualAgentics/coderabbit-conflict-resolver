@@ -1,6 +1,5 @@
 """Test the GitHub integration."""
 
-from typing import Any
 from unittest.mock import Mock, patch
 
 from pr_conflict_resolver import GitHubCommentExtractor
@@ -24,7 +23,7 @@ class TestGitHubCommentExtractor:
         assert extractor.session.headers["Authorization"] == "token test_token"
 
     @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
-    def test_fetch_review_comments(self, mock_get: Any) -> None:
+    def test_fetch_review_comments(self, mock_get: Mock) -> None:
         """Test fetching review comments."""
         extractor = GitHubCommentExtractor()
 
@@ -42,7 +41,7 @@ class TestGitHubCommentExtractor:
         mock_get.assert_called_once()
 
     @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
-    def test_fetch_issue_comments(self, mock_get: Any) -> None:
+    def test_fetch_issue_comments(self, mock_get: Mock) -> None:
         """Test fetching issue comments."""
         extractor = GitHubCommentExtractor()
 
@@ -60,7 +59,7 @@ class TestGitHubCommentExtractor:
         mock_get.assert_called_once()
 
     @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
-    def test_fetch_pr_comments(self, mock_get: Any) -> None:
+    def test_fetch_pr_comments(self, mock_get: Mock) -> None:
         """Test fetching all PR comments."""
         extractor = GitHubCommentExtractor()
 
@@ -77,7 +76,7 @@ class TestGitHubCommentExtractor:
         assert len(comments) == 2  # One from each call
 
     @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
-    def test_fetch_pr_metadata(self, mock_get: Any) -> None:
+    def test_fetch_pr_metadata(self, mock_get: Mock) -> None:
         """Test fetching PR metadata."""
         extractor = GitHubCommentExtractor()
 
@@ -95,7 +94,7 @@ class TestGitHubCommentExtractor:
         mock_get.assert_called_once()
 
     @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
-    def test_fetch_pr_files(self, mock_get: Any) -> None:
+    def test_fetch_pr_files(self, mock_get: Mock) -> None:
         """Test fetching PR files."""
         extractor = GitHubCommentExtractor()
 

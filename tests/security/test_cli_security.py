@@ -7,8 +7,11 @@ and token exposure in CLI operations.
 import os
 import re
 from pathlib import Path
-from typing import Any
-from unittest.mock import patch
+from typing import TYPE_CHECKING
+from unittest.mock import Mock, patch
+
+if TYPE_CHECKING:
+    from click.testing import Result
 
 import pytest
 from click.testing import CliRunner
@@ -20,7 +23,9 @@ from pr_conflict_resolver.cli.main import MAX_GITHUB_USERNAME_LENGTH, cli
 def _stub_github(monkeypatch: pytest.MonkeyPatch) -> None:
     """Prevent real GitHub calls in CLI tests."""
 
-    def _no_comments(self: object, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
+    def _no_comments(
+        self: object, owner: str, repo: str, pr_number: int
+    ) -> list[dict[str, object]]:
         return []
 
     monkeypatch.setattr(
@@ -107,7 +112,7 @@ class TestEnvironmentVariableHandling:
             # Token should not appear in output
             assert test_token not in result.output
 
-    def _assert_injection_handled(self, result: Any, injection: str) -> None:
+    def _assert_injection_handled(self, result: "Result", injection: str) -> None:
         """Helper to assert injection is safely handled.
 
         Args:
@@ -471,7 +476,7 @@ class TestCommandSuccessPaths:
     """Test successful command execution paths."""
 
     @patch("pr_conflict_resolver.core.resolver.ConflictResolver.analyze_conflicts")
-    def test_analyze_command_success_path(self, mock_analyze: Any) -> None:
+    def test_analyze_command_success_path(self, mock_analyze: Mock) -> None:
         """Test analyze command success path."""
         mock_analyze.return_value = []
         runner = CliRunner()
@@ -482,7 +487,7 @@ class TestCommandSuccessPaths:
         assert "No conflicts detected" in result.output
 
     @patch("pr_conflict_resolver.core.resolver.ConflictResolver.analyze_conflicts")
-    def test_analyze_command_with_conflicts(self, mock_analyze: Any) -> None:
+    def test_analyze_command_with_conflicts(self, mock_analyze: Mock) -> None:
         """Test analyze command with conflicts."""
         from pr_conflict_resolver.core.models import Change, Conflict, FileType
 
@@ -513,7 +518,7 @@ class TestCommandSuccessPaths:
         assert "Found 1 conflicts" in result.output
 
     @patch("pr_conflict_resolver.core.resolver.ConflictResolver.resolve_pr_conflicts")
-    def test_apply_command_success_path(self, mock_resolve: Any) -> None:
+    def test_apply_command_success_path(self, mock_resolve: Mock) -> None:
         """Test apply command success path."""
         from pr_conflict_resolver.core.models import ResolutionResult
 
@@ -535,7 +540,7 @@ class TestCommandSuccessPaths:
         assert "Success rate: 71.4%" in result.output
 
     @patch("pr_conflict_resolver.core.resolver.ConflictResolver.analyze_conflicts")
-    def test_simulate_command_success_path(self, mock_analyze: Any) -> None:
+    def test_simulate_command_success_path(self, mock_analyze: Mock) -> None:
         """Test simulate command success path."""
         from pr_conflict_resolver.core.models import Change, Conflict, FileType
 

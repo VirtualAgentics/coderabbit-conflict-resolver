@@ -12,25 +12,26 @@ import sys
 import tarfile
 import tomllib
 import zipfile
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
 
 
 @pytest.fixture(scope="module")
-def project_root():
+def project_root() -> Path:
     """Get project root directory."""
     return Path(__file__).parent.parent.parent
 
 
 @pytest.fixture(scope="module")
-def dist_dir(project_root):
+def dist_dir(project_root: Path) -> Path:
     """Get dist directory path."""
     return project_root / "dist"
 
 
 @pytest.fixture(scope="module")
-def build_artifacts(project_root, dist_dir):
+def build_artifacts(project_root: Path, dist_dir: Path) -> Generator[Path, None, None]:
     """Build package and generate artifacts.
 
     This fixture runs once per module to avoid rebuilding for each test.
@@ -64,18 +65,18 @@ def build_artifacts(project_root, dist_dir):
 class TestBuildArtifacts:
     """Integration tests for build artifacts."""
 
-    def test_dist_directory_exists(self, build_artifacts) -> None:
+    def test_dist_directory_exists(self, build_artifacts: Path) -> None:
         """Test that dist directory is created."""
         assert build_artifacts.exists()
         assert build_artifacts.is_dir()
 
-    def test_wheel_file_generated(self, build_artifacts) -> None:
+    def test_wheel_file_generated(self, build_artifacts: Path) -> None:
         """Test that wheel file is generated."""
         wheel_files = list(build_artifacts.glob("*.whl"))
         assert len(wheel_files) == 1
         assert wheel_files[0].suffix == ".whl"
 
-    def test_wheel_file_naming(self, build_artifacts) -> None:
+    def test_wheel_file_naming(self, build_artifacts: Path) -> None:
         """Test that wheel file follows naming convention."""
         wheel_files = list(build_artifacts.glob("*.whl"))
         wheel_name = wheel_files[0].name
@@ -90,29 +91,34 @@ class TestBuildArtifacts:
         assert version in wheel_name
         assert wheel_name.endswith("-py3-none-any.whl")
 
-    def test_sdist_file_generated(self, build_artifacts) -> None:
+    def test_sdist_file_generated(self, build_artifacts: Path) -> None:
         """Test that source distribution is generated."""
         sdist_files = list(build_artifacts.glob("*.tar.gz"))
         assert len(sdist_files) == 1
         assert sdist_files[0].suffix == ".gz"
 
-    def test_sdist_file_naming(self, build_artifacts) -> None:
+    def test_sdist_file_naming(self, build_artifacts: Path) -> None:
         """Test that sdist file follows naming convention."""
         sdist_files = list(build_artifacts.glob("*.tar.gz"))
         sdist_name = sdist_files[0].name
 
-        # Expected format: pr_conflict_resolver-0.1.0.tar.gz
+        # Expected format: pr_conflict_resolver-<version>.tar.gz
+        # Read version from pyproject.toml to avoid hard-coding
+        with (build_artifacts.parent / "pyproject.toml").open("rb") as f:
+            project_config = tomllib.load(f)
+            version = project_config["project"]["version"]
+
         assert "pr_conflict_resolver" in sdist_name or "pr-conflict-resolver" in sdist_name
-        assert "0.1.0" in sdist_name
+        assert version in sdist_name
         assert sdist_name.endswith(".tar.gz")
 
-    def test_metadata_file_generated(self, build_artifacts) -> None:
+    def test_metadata_file_generated(self, build_artifacts: Path) -> None:
         """Test that metadata.json is generated."""
         metadata_file = build_artifacts / "metadata.json"
         assert metadata_file.exists()
         assert metadata_file.is_file()
 
-    def test_artifact_sizes_reasonable(self, build_artifacts) -> None:
+    def test_artifact_sizes_reasonable(self, build_artifacts: Path) -> None:
         """Test that artifact sizes are reasonable (not empty, not too large)."""
         wheel_files = list(build_artifacts.glob("*.whl"))
         sdist_files = list(build_artifacts.glob("*.tar.gz"))
@@ -131,7 +137,7 @@ class TestBuildArtifacts:
 class TestMetadataContent:
     """Integration tests for metadata.json content."""
 
-    def test_metadata_is_valid_json(self, build_artifacts) -> None:
+    def test_metadata_is_valid_json(self, build_artifacts: Path) -> None:
         """Test that metadata.json is valid JSON."""
         metadata_file = build_artifacts / "metadata.json"
         with metadata_file.open() as f:
@@ -139,7 +145,7 @@ class TestMetadataContent:
 
         assert isinstance(metadata, dict)
 
-    def test_metadata_has_required_structure(self, build_artifacts) -> None:
+    def test_metadata_has_required_structure(self, build_artifacts: Path) -> None:
         """Test that metadata has all required top-level keys."""
         metadata_file = build_artifacts / "metadata.json"
         with metadata_file.open() as f:
@@ -148,7 +154,7 @@ class TestMetadataContent:
         required_keys = ["package", "git", "build"]
         assert all(key in metadata for key in required_keys)
 
-    def test_metadata_package_section(self, build_artifacts) -> None:
+    def test_metadata_package_section(self, build_artifacts: Path) -> None:
         """Test package section of metadata."""
         metadata_file = build_artifacts / "metadata.json"
         with metadata_file.open() as f:
@@ -158,7 +164,7 @@ class TestMetadataContent:
         assert package["name"] == "pr-conflict-resolver"
         assert package["version"] == "0.1.0"
 
-    def test_metadata_git_section(self, build_artifacts) -> None:
+    def test_metadata_git_section(self, build_artifacts: Path) -> None:
         """Test git section of metadata."""
         metadata_file = build_artifacts / "metadata.json"
         with metadata_file.open() as f:
@@ -179,7 +185,7 @@ class TestMetadataContent:
             assert isinstance(git["branch"], str)
             assert len(git["branch"]) > 0
 
-    def test_metadata_build_section(self, build_artifacts) -> None:
+    def test_metadata_build_section(self, build_artifacts: Path) -> None:
         """Test build section of metadata."""
         metadata_file = build_artifacts / "metadata.json"
         with metadata_file.open() as f:
@@ -205,7 +211,7 @@ class TestMetadataContent:
         # Verify implementation
         assert build["python_implementation"] in ["cpython", "pypy", "jython", "ironpython"]
 
-    def test_metadata_version_matches_package(self, build_artifacts) -> None:
+    def test_metadata_version_matches_package(self, build_artifacts: Path) -> None:
         """Test that metadata version matches actual package version."""
         # Load metadata
         metadata_file = build_artifacts / "metadata.json"
@@ -228,7 +234,7 @@ class TestMetadataContent:
 class TestWheelValidation:
     """Integration tests for wheel validation script."""
 
-    def test_wheel_validation_script_exists(self, project_root) -> None:
+    def test_wheel_validation_script_exists(self, project_root: Path) -> None:
         """Test that validate_wheel.py script exists."""
         script_path = project_root / "scripts" / "validate_wheel.py"
         assert script_path.exists()
@@ -237,12 +243,14 @@ class TestWheelValidation:
     @pytest.mark.skipif(
         sys.platform == "win32", reason="Unix permissions not applicable on Windows"
     )
-    def test_wheel_validation_script_executable(self, project_root) -> None:
+    def test_wheel_validation_script_executable(self, project_root: Path) -> None:
         """Test that validate_wheel.py has execute permissions."""
         script_path = project_root / "scripts" / "validate_wheel.py"
         assert script_path.stat().st_mode & 0o111  # Check execute bit
 
-    def test_wheel_validation_runs_successfully(self, project_root, build_artifacts) -> None:
+    def test_wheel_validation_runs_successfully(
+        self, project_root: Path, build_artifacts: Path
+    ) -> None:
         """Test that wheel validation script runs successfully."""
         script_path = project_root / "scripts" / "validate_wheel.py"
 
@@ -256,7 +264,7 @@ class TestWheelValidation:
         # Script should exit with 0 for successful validation
         assert result.returncode == 0, f"Validation failed:\n{result.stdout}\n{result.stderr}"
 
-    def test_wheel_validation_output(self, project_root, build_artifacts) -> None:
+    def test_wheel_validation_output(self, project_root: Path, build_artifacts: Path) -> None:
         """Test that wheel validation produces expected output."""
         script_path = project_root / "scripts" / "validate_wheel.py"
 
@@ -278,7 +286,9 @@ class TestWheelValidation:
         assert "Validating CLI entry point" in output
         assert "Validation Summary" in output
 
-    def test_wheel_validation_checks_all_criteria(self, project_root, build_artifacts) -> None:
+    def test_wheel_validation_checks_all_criteria(
+        self, project_root: Path, build_artifacts: Path
+    ) -> None:
         """Test that wheel validation checks all criteria."""
         script_path = project_root / "scripts" / "validate_wheel.py"
 
@@ -307,7 +317,9 @@ class TestWheelValidation:
 class TestBuildReproducibility:
     """Integration tests for build reproducibility."""
 
-    def test_multiple_metadata_generations_consistent(self, project_root, dist_dir) -> None:
+    def test_multiple_metadata_generations_consistent(
+        self, project_root: Path, dist_dir: Path
+    ) -> None:
         """Test that metadata generation is consistent across multiple runs."""
         script_path = project_root / "scripts" / "generate_build_metadata.py"
 
@@ -352,7 +364,7 @@ class TestBuildReproducibility:
 class TestBuildArtifactIntegrity:
     """Integration tests for build artifact integrity."""
 
-    def test_wheel_can_be_inspected(self, build_artifacts) -> None:
+    def test_wheel_can_be_inspected(self, build_artifacts: Path) -> None:
         """Test that wheel can be inspected with wheel tool."""
         wheel_files = list(build_artifacts.glob("*.whl"))
         wheel_path = wheel_files[0]
@@ -368,7 +380,7 @@ class TestBuildArtifactIntegrity:
             assert any("METADATA" in name for name in namelist)
             assert any("WHEEL" in name for name in namelist)
 
-    def test_wheel_metadata_file_content(self, build_artifacts) -> None:
+    def test_wheel_metadata_file_content(self, build_artifacts: Path) -> None:
         """Test that wheel METADATA file has correct content."""
         wheel_files = list(build_artifacts.glob("*.whl"))
         wheel_path = wheel_files[0]
@@ -390,7 +402,7 @@ class TestBuildArtifactIntegrity:
             assert f"Version: {version}" in metadata_content
             assert "VirtualAgentics" in metadata_content
 
-    def test_sdist_can_be_extracted(self, build_artifacts) -> None:
+    def test_sdist_can_be_extracted(self, build_artifacts: Path) -> None:
         """Test that sdist can be extracted."""
         sdist_files = list(build_artifacts.glob("*.tar.gz"))
         sdist_path = sdist_files[0]

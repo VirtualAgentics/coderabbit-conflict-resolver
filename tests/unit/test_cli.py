@@ -1,7 +1,6 @@
 """Unit tests for CLI commands in pr_conflict_resolver.cli.main."""
 
-from typing import Any
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
 
@@ -30,7 +29,7 @@ def _sample_conflict(file_path: str = "test.json", severity: str = "low") -> Con
 
 
 @patch("pr_conflict_resolver.cli.main.ConflictResolver")
-def test_cli_analyze_no_conflicts(mock_resolver: Any) -> None:
+def test_cli_analyze_no_conflicts(mock_resolver: Mock) -> None:
     """analyze prints 'No conflicts' when none are found."""
     mock_inst = mock_resolver.return_value
     mock_inst.analyze_conflicts.return_value = []
@@ -43,7 +42,7 @@ def test_cli_analyze_no_conflicts(mock_resolver: Any) -> None:
 
 
 @patch("pr_conflict_resolver.cli.main.ConflictResolver")
-def test_cli_analyze_with_conflicts(mock_resolver: Any) -> None:
+def test_cli_analyze_with_conflicts(mock_resolver: Mock) -> None:
     """analyze prints a table and summary when conflicts exist."""
     mock_inst = mock_resolver.return_value
     mock_inst.analyze_conflicts.return_value = [_sample_conflict("test.json", "medium")]
@@ -68,7 +67,7 @@ def test_cli_apply_dry_run() -> None:
 
 
 @patch("pr_conflict_resolver.cli.main.ConflictResolver")
-def test_cli_apply_success(mock_resolver: Any) -> None:
+def test_cli_apply_success(mock_resolver: Mock) -> None:
     """apply prints resolution summary when successful."""
     mock_inst = mock_resolver.return_value
     res = Resolution(
@@ -89,7 +88,7 @@ def test_cli_apply_success(mock_resolver: Any) -> None:
 
 
 @patch("pr_conflict_resolver.cli.main.ConflictResolver")
-def test_cli_simulate_mixed_conflicts(mock_resolver: Any) -> None:
+def test_cli_simulate_mixed_conflicts(mock_resolver: Mock) -> None:
     """simulate reports how many would be applied vs skipped."""
     mock_inst = mock_resolver.return_value
     # One 'low' (would apply) and one 'high' (would skip)
@@ -144,7 +143,7 @@ def test_cli_simulate_mixed_conflicts(mock_resolver: Any) -> None:
 
 
 @patch("pr_conflict_resolver.cli.main.ConflictResolver")
-def test_cli_analyze_handles_error(mock_resolver: Any) -> None:
+def test_cli_analyze_handles_error(mock_resolver: Mock) -> None:
     """analyze gracefully handles exceptions and aborts."""
     mock_inst = mock_resolver.return_value
     mock_inst.analyze_conflicts.side_effect = Exception("boom")

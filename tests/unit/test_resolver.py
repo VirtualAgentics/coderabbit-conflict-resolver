@@ -1,7 +1,6 @@
 """Test the main ConflictResolver class."""
 
-from typing import Any
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from pr_conflict_resolver import Change, ConflictResolver, FileType
 from pr_conflict_resolver.utils.text import normalize_content
@@ -167,7 +166,7 @@ class TestConflictResolver:
         assert 0 <= percentage <= 100
 
     @patch("pr_conflict_resolver.core.resolver.GitHubCommentExtractor")
-    def test_resolve_pr_conflicts(self, mock_extractor: Any) -> None:
+    def test_resolve_pr_conflicts(self, mock_extractor: Mock) -> None:
         """Test resolving PR conflicts."""
         resolver = ConflictResolver()
 
@@ -183,7 +182,7 @@ class TestConflictResolver:
         assert result.conflicts == []
 
     @patch("pr_conflict_resolver.core.resolver.GitHubCommentExtractor")
-    def test_analyze_conflicts(self, mock_extractor: Any) -> None:
+    def test_analyze_conflicts(self, mock_extractor: Mock) -> None:
         """Test analyzing conflicts."""
         resolver = ConflictResolver()
 

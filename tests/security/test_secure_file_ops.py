@@ -6,7 +6,7 @@ import shutil
 import tempfile
 import unittest.mock
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 import pytest
 
@@ -435,10 +435,10 @@ class TestEdgeCases:
             # Mock open to raise OSError during file write
             original_open = open
 
-            def mock_open(*args: Any, **kwargs: Any) -> Any:
+            def mock_open(*args: object, **kwargs: object) -> IO[Any]:
                 if len(args) > 0 and str(args[0]).endswith(".tmp"):
                     raise OSError("Permission denied during file write")
-                return original_open(*args, **kwargs)
+                return original_open(*args, **kwargs)  # type: ignore[call-overload,no-any-return]
 
             monkeypatch.setattr("builtins.open", mock_open)
 
@@ -479,10 +479,10 @@ class TestEdgeCases:
             original_open = os.open
 
             # Mock os.open to raise NotADirectoryError for directory operations
-            def mock_open(path: str, flags: int, **kwargs: Any) -> int:
+            def mock_open(path: str, flags: int, **kwargs: object) -> int:
                 if hasattr(os, "O_DIRECTORY") and (flags & os.O_DIRECTORY):
                     raise NotADirectoryError("Not a directory")
-                return original_open(path, flags, **kwargs)
+                return original_open(path, flags, **kwargs)  # type: ignore[arg-type]
 
             monkeypatch.setattr(os, "open", mock_open)
 
@@ -502,10 +502,10 @@ class TestEdgeCases:
             original_open = os.open
 
             # Mock os.open to raise IsADirectoryError for directory operations
-            def mock_open(path: str, flags: int, **kwargs: Any) -> int:
+            def mock_open(path: str, flags: int, **kwargs: object) -> int:
                 if hasattr(os, "O_DIRECTORY") and (flags & os.O_DIRECTORY):
                     raise IsADirectoryError("Is a directory")
-                return original_open(path, flags, **kwargs)
+                return original_open(path, flags, **kwargs)  # type: ignore[arg-type]
 
             monkeypatch.setattr(os, "open", mock_open)
 

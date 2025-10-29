@@ -12,7 +12,6 @@ import shutil
 import subprocess
 import tomllib
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -43,7 +42,7 @@ def _extract_json_boundaries(content: str, start_char: str, end_char: str) -> st
     return content[start_idx : end_idx + 1]
 
 
-def _parse_safety_json(stdout: str) -> dict[str, Any] | None:
+def _parse_safety_json(stdout: str) -> dict[str, object] | None:
     """Parse JSON from safety command output using multiple strategies.
 
     Args:
@@ -74,7 +73,9 @@ def _parse_safety_json(stdout: str) -> dict[str, Any] | None:
     return safety_data
 
 
-def _extract_vulnerabilities(data: Any) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _extract_vulnerabilities(
+    data: dict[str, object] | list[object],
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     """Extract vulnerability and ignored_vulnerability lists from JSON.
 
     Args:
@@ -83,16 +84,16 @@ def _extract_vulnerabilities(data: Any) -> tuple[list[dict[str, Any]], list[dict
     Returns:
         Tuple of (vulnerabilities, ignored_vulnerabilities).
     """
-    vulnerabilities = []
-    ignored_vulnerabilities = []
+    vulnerabilities: list[dict[str, object]] = []
+    ignored_vulnerabilities: list[dict[str, object]] = []
 
     if isinstance(data, list):
-        vulnerabilities = data
+        vulnerabilities = data  # type: ignore[assignment]
     elif isinstance(data, dict):
         # Check common keys for vulnerability data
         for key in ["vulnerabilities", "vulnerability", "issues", "findings"]:
             if key in data and isinstance(data[key], list):
-                vulnerabilities = data[key]
+                vulnerabilities = data[key]  # type: ignore[assignment]
                 break
 
         # Also check for ignored_vulnerabilities
@@ -103,8 +104,8 @@ def _extract_vulnerabilities(data: Any) -> tuple[list[dict[str, Any]], list[dict
 
 
 def _parse_vulnerability_report(
-    result: Any,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str | None]:
+    result: subprocess.CompletedProcess[str],
+) -> tuple[list[dict[str, object]], list[dict[str, object]], str | None]:
     """Parse vulnerability report from safety command output.
 
     Args:
@@ -134,7 +135,7 @@ def _parse_vulnerability_report(
 
 
 def _validate_no_vulnerabilities(
-    vulnerabilities: list[dict[str, Any]], ignored: list[dict[str, Any]]
+    vulnerabilities: list[dict[str, object]], ignored: list[dict[str, object]]
 ) -> None:
     """Validate that no real vulnerabilities exist and log ignored ones.
 
@@ -172,7 +173,7 @@ def _validate_no_vulnerabilities(
 
 
 def _format_vulnerability_details(
-    vulnerabilities: list[dict[str, Any]], is_ignored: bool = False
+    vulnerabilities: list[dict[str, object]], is_ignored: bool = False
 ) -> list[str]:
     """Format vulnerability dictionaries into human-readable strings.
 
@@ -214,7 +215,9 @@ def _format_vulnerability_details(
     return vulnerability_details
 
 
-def _extract_string_dependencies(deps_data: Any) -> list[str]:
+def _extract_string_dependencies(
+    deps_data: dict[str, object] | list[object] | str,
+) -> list[str]:
     """Safely extract string dependencies from various data structures.
 
     Args:

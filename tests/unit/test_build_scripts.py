@@ -10,40 +10,42 @@ import pytest
 # Import the scripts as modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 
-import generate_build_metadata
-import validate_wheel
+import generate_build_metadata  # type: ignore[import-not-found]
+import validate_wheel  # type: ignore[import-not-found]
 
 
 class TestGenerateBuildMetadata:
     """Tests for generate_build_metadata.py."""
 
-    def test_get_project_root(self):
+    def test_get_project_root(self) -> None:
         """Test that get_project_root returns the correct path."""
         root = generate_build_metadata.get_project_root()
         assert root.exists()
         assert (root / "pyproject.toml").exists()
         assert (root / "src" / "pr_conflict_resolver").exists()
 
-    def test_extract_version_from_pyproject(self):
+    def test_extract_version_from_pyproject(self) -> None:
         """Test version extraction from pyproject.toml."""
         version = generate_build_metadata.extract_version_from_pyproject()
         assert version == "0.1.0"
         assert isinstance(version, str)
 
-    def test_extract_version_from_init(self):
+    def test_extract_version_from_init(self) -> None:
         """Test version extraction from __init__.py."""
         version = generate_build_metadata.extract_version_from_init()
         assert version == "0.1.0"
         assert isinstance(version, str)
 
-    def test_validate_versions_match(self):
+    def test_validate_versions_match(self) -> None:
         """Test that versions match across files."""
         version = generate_build_metadata.validate_versions_match()
         assert version == "0.1.0"
 
     @patch("generate_build_metadata.extract_version_from_pyproject")
     @patch("generate_build_metadata.extract_version_from_init")
-    def test_validate_versions_mismatch(self, mock_init_version, mock_pyproject_version):
+    def test_validate_versions_mismatch(
+        self, mock_init_version: Mock, mock_pyproject_version: Mock
+    ) -> None:
         """Test that version mismatch raises error."""
         mock_pyproject_version.return_value = "0.1.0"
         mock_init_version.return_value = "0.2.0"
@@ -51,19 +53,19 @@ class TestGenerateBuildMetadata:
         with pytest.raises(ValueError, match="Version mismatch"):
             generate_build_metadata.validate_versions_match()
 
-    def test_run_git_command(self):
+    def test_run_git_command(self) -> None:
         """Test running git commands."""
         # Test getting commit SHA
         result = generate_build_metadata.run_git_command(["rev-parse", "HEAD"])
         assert isinstance(result, str)
         assert len(result) == 40  # Full SHA is 40 characters
 
-    def test_run_git_command_failure(self):
+    def test_run_git_command_failure(self) -> None:
         """Test that git command failures raise CalledProcessError."""
         with pytest.raises(subprocess.CalledProcessError):
             generate_build_metadata.run_git_command(["invalid-command"])
 
-    def test_get_git_metadata(self):
+    def test_get_git_metadata(self) -> None:
         """Test collecting git metadata."""
         metadata = generate_build_metadata.get_git_metadata()
 
@@ -79,7 +81,7 @@ class TestGenerateBuildMetadata:
         if metadata.get("commit_sha_short"):
             assert len(metadata["commit_sha_short"]) == 7
 
-    def test_get_build_metadata(self):
+    def test_get_build_metadata(self) -> None:
         """Test collecting build metadata."""
         metadata = generate_build_metadata.get_build_metadata()
 
@@ -96,7 +98,7 @@ class TestGenerateBuildMetadata:
         assert metadata["python_version"].count(".") == 2
 
     @patch.dict("os.environ", {"GITHUB_WORKFLOW": "CI", "GITHUB_RUN_ID": "12345"})
-    def test_get_build_metadata_with_github_env(self):
+    def test_get_build_metadata_with_github_env(self) -> None:
         """Test that GitHub environment variables are collected."""
         metadata = generate_build_metadata.get_build_metadata()
 
@@ -105,7 +107,7 @@ class TestGenerateBuildMetadata:
         assert "github_run_id" in metadata
         assert metadata["github_run_id"] == "12345"
 
-    def test_generate_metadata(self):
+    def test_generate_metadata(self) -> None:
         """Test complete metadata generation."""
         metadata = generate_build_metadata.generate_metadata()
 
@@ -127,7 +129,7 @@ class TestGenerateBuildMetadata:
         assert "build_timestamp" in metadata["build"]
         assert "python_version" in metadata["build"]
 
-    def test_metadata_json_schema(self):
+    def test_metadata_json_schema(self) -> None:
         """Test that generated metadata conforms to expected schema."""
         metadata = generate_build_metadata.generate_metadata()
 
@@ -150,7 +152,7 @@ class TestGenerateBuildMetadata:
     @patch("generate_build_metadata.get_project_root")
     @patch("builtins.open", new_callable=mock_open)
     @patch("generate_build_metadata.generate_metadata")
-    def test_main_success(self, mock_generate, mock_file, mock_root):
+    def test_main_success(self, mock_generate: Mock, mock_file: Mock, mock_root: Mock) -> None:
         """Test successful main execution."""
         # Setup mocks
         mock_root_path = Mock()
@@ -179,7 +181,7 @@ class TestGenerateBuildMetadata:
         mock_generate.assert_called_once()
 
     @patch("generate_build_metadata.generate_metadata")
-    def test_main_failure(self, mock_generate):
+    def test_main_failure(self, mock_generate: Mock) -> None:
         """Test main execution with error."""
         mock_generate.side_effect = Exception("Test error")
 
@@ -191,7 +193,7 @@ class TestGenerateBuildMetadata:
 class TestValidateWheel:
     """Tests for validate_wheel.py."""
 
-    def test_get_project_root(self):
+    def test_get_project_root(self) -> None:
         """Test that get_project_root returns the correct path."""
         root = validate_wheel.get_project_root()
         assert root.exists()
@@ -199,7 +201,7 @@ class TestValidateWheel:
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.glob")
-    def test_find_wheel_file_success(self, mock_glob, mock_exists):
+    def test_find_wheel_file_success(self, mock_glob: Mock, mock_exists: Mock) -> None:
         """Test successful wheel file detection."""
         mock_exists.return_value = True
         mock_wheel = Mock()
@@ -211,7 +213,7 @@ class TestValidateWheel:
         assert result == mock_wheel
 
     @patch("pathlib.Path.exists")
-    def test_find_wheel_file_no_dist_dir(self, mock_exists):
+    def test_find_wheel_file_no_dist_dir(self, mock_exists: Mock) -> None:
         """Test error when dist/ directory doesn't exist."""
         mock_exists.return_value = False
 
@@ -220,7 +222,7 @@ class TestValidateWheel:
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.glob")
-    def test_find_wheel_file_no_wheel(self, mock_glob, mock_exists):
+    def test_find_wheel_file_no_wheel(self, mock_glob: Mock, mock_exists: Mock) -> None:
         """Test error when no wheel file found."""
         mock_exists.return_value = True
         mock_glob.return_value = []
@@ -230,7 +232,7 @@ class TestValidateWheel:
 
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.glob")
-    def test_find_wheel_file_multiple_wheels(self, mock_glob, mock_exists):
+    def test_find_wheel_file_multiple_wheels(self, mock_glob: Mock, mock_exists: Mock) -> None:
         """Test error when multiple wheel files found."""
         mock_exists.return_value = True
         mock_wheel1 = Mock()
@@ -243,7 +245,7 @@ class TestValidateWheel:
             validate_wheel.find_wheel_file()
 
     @patch("validate_wheel.get_project_root")
-    def test_load_metadata_success(self, mock_root):
+    def test_load_metadata_success(self, mock_root: Mock) -> None:
         """Test successful metadata loading."""
         # Setup mock path
         mock_root_path = Mock()
@@ -265,7 +267,7 @@ class TestValidateWheel:
         assert metadata["package"]["version"] == "1.0.0"
 
     @patch("pathlib.Path.exists")
-    def test_load_metadata_not_found(self, mock_exists):
+    def test_load_metadata_not_found(self, mock_exists: Mock) -> None:
         """Test error when metadata.json not found."""
         mock_exists.return_value = False
 
@@ -273,7 +275,7 @@ class TestValidateWheel:
             validate_wheel.load_metadata()
 
     @patch("subprocess.run")
-    def test_install_wheel_isolated_success(self, mock_run):
+    def test_install_wheel_isolated_success(self, mock_run: Mock) -> None:
         """Test successful wheel installation."""
         mock_run.return_value = Mock(returncode=0)
         wheel_path = Path("/tmp/test.whl")
@@ -288,7 +290,7 @@ class TestValidateWheel:
         assert str(target_dir) in call_args
 
     @patch("subprocess.run")
-    def test_install_wheel_isolated_failure(self, mock_run):
+    def test_install_wheel_isolated_failure(self, mock_run: Mock) -> None:
         """Test wheel installation failure."""
         mock_run.side_effect = subprocess.CalledProcessError(1, "pip")
 
@@ -296,7 +298,7 @@ class TestValidateWheel:
             validate_wheel.install_wheel_isolated(Path("/tmp/test.whl"), Path("/tmp/target"))
 
     @patch("subprocess.run")
-    def test_validate_import_success(self, mock_run):
+    def test_validate_import_success(self, mock_run: Mock) -> None:
         """Test successful import validation."""
         mock_run.return_value = Mock(
             returncode=0, stdout="VERSION:1.0.0\nIMPORT:SUCCESS\n", stderr=""
@@ -310,7 +312,7 @@ class TestValidateWheel:
         assert result["error"] is None
 
     @patch("subprocess.run")
-    def test_validate_import_version_mismatch(self, mock_run):
+    def test_validate_import_version_mismatch(self, mock_run: Mock) -> None:
         """Test import validation with version mismatch."""
         mock_run.return_value = Mock(
             returncode=0, stdout="VERSION:2.0.0\nIMPORT:SUCCESS\n", stderr=""
@@ -323,7 +325,7 @@ class TestValidateWheel:
         assert result["version_found"] == "2.0.0"
 
     @patch("subprocess.run")
-    def test_validate_import_failure(self, mock_run):
+    def test_validate_import_failure(self, mock_run: Mock) -> None:
         """Test import validation failure."""
         mock_run.return_value = Mock(
             returncode=1, stdout="", stderr="ImportError: module not found"
@@ -335,7 +337,7 @@ class TestValidateWheel:
         assert result["error"] is not None
 
     @patch("subprocess.run")
-    def test_validate_entry_point_success(self, mock_run):
+    def test_validate_entry_point_success(self, mock_run: Mock) -> None:
         """Test successful entry point validation."""
         mock_run.return_value = Mock(
             returncode=0, stdout="ENTRY_POINT:EXISTS\nENTRY_POINT:CALLABLE\n", stderr=""
@@ -348,7 +350,7 @@ class TestValidateWheel:
         assert result["error"] is None
 
     @patch("subprocess.run")
-    def test_validate_entry_point_not_callable(self, mock_run):
+    def test_validate_entry_point_not_callable(self, mock_run: Mock) -> None:
         """Test entry point validation when not callable."""
         mock_run.return_value = Mock(returncode=0, stdout="ENTRY_POINT:EXISTS\n", stderr="")
 
@@ -358,7 +360,7 @@ class TestValidateWheel:
         assert result["entry_point_callable"] is False
 
     @patch("subprocess.run")
-    def test_validate_entry_point_failure(self, mock_run):
+    def test_validate_entry_point_failure(self, mock_run: Mock) -> None:
         """Test entry point validation failure."""
         mock_run.return_value = Mock(returncode=1, stdout="", stderr="ERROR:Entry point not found")
 

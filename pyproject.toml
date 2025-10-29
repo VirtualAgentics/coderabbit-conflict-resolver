@@ -113,7 +113,6 @@ ignore = [
 "tests/**/*.py" = [
     "S101",
     "S108",  # /tmp usage in tests is ok
-    "ANN",  # TODO: Remove in follow-up PR after adding 1500+ missing annotations
     "D",
     "RUF043",  # regex patterns in pytest.raises are ok
 ]
@@ -129,7 +128,6 @@ ignore = [
 "tests/integration/**/*.py" = [
     "S101",
     "S603",  # subprocess calls in integration tests are intentional
-    "ANN",  # TODO: Remove in follow-up PR after adding missing annotations
     "D",
     "RUF043",  # regex patterns in pytest.raises are ok
 ]
@@ -154,7 +152,8 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 plugins = ["pydantic.mypy"]
-exclude = "^(tests/|scripts/)"
+# MyPy exclusion removed to enable incremental type checking
+# Scripts have full annotations; tests being fixed incrementally
 
 [[tool.mypy.overrides]]
 module = [
