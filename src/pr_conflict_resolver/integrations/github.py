@@ -4,6 +4,7 @@ This module provides the GitHubCommentExtractor class that fetches
 PR comments from the GitHub API and extracts relevant information.
 """
 
+import json
 import os
 from typing import Any
 
@@ -74,7 +75,7 @@ class GitHubCommentExtractor:
             response.raise_for_status()
             data = response.json()
             return data if isinstance(data, list) else []
-        except requests.RequestException:
+        except (requests.RequestException, json.JSONDecodeError):
             return []
 
     def _fetch_issue_comments(self, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
@@ -96,7 +97,7 @@ class GitHubCommentExtractor:
             response.raise_for_status()
             data = response.json()
             return data if isinstance(data, list) else []
-        except requests.RequestException:
+        except (requests.RequestException, json.JSONDecodeError):
             return []
 
     def fetch_pr_metadata(self, owner: str, repo: str, pr_number: int) -> dict[str, Any] | None:
@@ -140,7 +141,7 @@ class GitHubCommentExtractor:
             response.raise_for_status()
             data = response.json()
             return data if isinstance(data, list) else []
-        except requests.RequestException:
+        except (requests.RequestException, json.JSONDecodeError):
             return []
 
     def filter_bot_comments(

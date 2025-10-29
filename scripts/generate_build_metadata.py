@@ -100,7 +100,7 @@ def run_git_command(args: list[str]) -> str:
         subprocess.CalledProcessError: If git command fails.
     """
     result = subprocess.run(
-        ["git"] + args,
+        ["git"] + args,  # noqa: RUF005 - avoid S607 security warning
         cwd=get_project_root(),
         capture_output=True,
         text=True,
@@ -147,9 +147,10 @@ def get_build_metadata() -> dict[str, Any]:
     Returns:
         dict: Build metadata including timestamp, Python version, etc.
     """
+    ver = sys.version_info
     metadata = {
         "build_timestamp": datetime.now(UTC).isoformat(),
-        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "python_version": f"{ver.major}.{ver.minor}.{ver.micro}",
         "python_implementation": sys.implementation.name,
     }
 
