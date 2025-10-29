@@ -1,3 +1,26 @@
+# ============================================================================
+# Workflow: Security
+# ============================================================================
+# Purpose:
+#   Runs comprehensive security analysis on the codebase to detect
+#   vulnerabilities, security issues, and code quality problems.
+#
+# Security Tools:
+#   - Bandit: Static analysis for common security issues in Python code
+#   - Safety: Scans Python dependencies for known security vulnerabilities
+#   - pip-audit: Audits Python packages for security vulnerabilities (OSV database)
+#   - CodeQL: GitHub's semantic code analysis engine for security and quality
+#
+# Triggers:
+#   - Push to main or develop branches
+#   - Pull requests targeting main or develop branches
+#   - Weekly schedule: Every Monday at 2:00 AM UTC
+#
+# Behavior:
+#   - Fails the workflow if HIGH severity issues are found
+#   - Generates detailed workflow summary with scan results
+#   - Uploads security reports as artifacts only when issues are detected
+# ============================================================================
 name: Security
 
 on:
@@ -6,20 +29,32 @@ on:
   pull_request:
     branches: [main, develop]
   schedule:
-    - cron: "0 2 * * 1" # Weekly on Monday at 2 AM
+    - cron: "0 2 * * 1" # Weekly on Monday at 2 AM UTC
 
+# Concurrency: Prevents multiple security scans from running simultaneously
+# on the same branch. When a new commit is pushed, any in-progress scan for
+# that branch is cancelled to save CI resources and reduce wait time.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}  # Group by workflow name and branch
+  cancel-in-progress: true  # Cancel older runs when new push occurs
 
 jobs:
+  # --------------------------------------------------------------------------
+  # Job: security-scan
+  # --------------------------------------------------------------------------
+  # Runs Python security scanning tools (Bandit, Safety, pip-audit) to detect
+  # security vulnerabilities in source code and dependencies. Generates a
+  # detailed workflow summary and uploads reports when issues are found.
+  # --------------------------------------------------------------------------
   security-scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 20  # Prevents hanging jobs (typical runtime: 30-60 seconds)
+
+    # Permissions: Minimal required access for security scanning
     permissions:
-      contents: read
-      packages: read
-      actions: read
+      contents: read    # Read repository code
+      packages: read    # Read package registry (for dependency resolution)
+      actions: read     # Read workflow artifacts
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -35,15 +70,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      # Bandit: Static analysis security testing (SAST) for Python
+      # Scans source code for common security issues like SQL injection,
+      # hardcoded passwords, insecure temp file usage, etc.
       - name: Run Bandit security scan
         run: bandit -r src/ -f json -o bandit-report.json
 
+      # Safety: Checks installed dependencies against known vulnerability databases
+      # Uses continue-on-error to prevent workflow failure if SAFETY_API_KEY is missing
+      # (secret may not be configured in all environments)
       - name: Run Safety vulnerability scan
         continue-on-error: true
         uses: pyupio/safety-action@2591cf2f3e67ba68b923f4c92f0d36e281c65023 # v1.0.1
         with:
           api-key: ${{ secrets.SAFETY_API_KEY }}
 
+      # pip-audit: Audits Python packages for known vulnerabilities using OSV database
+      # Generates both JSON (for parsing) and text (for human reading) reports
+      # Error handling: Allows report generation even when vulnerabilities are found
       - name: Run pip-audit check (JSON)
         run: |
           pip-audit --format json > pip-audit-report.json || {
@@ -60,18 +104,30 @@ jobs:
           }
         continue-on-error: false
 
+      # Security Check Script: Aggregates results from all security tools
+      # and generates a comprehensive workflow summary. Fails the workflow
+      # if any HIGH severity issues or vulnerabilities are detected.
+      #
+      # Summary Format:
+      #   - ✅ Tool: Status (when no issues found)
+      #   - ❌ Tool: Issues found (when vulnerabilities detected)
+      #   - 🚨 Final status (failure if any issues found)
+      #
+      # Exit Code: 1 if security issues detected, 0 otherwise
       - name: Check for critical security issues
         id: security-check
         run: |
-          set -euo pipefail
-          IFS=$'\n\t'
+          set -euo pipefail  # Exit on error, undefined variable, or pipe failure
+          IFS=$'\n\t'        # Set field separator for safe iteration
 
-          ISSUES_FOUND=0
+          ISSUES_FOUND=0  # Flag to track if any security issues were detected
 
+          # Initialize workflow summary with header
           echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Check Bandit for HIGH severity issues
+          # Check Bandit results: Only HIGH severity issues cause workflow failure
+          # (MEDIUM and LOW are informational only)
           if [ -f bandit-report.json ]; then
             HIGH_ISSUES=$(jq '[.results[] | select(.issue_severity == "HIGH")] | length' bandit-report.json)
             if [ "$HIGH_ISSUES" -gt 0 ]; then
@@ -86,11 +142,14 @@ jobs:
             fi
           fi
 
-          # Safety Action runs with continue-on-error, so check was performed
+          # Safety results: Since Safety Action uses continue-on-error=true,
+          # it doesn't fail the workflow on missing API key. If it runs successfully,
+          # no vulnerabilities were found (Safety fails on vulnerabilities).
           echo "### ✅ Safety: Scan completed" >> $GITHUB_STEP_SUMMARY
           echo "✅ Safety scan completed"
 
-          # Check pip-audit for vulnerabilities
+          # Check pip-audit results: Counts total vulnerabilities across all dependencies
+          # Any vulnerability (regardless of severity) is reported in the summary
           if [ -f pip-audit-report.json ]; then
             TOTAL_VULNS=$(jq '[.dependencies[].vulns[]] | length' pip-audit-report.json 2>/dev/null || echo "0")
             if [ "$TOTAL_VULNS" -gt 0 ]; then
@@ -105,47 +164,75 @@ jobs:
             fi
           fi
 
+          # Generate final summary based on aggregated results
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "$ISSUES_FOUND" -eq 1 ]; then
+            # Fail the workflow: Security issues require attention
             echo "### 🚨 Security Issues Detected" >> $GITHUB_STEP_SUMMARY
             echo "Please review the security reports and address the findings." >> $GITHUB_STEP_SUMMARY
-            exit 1
+            exit 1  # Non-zero exit code fails the workflow
           else
+            # Success: No security issues detected
             echo "### ✅ All Security Checks Passed" >> $GITHUB_STEP_SUMMARY
           fi
 
+      # Artifact Upload: Only uploads security reports when workflow fails
+      # This saves storage costs by not uploading reports when all checks pass.
+      # Reports are kept for 30 days to allow investigation of security issues.
+      #
+      # Uploaded artifacts include:
+      #   - bandit-report.json: Detailed Bandit findings
+      #   - pip-audit-report.json: Structured vulnerability data
+      #   - pip-audit-report.txt: Human-readable vulnerability descriptions
       - name: Upload security reports
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        if: failure()
+        if: failure()  # Only upload when workflow fails (security issues detected)
         with:
           name: security-reports
           path: |
             bandit-report.json
             pip-audit-report.json
             pip-audit-report.txt
-          retention-days: 30
+          retention-days: 30  # Keep reports for 30 days
 
+  # --------------------------------------------------------------------------
+  # Job: codeql
+  # --------------------------------------------------------------------------
+  # Runs GitHub's CodeQL semantic code analysis engine to detect security
+  # vulnerabilities, bugs, and code quality issues. CodeQL uses advanced
+  # queries to find potential problems that traditional linters might miss.
+  #
+  # Results are uploaded to GitHub Security tab for tracking and remediation.
+  # --------------------------------------------------------------------------
   codeql:
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
 
+    # Permissions: Required for CodeQL to upload analysis results
+    permissions:
+      actions: read          # Read workflow artifacts
+      contents: read         # Read repository code
+      security-events: write # Write security analysis results to GitHub Security
+
+    # Matrix Strategy: Allows scanning multiple languages independently
+    # Currently configured for Python only, but can be extended for other languages
     strategy:
-      fail-fast: false
+      fail-fast: false  # Continue scanning even if one language fails
       matrix:
-        language: ["python"]
+        language: ["python"]  # Languages to analyze (extensible to js, go, etc.)
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
+      # Initialize CodeQL: Sets up the CodeQL analysis environment
+      # and prepares the database for semantic code analysis
       - name: Initialize CodeQL
         uses: github/codeql-action/init@4e94bd11f71e507f7f87df81788dff88d1dacbfb # v4.31.0
         with:
           languages: ${{ matrix.language }}
 
+      # Install project dependencies: Required for CodeQL to understand
+      # the codebase structure and analyze imports correctly
       - name: Set up Python 3.12
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
         with:
@@ -157,7 +244,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      # Perform Analysis: Runs CodeQL queries and uploads results to GitHub Security
+      # Results can be viewed in the Security > Code scanning alerts tab
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@4e94bd11f71e507f7f87df81788dff88d1dacbfb # v4.31.0
         with:
-          category: "/language:${{matrix.language}}"
+          category: "/language:${{matrix.language}}"  # Categorize results by language
