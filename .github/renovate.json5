@@ -1,0 +1,110 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+
+  // Schedule: Align with current Dependabot schedule
+  "schedule": ["before 9am on monday"],
+  "timezone": "UTC",
+
+  // Python package rules
+  "pip": {
+    "enabled": true
+  },
+
+  // Enable Renovate dashboard
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Dependency Dashboard",
+
+  // Assignees
+  "assignees": ["VirtualAgentics"],
+
+  // Commit message prefix
+  "commitMessagePrefix": "deps:",
+  "semanticCommits": "enabled",
+
+  // PR limits
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 0,
+
+  // Labels
+  "labels": ["dependencies"],
+
+  // Vulnerability alerts
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"],
+    "assignees": ["@VirtualAgentics"]
+  },
+
+  // Automerge configuration
+  "platformAutomerge": true,  // Use GitHub's native automerge
+
+  // Package grouping and rules
+  "packageRules": [
+    {
+      "description": "Linting tools - weekly updates with automerge",
+      "matchPackagePatterns": ["^black", "^ruff", "^mypy", "^pre-commit"],
+      "groupName": "linting",
+      "schedule": ["before 9am on monday"],
+      "automerge": true,
+      "automergeType": "pr",
+      "matchUpdateTypes": ["patch", "minor"],
+      "labels": ["dependencies", "linting"]
+    },
+    {
+      "description": "Testing tools - weekly updates with automerge",
+      "matchPackagePatterns": ["^pytest", "^coverage", "^bandit", "^pip-audit"],
+      "groupName": "testing",
+      "schedule": ["before 9am on monday"],
+      "automerge": true,
+      "automergeType": "pr",
+      "matchUpdateTypes": ["patch", "minor"],
+      "labels": ["dependencies", "testing"]
+    },
+    {
+      "description": "Documentation tools - weekly updates",
+      "matchPackagePatterns": ["^sphinx", "^myst-parser", "^sphinx-"],
+      "groupName": "documentation",
+      "schedule": ["before 9am on monday"],
+      "automerge": false,  // Require manual review for docs
+      "labels": ["dependencies", "documentation"]
+    },
+    {
+      "description": "Production dependencies - monthly updates, manual review",
+      "matchDepTypes": ["dependencies"],
+      "excludePackagePatterns": ["^pytest", "^black", "^ruff", "^mypy", "^sphinx", "^bandit", "^coverage", "^pip-audit"],
+      "schedule": ["before 9am on the 1st day of the month"],
+      "automerge": false,  // Production deps require review
+      "labels": ["dependencies", "production"]
+    },
+    {
+      "description": "GitHub Actions - weekly updates with automerge",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "schedule": ["before 2am on monday"],
+      "automerge": true,
+      "automergeType": "pr",
+      "labels": ["dependencies", "github-actions"]
+    },
+    {
+      "description": "Security updates - immediate, automerge patches",
+      "matchUpdateTypes": ["patch"],
+      "labels": ["security"],
+      "automerge": true,
+      "automergeType": "pr",
+      "schedule": ["at any time"]
+    },
+    {
+      "description": "Major version updates - require manual review",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["major-update"]
+    }
+  ],
+
+  // Status checks configuration
+  "requiredStatusChecks": null,  // Will be set via GitHub branch protection
+
+  // Rebase configuration
+  "rebaseWhen": "conflicted"
+}

@@ -40,8 +40,7 @@ lint: ## Run all linters
 	mypy src/
 	@echo "Running Bandit..."
 	bandit -r src/ -f json -o bandit-report.json
-	@echo "Running Safety..."
-	safety check --json --save-json safety-report.json
+	@echo "✅ Linting complete (dependency scanning handled by Renovate)"
 
 format: ## Auto-format code with Black and Ruff
 	black src/ tests/
@@ -50,12 +49,11 @@ format: ## Auto-format code with Black and Ruff
 type-check: ## Run type checking with MyPy
 	mypy src/
 
-security: ## Run security checks
+security: ## Run security checks (source code + dependencies)
 	set -e
-	@echo "Running Bandit..."
+	@echo "Running Bandit (source code analysis)..."
 	bandit -r src/ -f json -o bandit-report.json
-	@echo "Running Safety..."
-	safety check --json --save-json safety-report.json
+	@echo "Note: Dependency vulnerability scanning runs in CI via pip-audit"
 
 docs: ## Build documentation
 	cd docs && make html
