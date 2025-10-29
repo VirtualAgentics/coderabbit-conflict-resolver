@@ -291,6 +291,146 @@ When creating a pull request, please include:
 4. **Documentation** review
 5. **Approval** from at least one maintainer
 
+## GitHub Actions Workflow Concurrency
+
+Our project uses standardized concurrency patterns across all GitHub Actions workflows to prevent duplicate workflow runs, optimize CI/CD resource usage, and ensure consistent behavior.
+
+### Standard Patterns
+
+#### 1. Pull Request / Push Workflows (CI, Security, Docs, Labeler)
+
+**Pattern:**
+```yaml
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+```
+
+**When to use:**
+- Workflows triggered by `pull_request` or `push` events
+- Testing, linting, security scanning, labeling workflows
+- Any workflow where only the latest run matters
+
+**Behavior:**
+- Cancels previous runs when new commits are pushed
+- Uses PR number for pull requests, falls back to `github.ref` for push events
+- Prevents wasted CI resources on outdated code
+
+**Examples:**
+- `.github/workflows/ci.yml`
+- `.github/workflows/security.yml`
+- `.github/workflows/docs.yml`
+- `.github/workflows/labeler.yml`
+
+#### 2. Deployment Workflows (Docs Deploy)
+
+**Pattern:**
+```yaml
+concurrency:
+  group: docs-deploy-main
+  cancel-in-progress: false  # Queue deployments instead
+```
+
+**When to use:**
+- Workflows that deploy to production environments
+- Workflows where every run must complete
+- Main branch only deployment workflows
+
+**Behavior:**
+- Queues deployments instead of canceling them
+- Ensures all deployments complete in order
+- Prevents deployment conflicts
+
+**Examples:**
+- `.github/workflows/docs-deploy.yml`
+
+#### 3. Release Workflows
+
+**Pattern:**
+```yaml
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+```
+
+**When to use:**
+- Release and package publishing workflows
+- Version tagging workflows
+- Any workflow that must complete once started
+
+**Behavior:**
+- Each release tag gets its own concurrency group
+- Never cancels in-progress releases
+- Prevents publishing conflicts
+
+**Examples:**
+- `.github/workflows/release.yml`
+
+#### 4. Scheduled / Maintenance Workflows
+
+**Pattern:**
+```yaml
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false  # Queue maintenance tasks
+```
+
+**When to use:**
+- Scheduled workflows (cron triggers)
+- Maintenance workflows (stale issue marking, cleanup)
+- Workflows that can be manually triggered
+
+**Behavior:**
+- Prevents overlapping scheduled runs
+- Queues manual triggers instead of canceling
+- Simple workflow-level grouping
+
+**Examples:**
+- `.github/workflows/stale.yml`
+
+### Guidelines for New Workflows
+
+When creating new GitHub Actions workflows, follow these guidelines:
+
+1. **Always add a concurrency block** - Even if you think it's not needed, it prevents future issues
+
+2. **Choose the right pattern:**
+   - **PR/Push workflows** → Use standard pattern with `cancel-in-progress: true`
+   - **Deployments** → Use deployment pattern with `cancel-in-progress: false`
+   - **Releases** → Use release pattern with ref-specific grouping
+   - **Scheduled** → Use workflow-level grouping with `cancel-in-progress: false`
+
+3. **Include the fallback** - Always use `|| github.ref` for PR workflows to handle edge cases
+
+4. **Test concurrency behavior:**
+   ```bash
+   # Push multiple commits rapidly to test cancellation
+   git commit --allow-empty -m "test 1" && git push
+   git commit --allow-empty -m "test 2" && git push
+   git commit --allow-empty -m "test 3" && git push
+
+   # Check GitHub Actions UI to verify only latest run completes
+   ```
+
+5. **Document exceptions** - If you need a non-standard pattern, document why in comments
+
+### Common Mistakes to Avoid
+
+- ❌ Forgetting the `|| github.ref` fallback for PR workflows
+- ❌ Using `cancel-in-progress: true` for deployments or releases
+- ❌ Not adding concurrency blocks to scheduled workflows
+- ❌ Using PR-specific patterns for push-only workflows
+- ❌ Hardcoding branch names instead of using `github.ref`
+
+### Testing Concurrency Configuration
+
+To verify concurrency configuration works correctly:
+
+1. Create a test branch with slow workflow runs (add `sleep 60`)
+2. Push multiple commits rapidly
+3. Verify in GitHub Actions UI that old runs are cancelled
+4. Remove test delays before merging
+
 ## Types of Contributions
 
 ### Bug Reports
