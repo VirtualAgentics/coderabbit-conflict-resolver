@@ -431,6 +431,191 @@ To verify concurrency configuration works correctly:
 3. Verify in GitHub Actions UI that old runs are cancelled
 4. Remove test delays before merging
 
+## Required Status Checks
+
+All pull requests must pass the following required status checks before merging:
+
+### CI Workflow (`ci.yml`)
+
+**Purpose:** Validates code quality, type safety, and test coverage
+
+**Checks performed:**
+- **Lint with Black**: Ensures code is properly formatted (line length 100)
+- **Lint with Ruff**: Fast linting for code style and quality issues
+- **Type check with MyPy**: Validates type annotations with strict mode
+- **Security scan with Bandit**: Scans for security vulnerabilities in source code
+- **Audit dependencies with pip-audit**: Checks dependencies for known vulnerabilities
+- **Run tests**: Executes full test suite with 80% minimum coverage requirement
+
+**Required for merge:** Yes
+**Typical duration:** 2-4 minutes
+
+**Troubleshooting:**
+- Black failures: Run `make format` locally
+- Ruff failures: Run `ruff check --fix src/ tests/`
+- MyPy failures: Add type hints or use `# type: ignore` with justification
+- Test failures: Run `pytest tests/ -v` locally to debug
+- Coverage failures: Add tests for uncovered code paths
+
+### Security Workflow (`security.yml`)
+
+**Purpose:** Comprehensive security scanning of codebase and dependencies
+
+**Checks performed:**
+- **Bandit security scan**: Detailed security analysis with JSON report
+- **Pip-audit**: Dependency vulnerability scanning
+- **CodeQL analysis**: Advanced semantic code analysis for security issues
+
+**Required for merge:** Yes
+**Typical duration:** 3-5 minutes
+
+**Troubleshooting:**
+- Bandit issues: Review security recommendations and apply fixes
+- Dependency vulnerabilities: Update vulnerable packages or add suppressions with justification
+- CodeQL alerts: Review and fix identified security patterns
+
+### Documentation Workflow (`docs.yml`)
+
+**Purpose:** Validates documentation builds correctly
+
+**Checks performed:**
+- **Build documentation**: Compiles documentation with MkDocs
+- **Check for warnings**: Ensures no documentation warnings or errors
+
+**Required for merge:** Yes (for PRs affecting documentation)
+**Typical duration:** 1-2 minutes
+
+**Troubleshooting:**
+- Build failures: Check MkDocs configuration in `mkdocs.yml`
+- Broken links: Verify all internal and external links
+- Missing documentation: Add docstrings for new public APIs
+
+### Auto-labeler Workflow (`labeler.yml`)
+
+**Purpose:** Automatically labels PRs based on file changes
+
+**Checks performed:**
+- **Apply labels**: Adds appropriate labels based on `.github/labeler.yml` configuration
+
+**Required for merge:** No (informational only)
+**Typical duration:** < 30 seconds
+
+### Build Workflow (part of `ci.yml`)
+
+**Purpose:** Validates package can be built and distributed
+
+**Checks performed:**
+- **Build package**: Creates wheel and source distribution
+- **Check with twine**: Validates package metadata
+- **Validate wheel import**: Ensures package can be imported from built wheel
+
+**Required for merge:** Yes
+**Typical duration:** 1-2 minutes
+
+**Troubleshooting:**
+- Build failures: Check `pyproject.toml` configuration
+- Twine failures: Verify package metadata completeness
+- Import failures: Check package structure and dependencies
+
+### Performance Benchmarks
+
+Typical workflow execution times:
+- **Fast feedback** (< 1 min): labeler
+- **Quick checks** (1-2 min): docs, build
+- **Standard validation** (2-4 min): lint, test, coverage
+- **Comprehensive analysis** (3-5 min): security scans
+
+If workflows are taking significantly longer:
+1. Check for network issues or GitHub Actions service degradation
+2. Review recent changes that might affect performance
+3. Consider optimizing test execution or caching strategies
+
+## Workflow Monitoring and Observability
+
+All GitHub Actions workflows include comprehensive monitoring and observability features to help track execution, diagnose failures, and optimize performance.
+
+### Workflow Summaries
+
+Every workflow run generates a summary visible in the GitHub Actions UI:
+
+**Accessing summaries:**
+1. Navigate to the Actions tab in GitHub
+2. Select a workflow run
+3. Scroll to the bottom of the run page to see the summary
+
+**What summaries include:**
+- **Status**: Overall workflow success/failure status
+- **Duration**: Total job execution time
+- **Key metrics**: Coverage percentages, security scan results, build artifact sizes
+- **Actions taken**: List of completed steps and operations
+- **Artifacts**: Links to generated files (coverage reports, build packages, etc.)
+
+### Performance Metrics
+
+All workflows track timing metrics:
+
+- **Job duration**: Total time from start to finish
+- **Per-step timing**: Visible in workflow logs
+- **Trend analysis**: Compare durations across runs to identify performance regressions
+
+**Interpreting metrics:**
+- Sudden increases in duration may indicate:
+  - New dependencies affecting installation time
+  - More tests added (expected increase)
+  - Network/GitHub Actions infrastructure issues
+  - Performance regressions in code
+
+### Failure Notifications
+
+When workflows fail, you'll receive:
+
+1. **Workflow annotations**: Errors highlighted in the GitHub UI
+2. **Step summary**: Detailed failure information at the bottom of the run page
+3. **Actionable guidance**: Common causes and troubleshooting steps
+
+**Failure notification includes:**
+- Specific error message from failed step
+- Possible causes for the failure
+- Recommended troubleshooting steps
+- Links to relevant documentation
+
+### Artifact Retention
+
+Build artifacts are retained for different durations:
+
+- **CI artifacts** (coverage reports, build packages): 30 days
+- **Security reports** (Bandit, pip-audit): 30 days
+- **Documentation preview**: 7 days (shorter retention for preview artifacts)
+
+**Accessing artifacts:**
+1. Go to the workflow run page
+2. Scroll to the "Artifacts" section at the bottom
+3. Download artifacts for local analysis
+
+### Debugging Workflow Failures
+
+When a workflow fails:
+
+1. **Check the summary**: Scroll to bottom of run page for high-level failure info
+2. **Review failed step logs**: Click on the failed step to see detailed output
+3. **Check annotations**: Look for error/warning annotations in the code
+4. **Reproduce locally**: Use the same commands from workflow steps
+5. **Review recent changes**: Check if recent commits introduced the failure
+
+**Common failure patterns:**
+- **Flaky tests**: Re-run the workflow to confirm it's not transient
+- **Environment issues**: Check if pinned dependencies need updates
+- **Configuration errors**: Verify YAML syntax and variable references
+- **Permission issues**: Ensure workflow has required permissions in `permissions:` block
+
+### Monitoring Best Practices
+
+- **Review summaries regularly**: Check workflow summaries even when passing
+- **Track performance trends**: Monitor duration metrics over time
+- **Act on warnings**: Address warnings before they become errors
+- **Update dependencies**: Keep actions and dependencies current
+- **Test workflow changes**: Use feature branches to test workflow modifications
+
 ## Types of Contributions
 
 ### Bug Reports

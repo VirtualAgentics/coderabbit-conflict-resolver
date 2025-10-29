@@ -63,6 +63,10 @@ jobs:
       SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
 
     steps:
+      - name: Record job start time
+        id: job-start
+        run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Set up Python 3.12
@@ -305,3 +309,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "CodeQL analysis optimized by removing unnecessary dependency installation." >> $GITHUB_STEP_SUMMARY
           echo "**Performance improvement:** ~30% faster (saves ~21 seconds per run)" >> $GITHUB_STEP_SUMMARY
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Workflow failed - check logs for details"
+          echo "## ❌ Workflow Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This workflow has failed. Please check the logs above for error details." >> $GITHUB_STEP_SUMMARY

@@ -16,6 +16,10 @@ jobs:
       issues: write
       pull-requests: write
     steps:
+      - name: Record job start time
+        id: job-start
+        run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+
       - uses: actions/stale@5f858e3efba33a5ca4407a664cc011ad407f2008 # v10.1.0
         with:
           # Configuration for issues
@@ -70,3 +74,57 @@ jobs:
           ascending: false
           delete-branch: false
           start-date: ""
+
+      - name: Generate stale workflow summary
+        if: always()
+        run: |
+          END_TIME=$(date +%s)
+          START_TIME=${{ steps.job-start.outputs.start_time }}
+          DURATION=$((END_TIME - START_TIME))
+          DURATION_MIN=$((DURATION / 60))
+          DURATION_SEC=$((DURATION % 60))
+
+          echo "## Stale Items Management Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Job Duration:** ${DURATION_MIN}m ${DURATION_SEC}s" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Issues:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Stale after: 60 days of inactivity" >> $GITHUB_STEP_SUMMARY
+          echo "- Close after: 7 additional days" >> $GITHUB_STEP_SUMMARY
+          echo "- Exempt labels: \`keep-open\`, \`priority\`, \`security\`, \`bug\`, \`enhancement\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Pull Requests:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Stale after: 30 days of inactivity" >> $GITHUB_STEP_SUMMARY
+          echo "- Close after: 7 additional days" >> $GITHUB_STEP_SUMMARY
+          echo "- Exempt labels: \`keep-open\`, \`priority\`, \`security\`, \`ready-for-review\`, \`needs-review\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Actions Taken" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Processed stale issues" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Processed stale pull requests" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Applied stale labels where appropriate" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Closed items past stale threshold" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "_Note: See action logs above for detailed list of items processed_" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Stale workflow failed"
+          echo "## ❌ Stale Workflow Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The stale items management workflow has failed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Possible causes:" >> $GITHUB_STEP_SUMMARY
+          echo "- GitHub API rate limiting" >> $GITHUB_STEP_SUMMARY
+          echo "- Invalid configuration parameters" >> $GITHUB_STEP_SUMMARY
+          echo "- Insufficient permissions (requires issues and pull-requests write)" >> $GITHUB_STEP_SUMMARY
+          echo "- Network connectivity issues" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Please review the workflow logs above for specific error details." >> $GITHUB_STEP_SUMMARY
