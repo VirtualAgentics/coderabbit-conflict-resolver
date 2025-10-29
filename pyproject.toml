@@ -50,6 +50,8 @@ dev = [
     "bandit[toml]==1.8.6",
     "safety==3.6.2",
     "pip-audit==2.9.0",
+    "build==1.3.0",
+    "twine==6.2.0",
     "sphinx==7.3.7",
     "sphinx-rtd-theme==1.3.0",
     "sphinx-autodoc-typehints==1.25.3",
@@ -110,13 +112,23 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
     "S101",
-    "ANN",
+    "S108",  # /tmp usage in tests is ok
     "D",
+    "RUF043",  # regex patterns in pytest.raises are ok
 ]
 "conftest.py" = [
     "S101",
-    "ANN",
     "D",
+]
+"scripts/**/*.py" = [
+    "T201",  # print statements are ok in scripts
+    "S603",  # subprocess call (necessary for git commands)
+]
+"tests/integration/**/*.py" = [
+    "S101",
+    "S603",  # subprocess calls in integration tests are intentional
+    "D",
+    "RUF043",  # regex patterns in pytest.raises are ok
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -139,6 +151,8 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 plugins = ["pydantic.mypy"]
+# MyPy exclusion removed to enable incremental type checking
+# Scripts have full annotations; tests being fixed incrementally
 
 [[tool.mypy.overrides]]
 module = [

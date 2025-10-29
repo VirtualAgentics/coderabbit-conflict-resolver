@@ -4,10 +4,50 @@ This module provides the GitHubCommentExtractor class that fetches
 PR comments from the GitHub API and extracts relevant information.
 """
 
+import json
+import logging
 import os
+import re
 from typing import Any
 
 import requests
+
+logger = logging.getLogger(__name__)
+
+
+def _sanitize_error_message(error_message: str) -> str:
+    """Sanitize error messages to remove sensitive information like tokens.
+
+    Args:
+        error_message: The raw error message that may contain sensitive data.
+
+    Returns:
+        A sanitized error message with tokens and sensitive paths redacted.
+    """
+    # Redact GitHub tokens (all known patterns)
+    # Classic tokens: ghp_, gho_, ghu_, ghs_, ghr_ (typically 40+ chars after prefix)
+    # Match tokens with underscores too for test compatibility
+    sanitized = re.sub(
+        r"gh[pousr]_[A-Za-z0-9_]{20,}",
+        "[REDACTED_TOKEN]",
+        error_message,
+    )
+
+    # Fine-grained personal access tokens: github_pat_ (variable length)
+    sanitized = re.sub(
+        r"github_pat_[A-Za-z0-9_]{40,}",
+        "[REDACTED_TOKEN]",
+        sanitized,
+    )
+
+    # Redact internal file paths (basic pattern for absolute paths)
+    sanitized = re.sub(
+        r"/(?:home|root|etc|usr|var)/[^\s]*",
+        "[REDACTED_PATH]",
+        sanitized,
+    )
+
+    return sanitized
 
 
 class GitHubCommentExtractor:
@@ -74,7 +114,12 @@ class GitHubCommentExtractor:
             response.raise_for_status()
             data = response.json()
             return data if isinstance(data, list) else []
-        except requests.RequestException:
+        except (requests.RequestException, json.JSONDecodeError) as e:
+            logger.error(
+                "Failed to fetch review comments from %s: %s",
+                url,
+                _sanitize_error_message(str(e)),
+            )
             return []
 
     def _fetch_issue_comments(self, owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]:
@@ -96,7 +141,12 @@ class GitHubCommentExtractor:
             response.raise_for_status()
             data = response.json()
             return data if isinstance(data, list) else []
-        except requests.RequestException:
+        except (requests.RequestException, json.JSONDecodeError) as e:
+            logger.error(
+                "Failed to fetch issue comments from %s: %s",
+                url,
+                _sanitize_error_message(str(e)),
+            )
             return []
 
     def fetch_pr_metadata(self, owner: str, repo: str, pr_number: int) -> dict[str, Any] | None:
@@ -140,7 +190,12 @@ class GitHubCommentExtractor:
             response.raise_for_status()
             data = response.json()
             return data if isinstance(data, list) else []
-        except requests.RequestException:
+        except (requests.RequestException, json.JSONDecodeError) as e:
+            logger.error(
+                "Failed to fetch PR files from %s: %s",
+                url,
+                _sanitize_error_message(str(e)),
+            )
             return []
 
     def filter_bot_comments(

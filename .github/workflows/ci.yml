@@ -5,12 +5,13 @@ on:
     branches: [main, develop]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -34,10 +35,19 @@ jobs:
         run: ruff check src/ tests/
 
       - name: Type check with MyPy
-        run: mypy src/ --strict
+        run: mypy src/ tests/ --strict
+
+      - name: Security scan with Bandit
+        run: bandit -r src/ -f json -o bandit-report.json || bandit -r src/
+        continue-on-error: true
+
+      - name: Audit dependencies with pip-audit
+        run: pip-audit --desc --format json --output pip-audit-report.json || pip-audit --desc
+        continue-on-error: true
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     strategy:
@@ -109,6 +119,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [lint, test]
     permissions:
       contents: read
@@ -121,19 +132,66 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Install build dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build twine
+          pip install -e ".[dev]"
 
       - name: Build package
         run: python -m build
 
-      - name: Check package
+      - name: Check package with twine
         run: twine check dist/*
+
+      - name: Generate build metadata
+        run: python scripts/generate_build_metadata.py
+
+      - name: Validate wheel import
+        run: python scripts/validate_wheel.py
+
+      - name: Generate build summary
+        if: always()
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Package information
+          if [ -f dist/metadata.json ]; then
+            PACKAGE_NAME=$(python -c "import json; print(json.load(open('dist/metadata.json'))['package']['name'])" 2>/dev/null || echo "unknown")
+            PACKAGE_VERSION=$(python -c "import json; print(json.load(open('dist/metadata.json'))['package']['version'])" 2>/dev/null || echo "unknown")
+            echo "**Package:** $PACKAGE_NAME" >> $GITHUB_STEP_SUMMARY
+            echo "**Version:** $PACKAGE_VERSION" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Build artifacts
+          echo "### Build Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+
+          for file in dist/*.whl dist/*.tar.gz dist/metadata.json; do
+            if [ -f "$file" ]; then
+              SIZE=$(du -h "$file" | cut -f1)
+              FILENAME=$(basename "$file")
+              echo "| $FILENAME | $SIZE |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Metadata
+          if [ -f dist/metadata.json ]; then
+            echo "### Build Metadata" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat dist/metadata.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          name: dist
+          name: dist-${{ github.event.pull_request.number || github.sha }}
           path: dist/
+          retention-days: 30

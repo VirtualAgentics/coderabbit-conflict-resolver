@@ -5,12 +5,17 @@ on:
     tags:
       - "v*"
 
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
       id-token: write
@@ -27,13 +32,19 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build twine
+          pip install -e ".[dev]"
 
       - name: Build package
         run: python -m build
 
-      - name: Check package
+      - name: Check package with twine
         run: twine check dist/*
+
+      - name: Generate build metadata
+        run: python scripts/generate_build_metadata.py
+
+      - name: Validate wheel import
+        run: python scripts/validate_wheel.py
 
       - name: Publish to PyPI
         env:

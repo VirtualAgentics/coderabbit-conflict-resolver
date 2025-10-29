@@ -1,6 +1,5 @@
 """Test the GitHub integration."""
 
-from typing import Any
 from unittest.mock import Mock, patch
 
 from pr_conflict_resolver import GitHubCommentExtractor
@@ -24,7 +23,7 @@ class TestGitHubCommentExtractor:
         assert extractor.session.headers["Authorization"] == "token test_token"
 
     @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
-    def test_fetch_review_comments(self, mock_get: Any) -> None:
+    def test_fetch_review_comments(self, mock_get: Mock) -> None:
         """Test fetching review comments."""
         extractor = GitHubCommentExtractor()
 
@@ -42,7 +41,7 @@ class TestGitHubCommentExtractor:
         mock_get.assert_called_once()
 
     @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
-    def test_fetch_issue_comments(self, mock_get: Any) -> None:
+    def test_fetch_issue_comments(self, mock_get: Mock) -> None:
         """Test fetching issue comments."""
         extractor = GitHubCommentExtractor()
 
@@ -60,7 +59,7 @@ class TestGitHubCommentExtractor:
         mock_get.assert_called_once()
 
     @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
-    def test_fetch_pr_comments(self, mock_get: Any) -> None:
+    def test_fetch_pr_comments(self, mock_get: Mock) -> None:
         """Test fetching all PR comments."""
         extractor = GitHubCommentExtractor()
 
@@ -77,7 +76,7 @@ class TestGitHubCommentExtractor:
         assert len(comments) == 2  # One from each call
 
     @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
-    def test_fetch_pr_metadata(self, mock_get: Any) -> None:
+    def test_fetch_pr_metadata(self, mock_get: Mock) -> None:
         """Test fetching PR metadata."""
         extractor = GitHubCommentExtractor()
 
@@ -95,7 +94,7 @@ class TestGitHubCommentExtractor:
         mock_get.assert_called_once()
 
     @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
-    def test_fetch_pr_files(self, mock_get: Any) -> None:
+    def test_fetch_pr_files(self, mock_get: Mock) -> None:
         """Test fetching PR files."""
         extractor = GitHubCommentExtractor()
 
@@ -216,3 +215,147 @@ class TestGitHubCommentExtractor:
         assert metadata["path"] == "test.py"
         assert metadata["line"] == 10
         assert metadata["start_line"] == 5
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_pr_comments_handles_request_error(self, mock_get: Mock) -> None:
+        """Test that fetch_pr_comments handles RequestException gracefully."""
+        import requests
+
+        extractor = GitHubCommentExtractor()
+
+        # Mock request to raise RequestException
+        mock_get.side_effect = requests.RequestException("Network error")
+
+        comments = extractor.fetch_pr_comments("owner", "repo", 123)
+
+        # Should return empty list on error
+        assert comments == []
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_pr_metadata_handles_request_error(self, mock_get: Mock) -> None:
+        """Test that fetch_pr_metadata handles RequestException gracefully."""
+        import requests
+
+        extractor = GitHubCommentExtractor()
+
+        # Mock request to raise RequestException
+        mock_get.side_effect = requests.RequestException("API error")
+
+        metadata = extractor.fetch_pr_metadata("owner", "repo", 123)
+
+        # Should return None on request error
+        assert metadata is None
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_pr_files_handles_network_error(self, mock_get: Mock) -> None:
+        """Test that fetch_pr_files handles network errors gracefully."""
+        import requests
+
+        extractor = GitHubCommentExtractor()
+
+        # Mock request to raise RequestException
+        mock_get.side_effect = requests.RequestException("Connection timeout")
+
+        files = extractor.fetch_pr_files("owner", "repo", 123)
+
+        # Should return empty list on error
+        assert files == []
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_review_comments_handles_http_error(self, mock_get: Mock) -> None:
+        """Test handling of HTTP errors in review comments fetch."""
+        from requests import HTTPError
+
+        extractor = GitHubCommentExtractor()
+
+        mock_response = Mock()
+        mock_response.raise_for_status.side_effect = HTTPError("500 Server Error")
+        mock_get.return_value = mock_response
+
+        comments = extractor._fetch_review_comments("owner", "repo", 123)
+
+        # Should return empty list on HTTP error
+        assert comments == []
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_review_comments_handles_json_error(self, mock_get: Mock) -> None:
+        """Test handling of JSON decode errors in review comments fetch."""
+        import json
+
+        extractor = GitHubCommentExtractor()
+
+        mock_response = Mock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.side_effect = json.JSONDecodeError("bad json", "", 0)
+        mock_get.return_value = mock_response
+
+        comments = extractor._fetch_review_comments("owner", "repo", 123)
+
+        # Should return empty list on JSON error
+        assert comments == []
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_issue_comments_handles_http_error(self, mock_get: Mock) -> None:
+        """Test handling of HTTP errors in issue comments fetch."""
+        from requests import HTTPError
+
+        extractor = GitHubCommentExtractor()
+
+        mock_response = Mock()
+        mock_response.raise_for_status.side_effect = HTTPError("503 Service Unavailable")
+        mock_get.return_value = mock_response
+
+        comments = extractor._fetch_issue_comments("owner", "repo", 123)
+
+        # Should return empty list on HTTP error
+        assert comments == []
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_issue_comments_handles_json_error(self, mock_get: Mock) -> None:
+        """Test handling of JSON decode errors in issue comments fetch."""
+        import json
+
+        extractor = GitHubCommentExtractor()
+
+        mock_response = Mock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.side_effect = json.JSONDecodeError("invalid json", "", 0)
+        mock_get.return_value = mock_response
+
+        comments = extractor._fetch_issue_comments("owner", "repo", 123)
+
+        # Should return empty list on JSON error
+        assert comments == []
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_pr_files_handles_http_error(self, mock_get: Mock) -> None:
+        """Test handling of HTTP errors in PR files fetch."""
+        from requests import HTTPError
+
+        extractor = GitHubCommentExtractor()
+
+        mock_response = Mock()
+        mock_response.raise_for_status.side_effect = HTTPError("404 Not Found")
+        mock_get.return_value = mock_response
+
+        files = extractor.fetch_pr_files("owner", "repo", 123)
+
+        # Should return empty list on HTTP error
+        assert files == []
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_pr_files_handles_json_error(self, mock_get: Mock) -> None:
+        """Test handling of JSON decode errors in PR files fetch."""
+        import json
+
+        extractor = GitHubCommentExtractor()
+
+        mock_response = Mock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.side_effect = json.JSONDecodeError("malformed json", "", 0)
+        mock_get.return_value = mock_response
+
+        files = extractor.fetch_pr_files("owner", "repo", 123)
+
+        # Should return empty list on JSON error
+        assert files == []

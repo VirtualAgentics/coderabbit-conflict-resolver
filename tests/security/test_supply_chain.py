@@ -12,11 +12,13 @@ import shutil
 import subprocess
 import tomllib
 from pathlib import Path
-from typing import Any
 
 import pytest
 
 from pr_conflict_resolver.utils.version_utils import validate_version_constraint
+
+# Type alias for JSON dictionaries
+JSONDict = dict[str, object]
 
 
 def _extract_json_boundaries(content: str, start_char: str, end_char: str) -> str:
@@ -43,7 +45,7 @@ def _extract_json_boundaries(content: str, start_char: str, end_char: str) -> st
     return content[start_idx : end_idx + 1]
 
 
-def _parse_safety_json(stdout: str) -> dict[str, Any] | None:
+def _parse_safety_json(stdout: str) -> JSONDict | None:
     """Parse JSON from safety command output using multiple strategies.
 
     Args:
@@ -74,7 +76,9 @@ def _parse_safety_json(stdout: str) -> dict[str, Any] | None:
     return safety_data
 
 
-def _extract_vulnerabilities(data: Any) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _extract_vulnerabilities(
+    data: JSONDict | list[object],
+) -> tuple[list[JSONDict], list[JSONDict]]:
     """Extract vulnerability and ignored_vulnerability lists from JSON.
 
     Args:
@@ -83,28 +87,32 @@ def _extract_vulnerabilities(data: Any) -> tuple[list[dict[str, Any]], list[dict
     Returns:
         Tuple of (vulnerabilities, ignored_vulnerabilities).
     """
-    vulnerabilities = []
-    ignored_vulnerabilities = []
+    vulnerabilities: list[JSONDict] = []
+    ignored_vulnerabilities: list[JSONDict] = []
 
     if isinstance(data, list):
-        vulnerabilities = data
+        vulnerabilities = [v for v in data if isinstance(v, dict)]
     elif isinstance(data, dict):
         # Check common keys for vulnerability data
         for key in ["vulnerabilities", "vulnerability", "issues", "findings"]:
-            if key in data and isinstance(data[key], list):
-                vulnerabilities = data[key]
-                break
+            if key in data:
+                value = data[key]
+                if isinstance(value, list):
+                    vulnerabilities = [v for v in value if isinstance(v, dict)]
+                    break
 
         # Also check for ignored_vulnerabilities
-        if "ignored_vulnerabilities" in data and isinstance(data["ignored_vulnerabilities"], list):
-            ignored_vulnerabilities = data["ignored_vulnerabilities"]
+        if "ignored_vulnerabilities" in data:
+            ignored_value = data["ignored_vulnerabilities"]
+            if isinstance(ignored_value, list):
+                ignored_vulnerabilities = [v for v in ignored_value if isinstance(v, dict)]
 
     return vulnerabilities, ignored_vulnerabilities
 
 
 def _parse_vulnerability_report(
-    result: Any,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str | None]:
+    result: subprocess.CompletedProcess[str],
+) -> tuple[list[JSONDict], list[JSONDict], str | None]:
     """Parse vulnerability report from safety command output.
 
     Args:
@@ -133,9 +141,7 @@ def _parse_vulnerability_report(
         return [], [], "JSON parsing failed"
 
 
-def _validate_no_vulnerabilities(
-    vulnerabilities: list[dict[str, Any]], ignored: list[dict[str, Any]]
-) -> None:
+def _validate_no_vulnerabilities(vulnerabilities: list[JSONDict], ignored: list[JSONDict]) -> None:
     """Validate that no real vulnerabilities exist and log ignored ones.
 
     Args:
@@ -172,7 +178,7 @@ def _validate_no_vulnerabilities(
 
 
 def _format_vulnerability_details(
-    vulnerabilities: list[dict[str, Any]], is_ignored: bool = False
+    vulnerabilities: list[JSONDict], is_ignored: bool = False
 ) -> list[str]:
     """Format vulnerability dictionaries into human-readable strings.
 
@@ -214,7 +220,9 @@ def _format_vulnerability_details(
     return vulnerability_details
 
 
-def _extract_string_dependencies(deps_data: Any) -> list[str]:
+def _extract_string_dependencies(
+    deps_data: dict[str, object] | list[object] | str,
+) -> list[str]:
     """Safely extract string dependencies from various data structures.
 
     Args:
@@ -258,31 +266,18 @@ def _run_safety_scan(
     Returns:
         CompletedProcess object on success, None on timeout.
     """
-    # Try new "scan --output json --target <parent>" command
+    # Try new "scan --output json --target <parent>" and fall back once.
     try:
-        return subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
+        return subprocess.run(  # noqa: S603
             [safety_cmd, "scan", "--output", "json", "--target", str(requirements_file.parent)],
             capture_output=True,
             text=True,
             timeout=timeout,
             check=False,
         )
-    except (FileNotFoundError, OSError):
-        # Fallback to legacy "check --file <requirements_file> --json" command
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
         try:
-            return subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
-                [safety_cmd, "check", "--file", str(requirements_file), "--json"],
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
-            return None
-    except subprocess.TimeoutExpired:
-        # Try fallback on timeout
-        try:
-            return subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
+            return subprocess.run(  # noqa: S603
                 [safety_cmd, "check", "--file", str(requirements_file), "--json"],
                 capture_output=True,
                 text=True,
