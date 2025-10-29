@@ -32,10 +32,11 @@ on:
     - cron: "0 2 * * 1" # Weekly on Monday at 2 AM UTC
 
 # Concurrency: Prevents multiple security scans from running simultaneously
-# on the same branch. When a new commit is pushed, any in-progress scan for
-# that branch is cancelled to save CI resources and reduce wait time.
+# on the same branch/PR. When a new commit is pushed, any in-progress scan for
+# that branch/PR is cancelled to save CI resources and reduce wait time.
+# Uses PR number for pull_request events to avoid canceling unrelated PRs.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}  # Group by workflow name and branch
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true  # Cancel older runs when new push occurs
 
 jobs:
@@ -77,19 +78,34 @@ jobs:
         run: bandit -r src/ -f json -o bandit-report.json
 
       # Safety: Checks installed dependencies against known vulnerability databases
-      # Uses continue-on-error to prevent workflow failure if SAFETY_API_KEY is missing
-      # (secret may not be configured in all environments)
+      # Only runs when SAFETY_API_KEY secret is configured in the repository
+      # Uses continue-on-error to prevent workflow failure when vulnerabilities are found
+      # (results are analyzed in the security-check step)
       - name: Run Safety vulnerability scan
+        if: env.SAFETY_API_KEY != ''
+        id: safety-scan
         continue-on-error: true
         uses: pyupio/safety-action@2591cf2f3e67ba68b923f4c92f0d36e281c65023 # v1.0.1
         with:
           api-key: ${{ secrets.SAFETY_API_KEY }}
+        env:
+          SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
+
+      # Warning step: Informs when Safety scan is skipped due to missing API key
+      # This ensures visibility into which security tools actually ran
+      - name: Warn if Safety API key is missing
+        if: env.SAFETY_API_KEY == ''
+        run: |
+          echo "⚠️ Warning: SAFETY_API_KEY is not configured. Safety vulnerability scanning will be skipped." >> $GITHUB_STEP_SUMMARY
+        env:
+          SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
 
       # pip-audit: Audits Python packages for known vulnerabilities using OSV database
       # Generates both JSON (for parsing) and text (for human reading) reports
       # Error handling: Allows report generation even when vulnerabilities are found
       - name: Run pip-audit check (JSON)
         run: |
+          # Allow report generation even with vulnerabilities; security-check step will evaluate
           pip-audit --format json > pip-audit-report.json || {
             echo "pip-audit returned non-zero exit code"
             exit 0
@@ -98,6 +114,7 @@ jobs:
 
       - name: Run pip-audit check (text)
         run: |
+          # Allow report generation even with vulnerabilities; security-check step will evaluate
           pip-audit --desc > pip-audit-report.txt || {
             echo "pip-audit text scan completed with findings"
             exit 0
@@ -142,11 +159,20 @@ jobs:
             fi
           fi
 
-          # Safety results: Since Safety Action uses continue-on-error=true,
-          # it doesn't fail the workflow on missing API key. If it runs successfully,
-          # no vulnerabilities were found (Safety fails on vulnerabilities).
-          echo "### ✅ Safety: Scan completed" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Safety scan completed"
+          # Safety results: Check if Safety scan ran and analyze its outcome
+          # The Safety Action fails (non-zero exit) when vulnerabilities are found
+          # We check the step outcome to determine if vulnerabilities were detected
+          if [ "${{ steps.safety-scan.outcome }}" == "success" ]; then
+            echo "### ✅ Safety: No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Safety scan completed - no vulnerabilities found"
+          elif [ "${{ steps.safety-scan.outcome }}" == "failure" ]; then
+            echo "### ❌ Safety: Vulnerabilities detected" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Safety scan found vulnerabilities"
+            ISSUES_FOUND=1
+          elif [ "${{ steps.safety-scan.outcome }}" == "skipped" ]; then
+            echo "### ⚠️ Safety: Skipped (no API key configured)" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Safety scan skipped - SAFETY_API_KEY not configured"
+          fi
 
           # Check pip-audit results: Counts total vulnerabilities across all dependencies
           # Any vulnerability (regardless of severity) is reported in the summary
@@ -176,9 +202,11 @@ jobs:
             echo "### ✅ All Security Checks Passed" >> $GITHUB_STEP_SUMMARY
           fi
 
-      # Artifact Upload: Only uploads security reports when workflow fails
+      # Artifact Upload: Only uploads security reports when security-check step fails
       # This saves storage costs by not uploading reports when all checks pass.
       # Reports are kept for 30 days to allow investigation of security issues.
+      # Uses specific step outcome to avoid uploading on unrelated failures
+      # (e.g., dependency installation failures).
       #
       # Uploaded artifacts include:
       #   - bandit-report.json: Detailed Bandit findings
@@ -186,7 +214,7 @@ jobs:
       #   - pip-audit-report.txt: Human-readable vulnerability descriptions
       - name: Upload security reports
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        if: failure()  # Only upload when workflow fails (security issues detected)
+        if: steps.security-check.conclusion == 'failure'  # Upload only when security issues detected
         with:
           name: security-reports
           path: |
@@ -206,6 +234,7 @@ jobs:
   # --------------------------------------------------------------------------
   codeql:
     runs-on: ubuntu-latest
+    timeout-minutes: 30  # Prevents hanging jobs (typical runtime: 2-3 minutes)
 
     # Permissions: Required for CodeQL to upload analysis results
     permissions:
