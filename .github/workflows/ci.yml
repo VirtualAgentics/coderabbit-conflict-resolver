@@ -149,8 +149,8 @@ jobs:
 
           # Package information
           if [ -f dist/metadata.json ]; then
-            PACKAGE_NAME=$(python -c "import json; print(json.load(open('dist/metadata.json'))['package']['name'])")
-            PACKAGE_VERSION=$(python -c "import json; print(json.load(open('dist/metadata.json'))['package']['version'])")
+            PACKAGE_NAME=$(python -c "import json; print(json.load(open('dist/metadata.json'))['package']['name'])" 2>/dev/null || echo "unknown")
+            PACKAGE_VERSION=$(python -c "import json; print(json.load(open('dist/metadata.json'))['package']['version'])" 2>/dev/null || echo "unknown")
             echo "**Package:** $PACKAGE_NAME" >> $GITHUB_STEP_SUMMARY
             echo "**Version:** $PACKAGE_VERSION" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY

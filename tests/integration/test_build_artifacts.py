@@ -8,6 +8,8 @@ import json
 import shutil
 import subprocess
 import sys
+import tarfile
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -339,6 +341,9 @@ class TestBuildReproducibility:
             == metadata2["build"]["python_implementation"]
         )
 
+        # Timestamps should differ (proving both runs executed)
+        assert metadata1["build"]["build_timestamp"] != metadata2["build"]["build_timestamp"]
+
 
 @pytest.mark.integration
 class TestBuildArtifactIntegrity:
@@ -350,8 +355,6 @@ class TestBuildArtifactIntegrity:
         wheel_path = wheel_files[0]
 
         # Use zipfile to inspect wheel (wheels are zip files)
-        import zipfile
-
         with zipfile.ZipFile(wheel_path, "r") as zf:
             namelist = zf.namelist()
 
@@ -364,8 +367,6 @@ class TestBuildArtifactIntegrity:
 
     def test_wheel_metadata_file_content(self, build_artifacts):
         """Test that wheel METADATA file has correct content."""
-        import zipfile
-
         wheel_files = list(build_artifacts.glob("*.whl"))
         wheel_path = wheel_files[0]
 
@@ -383,8 +384,6 @@ class TestBuildArtifactIntegrity:
 
     def test_sdist_can_be_extracted(self, build_artifacts):
         """Test that sdist can be extracted."""
-        import tarfile
-
         sdist_files = list(build_artifacts.glob("*.tar.gz"))
         sdist_path = sdist_files[0]
 
