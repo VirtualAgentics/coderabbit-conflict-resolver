@@ -170,15 +170,6 @@ module = [
 ]
 ignore_missing_imports = true
 
-[[tool.mypy.overrides]]
-module = [
-    "tests.*",
-    "generate_build_metadata",
-    "validate_wheel",
-]
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-
 [tool.pytest.ini_options]
 testpaths = [
     "tests",

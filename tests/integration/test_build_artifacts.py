@@ -229,6 +229,9 @@ class TestWheelValidation:
         assert script_path.exists()
         assert script_path.is_file()
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Unix permissions not applicable on Windows"
+    )
     def test_wheel_validation_script_executable(self, project_root):
         """Test that validate_wheel.py has execute permissions."""
         script_path = project_root / "scripts" / "validate_wheel.py"
