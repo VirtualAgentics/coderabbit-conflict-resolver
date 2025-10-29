@@ -51,12 +51,39 @@ class TestFilePathValidation:
             test_file = Path(tmpdir) / "test.txt"
             test_file.write_text("test")
 
-            # Valid: file within base_dir
-            assert InputValidator.validate_file_path(str(test_file), base_dir=tmpdir)
+            # Valid: file within base_dir (requires allow_absolute=True)
+            assert InputValidator.validate_file_path(
+                str(test_file), base_dir=tmpdir, allow_absolute=True
+            )
 
             # Invalid: file outside base_dir
             outside_file = "/etc/passwd"
-            assert not InputValidator.validate_file_path(outside_file, base_dir=tmpdir)
+            assert not InputValidator.validate_file_path(
+                outside_file, base_dir=tmpdir, allow_absolute=True
+            )
+
+    def test_absolute_path_rejected_when_disallowed(self) -> None:
+        """Test that absolute paths are rejected when allow_absolute=False."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create test file
+            test_file = Path(tmpdir) / "test.txt"
+            test_file.write_text("test")
+
+            # Should be rejected even with base_dir when allow_absolute=False (default)
+            assert not InputValidator.validate_file_path(str(test_file), base_dir=tmpdir)
+
+            # Should be rejected without base_dir when allow_absolute=False (default)
+            assert not InputValidator.validate_file_path(str(test_file))
+
+    def test_absolute_path_allow_absolute_true_no_base_dir(self) -> None:
+        """Test that absolute paths are rejected when allow_absolute=True but no base_dir."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create test file
+            test_file = Path(tmpdir) / "test.txt"
+            test_file.write_text("test")
+
+            # Should be rejected when allow_absolute=True but no base_dir
+            assert not InputValidator.validate_file_path(str(test_file), allow_absolute=True)
 
     def test_unsafe_characters(self) -> None:
         """Test rejection of paths with unsafe characters."""

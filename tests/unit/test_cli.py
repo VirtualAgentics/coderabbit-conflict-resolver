@@ -98,6 +98,42 @@ def test_cli_simulate_mixed_conflicts(mock_resolver: Any) -> None:
         _sample_conflict("b.json", "high"),
     ]
 
+    # Mock resolve_conflicts to return Resolution objects with applied/skipped changes
+    change1 = Change(
+        path="a.json",
+        start_line=1,
+        end_line=2,
+        content="change 1",
+        metadata={},
+        fingerprint="fp1",
+        file_type=FileType.JSON,
+    )
+    change2 = Change(
+        path="b.json",
+        start_line=1,
+        end_line=2,
+        content="change 2",
+        metadata={},
+        fingerprint="fp2",
+        file_type=FileType.JSON,
+    )
+    mock_inst.resolve_conflicts.return_value = [
+        Resolution(
+            strategy="priority",
+            applied_changes=[change1],
+            skipped_changes=[],
+            success=True,
+            message="",
+        ),
+        Resolution(
+            strategy="priority",
+            applied_changes=[],
+            skipped_changes=[change2],
+            success=True,
+            message="",
+        ),
+    ]
+
     runner = CliRunner()
     result = runner.invoke(cli, ["simulate", "--pr", "9", "--owner", "o", "--repo", "r"])
 

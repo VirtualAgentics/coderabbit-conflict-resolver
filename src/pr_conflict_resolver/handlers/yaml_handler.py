@@ -4,12 +4,19 @@ This handler provides YAML-aware suggestion application with structure validatio
 and comment preservation using ruamel.yaml.
 """
 
+import contextlib
 import logging
+import os
+import stat
+import tempfile
+from os import PathLike
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
-from ..core.models import Change, Conflict
-from .base import BaseHandler
+from pr_conflict_resolver.core.models import Change, Conflict
+from pr_conflict_resolver.handlers.base import BaseHandler
+from pr_conflict_resolver.security.input_validator import InputValidator
+from pr_conflict_resolver.utils.path_utils import resolve_file_path
 
 # Type alias for YAML values to avoid Any usage
 YAMLValue = dict[str, Any] | list[Any] | str | int | float | bool | None
@@ -25,8 +32,25 @@ except ImportError:
 class YamlHandler(BaseHandler):
     """Handler for YAML files with comment preservation and structure validation."""
 
-    def __init__(self) -> None:
-        """Initialize the YAML handler."""
+    # Dangerous YAML tags that could lead to code execution through Python object serialization
+    DANGEROUS_TAGS: ClassVar[tuple[str, ...]] = (
+        "!!python/object",
+        "!!python/object/new",
+        "!!python/object/apply",
+        "!!python/name",
+        "!!python/module",
+        "!!python/function",
+        "!!python/apply",
+    )
+
+    def __init__(self, workspace_root: str | PathLike[str] | None = None) -> None:
+        """Initialize the YAML handler.
+
+        Args:
+            workspace_root: Root directory for validating absolute paths.
+                If None, defaults to current working directory.
+        """
+        super().__init__(workspace_root)
         self.logger = logging.getLogger(__name__)
         if not YAML_AVAILABLE:
             self.logger.warning("ruamel.yaml not available. Install with: pip install ruamel.yaml")
@@ -47,7 +71,7 @@ class YamlHandler(BaseHandler):
         positions, and writes the merged result back to the file. If parsing or writing fails, no
         changes are written.
 
-        Parameters:
+        Args:
             path (str): Filesystem path to the YAML file to update.
             content (str): YAML text containing the suggestion to apply.
             start_line (int): Starting line number in the original file used to guide merging.
@@ -56,45 +80,148 @@ class YamlHandler(BaseHandler):
         Returns:
             bool: `True` if the merged YAML was written successfully, `False` otherwise.
         """
+        # Validate file path to prevent path traversal attacks
+        # Use workspace root for absolute path containment check
+        if not InputValidator.validate_file_path(
+            path, allow_absolute=True, base_dir=str(self.workspace_root)
+        ):
+            self.logger.error(f"Invalid file path rejected: {path}")
+            return False
+
         if not YAML_AVAILABLE:
             self.logger.error("ruamel.yaml not available. Install with: pip install ruamel.yaml")
             return False
 
-        file_path = Path(path)
+        # Resolve path relative to workspace_root and enforce containment within workspace
+        file_path = resolve_file_path(
+            path,
+            self.workspace_root,
+            allow_absolute=True,
+            validate_workspace=True,
+            enforce_containment=True,
+        )
+
+        # Check for symlinks in the target path and all parent components before any file I/O
+        # Single traversal over the path and its parents to avoid duplicate probes
+        for component in (file_path, *file_path.parents):
+            try:
+                # Probe if the component is a symlink (detects even broken symlinks)
+                if component.is_symlink():
+                    self.logger.error(
+                        f"Symlink detected in path hierarchy, rejecting for security: {component}"
+                    )
+                    return False
+            except OSError:
+                # If probing fails, treat as unsafe
+                self.logger.error(
+                    f"Error probing filesystem component (possible symlink), rejecting: {component}"
+                )
+                return False
 
         # Parse original file
         try:
-            yaml = YAML()
-            yaml.preserve_quotes = True
             original_content = file_path.read_text(encoding="utf-8")
-            original_data = yaml.load(original_content)
-        except Exception as e:
+            # Step 1: validate structure safely (no object construction)
+            safe_yaml = YAML(typ="safe")
+            _ = safe_yaml.load(original_content)
+            # Step 2: re-parse with round-trip loader for formatting preservation
+            yaml_rt = YAML(typ="rt")
+            yaml_rt.preserve_quotes = True
+            original_data = yaml_rt.load(original_content)
+        except (OSError, ValueError) as e:
+            self.logger.error(f"Error parsing original YAML: {e}")
+            return False
+        except Exception as e:  # ruamel.yaml raises base Exception
             self.logger.error(f"Error parsing original YAML: {e}")
             return False
 
         # Parse suggestion
         try:
-            yaml_suggestion = YAML()
-            suggestion_data = yaml_suggestion.load(content)
-        except Exception as e:
+            # Step 1: validate safely to prevent object construction
+            safe_yaml_suggestion = YAML(typ="safe")
+            parsed_safe = safe_yaml_suggestion.load(content)
+
+            # Structural check: reject if dangerous tags found in parsed data
+            if self._contains_dangerous_tags(parsed_safe):
+                raise ValueError("YAML contains dangerous Python object tags in structure")
+
+            # Defense-in-depth: reject dangerous Python YAML tags before round-trip parse
+            lowered = content.lower()
+            if (
+                "!!python" in lowered
+                or "tag:yaml.org,2002:python" in lowered
+                or any(tag.lower() in lowered for tag in self.DANGEROUS_TAGS)
+            ):
+                raise ValueError("YAML contains dangerous Python object tags")
+
+            # Step 2: round-trip parse for structure with formatting support
+            yaml_suggestion_rt = YAML(typ="rt")
+            suggestion_data = yaml_suggestion_rt.load(content)
+        except ValueError as e:
+            self.logger.error(f"Error parsing YAML suggestion: {e}")
+            return False
+        except Exception as e:  # ruamel.yaml raises base Exception
             self.logger.error(f"Error parsing YAML suggestion: {e}")
             return False
 
         # Apply suggestion using smart merge
         merged_data = self._smart_merge_yaml(original_data, suggestion_data, start_line, end_line)
 
-        # Write with proper formatting and comment preservation
+        # Write atomically with comment preservation
         try:
-            yaml.dump(merged_data, file_path)
+            yaml_rt = YAML(typ="rt")
+            yaml_rt.preserve_quotes = True
+            orig_mode = os.stat(file_path).st_mode if file_path.exists() else None
+            tmp_path = None
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=file_path.parent,
+                prefix=f".{file_path.name}.tmp",
+                delete=False,
+            ) as tmp:
+                tmp_path = Path(tmp.name)
+                yaml_rt.dump(merged_data, tmp)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+            if orig_mode is not None:
+                os.chmod(tmp_path, stat.S_IMODE(orig_mode))
+            os.replace(tmp_path, file_path)
+            # Best-effort directory fsync
+            try:
+                dir_fd = os.open(str(file_path.parent), os.O_RDONLY)
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
+            except (OSError, AttributeError):
+                self.logger.debug("Directory fsync failed (non-fatal)", exc_info=True)
             return True
-        except Exception as e:
+        except (OSError, ValueError) as e:
             self.logger.error(f"Error writing YAML: {e}")
             return False
+        except Exception as e:  # ruamel.yaml raises base Exception
+            self.logger.error(f"Error writing YAML: {e}")
+            return False
+        finally:
+            if "tmp_path" in locals() and tmp_path and tmp_path.exists():
+                with contextlib.suppress(OSError):
+                    tmp_path.unlink()
 
     def validate_change(
         self, path: str, content: str, start_line: int, end_line: int
     ) -> tuple[bool, str]:
-        """Validate a YAML suggestion string and report whether it parses successfully.
+        r"""Validate a YAML suggestion string and report whether it parses successfully.
+
+        This method implements comprehensive security validation to prevent YAML deserialization
+        attacks and other malicious content. It uses a defense-in-depth approach with multiple
+        layers of validation.
+
+        Security Features:
+            - Dangerous control character detection (null bytes, etc.)
+            - Python object serialization tag detection (!!python/object, !!python/name, etc.)
+            - Structural analysis of parsed YAML for hidden dangerous tags
+            - Safe YAML parsing using ruamel.yaml's safe loader
 
         Parameters:
             path (str): File path associated with the suggestion (used for context only).
@@ -107,15 +234,56 @@ class YamlHandler(BaseHandler):
         Returns:
             tuple[bool, str]: `True` and "Valid YAML" if `content` parses as YAML; `False` and an
                 error message otherwise.
+
+        Example:
+            >>> handler = YamlHandler()
+            >>> # Valid YAML
+            >>> handler.validate_change("config.yaml", "key: value", 1, 1)
+            (True, "Valid YAML")
+            >>> # Dangerous Python object - rejected
+            >>> handler.validate_change("config.yaml",
+            ...     "key: !!python/object/apply:os.system ['rm -rf /']", 1, 1)
+            (False, "YAML contains dangerous Python object tags")
+            >>> # Null byte - rejected
+            >>> handler.validate_change("config.yaml", "key: value\x00", 1, 1)
+            (False, "Invalid YAML: contains dangerous control characters")
+
+        Warning:
+            This method rejects YAML content that could lead to arbitrary code execution
+            through Python object deserialization. Always validate YAML content before
+            processing to prevent security vulnerabilities.
+
+        See Also:
+            _contains_dangerous_characters: Detects dangerous control characters
+            _contains_dangerous_tags: Detects dangerous Python tags in parsed data
         """
         if not YAML_AVAILABLE:
             return False, "ruamel.yaml not available"
 
+        # Check for null bytes and other dangerous control characters first
+        if self._contains_dangerous_characters(content):
+            return False, "Invalid YAML: contains dangerous control characters"
+
+        # Check for dangerous YAML tags that could lead to code execution
+        # Defense-in-depth: keep substring check as first line of defense
+        content_lower = content.lower()
+        for tag in self.DANGEROUS_TAGS:
+            if tag.lower() in content_lower:
+                return False, "YAML contains dangerous Python object tags"
+
+        # Parse with safe loader and perform structural tag checks
         try:
-            yaml = YAML()
-            yaml.load(content)
+            yaml = YAML(typ="safe")
+            parsed_data = yaml.load(content)
+
+            # If parsing succeeded, check for dangerous tags in the parsed structure
+            if self._contains_dangerous_tags(parsed_data):
+                return False, "YAML contains dangerous Python object tags"
+
             return True, "Valid YAML"
-        except Exception as e:
+        except ValueError as e:
+            return False, f"Invalid YAML: {e}"
+        except Exception as e:  # ruamel.yaml raises base Exception
             return False, f"Invalid YAML: {e}"
 
     def detect_conflicts(self, path: str, changes: list[Change]) -> list[Conflict]:
@@ -125,7 +293,7 @@ class YamlHandler(BaseHandler):
         same key path, and returns a Conflict for each key that is modified by more than one
         change.
 
-        Parameters:
+        Args:
             path (str): File path the changes apply to; used as the Conflict.file_path.
             changes (list[Change]): List of Change objects whose `.content` contains YAML
                 snippets and which provide `start_line`/`end_line` for conflict ranges.
@@ -133,8 +301,7 @@ class YamlHandler(BaseHandler):
         Returns:
             list[Conflict]: A list of Conflict objects describing keys modified by multiple
                 changes. Each Conflict uses `conflict_type` "key_conflict", `severity` "medium",
-                and `overlap_percentage` 100.0; `line_range` spans from the first change's
-                start_line to the last change's end_line for that key.
+                and a computed `overlap_percentage`; `line_range` spans min start to max end.
         """
         conflicts: list[Conflict] = []
 
@@ -142,32 +309,68 @@ class YamlHandler(BaseHandler):
         key_changes: dict[str, list[Change]] = {}
         for change in changes:
             try:
-                yaml = YAML()
-                data = yaml.load(change.content)
+                yaml_safe = YAML(typ="safe")
+                data = yaml_safe.load(change.content)
                 keys = self._extract_keys(data)
                 for key in keys:
                     if key not in key_changes:
                         key_changes[key] = []
                     key_changes[key].append(change)
-            except Exception as e:
-                self.logger.warning(f"Failed to process change: {e}")
+            except Exception as e:  # ruamel.yaml raises base Exception
+                self.logger.warning("Failed to parse YAML change (path=%s): %s", path, e)
                 continue
 
         # Find conflicts (multiple changes to same key)
         for _key, key_change_list in key_changes.items():
             if len(key_change_list) > 1:
+                overlap_percentage = self._calculate_overlap_percentage(key_change_list)
+                min_start = min(c.start_line for c in key_change_list)
+                max_end = max(c.end_line for c in key_change_list)
                 conflicts.append(
                     Conflict(
                         file_path=path,
-                        line_range=(key_change_list[0].start_line, key_change_list[-1].end_line),
+                        line_range=(min_start, max_end),
                         changes=key_change_list,
                         conflict_type="key_conflict",
                         severity="medium",
-                        overlap_percentage=100.0,
+                        overlap_percentage=overlap_percentage,
                     )
                 )
 
         return conflicts
+
+    def _calculate_overlap_percentage(self, changes: list[Change]) -> float:
+        """Compute the percentage of line-range overlap among multiple changes.
+
+        Args:
+            changes (list[Change]): List of Change objects each containing `start_line` and
+                `end_line`.
+
+        Returns:
+            float: Overlap percentage between 0.0 and 100.0. Returns 0.0 if fewer than two changes
+                or if there is no overlapping range.
+        """
+        if len(changes) < 2:
+            return 0.0
+
+        # Gather all line ranges
+        starts = [change.start_line for change in changes]
+        ends = [change.end_line for change in changes]
+
+        # Calculate intersection (overlapping lines)
+        intersection_start = max(starts)
+        intersection_end = min(ends)
+        intersection_lines = max(0, intersection_end - intersection_start + 1)
+
+        # Calculate union (total span)
+        union_start = min(starts)
+        union_end = max(ends)
+        union_lines = union_end - union_start + 1
+
+        if union_lines == 0:
+            return 0.0
+
+        return (intersection_lines / union_lines) * 100.0
 
     def _smart_merge_yaml(
         self, original: YAMLValue, suggestion: YAMLValue, start_line: int, end_line: int
@@ -230,3 +433,55 @@ class YamlHandler(BaseHandler):
                 keys.extend(self._extract_keys(item, current_key))
 
         return keys
+
+    def _contains_dangerous_characters(self, content: str) -> bool:
+        """Check if content contains dangerous control characters.
+
+        Parameters:
+            content (str): Raw content to check.
+
+        Returns:
+            bool: True if dangerous characters are found, False otherwise.
+        """
+        for char in content:
+            code_point = ord(char)
+            # C0 controls (except safe whitespace)
+            if code_point < 32 and char not in "\n\r\t":
+                return True
+            # C1 controls
+            if 0x80 <= code_point <= 0x9F:
+                return True
+            # Dangerous Unicode characters
+            if code_point in {0x200B, 0x200C, 0x200D, 0x202E, 0xFEFF}:
+                return True
+        return False
+
+    def _contains_dangerous_tags(self, data: YAMLValue) -> bool:
+        """Check if parsed YAML data contains dangerous Python-specific tags.
+
+        Parameters:
+            data (YAMLValue): Parsed YAML data structure.
+
+        Returns:
+            bool: True if dangerous tags are found, False otherwise.
+        """
+        if data is None:
+            return False
+
+        # Check if this is a tagged value (ruamel.yaml preserves tag information)
+        if hasattr(data, "tag") and data.tag:
+            tag_str = str(data.tag)
+            if tag_str.startswith("!!python"):
+                return True
+
+        # Recursively check nested structures
+        if isinstance(data, dict):
+            for value in data.values():
+                if self._contains_dangerous_tags(value):
+                    return True
+        elif isinstance(data, list):
+            for item in data:
+                if self._contains_dangerous_tags(item):
+                    return True
+
+        return False
