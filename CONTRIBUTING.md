@@ -226,8 +226,35 @@ The CI/CD pipeline automatically runs Safety scans using the [official GitHub Ac
 
 - **Unit tests**: Test individual components in isolation
 - **Integration tests**: Test component interactions
-- **Coverage**: Maintain >80% test coverage
+- **Coverage**: Maintain >80% test coverage (strictly enforced in CI)
 - **Fixtures**: Use pytest fixtures for test data
+
+#### Coverage Requirements
+
+The project enforces an **80% minimum code coverage threshold** in both local development and CI:
+
+- **Local enforcement**: The pre-push git hook will prevent pushing if coverage drops below 80%
+- **CI enforcement**: Pull requests will fail if test coverage is below 80%
+- **Coverage reporting**: Every CI run generates a coverage report visible in:
+  - GitHub Actions workflow summary
+  - Codecov dashboard (linked in README badge)
+  - PR comments (automated by Codecov)
+
+**Troubleshooting coverage failures:**
+
+```bash
+# Run tests with coverage report
+pytest tests/ --cov=src --cov-report=html --cov-report=term-missing
+
+# View detailed HTML report
+open htmlcov/index.html  # macOS
+xdg-open htmlcov/index.html  # Linux
+
+# Identify missing coverage
+pytest tests/ --cov=src --cov-report=term-missing
+```
+
+The `--cov-report=term-missing` flag shows which lines are not covered by tests.
 
 ### Documentation
 
