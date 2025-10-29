@@ -56,9 +56,9 @@ jobs:
           make html 2>&1 | tee ../sphinx-build.log
           BUILD_EXIT_CODE=${PIPESTATUS[0]}
 
-          # Count warnings and errors (grep -c returns count or exits 1 if no matches)
-          WARNING_COUNT=$(grep -c "WARNING:" ../sphinx-build.log 2>/dev/null || echo "0")
-          ERROR_COUNT=$(grep -c "ERROR:" ../sphinx-build.log 2>/dev/null || echo "0")
+          # Count warnings and errors (grep -c returns 0 and exits with 1 if no matches)
+          WARNING_COUNT=$(grep -c "WARNING:" ../sphinx-build.log 2>/dev/null || true)
+          ERROR_COUNT=$(grep -c "ERROR:" ../sphinx-build.log 2>/dev/null || true)
 
           # Set outputs with explicit values to avoid empty strings
           echo "warning_count=${WARNING_COUNT}" >> "$GITHUB_OUTPUT"
