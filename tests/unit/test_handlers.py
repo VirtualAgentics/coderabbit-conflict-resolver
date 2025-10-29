@@ -239,12 +239,12 @@ class TestYamlHandler:
         assert "dangerous Python object tags" in msg
 
     @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
-    def test_validate_change_dangerous_characters(self) -> None:
+    @pytest.mark.parametrize("control_char", ["\x00", "\x01", "\x1f"])
+    def test_validate_change_dangerous_characters(self, control_char: str) -> None:
         """Test validation rejects dangerous control characters."""
         handler = YamlHandler()
 
-        # Test null byte
-        dangerous_yaml = "key: value\x00"
+        dangerous_yaml = f"key: value{control_char}"
         valid, msg = handler.validate_change("test.yaml", dangerous_yaml, 1, 3)
         assert valid is False
         assert "dangerous control characters" in msg

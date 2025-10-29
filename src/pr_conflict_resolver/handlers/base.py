@@ -120,7 +120,8 @@ class BaseHandler(ABC):
                 the configured workspace root.
 
         Returns:
-            Path to the created backup file with .backup suffix.
+            Path to the created backup file (e.g., ".backup", ".backup.<timestamp>", or
+            ".backup.<hash>"), depending on collision handling.
 
         Raises:
             ValueError: If the path is invalid, contains path traversal, or file doesn't exist.
@@ -195,10 +196,11 @@ class BaseHandler(ABC):
                 backup_path = file_path.with_suffix(candidate_suffix)
 
                 # Validate final filename length
-                if len(backup_path.name.encode("utf-8")) >= NAME_MAX:
+                name_bytes = backup_path.name.encode("utf-8")
+                if len(name_bytes) >= NAME_MAX:
                     raise OSError(
-                        f"Cannot create backup filename within {NAME_MAX} char limit "
-                        f"for: {file_path} (name length: {len(backup_path.name)})"
+                        f"Cannot create backup filename within {NAME_MAX} byte limit "
+                        f"for: {file_path} (byte length: {len(name_bytes)})"
                     )
 
             # Attempt atomic file creation with open fd for copy operation
@@ -309,21 +311,20 @@ class BaseHandler(ABC):
                 )
                 return False
 
-            # Keep restores within workspace containment when workspace_root is set
-            if self.workspace_root:
-                workspace_resolved = Path(self.workspace_root).resolve(strict=False)
-                if not (
-                    backup_p.is_relative_to(workspace_resolved)
-                    and original_p.is_relative_to(workspace_resolved)
-                ):
-                    logger.warning(
-                        "Restore rejected: paths must be within workspace. "
-                        "Workspace: %s, Backup: %s, Original: %s",
-                        workspace_resolved,
-                        backup_p,
-                        original_p,
-                    )
-                    return False
+            # Keep restores within workspace containment
+            workspace_resolved = self.workspace_root.resolve(strict=False)
+            if not (
+                backup_p.is_relative_to(workspace_resolved)
+                and original_p.is_relative_to(workspace_resolved)
+            ):
+                logger.warning(
+                    "Restore rejected: paths must be within workspace. "
+                    "Workspace: %s, Backup: %s, Original: %s",
+                    workspace_resolved,
+                    backup_p,
+                    original_p,
+                )
+                return False
         except (OSError, ValueError) as e:
             logger.error("Path resolution failed during restore validation: %s", e)
             return False
