@@ -67,17 +67,18 @@ jobs:
           make html 2>&1 | tee ../sphinx-build.log
           BUILD_EXIT_CODE=${PIPESTATUS[0]}
 
-          # Count warnings and errors
-          WARNING_COUNT=$(grep -c "WARNING:" ../sphinx-build.log || echo "0")
-          ERROR_COUNT=$(grep -c "ERROR:" ../sphinx-build.log || echo "0")
+          # Count warnings and errors (grep -c returns count or exits 1 if no matches)
+          WARNING_COUNT=$(grep -c "WARNING:" ../sphinx-build.log 2>/dev/null || echo "0")
+          ERROR_COUNT=$(grep -c "ERROR:" ../sphinx-build.log 2>/dev/null || echo "0")
 
           # Count total files built
           FILE_COUNT=$(find _build/html -type f | wc -l)
 
-          echo "warning_count=$WARNING_COUNT" >> $GITHUB_OUTPUT
-          echo "error_count=$ERROR_COUNT" >> $GITHUB_OUTPUT
-          echo "file_count=$FILE_COUNT" >> $GITHUB_OUTPUT
-          echo "build_exit_code=$BUILD_EXIT_CODE" >> $GITHUB_OUTPUT
+          # Set outputs with explicit values to avoid empty strings
+          echo "warning_count=${WARNING_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "error_count=${ERROR_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "file_count=${FILE_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "build_exit_code=${BUILD_EXIT_CODE}" >> "$GITHUB_OUTPUT"
 
           # Fail if there were errors
           if [ "$ERROR_COUNT" -gt 0 ]; then
