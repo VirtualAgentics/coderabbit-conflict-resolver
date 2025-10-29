@@ -2,9 +2,9 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
 
-  // Schedule: Align with current Dependabot schedule
-  "schedule": ["before 9am on monday"],
-  "timezone": "UTC",
+  // Schedule: Temporarily disabled for testing (will re-enable after first run)
+  // "schedule": ["before 9am on monday"],
+  // "timezone": "UTC",
 
   // Python package rules
   "pip": {
