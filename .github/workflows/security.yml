@@ -7,9 +7,9 @@
 #
 # Security Tools:
 #   - Bandit: Static analysis for common security issues in Python code
-#   - Safety: Scans Python dependencies for known security vulnerabilities
 #   - pip-audit: Audits Python packages for security vulnerabilities (OSV database)
 #   - CodeQL: GitHub's semantic code analysis engine for security and quality
+# Note: Dependency updates and security alerts handled by Renovate
 #
 # Triggers:
 #   - Push to main or develop branches
@@ -43,7 +43,7 @@ jobs:
   # --------------------------------------------------------------------------
   # Job: security-scan
   # --------------------------------------------------------------------------
-  # Runs Python security scanning tools (Bandit, Safety, pip-audit) to detect
+  # Runs Python security scanning tools (Bandit, pip-audit) to detect
   # security vulnerabilities in source code and dependencies. Generates a
   # detailed workflow summary and uploads reports when issues are found.
   # --------------------------------------------------------------------------
@@ -56,11 +56,6 @@ jobs:
       contents: read    # Read repository code
       packages: read    # Read package registry (for dependency resolution)
       actions: read     # Read workflow artifacts
-
-    # Job-level environment variables for conditional step execution
-    # Secrets cannot be directly referenced in step if: conditionals per GitHub Actions docs
-    env:
-      SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
 
     steps:
       - name: Record job start time
@@ -85,26 +80,6 @@ jobs:
       # hardcoded passwords, insecure temp file usage, etc.
       - name: Run Bandit security scan
         run: bandit -r src/ -f json -o bandit-report.json
-
-      # Safety: Checks installed dependencies against known vulnerability databases
-      # Only runs when SAFETY_API_KEY secret is configured in the repository
-      # Uses continue-on-error to prevent workflow failure when vulnerabilities are found
-      # (results are analyzed in the security-check step)
-      # Note: Uses env.SAFETY_API_KEY (job-level) as secrets context is not allowed in if: conditionals
-      - name: Run Safety vulnerability scan
-        if: env.SAFETY_API_KEY != ''
-        id: safety-scan
-        continue-on-error: true
-        uses: pyupio/safety-action@2591cf2f3e67ba68b923f4c92f0d36e281c65023 # v1.0.1
-        with:
-          api-key: ${{ env.SAFETY_API_KEY }}
-
-      # Warning step: Informs when Safety scan is skipped due to missing API key
-      # This ensures visibility into which security tools actually ran
-      - name: Warn if Safety API key is missing
-        if: env.SAFETY_API_KEY == ''
-        run: |
-          echo "⚠️ Warning: SAFETY_API_KEY is not configured. Safety vulnerability scanning will be skipped." >> $GITHUB_STEP_SUMMARY
 
       # pip-audit: Audits Python packages for known vulnerabilities using OSV database
       # Generates both JSON (for parsing) and text (for human reading) reports
@@ -163,21 +138,6 @@ jobs:
               echo "### ✅ Bandit: No HIGH severity issues" >> $GITHUB_STEP_SUMMARY
               echo "✅ No HIGH severity issues found in Bandit scan"
             fi
-          fi
-
-          # Safety results: Check if Safety scan ran and analyze its outcome
-          # The Safety Action fails (non-zero exit) when vulnerabilities are found
-          # We check the step outcome to determine if vulnerabilities were detected
-          if [ "${{ steps.safety-scan.outcome }}" == "success" ]; then
-            echo "### ✅ Safety: No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
-            echo "✅ Safety scan completed - no vulnerabilities found"
-          elif [ "${{ steps.safety-scan.outcome }}" == "failure" ]; then
-            echo "### ❌ Safety: Vulnerabilities detected" >> $GITHUB_STEP_SUMMARY
-            echo "❌ Safety scan found vulnerabilities"
-            ISSUES_FOUND=1
-          elif [ "${{ steps.safety-scan.outcome }}" == "skipped" ]; then
-            echo "### ⚠️ Safety: Skipped (no API key configured)" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ Safety scan skipped - SAFETY_API_KEY not configured"
           fi
 
           # Check pip-audit results: Counts total vulnerabilities across all dependencies

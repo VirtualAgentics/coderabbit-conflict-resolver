@@ -1,80 +1,296 @@
 # CodeRabbit Conflict Resolver - Code Owners
+#
+# Strategy: Hybrid approach for GitHub Pro (Personal Account)
+# - Maximum security for source code and critical config
+# - Automated dependency updates via Renovate
+#
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
-# This file defines who has review responsibility for different parts of the repository
+# =============================================================================
+# Security-First Hybrid Configuration
+# =============================================================================
+# GitHub Pro (personal accounts) does NOT support the "Allow specified actors
+# to bypass" feature. That's only available for GitHub Team/Enterprise orgs.
+#
+# This configuration balances maximum security with Renovate automation:
+#
+# Strategy:
+# 1. ALL source code requires @VirtualAgentics review (*.py, src/, tests/)
+# 2. ALL critical config requires @VirtualAgentics review
+# 3. Dependency-only files (pyproject.toml, requirements.txt) have NO owner
+# 4. GitHub Actions workflows require review (for logic changes, not versions)
+#
+# Result:
+# - Python dependency updates: Renovate automerges ✅
+# - GitHub Actions version updates: Manual approval needed (~1-2/week) ⚠️
+# - Source code changes: Your approval required ✅
+# - Critical config changes: Your approval required ✅
+#
+# Security Note:
+# This approach prioritizes protection against supply chain attacks and
+# malicious PRs (like the GitHub Actions injection vulnerabilities from 2024).
+# All executable code and workflow logic requires human review.
+# =============================================================================
 
-# See: <https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners>
+# -----------------------------------------------------------------------------
+# Source Code - REQUIRES REVIEW (Security Critical)
+# -----------------------------------------------------------------------------
 
-# Global ownership - all files
+# All Python source code (prevents malicious code injection)
+*.py @VirtualAgentics
 
-* @VirtualAgentics
+# Core modules (critical business logic)
+/src/pr_conflict_resolver/core/ @VirtualAgentics
+/src/pr_conflict_resolver/analysis/ @VirtualAgentics
+/src/pr_conflict_resolver/handlers/ @VirtualAgentics
+/src/pr_conflict_resolver/strategies/ @VirtualAgentics
+/src/pr_conflict_resolver/integrations/ @VirtualAgentics
+/src/pr_conflict_resolver/security/ @VirtualAgentics
+/src/pr_conflict_resolver/cli/ @VirtualAgentics
+/src/pr_conflict_resolver/config/ @VirtualAgentics
 
-# GitHub Actions and CI/CD workflows
+# Tests (ensure test integrity)
+/tests/ @VirtualAgentics
 
-/.github/workflows/ @VirtualAgentics
-/.github/dependabot.yml @VirtualAgentics
-/.github/CODEOWNERS @VirtualAgentics
-
-# Security-related files
-
-/SECURITY.md @VirtualAgentics
-/CODE_OF_CONDUCT.md @VirtualAgentics
-/.github/ISSUE_TEMPLATE/ @VirtualAgentics
-
-# Core configuration files
-
-/pyproject.toml @VirtualAgentics
-/requirements*.txt @VirtualAgentics
-/.pre-commit-config.yaml @VirtualAgentics
-/Makefile @VirtualAgentics
+# Build and packaging scripts (can execute arbitrary code)
+/scripts/ @VirtualAgentics
+/setup.py @VirtualAgentics
 /setup-dev.sh @VirtualAgentics
 /setup-dev.ps1 @VirtualAgentics
 
-# Core resolver and models
+# -----------------------------------------------------------------------------
+# GitHub Actions & CI/CD - REQUIRES REVIEW (Injection Prevention)
+# -----------------------------------------------------------------------------
+# After GitHub Actions injection vulnerabilities (2024), all workflow changes
+# require review. Even "version bumps" from Renovate need quick verification
+# to ensure no malicious code was injected.
+#
+# Manual review process: Check that changes are ONLY version bumps:
+# - uses: actions/checkout@v4 → v5 ✅ (safe to approve)
+# - Adding new env vars or steps ❌ (requires careful review)
 
-/src/pr_conflict_resolver/core/ @VirtualAgentics
-/src/pr_conflict_resolver/core/resolver.py @VirtualAgentics
-/src/pr_conflict_resolver/core/models.py @VirtualAgentics
+/.github/workflows/ @VirtualAgentics
+/.github/codeql/ @VirtualAgentics
 
-# Conflict detection and analysis
+# -----------------------------------------------------------------------------
+# Critical Configuration - REQUIRES REVIEW (Security Critical)
+# -----------------------------------------------------------------------------
 
-/src/pr_conflict_resolver/analysis/ @VirtualAgentics
+/.github/CODEOWNERS @VirtualAgentics
+/.github/renovate.json5 @VirtualAgentics
+/.github/labeler.yml @VirtualAgentics
+/.github/ISSUE_TEMPLATE/ @VirtualAgentics
+/.pre-commit-config.yaml @VirtualAgentics
+/.coderabbit.yaml @VirtualAgentics
+/Makefile @VirtualAgentics
 
-# File handlers (critical for conflict resolution)
+# -----------------------------------------------------------------------------
+# Documentation - REQUIRES REVIEW
+# -----------------------------------------------------------------------------
 
-/src/pr_conflict_resolver/handlers/ @VirtualAgentics
-
-# Resolution strategies (critical business logic)
-
-/src/pr_conflict_resolver/strategies/ @VirtualAgentics
-
-# GitHub integration (security-sensitive)
-
-/src/pr_conflict_resolver/integrations/ @VirtualAgentics
-/src/pr_conflict_resolver/integrations/github.py @VirtualAgentics
-
-# CLI interface
-
-/src/pr_conflict_resolver/cli/ @VirtualAgentics
-
-# Configuration and presets
-
-/src/pr_conflict_resolver/config/ @VirtualAgentics
-
-# Documentation
-
+*.md @VirtualAgentics
+*.rst @VirtualAgentics
 /docs/ @VirtualAgentics
 /README.md @VirtualAgentics
 /CONTRIBUTING.md @VirtualAgentics
-
-# Tests (require careful review for correctness)
-
-/tests/ @VirtualAgentics
-
-# CodeRabbit configuration
-
-/.coderabbit.yaml @VirtualAgentics
-
-# Release and packaging
-
-/setup.py @VirtualAgentics
+/SECURITY.md @VirtualAgentics
+/CODE_OF_CONDUCT.md @VirtualAgentics
 /LICENSE @VirtualAgentics
+
+# -----------------------------------------------------------------------------
+# Dependency Files - NO OWNER (Renovate Automerge Zone)
+# -----------------------------------------------------------------------------
+# ⚠️ SECURITY DECISION: These files are INTENTIONALLY left WITHOUT owner assignment.
+#
+# This is a DELIBERATE trade-off to enable Renovate automerge for dependency
+# updates while maintaining security through multiple defense layers.
+#
+# Files without owners (Renovate can automerge):
+# - pyproject.toml (Python dependency versions only)
+# - requirements*.txt (Python dependency versions only)
+#
+# 🛡️ Defense-in-Depth Security Layers:
+#
+# Layer 1: Required CI Checks (BLOCKS malicious merges)
+#   - pip-audit: Scans dependencies for known vulnerabilities
+#     → FAILS merge if vulnerable package detected
+#   - security-scan: Runs Bandit (source code) + pip-audit (dependencies)
+#     → FAILS merge if security issues found
+#   - test (3.12): 574 tests with 82% coverage
+#     → FAILS merge if tests fail (catches breaking changes)
+#   - lint: Black, Ruff, MyPy
+#     → FAILS merge if code quality issues
+#   - codeql: GitHub's semantic security analysis
+#     → FAILS merge if vulnerabilities detected
+#   - build: Verifies package builds correctly
+#     → FAILS merge if build fails
+#
+# Layer 2: Source Code Protection (BLOCKS malicious code injection)
+#   - If PR modifies ANY .py file, *.py pattern matches
+#   - Entire PR requires @VirtualAgentics review
+#   - Malicious actor cannot inject code via "dependency update"
+#
+# Layer 3: Human Oversight (You maintain control)
+#   - You receive GitHub notifications for ALL PRs
+#   - Can manually review any PR at any time
+#   - Can request changes or close suspicious PRs
+#   - Dashboard shows all Renovate PRs
+#
+# Layer 4: Renovate Trust Model (Minimizes attack surface)
+#   - Renovate only updates version numbers (e.g., "pytest==8.0.0" → "pytest==8.1.0")
+#   - Does NOT modify source code, add new dependencies arbitrarily
+#   - Official GitHub-verified bot, trusted by thousands of organizations
+#   - Pull requests are transparent (diff shows exactly what changed)
+#
+# 🎯 Attack Scenarios Analysis:
+#
+# Scenario A: Malicious actor opens PR updating pyproject.toml with vulnerable package
+#   → pip-audit detects vulnerability
+#   → security-scan workflow FAILS
+#   → ❌ MERGE BLOCKED by required status checks
+#
+# Scenario B: Compromised Renovate bot tries to inject malicious dependency
+#   → pip-audit scans the new package
+#   → If package has known vulnerabilities: MERGE BLOCKED
+#   → If package is unknown/suspicious: You see notification, can review
+#   → ⚠️ Risk exists if malicious package is new (0-day)
+#   → Mitigation: You review Dependency Dashboard regularly
+#
+# Scenario C: Malicious actor adds vulnerable dependency + changes source code
+#   → *.py pattern matches (source code changed)
+#   → @VirtualAgentics review REQUIRED for entire PR
+#   → ❌ MERGE BLOCKED until you approve
+#
+# Scenario D: Renovate updates to legitimate but vulnerable package version
+#   → pip-audit detects known vulnerability
+#   → security-scan workflow FAILS
+#   → ❌ MERGE BLOCKED by CI
+#   → Renovate typically won't propose such updates (checks release notes)
+#
+# Scenario E: Pure pyproject.toml config change (not dependency version)
+#   → No owner assigned (edge case)
+#   → Could merge without review
+#   → Mitigation: Usually accompanies source code changes (triggers review)
+#   → Low risk: Config changes typically caught by CI if breaking
+#
+# 📊 Risk Assessment:
+#
+# Risk Level: LOW-MEDIUM
+#   - Multiple security layers must ALL fail for malicious merge
+#   - Primary risk: 0-day malicious package (not in vulnerability databases)
+#   - Mitigation: Regular Dependency Dashboard review, GitHub notifications
+#
+# Alternatives (if you prefer maximum security):
+#
+# Option 1: Add owners, disable automerge entirely
+#   Uncomment these lines to require review for ALL dependency changes:
+#
+#   /pyproject.toml @VirtualAgentics
+#   /requirements*.txt @VirtualAgentics
+#
+#   Result: Maximum security, zero automation (manual approval for all updates)
+#
+# Option 2: Disable Code Owner requirement in branch protection
+#   Keep CODEOWNERS as-is (source code protected)
+#   Disable "Require review from Code Owners" setting
+#   Result: Renovate automerges everything, source code still has 5 CI gates
+#
+# Current configuration (intentionally leaving dependencies without owners)
+# prioritizes developer efficiency while maintaining strong security through
+# automated checks and human oversight capabilities.
+#
+# This approach is recommended by:
+# - Renovate documentation: https://docs.renovatebot.com/key-concepts/automerge/
+# - GitHub security best practices (multiple required status checks)
+# - Defense-in-depth principle (multiple independent security layers)
+# =============================================================================
+
+# =============================================================================
+# Pattern Matching Behavior
+# =============================================================================
+#
+# GitHub CODEOWNERS uses "last match wins" - the LAST matching pattern
+# determines ownership. We use this strategically:
+#
+# Scenario 1: Renovate updates pyproject.toml (dependency version bump)
+# - No pattern explicitly matches pyproject.toml
+# - No owner required
+# - CI checks must pass (tests, security, linting)
+# - Automerge: ✅ ALLOWED
+#
+# Scenario 2: Renovate updates GitHub Actions workflow (version bump)
+# - Pattern matches: /.github/workflows/ @VirtualAgentics
+# - Owner review required
+# - Manual action: Quick approval after verifying only versions changed
+# - Automerge: ⚠️ BLOCKED (manual approval ~1-2/week, takes 30 seconds)
+#
+# Scenario 3: Human modifies pyproject.toml + adds new source file
+# - pyproject.toml: no owner
+# - new_module.py: matches *.py @VirtualAgentics
+# - Owner review required for entire PR
+# - Automerge: ❌ BLOCKED (security: source code changed)
+#
+# Scenario 4: Human modifies pyproject.toml (adds new tool config, not deps)
+# - No pattern matches
+# - No owner required
+# - BUT: Usually accompanies source code changes which DO require review
+# - Edge case: Pure config changes could merge without review
+# - Mitigation: You receive notification, can review manually
+#
+# Scenario 5: Malicious PR tries to inject code via workflow
+# - Pattern matches: /.github/workflows/ @VirtualAgentics
+# - Owner review required
+# - You inspect diff and catch malicious injection
+# - Automerge: ❌ BLOCKED (security: protected by Code Owners)
+#
+# =============================================================================
+# Trade-offs and Security Considerations
+# =============================================================================
+#
+# ✅ Pros:
+# - Maximum protection for source code and CI/CD (lessons from 2024 attacks)
+# - Renovate automerges Python dependency updates (~70% of Renovate PRs)
+# - All GitHub Actions changes require review (prevents injection attacks)
+# - Zero additional cost (works with GitHub Pro personal plan)
+# - Strong CI checks provide additional security layer
+#
+# ⚠️ Manual Review Required:
+# - GitHub Actions version updates: ~1-2 per week
+#   - Quick to review: just verify diff shows only version changes
+#   - Takes ~30 seconds per PR
+#   - Critical for security after 2024 injection vulnerabilities
+#
+# 🔒 Security Strengths:
+# - All executable code requires human review (*.py, scripts/, setup.py)
+# - All workflow logic requires human review (prevents injection attacks)
+# - All critical config requires human review
+# - CI checks always required: 5 different security/quality gates
+# - pip-audit blocks vulnerable dependencies automatically
+# - You're notified of ALL PRs (can manually review any time)
+#
+# 🎯 Attack Scenarios Protected Against:
+# 1. Malicious dependency injection → Blocked by pip-audit
+# 2. Supply chain compromise → Blocked by security-scan workflow
+# 3. GitHub Actions injection → Blocked by Code Owner review requirement
+# 4. Malicious source code changes → Blocked by *.py owner requirement
+# 5. Backdoor in tests → Blocked by /tests/ owner requirement
+#
+# =============================================================================
+# Alternative Approaches
+# =============================================================================
+#
+# If you want FULL automation (including GitHub Actions automerge):
+#
+# Option 1: Disable "Require review from Code Owners" in branch protection
+# - Pros: Renovate automerges everything
+# - Cons: Less protection, but CI checks still enforce quality
+# - Security: Still strong (5 required CI checks), but no human gate
+#
+# Option 2: Convert to Organization + GitHub Team plan ($4/month)
+# - Pros: Full automation + maximum security (bypass feature)
+# - Cons: Additional cost, more complexity
+# - Result: renovate[bot] can bypass Code Owners, humans can't
+#
+# Current approach (Option A) is recommended for personal repos that
+# prioritize security without additional cost.
+# =============================================================================

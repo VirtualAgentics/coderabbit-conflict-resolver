@@ -99,6 +99,85 @@ If you prefer manual setup:
    make security    # Run security checks
    ```
 
+### Dependency Management and Security
+
+This project uses a modern, automated approach to dependency management:
+
+#### Tools in Use
+
+1. **Renovate** (Automated Dependency Updates)
+   - Automatically creates PRs for dependency updates
+   - Configured in `.github/renovate.json5`
+   - Weekly updates for dev dependencies
+   - Monthly updates for production dependencies
+   - Automatic security vulnerability alerts
+   - Automerge enabled for patch/minor updates of dev tools
+
+2. **pip-audit** (CI Dependency Scanning)
+   - Scans dependencies for known vulnerabilities using OSV database
+   - Runs in `.github/workflows/security.yml`
+   - Blocks PRs if vulnerabilities are found
+
+3. **Bandit** (Source Code Security Analysis)
+   - Scans **your code** for security issues (not dependencies)
+   - Detects issues like hardcoded secrets, SQL injection patterns, etc.
+   - Runs locally via `make lint` and in CI
+
+4. **CodeQL** (Semantic Code Analysis)
+   - GitHub's advanced semantic analysis engine
+   - Runs automatically in CI on all PRs
+
+#### Why This Stack?
+
+**Previous Setup (Removed):**
+- ❌ Dependabot (replaced by Renovate for consistency)
+- ❌ Safety CLI (removed - redundant with pip-audit + Renovate)
+
+**Rationale for Changes:**
+- **Renovate over Dependabot**: Better features (automerge, dashboard, scheduling), consistency with other VirtualAgentics repos
+- **Removed Safety CLI**: Was using deprecated `check` command, redundant with pip-audit + Renovate security alerts
+- **Result**: Fewer tools, better functionality, no maintenance burden
+
+#### Local Development
+
+**Check for vulnerabilities manually:**
+```bash
+# Dependency vulnerabilities
+pip-audit --desc
+
+# Source code security issues
+bandit -r src/
+```
+
+**Run all security checks:**
+```bash
+make security  # Runs Bandit + shows pip-audit info
+```
+
+**Update dependencies manually:**
+Renovate handles this automatically, but if needed:
+```bash
+pip install --upgrade pip
+pip install -e ".[dev]" --upgrade
+```
+
+#### Renovate Configuration
+
+See `.github/renovate.json5` for full configuration. Key features:
+
+- **Automerge**: Patch/minor updates for dev tools auto-merge after CI passes
+- **Grouping**: Related packages updated together (e.g., pytest + plugins)
+- **Scheduling**: Weekly for dev, monthly for production
+- **Dashboard**: Check "Dependency Dashboard" issue for pending updates
+
+#### Security Workflow
+
+1. **Renovate** monitors for new versions and security vulnerabilities
+2. **Renovate** creates PR automatically (or alerts in dashboard)
+3. **CI runs**: pip-audit + Bandit + CodeQL + tests
+4. **Automerge** (if enabled for that package type and CI passes)
+5. **Manual review** required for: major updates, production deps, documentation tools
+
 4. **Auto-format code** (if needed):
 
    ```bash
@@ -128,7 +207,7 @@ Use `make help` to see all available commands:
 - `make test` - Run tests with coverage
 - `make lint` - Run all linters (Black, Ruff, MyPy)
 - `make format` - Auto-format code
-- `make security` - Run security checks (Bandit, Safety)
+- `make security` - Run security checks (Bandit for source code)
 - `make docs` - Build documentation
 - `make clean` - Clean build artifacts
 - `make check-all` - Run all checks (lint + test + security)
@@ -190,21 +269,6 @@ make lint       # Formatting and linting
 make test       # Tests with coverage
 make security   # Security checks
 ```
-
-## Security Scanning with Safety
-
-This project uses [Safety](https://safetycli.com/) for vulnerability scanning. To run scans locally:
-
-```bash
-# Authenticate (one-time setup)
-source .venv/bin/activate
-safety auth login
-
-# Run vulnerability scan
-safety scan
-```
-
-The CI/CD pipeline automatically runs Safety scans using the [official GitHub Action](https://github.com/pyupio/safety-action). See [`.github/SAFETY_SETUP.md`](.github/SAFETY_SETUP.md) for details.
 
 ## Coding Standards
 
