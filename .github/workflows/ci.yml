@@ -5,7 +5,7 @@ on:
     branches: [main, develop]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -36,6 +36,14 @@ jobs:
 
       - name: Type check with MyPy
         run: mypy src/ --strict
+
+      - name: Security scan with Bandit
+        run: bandit -r src/ -f json -o bandit-report.json || bandit -r src/
+        continue-on-error: true
+
+      - name: Audit dependencies with pip-audit
+        run: pip-audit --desc --format json --output pip-audit-report.json || pip-audit --desc
+        continue-on-error: true
 
   test:
     runs-on: ubuntu-latest
