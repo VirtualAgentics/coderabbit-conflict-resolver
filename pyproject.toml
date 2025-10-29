@@ -113,7 +113,7 @@ ignore = [
 "tests/**/*.py" = [
     "S101",
     "S108",  # /tmp usage in tests is ok
-    "ANN",
+    "ANN",  # TODO: Remove in follow-up PR after adding 1500+ missing annotations
     "D",
     "RUF043",  # regex patterns in pytest.raises are ok
 ]
@@ -125,15 +125,11 @@ ignore = [
 "scripts/**/*.py" = [
     "T201",  # print statements are ok in scripts
     "S603",  # subprocess call (necessary for git commands)
-    "ANN",   # type annotations not required in scripts
-    "D",     # docstrings not required in scripts
-    "E501",  # line length can be longer in scripts
-    "RUF005",  # list concatenation is ok in scripts
 ]
 "tests/integration/**/*.py" = [
     "S101",
     "S603",  # subprocess calls in integration tests are intentional
-    "ANN",
+    "ANN",  # TODO: Remove in follow-up PR after adding missing annotations
     "D",
     "RUF043",  # regex patterns in pytest.raises are ok
 ]
