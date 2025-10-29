@@ -1,0 +1,146 @@
+# ============================================================================
+# Workflow: Documentation Deployment (Main Branch)
+# ============================================================================
+# Purpose:
+#   Builds and deploys documentation to GitHub Pages when changes are pushed
+#   to the main branch. This workflow only runs on main branch to ensure
+#   production documentation stays synchronized with released code.
+#
+# Prerequisites:
+#   - GitHub Pages must be enabled in repository settings
+#   - Pages source should be set to "GitHub Actions"
+#   - Repository must have Pages permission enabled
+#
+# Triggers:
+#   - Push to main branch only
+#
+# Outputs:
+#   - Documentation deployed to GitHub Pages
+#   - Deployment summary with Pages URL and build statistics
+#
+# Related Workflow:
+#   - .github/workflows/docs.yml: Builds docs for PR previews
+# ============================================================================
+name: Documentation Deployment
+
+on:
+  push:
+    branches: [main]
+
+# Concurrency: Ensures only one deployment runs at a time to prevent
+# race conditions when multiple commits are pushed to main rapidly
+concurrency:
+  group: docs-deploy-main
+  cancel-in-progress: false  # Don't cancel deployments, queue them instead
+
+jobs:
+  docs-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Permissions required for GitHub Pages deployment
+    permissions:
+      contents: read      # Read repository code
+      pages: write        # Deploy to GitHub Pages
+      id-token: write     # Verify deployment authenticity
+
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install -r docs/requirements.txt
+
+      - name: Build documentation
+        id: build-docs
+        run: |
+          cd docs
+          # Capture both stdout and stderr to detect warnings/errors
+          make html 2>&1 | tee ../sphinx-build.log
+          BUILD_EXIT_CODE=${PIPESTATUS[0]}
+
+          # Count warnings and errors (grep -c returns 0 and exits with 1 if no matches)
+          WARNING_COUNT=$(grep -c "WARNING:" ../sphinx-build.log 2>/dev/null || true)
+          ERROR_COUNT=$(grep -c "ERROR:" ../sphinx-build.log 2>/dev/null || true)
+
+          # Count total files built
+          FILE_COUNT=$(find _build/html -type f | wc -l)
+
+          # Set outputs with explicit values to avoid empty strings
+          echo "warning_count=${WARNING_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "error_count=${ERROR_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "file_count=${FILE_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "build_exit_code=${BUILD_EXIT_CODE}" >> "$GITHUB_OUTPUT"
+
+          # Fail if there were errors
+          if [ "$ERROR_COUNT" -gt 0 ]; then
+            echo "❌ Documentation build failed with $ERROR_COUNT errors"
+            exit 1
+          fi
+
+          exit $BUILD_EXIT_CODE
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/_build/html
+          publish_branch: gh-pages
+          force_orphan: true  # Keep deployment history clean
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'docs: deploy from ${{ github.sha }}'
+
+      - name: Generate deployment summary
+        if: always()
+        run: |
+          echo "## Documentation Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Deployment status
+          if [ "${{ steps.build-docs.outputs.build_exit_code }}" -eq 0 ]; then
+            echo "### ✅ Deployment Status: Success" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Documentation URL:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Deployment Status: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Build statistics
+          echo "### 📊 Build Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Files generated:** ${{ steps.build-docs.outputs.file_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Warnings:** ${{ steps.build-docs.outputs.warning_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Errors:** ${{ steps.build-docs.outputs.error_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Show warnings if any
+          if [ "${{ steps.build-docs.outputs.warning_count }}" -gt 0 ]; then
+            echo "### ⚠️ Build Warnings" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep "WARNING:" sphinx-build.log | head -20 >> $GITHUB_STEP_SUMMARY || echo "No detailed warnings found" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ "$(grep -c "WARNING:" sphinx-build.log)" -gt 20 ]; then
+              echo "*Showing first 20 warnings. Check build logs for complete list.*" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+          # Deployment info
+          echo "### 🚀 Deployment Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** \`gh-pages\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY

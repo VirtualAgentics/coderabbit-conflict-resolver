@@ -1,20 +1,37 @@
-name: Documentation
+# ============================================================================
+# Workflow: Documentation Build (Pull Requests)
+# ============================================================================
+# Purpose:
+#   Builds documentation on pull requests and uploads artifacts for preview.
+#   This workflow does NOT deploy documentation - deployment happens via
+#   docs-deploy.yml on pushes to main branch.
+#
+# Triggers:
+#   - Pull requests targeting main or develop branches
+#
+# Outputs:
+#   - Documentation build artifacts (HTML files, 7-day retention)
+#   - Build summary with warnings/errors and artifact download link
+#
+# Related Workflow:
+#   - .github/workflows/docs-deploy.yml: Deploys docs to GitHub Pages from main
+# ============================================================================
+name: Documentation Build
 
 on:
   pull_request:
     branches: [main, develop]
 
 concurrency:
-  group: docs-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  docs:
+  docs-build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      pages: write
-      contents: read
+      contents: read  # Only needs to read repository code
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -32,13 +49,65 @@ jobs:
           pip install -r docs/requirements.txt
 
       - name: Build documentation
+        id: build-docs
         run: |
           cd docs
-          make html
+          # Capture both stdout and stderr to detect warnings/errors
+          make html 2>&1 | tee ../sphinx-build.log
+          BUILD_EXIT_CODE=${PIPESTATUS[0]}
 
-      - name: Deploy to GitHub Pages
-        if: github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
+          # Count warnings and errors (grep -c returns 0 and exits with 1 if no matches)
+          WARNING_COUNT=$(grep -c "WARNING:" ../sphinx-build.log 2>/dev/null || true)
+          ERROR_COUNT=$(grep -c "ERROR:" ../sphinx-build.log 2>/dev/null || true)
+
+          # Set outputs with explicit values to avoid empty strings
+          echo "warning_count=${WARNING_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "error_count=${ERROR_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "build_exit_code=${BUILD_EXIT_CODE}" >> "$GITHUB_OUTPUT"
+
+          exit $BUILD_EXIT_CODE
+
+      - name: Generate build summary
+        if: always()
+        run: |
+          echo "## Documentation Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Build status
+          if [ "${{ steps.build-docs.outputs.build_exit_code }}" -eq 0 ]; then
+            echo "### ✅ Build Status: Success" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Build Status: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Warning and error counts
+          echo "**Warnings:** ${{ steps.build-docs.outputs.warning_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Errors:** ${{ steps.build-docs.outputs.error_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Show warnings/errors if any
+          if [ "${{ steps.build-docs.outputs.warning_count }}" -gt 0 ] || [ "${{ steps.build-docs.outputs.error_count }}" -gt 0 ]; then
+            echo "### Issues Found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -E "(WARNING:|ERROR:)" sphinx-build.log >> $GITHUB_STEP_SUMMARY || echo "No detailed issues found" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Artifact info
+          echo "### 📦 Documentation Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Built documentation has been uploaded as an artifact for preview." >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifact name:** docs-preview-pr-${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Retention:** 7 days" >> $GITHUB_STEP_SUMMARY
+          echo "- **Location:** Check the 'Artifacts' section at the top of this workflow run" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload documentation artifacts
+        if: success()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs/_build/html
+          name: docs-preview-pr-${{ github.event.pull_request.number }}
+          path: docs/_build/html
+          retention-days: 7
