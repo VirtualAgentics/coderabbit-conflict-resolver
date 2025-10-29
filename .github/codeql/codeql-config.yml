@@ -1,3 +1,4 @@
+---
 # ============================================================================
 # CodeQL Configuration for Python Security Analysis
 # ============================================================================
@@ -49,7 +50,7 @@ paths-ignore:
 # Query filters: Fine-tune analysis results
 # These filters help reduce false positives specific to Python projects
 query-filters:
-  # Exclude queries that commonly produce false positives in Python CLI applications
+  # Exclude queries with common false positives in Python CLI apps
 
   # Clear-text logging: Often necessary for CLI debugging output
   # Our logging uses structured logging and sanitizes sensitive data

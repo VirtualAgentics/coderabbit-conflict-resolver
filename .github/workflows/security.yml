@@ -285,9 +285,10 @@ jobs:
           category: "/language:${{matrix.language}}"  # Categorize results by language
           upload: true  # Upload SARIF results to GitHub Security tab
 
-      # Verify SARIF Upload: Ensures analysis results were successfully uploaded
-      # and provides visibility into the CodeQL scanning process
-      - name: Verify SARIF upload
+      # Report CodeQL Analysis Results: Provides visibility into the CodeQL
+      # scanning process and confirms successful analysis completion
+      - name: Report CodeQL analysis results
+        if: steps.analyze.outcome == 'success'
         run: |
           echo "## CodeQL Analysis Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
