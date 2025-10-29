@@ -1,19 +1,43 @@
 """Unit tests for build scripts (generate_build_metadata.py and validate_wheel.py)."""
 
+import importlib.util
 import subprocess
-import sys
 import tomllib
+import types
 from pathlib import Path
 from unittest.mock import Mock, mock_open, patch
 
 import pytest
 
-# Import the scripts as modules
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
+# Load build scripts dynamically using importlib
+_SCRIPTS = Path(__file__).parent.parent.parent / "scripts"
 
-# Scripts from scripts/ directory are not in the package, so mypy can't find them
-import generate_build_metadata  # type: ignore[import-not-found]
-import validate_wheel  # type: ignore[import-not-found]
+
+def _load_module(name: str, path: Path) -> types.ModuleType:
+    """Load a module from a file path using importlib.
+
+    Args:
+        name: Name to assign to the loaded module.
+        path: Path to the Python file to load.
+
+    Returns:
+        The loaded module object.
+
+    Raises:
+        ImportError: If the module cannot be loaded.
+    """
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot load {name} from {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+generate_build_metadata = _load_module(
+    "generate_build_metadata", _SCRIPTS / "generate_build_metadata.py"
+)
+validate_wheel = _load_module("validate_wheel", _SCRIPTS / "validate_wheel.py")
 
 
 class TestGenerateBuildMetadata:
@@ -58,8 +82,8 @@ class TestGenerateBuildMetadata:
 
         assert version == expected_version
 
-    @patch("generate_build_metadata.extract_version_from_pyproject")
-    @patch("generate_build_metadata.extract_version_from_init")
+    @patch.object(generate_build_metadata, "extract_version_from_pyproject")
+    @patch.object(generate_build_metadata, "extract_version_from_init")
     def test_validate_versions_mismatch(
         self, mock_init_version: Mock, mock_pyproject_version: Mock
     ) -> None:
@@ -90,7 +114,7 @@ class TestGenerateBuildMetadata:
         with pytest.raises(subprocess.CalledProcessError):
             generate_build_metadata.run_git_command(["invalid-command"])
 
-    @patch("generate_build_metadata.run_git_command")
+    @patch.object(generate_build_metadata, "run_git_command")
     def test_get_git_metadata(self, mock_git_command: Mock) -> None:
         """Test collecting git metadata."""
 
@@ -148,7 +172,7 @@ class TestGenerateBuildMetadata:
         assert "github_run_id" in metadata
         assert metadata["github_run_id"] == "12345"
 
-    @patch("generate_build_metadata.get_git_metadata")
+    @patch.object(generate_build_metadata, "get_git_metadata")
     def test_generate_metadata(self, mock_git_metadata: Mock) -> None:
         """Test complete metadata generation."""
         # Mock git metadata to return deterministic values
@@ -184,7 +208,7 @@ class TestGenerateBuildMetadata:
         assert "build_timestamp" in metadata["build"]
         assert "python_version" in metadata["build"]
 
-    @patch("generate_build_metadata.get_git_metadata")
+    @patch.object(generate_build_metadata, "get_git_metadata")
     def test_metadata_json_schema(self, mock_git_metadata: Mock) -> None:
         """Test that generated metadata conforms to expected schema."""
         # Mock git metadata to return deterministic values
@@ -214,9 +238,9 @@ class TestGenerateBuildMetadata:
         assert "python_version" in metadata["build"]
         assert "python_implementation" in metadata["build"]
 
-    @patch("generate_build_metadata.get_project_root")
+    @patch.object(generate_build_metadata, "get_project_root")
     @patch("builtins.open", new_callable=mock_open)
-    @patch("generate_build_metadata.generate_metadata")
+    @patch.object(generate_build_metadata, "generate_metadata")
     def test_main_success(self, mock_generate: Mock, mock_file: Mock, mock_root: Mock) -> None:
         """Test successful main execution."""
         # Setup mocks
@@ -245,7 +269,7 @@ class TestGenerateBuildMetadata:
         assert result == 0
         mock_generate.assert_called_once()
 
-    @patch("generate_build_metadata.generate_metadata")
+    @patch.object(generate_build_metadata, "generate_metadata")
     def test_main_failure(self, mock_generate: Mock) -> None:
         """Test main execution with error."""
         mock_generate.side_effect = Exception("Test error")
@@ -309,7 +333,7 @@ class TestValidateWheel:
         with pytest.raises(ValueError, match="Multiple wheel files found"):
             validate_wheel.find_wheel_file()
 
-    @patch("validate_wheel.get_project_root")
+    @patch.object(validate_wheel, "get_project_root")
     def test_load_metadata_success(self, mock_root: Mock) -> None:
         """Test successful metadata loading."""
         # Setup mock path

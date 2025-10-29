@@ -260,3 +260,102 @@ class TestGitHubCommentExtractor:
 
         # Should return empty list on error
         assert files == []
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_review_comments_handles_http_error(self, mock_get: Mock) -> None:
+        """Test handling of HTTP errors in review comments fetch."""
+        from requests import HTTPError
+
+        extractor = GitHubCommentExtractor()
+
+        mock_response = Mock()
+        mock_response.raise_for_status.side_effect = HTTPError("500 Server Error")
+        mock_get.return_value = mock_response
+
+        comments = extractor._fetch_review_comments("owner", "repo", 123)
+
+        # Should return empty list on HTTP error
+        assert comments == []
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_review_comments_handles_json_error(self, mock_get: Mock) -> None:
+        """Test handling of JSON decode errors in review comments fetch."""
+        import json
+
+        extractor = GitHubCommentExtractor()
+
+        mock_response = Mock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.side_effect = json.JSONDecodeError("bad json", "", 0)
+        mock_get.return_value = mock_response
+
+        comments = extractor._fetch_review_comments("owner", "repo", 123)
+
+        # Should return empty list on JSON error
+        assert comments == []
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_issue_comments_handles_http_error(self, mock_get: Mock) -> None:
+        """Test handling of HTTP errors in issue comments fetch."""
+        from requests import HTTPError
+
+        extractor = GitHubCommentExtractor()
+
+        mock_response = Mock()
+        mock_response.raise_for_status.side_effect = HTTPError("503 Service Unavailable")
+        mock_get.return_value = mock_response
+
+        comments = extractor._fetch_issue_comments("owner", "repo", 123)
+
+        # Should return empty list on HTTP error
+        assert comments == []
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_issue_comments_handles_json_error(self, mock_get: Mock) -> None:
+        """Test handling of JSON decode errors in issue comments fetch."""
+        import json
+
+        extractor = GitHubCommentExtractor()
+
+        mock_response = Mock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.side_effect = json.JSONDecodeError("invalid json", "", 0)
+        mock_get.return_value = mock_response
+
+        comments = extractor._fetch_issue_comments("owner", "repo", 123)
+
+        # Should return empty list on JSON error
+        assert comments == []
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_pr_files_handles_http_error(self, mock_get: Mock) -> None:
+        """Test handling of HTTP errors in PR files fetch."""
+        from requests import HTTPError
+
+        extractor = GitHubCommentExtractor()
+
+        mock_response = Mock()
+        mock_response.raise_for_status.side_effect = HTTPError("404 Not Found")
+        mock_get.return_value = mock_response
+
+        files = extractor.fetch_pr_files("owner", "repo", 123)
+
+        # Should return empty list on HTTP error
+        assert files == []
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_pr_files_handles_json_error(self, mock_get: Mock) -> None:
+        """Test handling of JSON decode errors in PR files fetch."""
+        import json
+
+        extractor = GitHubCommentExtractor()
+
+        mock_response = Mock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.side_effect = json.JSONDecodeError("malformed json", "", 0)
+        mock_get.return_value = mock_response
+
+        files = extractor.fetch_pr_files("owner", "repo", 123)
+
+        # Should return empty list on JSON error
+        assert files == []

@@ -45,7 +45,7 @@ def _extract_json_boundaries(content: str, start_char: str, end_char: str) -> st
     return content[start_idx : end_idx + 1]
 
 
-def _parse_safety_json(stdout: str) -> dict[str, object] | None:
+def _parse_safety_json(stdout: str) -> JSONDict | None:
     """Parse JSON from safety command output using multiple strategies.
 
     Args:
@@ -91,24 +91,28 @@ def _extract_vulnerabilities(
     ignored_vulnerabilities: list[JSONDict] = []
 
     if isinstance(data, list):
-        vulnerabilities = data  # type: ignore[assignment]
+        vulnerabilities = [v for v in data if isinstance(v, dict)]
     elif isinstance(data, dict):
         # Check common keys for vulnerability data
         for key in ["vulnerabilities", "vulnerability", "issues", "findings"]:
-            if key in data and isinstance(data[key], list):
-                vulnerabilities = data[key]  # type: ignore[assignment]
-                break
+            if key in data:
+                value = data[key]
+                if isinstance(value, list):
+                    vulnerabilities = [v for v in value if isinstance(v, dict)]
+                    break
 
         # Also check for ignored_vulnerabilities
-        if "ignored_vulnerabilities" in data and isinstance(data["ignored_vulnerabilities"], list):
-            ignored_vulnerabilities = data["ignored_vulnerabilities"]
+        if "ignored_vulnerabilities" in data:
+            ignored_value = data["ignored_vulnerabilities"]
+            if isinstance(ignored_value, list):
+                ignored_vulnerabilities = [v for v in ignored_value if isinstance(v, dict)]
 
     return vulnerabilities, ignored_vulnerabilities
 
 
 def _parse_vulnerability_report(
     result: subprocess.CompletedProcess[str],
-) -> tuple[list[dict[str, object]], list[dict[str, object]], str | None]:
+) -> tuple[list[JSONDict], list[JSONDict], str | None]:
     """Parse vulnerability report from safety command output.
 
     Args:
@@ -137,9 +141,7 @@ def _parse_vulnerability_report(
         return [], [], "JSON parsing failed"
 
 
-def _validate_no_vulnerabilities(
-    vulnerabilities: list[dict[str, object]], ignored: list[dict[str, object]]
-) -> None:
+def _validate_no_vulnerabilities(vulnerabilities: list[JSONDict], ignored: list[JSONDict]) -> None:
     """Validate that no real vulnerabilities exist and log ignored ones.
 
     Args:
@@ -176,7 +178,7 @@ def _validate_no_vulnerabilities(
 
 
 def _format_vulnerability_details(
-    vulnerabilities: list[dict[str, object]], is_ignored: bool = False
+    vulnerabilities: list[JSONDict], is_ignored: bool = False
 ) -> list[str]:
     """Format vulnerability dictionaries into human-readable strings.
 
@@ -264,31 +266,18 @@ def _run_safety_scan(
     Returns:
         CompletedProcess object on success, None on timeout.
     """
-    # Try new "scan --output json --target <parent>" command
+    # Try new "scan --output json --target <parent>" and fall back once.
     try:
-        return subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
+        return subprocess.run(  # noqa: S603
             [safety_cmd, "scan", "--output", "json", "--target", str(requirements_file.parent)],
             capture_output=True,
             text=True,
             timeout=timeout,
             check=False,
         )
-    except (FileNotFoundError, OSError):
-        # Fallback to legacy "check --file <requirements_file> --json" command
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
         try:
-            return subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
-                [safety_cmd, "check", "--file", str(requirements_file), "--json"],
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
-            return None
-    except subprocess.TimeoutExpired:
-        # Try fallback on timeout
-        try:
-            return subprocess.run(  # noqa: S603 - using full executable path from shutil.which()
+            return subprocess.run(  # noqa: S603
                 [safety_cmd, "check", "--file", str(requirements_file), "--json"],
                 capture_output=True,
                 text=True,
