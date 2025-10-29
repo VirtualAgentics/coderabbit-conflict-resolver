@@ -39,62 +39,100 @@ jobs:
         run: bandit -r src/ -f json -o bandit-report.json
 
       - name: Run Safety vulnerability scan
+        if: ${{ secrets.SAFETY_API_KEY != '' }}
         uses: pyupio/safety-action@2591cf2f3e67ba68b923f4c92f0d36e281c65023 # v1.0.1
         with:
           api-key: ${{ secrets.SAFETY_API_KEY }}
 
+      - name: Skip Safety scan (no API key)
+        if: ${{ secrets.SAFETY_API_KEY == '' }}
+        run: echo "⚠️ Safety scan skipped - SAFETY_API_KEY secret not configured"
+
       - name: Run pip-audit check (JSON)
-        run: pip-audit --format json > pip-audit-report.json || true
+        run: |
+          pip-audit --format json > pip-audit-report.json || {
+            echo "pip-audit returned non-zero exit code"
+            exit 0
+          }
+        continue-on-error: false
 
       - name: Run pip-audit check (text)
-        run: pip-audit --desc > pip-audit-report.txt || true
+        run: |
+          pip-audit --desc > pip-audit-report.txt || {
+            echo "pip-audit text scan completed with findings"
+            exit 0
+          }
+        continue-on-error: false
 
       - name: Check for critical security issues
+        id: security-check
         run: |
           set -euo pipefail
           IFS=$'\n\t'
-          trap 'echo "Security check failed on line $LINENO" >&2; exit 1' ERR
+
+          ISSUES_FOUND=0
+
+          echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
           # Check Bandit for HIGH severity issues
           if [ -f bandit-report.json ]; then
             HIGH_ISSUES=$(jq '[.results[] | select(.issue_severity == "HIGH")] | length' bandit-report.json)
             if [ "$HIGH_ISSUES" -gt 0 ]; then
+              echo "### ❌ Bandit: Found $HIGH_ISSUES HIGH severity issues" >> $GITHUB_STEP_SUMMARY
               echo "❌ Found $HIGH_ISSUES HIGH severity security issues in Bandit scan"
               echo "High severity issues found:"
-              jq -r '.results[] | select(.issue_severity == "HIGH") | "- \(.issue_text) in \(.filename):\(.line_number)"' bandit-report.json
-              exit 1
+              jq -r '.results[] | select(.issue_severity == "HIGH") | "- \(.issue_text) in \(.filename):\(.line_number)"' bandit-report.json | tee -a $GITHUB_STEP_SUMMARY
+              ISSUES_FOUND=1
             else
+              echo "### ✅ Bandit: No HIGH severity issues" >> $GITHUB_STEP_SUMMARY
               echo "✅ No HIGH severity issues found in Bandit scan"
             fi
           fi
 
-          # Safety Action handles vulnerability detection automatically
-          # If we reach this point, the Safety Action step succeeded (no vulnerabilities found)
-          echo "✅ Safety scan completed - no vulnerabilities found"
+          # Check Safety Action results
+          if [ "${{ secrets.SAFETY_API_KEY }}" != "" ]; then
+            echo "### ✅ Safety: Scan completed" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Safety scan completed - no vulnerabilities found"
+          else
+            echo "### ⚠️ Safety: Skipped (no API key)" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Safety scan skipped - SAFETY_API_KEY not configured"
+          fi
 
-          # Check pip-audit for CRITICAL vulnerabilities
+          # Check pip-audit for vulnerabilities
           if [ -f pip-audit-report.json ]; then
-            # Parse JSON for vulnerabilities with aliases containing "CRITICAL" or high CVSS scores
-            CRITICAL_PIP_VULNS=$(jq '[.dependencies[].vulns[] | select(.aliases[] | contains("CRITICAL")) // select(.fix_versions == null)] | length' pip-audit-report.json 2>/dev/null || echo "0")
-            if [ "$CRITICAL_PIP_VULNS" -gt 0 ]; then
-              echo "❌ Found $CRITICAL_PIP_VULNS CRITICAL vulnerabilities in pip-audit scan"
-              echo "Critical vulnerabilities found:"
-              jq -r '.dependencies[].vulns[] | select(.aliases[] | contains("CRITICAL")) // select(.fix_versions == null) | "- \(.id): \(.description // "No description")"' pip-audit-report.json 2>/dev/null || cat pip-audit-report.txt
-              exit 1
+            TOTAL_VULNS=$(jq '[.dependencies[].vulns[]] | length' pip-audit-report.json 2>/dev/null || echo "0")
+            if [ "$TOTAL_VULNS" -gt 0 ]; then
+              echo "### ❌ pip-audit: Found $TOTAL_VULNS vulnerabilities" >> $GITHUB_STEP_SUMMARY
+              echo "❌ Found $TOTAL_VULNS vulnerabilities in pip-audit scan"
+              echo "Vulnerabilities found:" | tee -a $GITHUB_STEP_SUMMARY
+              jq -r '.dependencies[].vulns[] | "- \(.id): \(.description // "No description")"' pip-audit-report.json 2>/dev/null | head -20 | tee -a $GITHUB_STEP_SUMMARY
+              ISSUES_FOUND=1
             else
-              echo "✅ No CRITICAL vulnerabilities found in pip-audit scan"
+              echo "### ✅ pip-audit: No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+              echo "✅ No vulnerabilities found in pip-audit scan"
             fi
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$ISSUES_FOUND" -eq 1 ]; then
+            echo "### 🚨 Security Issues Detected" >> $GITHUB_STEP_SUMMARY
+            echo "Please review the security reports and address the findings." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "### ✅ All Security Checks Passed" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Upload security reports
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        if: always()
+        if: failure()
         with:
           name: security-reports
           path: |
             bandit-report.json
             pip-audit-report.json
             pip-audit-report.txt
+          retention-days: 30
 
   codeql:
     runs-on: ubuntu-latest
