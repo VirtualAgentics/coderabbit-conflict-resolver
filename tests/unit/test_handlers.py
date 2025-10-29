@@ -4,7 +4,6 @@ import os
 import stat
 import tempfile
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -325,12 +324,12 @@ class TestYamlHandler:
         handler = YamlHandler()
 
         # Test empty dictionary
-        empty_dict: dict[str, Any] = {}
+        empty_dict: dict[str, object] = {}
         keys = handler._extract_keys(empty_dict)
         assert keys == []
 
         # Test empty list
-        data_with_empty_list: dict[str, list[Any]] = {"key": []}
+        data_with_empty_list: dict[str, list[object]] = {"key": []}
         keys = handler._extract_keys(data_with_empty_list)
         assert "key" in keys
         assert "key[0]" not in keys  # No items in empty list
