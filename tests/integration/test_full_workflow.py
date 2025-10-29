@@ -7,6 +7,7 @@ import pytest
 from pr_conflict_resolver import ConflictResolver, PresetConfig
 
 
+@pytest.mark.integration
 class TestFullWorkflow:
     """Test the complete conflict resolution workflow."""
 

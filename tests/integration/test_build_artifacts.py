@@ -61,6 +61,26 @@ def build_artifacts(project_root: Path, dist_dir: Path) -> Generator[Path, None,
     # Cleanup is optional as dist/ is typically .gitignored
 
 
+@pytest.fixture(scope="module")
+def wheel_validation_output(
+    project_root: Path, build_artifacts: Path
+) -> subprocess.CompletedProcess[str]:
+    """Run wheel validation script and return output.
+
+    This fixture runs once per module to avoid re-running validation for each test.
+    """
+    script_path = project_root / "scripts" / "validate_wheel.py"
+
+    result = subprocess.run(
+        [sys.executable, str(script_path)],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+    )
+
+    return result
+
+
 @pytest.mark.integration
 class TestBuildArtifacts:
     """Integration tests for build artifacts."""
@@ -162,7 +182,11 @@ class TestMetadataContent:
 
         package = metadata["package"]
         assert package["name"] == "pr-conflict-resolver"
-        assert package["version"] == "0.1.0"
+
+        # Read expected version from pyproject.toml
+        with (build_artifacts.parent / "pyproject.toml").open("rb") as f:
+            expected_version = tomllib.load(f)["project"]["version"]
+        assert package["version"] == expected_version
 
     def test_metadata_git_section(self, build_artifacts: Path) -> None:
         """Test git section of metadata."""
@@ -249,33 +273,21 @@ class TestWheelValidation:
         assert script_path.stat().st_mode & 0o111  # Check execute bit
 
     def test_wheel_validation_runs_successfully(
-        self, project_root: Path, build_artifacts: Path
+        self, wheel_validation_output: subprocess.CompletedProcess[str]
     ) -> None:
         """Test that wheel validation script runs successfully."""
-        script_path = project_root / "scripts" / "validate_wheel.py"
-
-        result = subprocess.run(
-            [sys.executable, str(script_path)],
-            cwd=project_root,
-            capture_output=True,
-            text=True,
-        )
-
         # Script should exit with 0 for successful validation
-        assert result.returncode == 0, f"Validation failed:\n{result.stdout}\n{result.stderr}"
-
-    def test_wheel_validation_output(self, project_root: Path, build_artifacts: Path) -> None:
-        """Test that wheel validation produces expected output."""
-        script_path = project_root / "scripts" / "validate_wheel.py"
-
-        result = subprocess.run(
-            [sys.executable, str(script_path)],
-            cwd=project_root,
-            capture_output=True,
-            text=True,
+        assert wheel_validation_output.returncode == 0, (
+            f"Validation failed:\n"
+            f"{wheel_validation_output.stdout}\n"
+            f"{wheel_validation_output.stderr}"
         )
 
-        output = result.stdout
+    def test_wheel_validation_output(
+        self, wheel_validation_output: subprocess.CompletedProcess[str]
+    ) -> None:
+        """Test that wheel validation produces expected output."""
+        output = wheel_validation_output.stdout
 
         # Check for expected output markers
         assert "Validating Wheel Package" in output
@@ -287,19 +299,10 @@ class TestWheelValidation:
         assert "Validation Summary" in output
 
     def test_wheel_validation_checks_all_criteria(
-        self, project_root: Path, build_artifacts: Path
+        self, wheel_validation_output: subprocess.CompletedProcess[str]
     ) -> None:
         """Test that wheel validation checks all criteria."""
-        script_path = project_root / "scripts" / "validate_wheel.py"
-
-        result = subprocess.run(
-            [sys.executable, str(script_path)],
-            cwd=project_root,
-            capture_output=True,
-            text=True,
-        )
-
-        output = result.stdout
+        output = wheel_validation_output.stdout
 
         # All validations should pass
         assert "Wheel Found:" in output

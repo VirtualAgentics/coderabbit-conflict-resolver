@@ -215,3 +215,48 @@ class TestGitHubCommentExtractor:
         assert metadata["path"] == "test.py"
         assert metadata["line"] == 10
         assert metadata["start_line"] == 5
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_pr_comments_handles_request_error(self, mock_get: Mock) -> None:
+        """Test that fetch_pr_comments handles RequestException gracefully."""
+        import requests
+
+        extractor = GitHubCommentExtractor()
+
+        # Mock request to raise RequestException
+        mock_get.side_effect = requests.RequestException("Network error")
+
+        comments = extractor.fetch_pr_comments("owner", "repo", 123)
+
+        # Should return empty list on error
+        assert comments == []
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_pr_metadata_handles_request_error(self, mock_get: Mock) -> None:
+        """Test that fetch_pr_metadata handles RequestException gracefully."""
+        import requests
+
+        extractor = GitHubCommentExtractor()
+
+        # Mock request to raise RequestException
+        mock_get.side_effect = requests.RequestException("API error")
+
+        metadata = extractor.fetch_pr_metadata("owner", "repo", 123)
+
+        # Should return None on request error
+        assert metadata is None
+
+    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    def test_fetch_pr_files_handles_network_error(self, mock_get: Mock) -> None:
+        """Test that fetch_pr_files handles network errors gracefully."""
+        import requests
+
+        extractor = GitHubCommentExtractor()
+
+        # Mock request to raise RequestException
+        mock_get.side_effect = requests.RequestException("Connection timeout")
+
+        files = extractor.fetch_pr_files("owner", "repo", 123)
+
+        # Should return empty list on error
+        assert files == []

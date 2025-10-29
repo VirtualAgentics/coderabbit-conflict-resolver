@@ -17,6 +17,9 @@ import pytest
 
 from pr_conflict_resolver.utils.version_utils import validate_version_constraint
 
+# Type alias for JSON dictionaries
+JSONDict = dict[str, object]
+
 
 def _extract_json_boundaries(content: str, start_char: str, end_char: str) -> str:
     """Extract JSON content between start and end characters.
@@ -74,8 +77,8 @@ def _parse_safety_json(stdout: str) -> dict[str, object] | None:
 
 
 def _extract_vulnerabilities(
-    data: dict[str, object] | list[object],
-) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    data: JSONDict | list[object],
+) -> tuple[list[JSONDict], list[JSONDict]]:
     """Extract vulnerability and ignored_vulnerability lists from JSON.
 
     Args:
@@ -84,8 +87,8 @@ def _extract_vulnerabilities(
     Returns:
         Tuple of (vulnerabilities, ignored_vulnerabilities).
     """
-    vulnerabilities: list[dict[str, object]] = []
-    ignored_vulnerabilities: list[dict[str, object]] = []
+    vulnerabilities: list[JSONDict] = []
+    ignored_vulnerabilities: list[JSONDict] = []
 
     if isinstance(data, list):
         vulnerabilities = data  # type: ignore[assignment]

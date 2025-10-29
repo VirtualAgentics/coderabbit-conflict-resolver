@@ -2,6 +2,7 @@
 
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 from unittest.mock import Mock, mock_open, patch
 
@@ -10,6 +11,7 @@ import pytest
 # Import the scripts as modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 
+# Scripts from scripts/ directory are not in the package, so mypy can't find them
 import generate_build_metadata  # type: ignore[import-not-found]
 import validate_wheel  # type: ignore[import-not-found]
 
@@ -27,19 +29,34 @@ class TestGenerateBuildMetadata:
     def test_extract_version_from_pyproject(self) -> None:
         """Test version extraction from pyproject.toml."""
         version = generate_build_metadata.extract_version_from_pyproject()
-        assert version == "0.1.0"
+
+        # Read expected version from pyproject.toml
+        with (generate_build_metadata.get_project_root() / "pyproject.toml").open("rb") as f:
+            expected_version = tomllib.load(f)["project"]["version"]
+
+        assert version == expected_version
         assert isinstance(version, str)
 
     def test_extract_version_from_init(self) -> None:
         """Test version extraction from __init__.py."""
         version = generate_build_metadata.extract_version_from_init()
-        assert version == "0.1.0"
+
+        # Read expected version from pyproject.toml
+        with (generate_build_metadata.get_project_root() / "pyproject.toml").open("rb") as f:
+            expected_version = tomllib.load(f)["project"]["version"]
+
+        assert version == expected_version
         assert isinstance(version, str)
 
     def test_validate_versions_match(self) -> None:
         """Test that versions match across files."""
         version = generate_build_metadata.validate_versions_match()
-        assert version == "0.1.0"
+
+        # Read expected version from pyproject.toml
+        with (generate_build_metadata.get_project_root() / "pyproject.toml").open("rb") as f:
+            expected_version = tomllib.load(f)["project"]["version"]
+
+        assert version == expected_version
 
     @patch("generate_build_metadata.extract_version_from_pyproject")
     @patch("generate_build_metadata.extract_version_from_init")
@@ -53,20 +70,46 @@ class TestGenerateBuildMetadata:
         with pytest.raises(ValueError, match="Version mismatch"):
             generate_build_metadata.validate_versions_match()
 
-    def test_run_git_command(self) -> None:
+    @patch("subprocess.run")
+    def test_run_git_command(self, mock_run: Mock) -> None:
         """Test running git commands."""
+        # Setup mock to return deterministic output
+        mock_run.return_value = Mock(stdout="a" * 40 + "\n", returncode=0)
+
         # Test getting commit SHA
         result = generate_build_metadata.run_git_command(["rev-parse", "HEAD"])
         assert isinstance(result, str)
         assert len(result) == 40  # Full SHA is 40 characters
 
-    def test_run_git_command_failure(self) -> None:
+    @patch("subprocess.run")
+    def test_run_git_command_failure(self, mock_run: Mock) -> None:
         """Test that git command failures raise CalledProcessError."""
+        # Setup mock to raise CalledProcessError
+        mock_run.side_effect = subprocess.CalledProcessError(1, "git")
+
         with pytest.raises(subprocess.CalledProcessError):
             generate_build_metadata.run_git_command(["invalid-command"])
 
-    def test_get_git_metadata(self) -> None:
+    @patch("generate_build_metadata.run_git_command")
+    def test_get_git_metadata(self, mock_git_command: Mock) -> None:
         """Test collecting git metadata."""
+
+        # Mock git command outputs
+        def git_side_effect(args: list[str]) -> str:
+            if args == ["rev-parse", "HEAD"]:
+                return "a" * 40
+            elif args == ["rev-parse", "--short", "HEAD"]:
+                return "a" * 7
+            elif args == ["rev-parse", "--abbrev-ref", "HEAD"]:
+                return "main"
+            elif args == ["describe", "--exact-match", "--tags"]:
+                raise subprocess.CalledProcessError(1, "git")
+            elif args == ["config", "--get", "remote.origin.url"]:
+                return "https://github.com/test/repo.git"
+            return ""
+
+        mock_git_command.side_effect = git_side_effect
+
         metadata = generate_build_metadata.get_git_metadata()
 
         assert isinstance(metadata, dict)
@@ -75,11 +118,9 @@ class TestGenerateBuildMetadata:
         assert "branch" in metadata
 
         # Verify commit SHA format
-        if metadata.get("commit_sha"):
-            assert len(metadata["commit_sha"]) == 40
-
-        if metadata.get("commit_sha_short"):
-            assert len(metadata["commit_sha_short"]) == 7
+        assert len(metadata["commit_sha"]) == 40
+        assert len(metadata["commit_sha_short"]) == 7
+        assert metadata["branch"] == "main"
 
     def test_get_build_metadata(self) -> None:
         """Test collecting build metadata."""
@@ -107,8 +148,18 @@ class TestGenerateBuildMetadata:
         assert "github_run_id" in metadata
         assert metadata["github_run_id"] == "12345"
 
-    def test_generate_metadata(self) -> None:
+    @patch("generate_build_metadata.get_git_metadata")
+    def test_generate_metadata(self, mock_git_metadata: Mock) -> None:
         """Test complete metadata generation."""
+        # Mock git metadata to return deterministic values
+        mock_git_metadata.return_value = {
+            "commit_sha": "a" * 40,
+            "commit_sha_short": "a" * 7,
+            "branch": "main",
+            "tag": None,
+            "remote_url": "https://github.com/test/repo.git",
+        }
+
         metadata = generate_build_metadata.generate_metadata()
 
         # Verify structure
@@ -119,7 +170,11 @@ class TestGenerateBuildMetadata:
 
         # Verify package section
         assert metadata["package"]["name"] == "pr-conflict-resolver"
-        assert metadata["package"]["version"] == "0.1.0"
+
+        # Read expected version from pyproject.toml
+        with (generate_build_metadata.get_project_root() / "pyproject.toml").open("rb") as f:
+            expected_version = tomllib.load(f)["project"]["version"]
+        assert metadata["package"]["version"] == expected_version
 
         # Verify git section exists
         assert isinstance(metadata["git"], dict)
@@ -129,8 +184,18 @@ class TestGenerateBuildMetadata:
         assert "build_timestamp" in metadata["build"]
         assert "python_version" in metadata["build"]
 
-    def test_metadata_json_schema(self) -> None:
+    @patch("generate_build_metadata.get_git_metadata")
+    def test_metadata_json_schema(self, mock_git_metadata: Mock) -> None:
         """Test that generated metadata conforms to expected schema."""
+        # Mock git metadata to return deterministic values
+        mock_git_metadata.return_value = {
+            "commit_sha": "a" * 40,
+            "commit_sha_short": "a" * 7,
+            "branch": "main",
+            "tag": None,
+            "remote_url": "https://github.com/test/repo.git",
+        }
+
         metadata = generate_build_metadata.generate_metadata()
 
         # Required top-level keys

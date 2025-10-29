@@ -153,3 +153,16 @@ def test_cli_analyze_handles_error(mock_resolver: Mock) -> None:
 
     assert result.exit_code != 0
     assert "Error analyzing conflicts" in result.output
+
+
+@patch("pr_conflict_resolver.cli.main.ConflictResolver")
+def test_cli_apply_handles_error(mock_resolver: Mock) -> None:
+    """apply gracefully handles exceptions and aborts."""
+    mock_inst = mock_resolver.return_value
+    mock_inst.resolve_pr_conflicts.side_effect = Exception("Application failed")
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["apply", "--pr", "11", "--owner", "o", "--repo", "r"])
+
+    assert result.exit_code != 0
+    assert "Error applying suggestions" in result.output

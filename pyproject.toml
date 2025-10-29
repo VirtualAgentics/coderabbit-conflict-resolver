@@ -118,7 +118,6 @@ ignore = [
 ]
 "conftest.py" = [
     "S101",
-    "ANN",
     "D",
 ]
 "scripts/**/*.py" = [
