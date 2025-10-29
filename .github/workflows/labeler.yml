@@ -11,6 +11,7 @@ concurrency:
 jobs:
   label:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: write
@@ -28,6 +29,8 @@ jobs:
 
       - name: Generate labeler summary
         if: always()
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           END_TIME=$(date +%s)
           START_TIME=${{ steps.job-start.outputs.start_time }}
@@ -40,7 +43,7 @@ jobs:
           echo "**Workflow Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "**Job Duration:** ${DURATION_MIN}m ${DURATION_SEC}s" >> $GITHUB_STEP_SUMMARY
           echo "**PR Number:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
-          echo "**PR Title:** ${{ github.event.pull_request.title }}" >> $GITHUB_STEP_SUMMARY
+          echo "**PR Title:** ${PR_TITLE}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           echo "### Labeling Configuration" >> $GITHUB_STEP_SUMMARY
@@ -59,11 +62,13 @@ jobs:
 
       - name: Notify on failure
         if: failure()
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          echo "::error::Auto-labeler workflow failed for PR #${{ github.event.pull_request.number }}"
+          echo "::error::Auto-labeler workflow failed for PR #${PR_NUMBER}"
           echo "## ❌ Auto-Labeler Failed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The auto-labeling workflow failed for PR #${{ github.event.pull_request.number }}." >> $GITHUB_STEP_SUMMARY
+          echo "The auto-labeling workflow failed for PR #${PR_NUMBER}." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Possible causes:" >> $GITHUB_STEP_SUMMARY
           echo "- Invalid labeler configuration in \`.github/labeler.yml\`" >> $GITHUB_STEP_SUMMARY
