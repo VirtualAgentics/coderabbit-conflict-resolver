@@ -82,23 +82,19 @@ jobs:
       # Uses continue-on-error to prevent workflow failure when vulnerabilities are found
       # (results are analyzed in the security-check step)
       - name: Run Safety vulnerability scan
-        if: env.SAFETY_API_KEY != ''
+        if: secrets.SAFETY_API_KEY != ''
         id: safety-scan
         continue-on-error: true
         uses: pyupio/safety-action@2591cf2f3e67ba68b923f4c92f0d36e281c65023 # v1.0.1
         with:
           api-key: ${{ secrets.SAFETY_API_KEY }}
-        env:
-          SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
 
       # Warning step: Informs when Safety scan is skipped due to missing API key
       # This ensures visibility into which security tools actually ran
       - name: Warn if Safety API key is missing
-        if: env.SAFETY_API_KEY == ''
+        if: secrets.SAFETY_API_KEY == ''
         run: |
           echo "⚠️ Warning: SAFETY_API_KEY is not configured. Safety vulnerability scanning will be skipped." >> $GITHUB_STEP_SUMMARY
-        env:
-          SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
 
       # pip-audit: Audits Python packages for known vulnerabilities using OSV database
       # Generates both JSON (for parsing) and text (for human reading) reports
