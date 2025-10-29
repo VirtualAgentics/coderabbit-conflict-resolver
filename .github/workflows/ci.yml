@@ -15,6 +15,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Record job start time
+        id: job-start
+        run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Set up Python 3.12
@@ -55,6 +59,10 @@ jobs:
         python-version: ["3.12"]
 
     steps:
+      - name: Record job start time
+        id: job-start
+        run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -74,6 +82,14 @@ jobs:
       - name: Generate coverage summary
         if: always()
         run: |
+          # Calculate job duration
+          END_TIME=$(date +%s)
+          START_TIME=${{ steps.job-start.outputs.start_time }}
+          DURATION=$((END_TIME - START_TIME))
+          DURATION_MIN=$((DURATION / 60))
+          DURATION_SEC=$((DURATION % 60))
+
+
           echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -124,6 +140,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Record job start time
+        id: job-start
+        run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Set up Python 3.12
@@ -152,8 +172,17 @@ jobs:
       - name: Generate build summary
         if: always()
         run: |
+          # Calculate job duration
+          END_TIME=$(date +%s)
+          START_TIME=${{ steps.job-start.outputs.start_time }}
+          DURATION=$((END_TIME - START_TIME))
+          DURATION_MIN=$((DURATION / 60))
+          DURATION_SEC=$((DURATION % 60))
+
+
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Job Duration:** ${DURATION_MIN}m ${DURATION_SEC}s" >> $GITHUB_STEP_SUMMARY
 
           # Package information
           if [ -f dist/metadata.json ]; then
@@ -195,3 +224,10 @@ jobs:
           name: dist-${{ github.event.pull_request.number || github.sha }}
           path: dist/
           retention-days: 30
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Workflow failed - check logs for details"
+          echo "## ❌ Workflow Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This workflow has failed. Please check the logs above for error details." >> $GITHUB_STEP_SUMMARY

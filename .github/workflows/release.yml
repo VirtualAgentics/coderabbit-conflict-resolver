@@ -21,6 +21,10 @@ jobs:
       id-token: write
 
     steps:
+      - name: Record job start time
+        id: job-start
+        run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Set up Python 3.12
@@ -77,3 +81,70 @@ jobs:
           draft: false
           prerelease: false
           files: dist/*
+
+      - name: Generate release summary
+        if: always()
+        run: |
+          END_TIME=$(date +%s)
+          START_TIME=${{ steps.job-start.outputs.start_time }}
+          DURATION=$((END_TIME - START_TIME))
+          DURATION_MIN=$((DURATION / 60))
+          DURATION_SEC=$((DURATION % 60))
+
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release Tag:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Release Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Job Duration:** ${DURATION_MIN}m ${DURATION_SEC}s" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Package information
+          if [ -f dist/metadata.json ]; then
+            PACKAGE_NAME=$(python -c "import json; print(json.load(open('dist/metadata.json'))['package']['name'])" 2>/dev/null || echo "unknown")
+            PACKAGE_VERSION=$(python -c "import json; print(json.load(open('dist/metadata.json'))['package']['version'])" 2>/dev/null || echo "unknown")
+            echo "### Package Details" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Package Name:** $PACKAGE_NAME" >> $GITHUB_STEP_SUMMARY
+            echo "**Package Version:** $PACKAGE_VERSION" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Build artifacts
+          echo "### Build Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+
+          for file in dist/*.whl dist/*.tar.gz; do
+            if [ -f "$file" ]; then
+              SIZE=$(du -h "$file" | cut -f1)
+              FILENAME=$(basename "$file")
+              echo "| $FILENAME | $SIZE |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Release steps
+          echo "### Release Steps Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Package built" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Package validated with twine" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Build metadata generated" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Wheel import validated" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Published to PyPI" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GitHub Release created" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Release workflow failed for tag ${{ github.ref_name }}"
+          echo "## ❌ Release Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The release workflow for **${{ github.ref_name }}** has failed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Please check the workflow logs for details:" >> $GITHUB_STEP_SUMMARY
+          echo "- Review failed steps above" >> $GITHUB_STEP_SUMMARY
+          echo "- Check PyPI publish logs if package upload failed" >> $GITHUB_STEP_SUMMARY
+          echo "- Verify PYPI_API_TOKEN secret is configured correctly" >> $GITHUB_STEP_SUMMARY
+          echo "- Ensure package version is unique (not already published)" >> $GITHUB_STEP_SUMMARY

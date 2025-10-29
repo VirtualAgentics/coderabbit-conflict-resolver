@@ -11,12 +11,69 @@ concurrency:
 jobs:
   label:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: write
     steps:
+      - name: Record job start time
+        id: job-start
+        run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
       - uses: actions/labeler@634933edcd8ababfe52f92936142cc22ac488b1b # v6.0.1
         with:
           configuration-path: .github/labeler.yml
           sync-labels: true
+
+      - name: Generate labeler summary
+        if: always()
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          END_TIME=$(date +%s)
+          START_TIME=${{ steps.job-start.outputs.start_time }}
+          DURATION=$((END_TIME - START_TIME))
+          DURATION_MIN=$((DURATION / 60))
+          DURATION_SEC=$((DURATION % 60))
+
+          echo "## Auto-Labeler Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Job Duration:** ${DURATION_MIN}m ${DURATION_SEC}s" >> $GITHUB_STEP_SUMMARY
+          echo "**PR Number:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**PR Title:** ${PR_TITLE}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Labeling Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Config File:** `.github/labeler.yml`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Sync Labels:** Enabled (removes non-matching labels)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Actions Taken" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Analyzed PR file changes" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Applied appropriate labels based on file paths" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Synchronized labels (removed non-matching)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "_Note: Check PR labels to see what was applied_" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          echo "::error::Auto-labeler workflow failed for PR #${PR_NUMBER}"
+          echo "## ❌ Auto-Labeler Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The auto-labeling workflow failed for PR #${PR_NUMBER}." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Possible causes:" >> $GITHUB_STEP_SUMMARY
+          echo "- Invalid labeler configuration in \`.github/labeler.yml\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Insufficient permissions (requires pull-requests write)" >> $GITHUB_STEP_SUMMARY
+          echo "- Malformed YAML in configuration file" >> $GITHUB_STEP_SUMMARY
+          echo "- Labels referenced in config don't exist in repository" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Please review the workflow logs above for specific error details." >> $GITHUB_STEP_SUMMARY

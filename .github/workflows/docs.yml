@@ -34,6 +34,10 @@ jobs:
       contents: read  # Only needs to read repository code
 
     steps:
+      - name: Record job start time
+        id: job-start
+        run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Set up Python 3.12
@@ -70,8 +74,17 @@ jobs:
       - name: Generate build summary
         if: always()
         run: |
+          # Calculate job duration
+          END_TIME=$(date +%s)
+          START_TIME=${{ steps.job-start.outputs.start_time }}
+          DURATION=$((END_TIME - START_TIME))
+          DURATION_MIN=$((DURATION / 60))
+          DURATION_SEC=$((DURATION % 60))
+
+
           echo "## Documentation Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Job Duration:** ${DURATION_MIN}m ${DURATION_SEC}s" >> $GITHUB_STEP_SUMMARY
 
           # Build status
           if [ "${{ steps.build-docs.outputs.build_exit_code }}" -eq 0 ]; then
@@ -111,3 +124,10 @@ jobs:
           name: docs-preview-pr-${{ github.event.pull_request.number }}
           path: docs/_build/html
           retention-days: 7
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Workflow failed - check logs for details"
+          echo "## ❌ Workflow Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This workflow has failed. Please check the logs above for error details." >> $GITHUB_STEP_SUMMARY
