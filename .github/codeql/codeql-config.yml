@@ -1,0 +1,69 @@
+---
+# ============================================================================
+# CodeQL Configuration for Python Security Analysis
+# ============================================================================
+# This configuration optimizes CodeQL analysis for the Python codebase by:
+# 1. Using enhanced security query suites for comprehensive coverage
+# 2. Focusing analysis on production code (src/)
+# 3. Excluding test files and documentation from analysis
+# 4. Filtering out common false positives for Python projects
+#
+# Related: Issue #43 - Optimize CodeQL Analysis Performance
+# ============================================================================
+
+name: "Python Security Analysis Configuration"
+
+# Use default queries as a baseline, then add extended suites
+disable-default-queries: false
+
+# Query suites to run for comprehensive security coverage
+queries:
+  # Security-extended: Enhanced security queries including additional patterns
+  # Covers: CWE top 25, OWASP top 10, and GitHub-specific security patterns
+  - uses: security-extended
+
+  # Security-and-quality: Combines security with code quality checks
+  # Helps identify maintainability issues that could lead to security bugs
+  - uses: security-and-quality
+
+# Path filters: Focus analysis on production source code
+paths:
+  - src/pr_conflict_resolver/
+
+# Paths to ignore: Exclude non-production code from analysis
+# This improves performance and reduces false positives
+paths-ignore:
+  - tests/              # Test files (covered by test security scanning)
+  - docs/               # Documentation files
+  - scripts/            # Build and utility scripts
+  - "**/*.md"           # Markdown documentation
+  - "**/*.txt"          # Text files (requirements, etc.)
+  - "**/__pycache__/"   # Python cache directories
+  - "**/*.pyc"          # Compiled Python files
+  - ".github/"          # GitHub workflow files
+  - "*.egg-info/"       # Package metadata
+  - "dist/"             # Distribution files
+  - "build/"            # Build artifacts
+  - ".venv/"            # Virtual environment
+  - "htmlcov/"          # Coverage reports
+
+# Query filters: Fine-tune analysis results
+# These filters help reduce false positives specific to Python projects
+query-filters:
+  # Exclude queries with common false positives in Python CLI apps
+
+  # Clear-text logging: Often necessary for CLI debugging output
+  # Our logging uses structured logging and sanitizes sensitive data
+  - exclude:
+      id: py/clear-text-logging-sensitive-data
+      reason: "CLI application with controlled logging of non-sensitive data"
+
+  # Clear-text storage: Config files often need to be human-readable
+  # Secrets are handled via environment variables, not stored in code
+  - exclude:
+      id: py/clear-text-storage-sensitive-data
+      reason: "Configuration stored in files, secrets use environment variables"
+
+# Additional configuration for Python-specific analysis
+# CodeQL automatically detects Python version and handles dependencies
+# No build or dependency installation required for Python static analysis
