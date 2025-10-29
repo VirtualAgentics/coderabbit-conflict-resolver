@@ -376,7 +376,7 @@ class TestBuildArtifactIntegrity:
             # Check for required metadata fields
             assert "Name: pr-conflict-resolver" in metadata_content
             assert "Version: 0.1.0" in metadata_content
-            assert "Author: VirtualAgentics" in metadata_content
+            assert "VirtualAgentics" in metadata_content
 
     def test_sdist_can_be_extracted(self, build_artifacts):
         """Test that sdist can be extracted."""

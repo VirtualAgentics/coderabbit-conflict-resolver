@@ -330,7 +330,7 @@ class TestFileScanning:
 
     def test_scan_file_not_found(self) -> None:
         """Test scan_file raises FileNotFoundError for non-existent file."""
-        non_existent_path = Path("/tmp/this_file_does_not_exist_12345.txt")  # noqa: S108
+        non_existent_path = Path("/tmp/this_file_does_not_exist_12345.txt")
 
         with pytest.raises(FileNotFoundError, match="File not found"):
             SecretScanner.scan_file(non_existent_path)
