@@ -6,11 +6,6 @@
   // "schedule": ["before 9am on monday"],
   // "timezone": "UTC",
 
-  // Python package rules
-  "pip": {
-    "enabled": true
-  },
-
   // Enable Renovate dashboard
   "dependencyDashboard": true,
   "dependencyDashboardTitle": "Dependency Dashboard",
