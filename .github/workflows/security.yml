@@ -57,6 +57,11 @@ jobs:
       packages: read    # Read package registry (for dependency resolution)
       actions: read     # Read workflow artifacts
 
+    # Job-level environment variables for conditional step execution
+    # Secrets cannot be directly referenced in step if: conditionals per GitHub Actions docs
+    env:
+      SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
+
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
@@ -81,18 +86,19 @@ jobs:
       # Only runs when SAFETY_API_KEY secret is configured in the repository
       # Uses continue-on-error to prevent workflow failure when vulnerabilities are found
       # (results are analyzed in the security-check step)
+      # Note: Uses env.SAFETY_API_KEY (job-level) as secrets context is not allowed in if: conditionals
       - name: Run Safety vulnerability scan
-        if: secrets.SAFETY_API_KEY != ''
+        if: env.SAFETY_API_KEY != ''
         id: safety-scan
         continue-on-error: true
         uses: pyupio/safety-action@2591cf2f3e67ba68b923f4c92f0d36e281c65023 # v1.0.1
         with:
-          api-key: ${{ secrets.SAFETY_API_KEY }}
+          api-key: ${{ env.SAFETY_API_KEY }}
 
       # Warning step: Informs when Safety scan is skipped due to missing API key
       # This ensures visibility into which security tools actually ran
       - name: Warn if Safety API key is missing
-        if: secrets.SAFETY_API_KEY == ''
+        if: env.SAFETY_API_KEY == ''
         run: |
           echo "⚠️ Warning: SAFETY_API_KEY is not configured. Safety vulnerability scanning will be skipped." >> $GITHUB_STEP_SUMMARY
 
