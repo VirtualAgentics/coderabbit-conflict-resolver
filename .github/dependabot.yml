@@ -50,3 +50,36 @@ updates:
         patterns:
           - "sphinx*"
           - "sphinx-*"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day-of-week: "monday"
+      time: "02:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    assignees:
+      - "VirtualAgentics"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      actions-core:
+        patterns:
+          - "actions/checkout*"
+          - "actions/setup-python*"
+          - "actions/upload-artifact*"
+          - "actions/download-artifact*"
+      actions-pages:
+        patterns:
+          - "actions/configure-pages*"
+          - "actions/upload-pages-artifact*"
+          - "actions/deploy-pages*"
+      github-security:
+        patterns:
+          - "github/codeql-action*"

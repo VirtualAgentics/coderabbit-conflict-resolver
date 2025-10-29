@@ -50,6 +50,8 @@ dev = [
     "bandit[toml]==1.8.6",
     "safety==3.6.2",
     "pip-audit==2.9.0",
+    "build==1.2.2",
+    "twine==6.0.1",
     "sphinx==7.3.7",
     "sphinx-rtd-theme==1.3.0",
     "sphinx-autodoc-typehints==1.25.3",
@@ -110,13 +112,30 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
     "S101",
+    "S108",  # /tmp usage in tests is ok
     "ANN",
     "D",
+    "RUF043",  # regex patterns in pytest.raises are ok
 ]
 "conftest.py" = [
     "S101",
     "ANN",
     "D",
+]
+"scripts/**/*.py" = [
+    "T201",  # print statements are ok in scripts
+    "S603",  # subprocess call (necessary for git commands)
+    "ANN",   # type annotations not required in scripts
+    "D",     # docstrings not required in scripts
+    "E501",  # line length can be longer in scripts
+    "RUF005",  # list concatenation is ok in scripts
+]
+"tests/integration/**/*.py" = [
+    "S101",
+    "S603",  # subprocess calls in integration tests are intentional
+    "ANN",
+    "D",
+    "RUF043",  # regex patterns in pytest.raises are ok
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -139,6 +158,7 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 plugins = ["pydantic.mypy"]
+exclude = "^(tests/|scripts/)"
 
 [[tool.mypy.overrides]]
 module = [
@@ -149,6 +169,15 @@ module = [
     "pydantic.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+    "generate_build_metadata",
+    "validate_wheel",
+]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
 
 [tool.pytest.ini_options]
 testpaths = [
