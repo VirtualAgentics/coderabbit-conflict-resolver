@@ -3,8 +3,12 @@
 # ============================================================================
 # Purpose:
 #   Builds and deploys documentation to GitHub Pages when changes are pushed
-#   to the main branch. This workflow only runs on main branch to ensure
-#   production documentation stays synchronized with released code.
+#   to the main branch. Uses modern GitHub Pages deployment API for improved
+#   security, performance, and reliability.
+#
+# Architecture:
+#   - Build job: Builds Sphinx documentation and uploads as artifact
+#   - Deploy job: Deploys artifact to GitHub Pages using official API
 #
 # Prerequisites:
 #   - GitHub Pages must be enabled in repository settings
@@ -20,6 +24,11 @@
 #
 # Related Workflow:
 #   - .github/workflows/docs.yml: Builds docs for PR previews
+#
+# Security:
+#   - Uses artifact-based deployment (no gh-pages branch needed)
+#   - Least privilege permissions per job
+#   - Deployment protection rules supported via environment
 # ============================================================================
 name: Documentation Deployment
 
@@ -34,15 +43,15 @@ concurrency:
   cancel-in-progress: false  # Don't cancel deployments, queue them instead
 
 jobs:
-  docs-deploy:
+  # ============================================================================
+  # Build Job: Compile Sphinx documentation and upload as artifact
+  # ============================================================================
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    # Permissions required for GitHub Pages deployment
     permissions:
-      contents: read      # Read repository code
-      pages: write        # Deploy to GitHub Pages
-      id-token: write     # Verify deployment authenticity
+      contents: read  # Read repository code only
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -58,6 +67,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
           pip install -r docs/requirements.txt
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
 
       - name: Build documentation
         id: build-docs
@@ -88,30 +100,22 @@ jobs:
 
           exit $BUILD_EXIT_CODE
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
+      - name: Upload documentation artifact
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs/_build/html
-          publish_branch: gh-pages
-          force_orphan: true  # Keep deployment history clean
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'docs: deploy from ${{ github.sha }}'
+          path: docs/_build/html
 
-      - name: Generate deployment summary
+      - name: Generate build summary
         if: always()
         run: |
-          echo "## Documentation Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Documentation Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Deployment status
+          # Build status
           if [ "${{ steps.build-docs.outputs.build_exit_code }}" -eq 0 ]; then
-            echo "### ✅ Deployment Status: Success" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Documentation URL:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ Build Status: Success" >> $GITHUB_STEP_SUMMARY
           else
-            echo "### ❌ Deployment Status: Failed" >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Build Status: Failed" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -132,15 +136,60 @@ jobs:
             grep "WARNING:" sphinx-build.log | head -20 >> $GITHUB_STEP_SUMMARY || echo "No detailed warnings found" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            if [ "$(grep -c "WARNING:" sphinx-build.log)" -gt 20 ]; then
+            if [ "$(grep -c "WARNING:" sphinx-build.log 2>/dev/null || true)" -gt 20 ]; then
               echo "*Showing first 20 warnings. Check build logs for complete list.*" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
           fi
 
+          # Next step info
+          echo "### 📦 Artifact Upload" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Documentation artifact has been uploaded and is ready for deployment." >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Deploy Job: Deploy artifact to GitHub Pages
+  # ============================================================================
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      pages: write       # Deploy to GitHub Pages
+      id-token: write    # Verify deployment authenticity
+
+    # Deploy to the github-pages environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+      - name: Generate deployment summary
+        if: always()
+        run: |
+          echo "## Documentation Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Deployment status
+          if [ "${{ steps.deployment.outcome }}" == "success" ]; then
+            echo "### ✅ Deployment Status: Success" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Documentation URL:** ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Deployment Status: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
           # Deployment info
           echo "### 🚀 Deployment Information" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch:** \`gh-pages\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** github-pages" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployment method:** Artifact-based (modern GitHub Pages API)" >> $GITHUB_STEP_SUMMARY
           echo "- **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
