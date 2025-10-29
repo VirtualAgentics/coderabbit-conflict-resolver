@@ -1,9 +1,19 @@
 """Test configuration and fixtures."""
 
+import io
+import logging
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
+from click import Context
+
+from pr_conflict_resolver.cli.main import cli
+from pr_conflict_resolver.handlers.json_handler import JsonHandler
+from pr_conflict_resolver.handlers.toml_handler import TomlHandler
+from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
 
 
 @pytest.fixture
@@ -82,3 +92,99 @@ def sample_yaml_file(temp_workspace: Path) -> Path:
     yaml_file = temp_workspace / "config.yaml"
     yaml_file.write_text("name: test\nversion: 1.0.0\n")
     return yaml_file
+
+
+@pytest.fixture
+def json_handler(temp_workspace: Path) -> JsonHandler:
+    """
+    Create a JsonHandler instance configured with the temp workspace root.
+
+    Args:
+        temp_workspace: Temporary workspace directory.
+
+    Returns:
+        JsonHandler: Handler instance for testing.
+    """
+    return JsonHandler(workspace_root=temp_workspace)
+
+
+@pytest.fixture
+def yaml_handler(temp_workspace: Path) -> YamlHandler:
+    """
+    Create a YamlHandler instance configured with the temp workspace root.
+
+    Args:
+        temp_workspace: Temporary workspace directory.
+
+    Returns:
+        YamlHandler: Handler instance for testing.
+    """
+    return YamlHandler(workspace_root=temp_workspace)
+
+
+@pytest.fixture
+def toml_handler(temp_workspace: Path) -> TomlHandler:
+    """
+    Create a TomlHandler instance configured with the temp workspace root.
+
+    Args:
+        temp_workspace: Temporary workspace directory.
+
+    Returns:
+        TomlHandler: Handler instance for testing.
+    """
+    return TomlHandler(workspace_root=temp_workspace)
+
+
+@pytest.fixture
+def github_logger_capture() -> Generator[io.StringIO, None, None]:
+    """Capture log messages from the GitHub integration module.
+
+    Creates a StringIO buffer, attaches a StreamHandler to the GitHub logger,
+    yields the buffer for reading logs, and cleans up the handler after use.
+
+    Yields:
+        io.StringIO: Buffer containing log messages.
+
+    Example:
+        >>> def test_something(github_logger_capture):
+        ...     # Trigger some logging
+        ...     log_output = github_logger_capture.getvalue()
+        ...     assert "expected message" in log_output
+    """
+    # Create a string buffer to capture log messages
+    log_capture = io.StringIO()
+    handler = logging.StreamHandler(log_capture)
+    handler.setLevel(logging.ERROR)
+
+    # Get the logger for the GitHub module
+    github_logger = logging.getLogger("pr_conflict_resolver.integrations.github")
+    # Save original state
+    original_level = github_logger.level
+    original_propagate = github_logger.propagate
+
+    github_logger.addHandler(handler)
+    github_logger.setLevel(logging.ERROR)
+    github_logger.propagate = False
+
+    try:
+        yield log_capture
+    finally:
+        # Clean up logging handler and restore state
+        github_logger.removeHandler(handler)
+        github_logger.setLevel(original_level)
+        github_logger.propagate = original_propagate
+
+
+@pytest.fixture
+def mock_ctx() -> Context:
+    """Provide a Click Context for testing."""
+    return Context(cli)
+
+
+@pytest.fixture
+def mock_param() -> Mock:
+    """Provide a Mock parameter with default name='test'."""
+    param = Mock()
+    param.name = "test"
+    return param

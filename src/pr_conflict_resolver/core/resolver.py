@@ -5,39 +5,89 @@ conflict resolution for GitHub PR comments, specifically designed for CodeRabbit
 but extensible to other code review bots.
 """
 
+import contextlib
 import hashlib
+import logging
+import os
+import stat
+from os import PathLike
 from pathlib import Path
 from typing import Any
 
-from ..analysis.conflict_detector import ConflictDetector
-from ..handlers.json_handler import JsonHandler
-from ..handlers.toml_handler import TomlHandler
-from ..handlers.yaml_handler import YamlHandler
-from ..integrations.github import GitHubCommentExtractor
-from ..strategies.priority_strategy import PriorityStrategy
-from ..utils.text import normalize_content
-from .models import Change, Conflict, FileType, Resolution, ResolutionResult
+from pr_conflict_resolver.analysis.conflict_detector import ConflictDetector
+from pr_conflict_resolver.core.models import (
+    Change,
+    Conflict,
+    FileType,
+    Resolution,
+    ResolutionResult,
+)
+from pr_conflict_resolver.handlers.json_handler import JsonHandler
+from pr_conflict_resolver.handlers.toml_handler import TomlHandler
+from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
+from pr_conflict_resolver.integrations.github import GitHubCommentExtractor
+from pr_conflict_resolver.security.input_validator import InputValidator
+from pr_conflict_resolver.strategies.priority_strategy import PriorityStrategy
+from pr_conflict_resolver.utils.path_utils import resolve_file_path
+from pr_conflict_resolver.utils.text import normalize_content
+
+
+class WorkspaceError(ValueError):
+    """Exception raised when workspace_root is invalid or inaccessible.
+
+    Indicates that the provided workspace_root path does not exist, is not a
+    directory, or cannot be accessed. Also raised when the current working
+    directory cannot be determined.
+    """
 
 
 class ConflictResolver:
     """Main conflict resolver class."""
 
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        config: dict[str, Any] | None = None,
+        workspace_root: str | PathLike[str] | None = None,
+    ) -> None:
         """Create a ConflictResolver configured with optional settings.
 
-        Parameters:
-            config (dict[str, Any] | None): Optional configuration dictionary used to customize
-                resolver behavior (for example, strategy parameters or handler options). If not
-                provided, defaults to an empty dict.
+        Args:
+            config: Optional configuration dictionary used to customize resolver behavior
+                (for example, strategy parameters or handler options). If not provided,
+                defaults to an empty dict.
+            workspace_root: Root directory for validating absolute file paths. Accepts a
+                string path or any path-like object. If None, defaults to current working
+                directory.
         """
         self.config = config or {}
+        # Convert input to Path, handling None and PathLike objects
+        try:
+            workspace_path = Path(workspace_root) if workspace_root is not None else Path.cwd()
+        except OSError as e:
+            raise WorkspaceError(f"Failed to determine workspace root: {e}") from e
+
+        # Resolve to absolute path
+        resolved_path = workspace_path.resolve()
+
+        # Validate path exists and is a directory using single stat() call to avoid TOCTOU
+        try:
+            path_stat = os.stat(resolved_path)
+            if not stat.S_ISDIR(path_stat.st_mode):
+                raise WorkspaceError(f"workspace_root must be a directory: {resolved_path}")
+        except OSError as e:
+            raise WorkspaceError(
+                f"workspace_root does not exist or is inaccessible: {resolved_path}"
+            ) from e
+
+        self.workspace_root: Path = resolved_path
+        self.logger = logging.getLogger(__name__)
         self.conflict_detector = ConflictDetector()
         self.handlers = {
-            FileType.JSON: JsonHandler(),
-            FileType.YAML: YamlHandler(),
-            FileType.TOML: TomlHandler(),
+            FileType.JSON: JsonHandler(self.workspace_root),
+            FileType.YAML: YamlHandler(self.workspace_root),
+            FileType.TOML: TomlHandler(self.workspace_root),
         }
-        self.strategy = PriorityStrategy(config)
+        self.strategy = PriorityStrategy(self.config)
         self.github_extractor = GitHubCommentExtractor()
 
     def detect_file_type(self, path: str) -> FileType:
@@ -64,7 +114,7 @@ class ConflictResolver:
     def generate_fingerprint(self, path: str, start: int, end: int, content: str) -> str:
         """Create a short deterministic fingerprint that identifies a proposed change in a file.
 
-        Parameters:
+        Args:
             path (str): File path the change targets.
             start (int): Starting line number of the change.
             end (int): Ending line number of the change.
@@ -86,7 +136,7 @@ class ConflictResolver:
         suggestion the returned Change includes computed fingerprint, detected file type,
         and metadata about the comment.
 
-        Parameters:
+        Args:
             comments (list[dict[str, Any]]): List of GitHub comment dictionaries. Each
                 comment may contain keys used by this function:
                   - "path": repository file path the comment targets (required to extract).
@@ -146,7 +196,7 @@ class ConflictResolver:
     def _parse_comment_suggestions(self, body: str) -> list[dict[str, Any]]:
         """Extract suggestion blocks from a GitHub-style comment body.
 
-        Parameters:
+        Args:
             body (str): Raw comment text which may contain fenced suggestion code blocks.
 
         Returns:
@@ -251,9 +301,13 @@ class ConflictResolver:
                     change1, conflicting_changes
                 )
 
+                # Use union of all involved changes for conflict line_range
+                min_start = min(c.start_line for c in all_changes)
+                max_end = max(c.end_line for c in all_changes)
+
                 conflict = Conflict(
                     file_path=file_path,
-                    line_range=(change1.start_line, change1.end_line),
+                    line_range=(min_start, max_end),
                     changes=all_changes,
                     conflict_type=conflict_type,
                     severity=severity,
@@ -274,7 +328,7 @@ class ConflictResolver:
     def _classify_conflict_type(self, change1: Change, conflicting_changes: list[Change]) -> str:
         """Determine the category of conflict between changes.
 
-        Parameters:
+        Args:
             change1 (Change): The primary change to classify against other changes.
             conflicting_changes (list[Change]): Other changes that overlap with `change1`.
 
@@ -289,7 +343,11 @@ class ConflictResolver:
             change2 = conflicting_changes[0]
             if change1.start_line == change2.start_line and change1.end_line == change2.end_line:
                 return "exact"
-            elif change1.start_line <= change2.start_line and change1.end_line >= change2.end_line:
+            elif (
+                change1.start_line <= change2.start_line and change1.end_line >= change2.end_line
+            ) or (
+                change2.start_line <= change1.start_line and change2.end_line >= change1.end_line
+            ):
                 return "major"
             else:
                 return "partial"
@@ -299,13 +357,13 @@ class ConflictResolver:
     def _assess_conflict_severity(self, change1: Change, conflicting_changes: list[Change]) -> str:
         """Determine conflict severity based on the contents of the involved changes.
 
-        Parameters:
+        Args:
             change1 (Change): The primary change participating in the conflict.
             conflicting_changes (list[Change]): Other changes that overlap or conflict with the
                 primary change.
 
         Returns:
-            severity (str): `"high"` if any involved change contains security-related keywords,
+            str: `"high"` if any involved change contains security-related keywords,
             `"medium"` if none are security-related but any contain syntax/error-related keywords,
             `"low"` otherwise.
         """
@@ -328,35 +386,55 @@ class ConflictResolver:
     def _calculate_overlap_percentage(
         self, change1: Change, conflicting_changes: list[Change]
     ) -> float:
-        """Compute the overlap percentage between changes using inclusive line ranges.
+        """Compute percentage of lines covered by >=2 changes over the union of all lines.
+
+        Uses a line-sweep algorithm to accurately compute overlaps across multiple changes.
+
+        Args:
+            change1: The primary change to analyze.
+            conflicting_changes: List of changes that conflict with change1.
 
         Returns:
-            float: Percentage (0.0-100.0) of the combined span covered by the intersection;
-                `0.0` if `conflicting_changes` is empty or there is no overlap.
+            float: Percentage (0.0-100.0) of lines covered by 2+ changes relative to total
+                union; `float(0)` if fewer than 2 changes or no overlap.
         """
-        if not conflicting_changes:
-            return 0.0
+        changes = [change1, *conflicting_changes]
+        if len(changes) < 2:
+            return float(0)
 
-        change2 = conflicting_changes[0]  # Use first conflicting change
-        overlap_start = max(change1.start_line, change2.start_line)
-        overlap_end = min(change1.end_line, change2.end_line)
+        # Build sweep events for inclusive ranges
+        events: list[tuple[int, int]] = []
+        for c in changes:
+            start = min(c.start_line, c.end_line)
+            end = max(c.start_line, c.end_line)
+            events.append((start, +1))
+            events.append((end + 1, -1))
 
-        if overlap_start > overlap_end:
-            return 0.0
+        events.sort()
+        active = 0
+        prev: int | None = None
+        union_len = 0
+        overlap_len = 0
 
-        overlap_size = overlap_end - overlap_start + 1
-        total_size = (
-            max(change1.end_line, change2.end_line)
-            - min(change1.start_line, change2.start_line)
-            + 1
-        )
+        for pos, delta in events:
+            if prev is not None:
+                span = pos - prev
+                if active > 0:
+                    union_len += span
+                if active > 1:
+                    overlap_len += span
+            active += delta
+            prev = pos
 
-        return (overlap_size / total_size) * 100
+        if union_len <= 0:
+            return float(0)
+
+        return (overlap_len / union_len) * 100.0
 
     def resolve_conflicts(self, conflicts: list[Conflict]) -> list[Resolution]:
         """Resolve each provided conflict using the configured priority strategy.
 
-        Parameters:
+        Args:
             conflicts (list[Conflict]): Detected conflicts to resolve.
 
         Returns:
@@ -373,7 +451,7 @@ class ConflictResolver:
     def apply_resolutions(self, resolutions: list[Resolution]) -> ResolutionResult:
         """Apply a sequence of resolution decisions to the repository.
 
-        Parameters:
+        Args:
             resolutions (list[Resolution]): Resolutions to process; entries with `success == True`
                 will have their associated changes applied, while others are counted as conflicts.
 
@@ -417,12 +495,9 @@ class ConflictResolver:
         """Apply the provided Change to its target file.
 
         Returns:
-            `true` if the change was successfully applied, `false` otherwise.
+            True if the change was successfully applied, False otherwise.
         """
-        file_path = Path(change.path)
-        if not file_path.exists():
-            return False
-
+        # Existence and safety checks are delegated to handlers/plaintext path resolver.
         # Get appropriate handler
         handler = self.handlers.get(change.file_type)
         if not handler:
@@ -439,14 +514,49 @@ class ConflictResolver:
         `change.end_line` (1-based, inclusive) with `change.content`, clamps out-of-range indices
         to the file bounds, ensures the file ends with a newline, and writes the result back.
 
-        Parameters:
+        Args:
             change (Change): Change describing the target `path`, 1-based `start_line` and
                 `end_line`, and the replacement `content`.
 
         Returns:
-            True if the file was successfully updated, False otherwise.
+            bool: True if the file was successfully updated, False otherwise.
         """
-        file_path = Path(change.path)
+        # Validate and resolve path within workspace
+        if not InputValidator.validate_file_path(
+            change.path, base_dir=str(self.workspace_root), allow_absolute=True
+        ):
+            self.logger.error(f"Invalid or unsafe path rejected: {change.path}")
+            return False
+
+        try:
+            file_path = resolve_file_path(
+                change.path,
+                self.workspace_root,
+                allow_absolute=True,
+                validate_workspace=True,
+                enforce_containment=True,
+            )
+        except (ValueError, OSError) as e:
+            self.logger.error(f"Failed to resolve path {change.path}: {e}")
+            return False
+
+        # Check for symlinks in the target path and all parent components (consistent with handlers)
+        for component in (file_path, *file_path.parents):
+            try:
+                if component.is_symlink():
+                    self.logger.error(
+                        f"Symlink detected in path hierarchy, rejecting for security: {component}"
+                    )
+                    return False
+            except OSError:
+                self.logger.error(
+                    f"Error probing filesystem component (possible symlink), rejecting: {component}"
+                )
+                return False
+
+        import tempfile
+
+        temp_path: Path | None = None
         try:
             lines = file_path.read_text(encoding="utf-8").splitlines()
             replacement = change.content.split("\n")
@@ -460,17 +570,60 @@ class ConflictResolver:
                 end_idx = len(lines)
 
             new_lines = lines[:start_idx] + replacement + lines[end_idx:]
-            file_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+            new_text = "\n".join(new_lines) + "\n"
+
+            # Atomic write with permission preservation
+            original_mode = None
+            if file_path.exists():
+                original_mode = os.stat(file_path).st_mode
+
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=file_path.parent,
+                prefix=f".{file_path.name}.tmp",
+                delete=False,
+            ) as tmp:
+                temp_path = Path(tmp.name)
+                tmp.write(new_text)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+
+            if original_mode is not None:
+                os.chmod(temp_path, stat.S_IMODE(original_mode))
+
+            os.replace(temp_path, file_path)
+            temp_path = None
+
+            # Best-effort parent dir fsync
+            try:
+                dir_fd = os.open(file_path.parent, os.O_RDONLY)
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
+            except OSError:
+                self.logger.debug("Directory fsync failed for %s", file_path.parent, exc_info=True)
+
             return True
-        except Exception:
+        except (OSError, UnicodeDecodeError, UnicodeEncodeError) as e:
+            self.logger.error(
+                f"Failed to apply plaintext change to {file_path} "
+                f"(lines {change.start_line}-{change.end_line}): {e}"
+            )
             return False
+        finally:
+            # Clean up temp file if it still exists
+            if temp_path and temp_path.exists():
+                with contextlib.suppress(OSError):
+                    temp_path.unlink()
 
     def _fetch_comments_with_error_context(
         self, owner: str, repo: str, pr_number: int
     ) -> list[dict[str, Any]]:
         """Fetch PR comments with proper error context.
 
-        Parameters:
+        Args:
             owner (str): Repository owner.
             repo (str): Repository name.
             pr_number (int): Pull request number.
@@ -513,14 +666,19 @@ class ConflictResolver:
 
         # Apply resolutions
         result = self.apply_resolutions(resolutions)
-        result.conflicts = conflicts
-
-        return result
+        # Recreate result with conflicts set, as dataclasses are frozen
+        return ResolutionResult(
+            applied_count=result.applied_count,
+            conflict_count=result.conflict_count,
+            success_rate=result.success_rate,
+            resolutions=result.resolutions,
+            conflicts=conflicts,
+        )
 
     def analyze_conflicts(self, owner: str, repo: str, pr_number: int) -> list[Conflict]:
         """Analyze conflicts in a pull request without applying any changes.
 
-        Parameters:
+        Args:
             owner (str): Repository owner.
             repo (str): Repository name.
             pr_number (int): Pull request number.

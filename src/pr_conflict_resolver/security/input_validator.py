@@ -3,12 +3,13 @@
 import json
 import logging
 import re
+import tomllib
+import unicodedata
 from collections.abc import Set
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlparse
 
-import tomli
 import tomli_w
 import yaml
 
@@ -32,6 +33,8 @@ class InputValidator:
 
     # Safe path pattern - alphanumeric, dots, underscores, hyphens, forward slashes
     SAFE_PATH_PATTERN = re.compile(r"^[a-zA-Z0-9_./-]+$")
+    # Safe part pattern (single segment) - excludes path separators
+    SAFE_PART_PATTERN = re.compile(r"^[a-zA-Z0-9_.-]+$")
 
     # Maximum file size: 10MB
     MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -47,29 +50,95 @@ class InputValidator:
         ".toml",
     }
 
+    # GitHub token prefixes for all supported token types
+    GITHUB_TOKEN_PREFIXES: ClassVar[tuple[str, ...]] = (
+        "github_pat_",  # Fine-grained Personal Access Token (current best practice)
+        "ghp_",  # Classic Personal Access Token
+        "gho_",  # OAuth Token
+        "ghu_",  # User Token
+        "ghs_",  # Server Token
+        "ghr_",  # Refresh Token
+    )
+
+    # GitHub token minimum length requirements (post-prefix body length)
+    GITHUB_PAT_BODY_MIN_LENGTH = 47  # Fine-grained Personal Access Token minimum body length
+    GITHUB_CLASSIC_BODY_MIN_LENGTH = 40  # Classic token minimum body length
+
+    # GitHub token prefix lengths (computed dynamically from GITHUB_TOKEN_PREFIXES)
+    GITHUB_PAT_PREFIX_LENGTH = len(GITHUB_TOKEN_PREFIXES[0])  # Computed dynamically
+    GITHUB_CLASSIC_PREFIX_LENGTH = len(GITHUB_TOKEN_PREFIXES[1])  # Computed dynamically
+
     @staticmethod
-    def validate_file_path(path: str, base_dir: str | None = None) -> bool:
-        """Validate file path is safe (no directory traversal).
+    def validate_file_path(
+        path: str, base_dir: str | None = None, allow_absolute: bool = False
+    ) -> bool:
+        r"""Validate file path is safe (no directory traversal).
+
+        This method implements comprehensive path validation with three explicit cases
+        for handling absolute paths, ensuring security while providing flexibility for
+        legitimate use cases.
+
+        Security Features:
+            - Directory traversal protection (../, ..\\, etc.)
+            - Absolute path containment checking
+            - Unsafe character detection (;, |, &, `, $, etc.)
+            - Null byte detection
+            - Unicode normalization (NFC) applied before validation to prevent homograph attacks
 
         Args:
             path: File path to validate.
-            base_dir: Optional base directory to restrict access to.
+            base_dir: Optional base directory to restrict access to. When provided with
+                allow_absolute=True, absolute paths must be contained within this directory.
+                Required when allow_absolute=True to ensure secure containment.
+            allow_absolute: Whether to allow absolute paths (default: False). When True,
+                base_dir must also be provided for security containment, otherwise the
+                path will be rejected.
 
         Returns:
             bool: True if the path is safe, False otherwise.
 
+        Three-Case Logic for Absolute Paths:
+            1. allow_absolute=True AND base_dir provided: Allow for containment check
+            2. allow_absolute=False: Reject unconditionally (default behavior)
+            3. allow_absolute=True AND no base_dir: Reject for security
+               (prevents unrestricted access)
+
         Example:
+            >>> # Case 1: Absolute path with both allow_absolute=True AND base_dir (allowed)
+            >>> InputValidator.validate_file_path("/tmp/file.py",
+            ...     base_dir="/tmp", allow_absolute=True)
+            True
+            >>> # Case 2: Absolute path with default settings (rejected)
+            >>> InputValidator.validate_file_path("/tmp/file.py")
+            False
+            >>> # Case 3: Absolute path with allow_absolute=True but NO base_dir (rejected)
+            >>> # This is rejected for security - base_dir is required with allow_absolute=True
+            >>> InputValidator.validate_file_path("/tmp/file.py", allow_absolute=True)
+            False
+            >>> # Relative paths work normally without base_dir
             >>> InputValidator.validate_file_path("src/file.py")
             True
+            >>> # Path traversal attempts always rejected
             >>> InputValidator.validate_file_path("../../etc/passwd")
             False
+
+        Warning:
+            This method is critical for preventing directory traversal attacks.
+            Always validate file paths before using them in file operations.
+
+        See Also:
+            validate_github_url: URL validation for GitHub API calls
+            validate_github_token: Token format validation
         """
         if not path or not isinstance(path, str):
             logger.warning("File path validation failed: path is None or not a string")
             return False
 
+        # Normalize path to NFC to prevent Unicode homograph attacks
+        path = unicodedata.normalize("NFC", path)
+
         try:
-            # Create Path object from input
+            # Create Path object from normalized input
             input_path = Path(path)
 
             # Check for directory traversal attempts by examining path parts
@@ -77,14 +146,32 @@ class InputValidator:
                 logger.warning("Directory traversal attempt detected: %s", path)
                 return False
 
-            # Check for absolute paths (disallowed unless base_dir is specified)
-            if input_path.is_absolute() and not base_dir:
-                logger.warning("Absolute path disallowed: %s", path)
-                return False
+            # Check for absolute paths - handle three explicit cases
+            if input_path.is_absolute():
+                # Case 1: allow_absolute=True AND base_dir set -> Allow for containment check
+                if allow_absolute and base_dir:
+                    pass  # Allow for later containment check
+                # Case 2: allow_absolute=False/not set -> Reject unconditionally
+                elif not allow_absolute:
+                    logger.warning("Absolute path disallowed when allow_absolute=False: %s", path)
+                    return False
+                # Case 3: allow_absolute=True AND no base_dir -> Reject for security
+                else:
+                    logger.warning(
+                        "Absolute path requires base_dir when allow_absolute=True: %s", path
+                    )
+                    return False
 
-            # Check for safe characters in each path segment
+            # Check for safe characters in non-anchor segments only
+            anchors = {input_path.drive, input_path.root, input_path.anchor}
+            anchors.discard("")  # remove empties
             for part in input_path.parts:
-                if part and not InputValidator.SAFE_PATH_PATTERN.match(part):
+                if part in anchors:
+                    continue  # Skip drive/root/anchor (e.g., 'C:' or '/' on POSIX/Windows)
+                # Normalize each segment to NFC before validation
+                normalized_part = unicodedata.normalize("NFC", part)
+                # Validate each part against segment-safe pattern (no '/')
+                if normalized_part and not InputValidator.SAFE_PART_PATTERN.match(normalized_part):
                     logger.warning("Unsafe path segment detected in: %s", path)
                     return False
 
@@ -311,12 +398,12 @@ class InputValidator:
 
         try:
             # Parse TOML to validate structure
-            parsed = tomli.loads(content)
+            parsed = tomllib.loads(content)
 
             # Re-serialize to ensure clean format
             content = tomli_w.dumps(parsed)
 
-        except tomli.TOMLDecodeError as e:
+        except tomllib.TOMLDecodeError as e:
             logger.error("Invalid TOML structure detected: %s", e)
             warnings.append(f"Invalid TOML structure: {e}")
 
@@ -421,3 +508,89 @@ class InputValidator:
         except (ValueError, AttributeError) as e:
             logger.error("GitHub URL validation error for %s: %s", url, e)
             return False
+
+    @staticmethod
+    def validate_github_token(token: str | None) -> bool:
+        """Validate GitHub token format.
+
+        Validates that a GitHub token has the correct format. GitHub tokens
+        typically start with specific prefixes:
+        - github_pat_ (Fine-grained Personal Access Token - current best practice)
+        - ghp_ (Classic Personal Access Token)
+        - gho_ (OAuth Token)
+        - ghu_ (User Token)
+        - ghs_ (Server Token)
+        - ghr_ (Refresh Token)
+
+        Args:
+            token: Token string to validate.
+
+        Returns:
+            bool: True if token has valid GitHub format, False otherwise.
+
+        Example:
+            >>> # Classic token example (ghp_ + base62 body, realistic length)
+            >>> InputValidator.validate_github_token(
+            ...     "ghp_" + "A1b2C3d4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0U1V2W3"
+            ... )
+            True
+            >>> # Fine-grained token example (github_pat_ + longer base62 body)
+            >>> token = "github_pat_" + "Z9Y8X7W6V5U4T3S2R1Q0P9O8N7M6L5K4J3I2H1G0F9E8D7C6B"
+            >>> InputValidator.validate_github_token(token)
+            True
+            >>> InputValidator.validate_github_token("invalid_token")
+            False
+        """
+        if not token or not isinstance(token, str):
+            logger.warning("GitHub token validation failed: token is None or not a string")
+            return False
+
+        # Normalize whitespace
+        token = token.strip()
+
+        # Build regex pattern from class variable prefixes
+        # GitHub token pattern: valid prefix + base62 characters only (A-Za-z0-9)
+        # Prefixes: github_pat_ (fine-grained PAT ~47 chars), ghp_/gho_/ghu_/ghs_/ghr_ (~40 chars)
+        prefix_pattern = "|".join(
+            re.escape(prefix) for prefix in InputValidator.GITHUB_TOKEN_PREFIXES
+        )
+        pattern = rf"^(?:{prefix_pattern})[A-Za-z0-9]+$"
+        if not re.match(pattern, token):
+            logger.warning(
+                "GitHub token validation failed: invalid prefix or characters (expected one of %s)",
+                InputValidator.GITHUB_TOKEN_PREFIXES,
+            )
+            return False
+
+        # Length validation: enforce per-prefix expected lengths
+        # Fine-grained PAT: prefix (11 chars) + ~47 base62 = ~58 total
+        # Classic tokens (ghp_/gho_/ghu_/ghs_/ghr_): prefix (4 chars) + ~40 base62 = ~44 total
+        if token.startswith("github_pat_"):
+            # Compute expected length dynamically
+            expected_length = (
+                InputValidator.GITHUB_PAT_PREFIX_LENGTH + InputValidator.GITHUB_PAT_BODY_MIN_LENGTH
+            )
+            if len(token) < expected_length:
+                logger.warning(
+                    "GitHub token validation failed: github_pat_ token too short "
+                    "(expected %d chars, got %d)",
+                    expected_length,
+                    len(token),
+                )
+                return False
+        else:
+            # Compute expected length dynamically for classic tokens
+            expected_length = (
+                InputValidator.GITHUB_CLASSIC_PREFIX_LENGTH
+                + InputValidator.GITHUB_CLASSIC_BODY_MIN_LENGTH
+            )
+            if len(token) < expected_length:
+                logger.warning(
+                    "GitHub token validation failed: classic token too short "
+                    "(expected %d chars, got %d)",
+                    expected_length,
+                    len(token),
+                )
+                return False
+
+        return True

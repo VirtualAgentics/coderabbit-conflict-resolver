@@ -4,12 +4,23 @@ This module provides the PriorityStrategy class that resolves conflicts
 based on priority levels and user preferences.
 """
 
-from typing import Any
+from typing import Any, TypedDict, cast
 
-from ..core.models import Change, Conflict, Resolution
+from pr_conflict_resolver.core.models import Change, Conflict, Resolution
+from pr_conflict_resolver.strategies.base import ResolutionStrategy
 
 
-class PriorityStrategy:
+class PriorityRules(TypedDict, total=False):
+    """Type definition for priority rules configuration."""
+
+    user_selections: int
+    security_fixes: int
+    syntax_errors: int
+    regular_suggestions: int
+    formatting: int
+
+
+class PriorityStrategy(ResolutionStrategy):
     """Priority-based conflict resolution strategy."""
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
@@ -23,26 +34,66 @@ class PriorityStrategy:
         - regular_suggestions: 50
         - formatting: 10
 
-        Parameters:
+        Args:
             config (dict[str, Any] | None): Optional configuration dictionary that may include a
                 "priority_rules" key to override the defaults.
         """
         self.config = config or {}
-        self.priority_rules = self.config.get(
-            "priority_rules",
+        raw_rules = self.config.get("priority_rules")
+        self.priority_rules: PriorityRules = self._coerce_priority_rules(raw_rules)
+
+    def _coerce_priority_rules(self, raw: object) -> PriorityRules:
+        """Normalize and type-safe priority_rules from config.
+
+        Coerces input to a PriorityRules TypedDict, filtering to allowed keys and
+        ensuring all values are integers. Returns defaults if input is invalid.
+
+        Args:
+            raw (object): Raw priority rules from configuration
+                (may be dict, None, or invalid type).
+
+        Returns:
+            PriorityRules: Validated and type-safe priority rules dictionary.
+        """
+        defaults: PriorityRules = {
+            "user_selections": 100,
+            "security_fixes": 90,
+            "syntax_errors": 80,
+            "regular_suggestions": 50,
+            "formatting": 10,
+        }
+        if not isinstance(raw, dict):
+            return defaults
+
+        # Explicitly assign each key to satisfy MyPy strict mode
+        def coerce_int(val: object, default: int) -> int:
+            """Coerce value to int, using default if conversion fails."""
+            if val is None:
+                return default
+            if isinstance(val, int):
+                return val
+            if isinstance(val, (str, float)):
+                try:
+                    return int(val)
+                except ValueError:
+                    return default
+            return default
+
+        return cast(
+            PriorityRules,
             {
-                "user_selections": 100,
-                "security_fixes": 90,
-                "syntax_errors": 80,
-                "regular_suggestions": 50,
-                "formatting": 10,
+                "user_selections": coerce_int(raw.get("user_selections"), 100),
+                "security_fixes": coerce_int(raw.get("security_fixes"), 90),
+                "syntax_errors": coerce_int(raw.get("syntax_errors"), 80),
+                "regular_suggestions": coerce_int(raw.get("regular_suggestions"), 50),
+                "formatting": coerce_int(raw.get("formatting"), 10),
             },
         )
 
     def resolve(self, conflict: Conflict) -> Resolution:
         """Selects the highest-priority change from a conflict.
 
-        Parameters:
+        Args:
             conflict (Conflict): The conflict containing candidate changes to resolve.
 
         Returns:
@@ -60,7 +111,7 @@ class PriorityStrategy:
             )
 
         # Calculate priorities for all changes
-        prioritized_changes = []
+        prioritized_changes: list[tuple[int, Change]] = []
         for change in conflict.changes:
             priority = self._calculate_priority(change)
             prioritized_changes.append((priority, change))
@@ -70,14 +121,12 @@ class PriorityStrategy:
 
         # Select highest priority change
         highest_priority = prioritized_changes[0][0]
-        selected_changes = [
-            change for priority, change in prioritized_changes if priority == highest_priority
-        ]
-
-        # If multiple changes have same priority, use first one
-        applied_change = selected_changes[0]
+        tied = [c for p, c in prioritized_changes if p == highest_priority]
+        # Deterministic tie-break: earliest start_line, then alphabetically by path
+        # This ensures consistent, reproducible selection across runs
+        applied_change = sorted(tied, key=lambda c: (c.start_line, c.path))[0]
         skipped_changes = [
-            change for priority, change in prioritized_changes if change != applied_change
+            change for priority, change in prioritized_changes if change is not applied_change
         ]
 
         return Resolution(
@@ -91,7 +140,7 @@ class PriorityStrategy:
     def _calculate_priority(self, change: Change) -> int:
         """Compute the numeric priority for a Change based on configured rules.
 
-        Parameters:
+        Args:
             change (Change): The change to evaluate. Uses change.metadata["option_label"] (if
                 present) to prefer user selections and change.metadata["author"] to apply
                 author-based adjustments.
@@ -117,7 +166,8 @@ class PriorityStrategy:
             base_priority = self.priority_rules.get("formatting", 10)
 
         # Apply author-based adjustments AFTER priority determination
-        author = change.metadata.get("author", "").lower()
+        author_value = change.metadata.get("author", "")
+        author = author_value.lower() if isinstance(author_value, str) else ""
         if "coderabbit" in author:
             base_priority += 10  # Slight boost for CodeRabbit
         elif "bot" in author:
@@ -128,7 +178,7 @@ class PriorityStrategy:
     def _is_security_related(self, change: Change) -> bool:
         """Determine whether a Change's content indicates a security-related modification.
 
-        Parameters:
+        Args:
             change (Change): Change object whose content will be inspected for security-related
                 keywords.
 
@@ -142,12 +192,16 @@ class PriorityStrategy:
             "vulnerability",
             "auth",
             "token",
-            "key",
+            "api key",
+            "access key",
+            "secret key",
+            "private key",
             "password",
             "secret",
             "credential",
             "permission",
-            "access",
+            "access token",
+            "access control",
             "login",
         ]
         return any(keyword in content for keyword in security_keywords)
@@ -155,8 +209,11 @@ class PriorityStrategy:
     def _is_syntax_error_fix(self, change: Change) -> bool:
         """Determine whether a change addresses a syntax-related error.
 
+        Args:
+            change (Change): The change to evaluate.
+
         Returns:
-            True if the change's content contains syntax-related keywords, False otherwise.
+            bool: True if the change's content contains syntax-related keywords, False otherwise.
         """
         content = change.content.lower()
         syntax_keywords = [
@@ -181,8 +238,11 @@ class PriorityStrategy:
         Scans the change's content for common formatting tool names and other formatting-related
             keywords.
 
+        Args:
+            change (Change): The change to evaluate.
+
         Returns:
-            `true` if the change appears to be formatting-related, `false` otherwise.
+            bool: True if the change appears to be formatting-related, False otherwise.
         """
         content = change.content.lower()
         formatting_keywords = [
@@ -225,16 +285,26 @@ class PriorityStrategy:
             dict[str, int]: A copy of the priority rules where keys are rule names and values
                 are their integer priorities.
         """
-        return dict(self.priority_rules)
+        # TypedDict with total=False requires casting for type-safe conversion
+        return {k: cast(int, v) for k, v in self.priority_rules.items()}
 
     def update_priority_rules(self, new_rules: dict[str, int]) -> None:
         """Update the strategy's priority rules with the provided mapping.
 
-        Parameters:
+        Args:
             new_rules (dict[str, int]): Mapping of priority rule names to integer priority
                 values. Keys present in this mapping override the existing rules; other rules
                 remain unchanged. The method also updates the strategy's internal configuration
                 to reflect the new rules.
         """
-        self.priority_rules.update(new_rules)
+        # Filter to only allowed PriorityRules keys
+        allowed_keys = {
+            "user_selections",
+            "security_fixes",
+            "syntax_errors",
+            "regular_suggestions",
+            "formatting",
+        }
+        filtered_rules = {k: v for k, v in new_rules.items() if k in allowed_keys}
+        self.priority_rules = cast(PriorityRules, {**self.priority_rules, **filtered_rules})
         self.config["priority_rules"] = self.priority_rules
