@@ -101,5 +101,5 @@
   "requiredStatusChecks": null,  // Will be set via GitHub branch protection
 
   // Rebase configuration
-  "rebaseWhen": "conflicted"
+  "rebaseWhen": "behind-base-branch"  // Auto-rebase when branch is behind (required for "branch must be up to date" protection)
 }
