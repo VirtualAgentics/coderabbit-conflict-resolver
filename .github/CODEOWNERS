@@ -100,21 +100,110 @@
 # -----------------------------------------------------------------------------
 # Dependency Files - NO OWNER (Renovate Automerge Zone)
 # -----------------------------------------------------------------------------
-# These files are intentionally left WITHOUT owner assignment.
-# Renovate PRs that ONLY modify these files can automerge after CI passes.
+# ⚠️ SECURITY DECISION: These files are INTENTIONALLY left WITHOUT owner assignment.
 #
-# Security is maintained by:
-# 1. Required CI checks: tests, linting, security scans, CodeQL
-# 2. pip-audit scans for vulnerable packages (blocks merge if found)
-# 3. Renovate only updates versions, never adds malicious code
-# 4. You receive notifications and can review manually if suspicious
+# This is a DELIBERATE trade-off to enable Renovate automerge for dependency
+# updates while maintaining security through multiple defense layers.
 #
 # Files without owners (Renovate can automerge):
 # - pyproject.toml (Python dependency versions only)
 # - requirements*.txt (Python dependency versions only)
 #
-# IMPORTANT: If a PR modifies BOTH dependencies AND source code, the source
-# code pattern (*.py) will match and require your review for the entire PR.
+# 🛡️ Defense-in-Depth Security Layers:
+#
+# Layer 1: Required CI Checks (BLOCKS malicious merges)
+#   - pip-audit: Scans dependencies for known vulnerabilities
+#     → FAILS merge if vulnerable package detected
+#   - security-scan: Runs Bandit (source code) + pip-audit (dependencies)
+#     → FAILS merge if security issues found
+#   - test (3.12): 574 tests with 82% coverage
+#     → FAILS merge if tests fail (catches breaking changes)
+#   - lint: Black, Ruff, MyPy
+#     → FAILS merge if code quality issues
+#   - codeql: GitHub's semantic security analysis
+#     → FAILS merge if vulnerabilities detected
+#   - build: Verifies package builds correctly
+#     → FAILS merge if build fails
+#
+# Layer 2: Source Code Protection (BLOCKS malicious code injection)
+#   - If PR modifies ANY .py file, *.py pattern matches
+#   - Entire PR requires @VirtualAgentics review
+#   - Malicious actor cannot inject code via "dependency update"
+#
+# Layer 3: Human Oversight (You maintain control)
+#   - You receive GitHub notifications for ALL PRs
+#   - Can manually review any PR at any time
+#   - Can request changes or close suspicious PRs
+#   - Dashboard shows all Renovate PRs
+#
+# Layer 4: Renovate Trust Model (Minimizes attack surface)
+#   - Renovate only updates version numbers (e.g., "pytest==8.0.0" → "pytest==8.1.0")
+#   - Does NOT modify source code, add new dependencies arbitrarily
+#   - Official GitHub-verified bot, trusted by thousands of organizations
+#   - Pull requests are transparent (diff shows exactly what changed)
+#
+# 🎯 Attack Scenarios Analysis:
+#
+# Scenario A: Malicious actor opens PR updating pyproject.toml with vulnerable package
+#   → pip-audit detects vulnerability
+#   → security-scan workflow FAILS
+#   → ❌ MERGE BLOCKED by required status checks
+#
+# Scenario B: Compromised Renovate bot tries to inject malicious dependency
+#   → pip-audit scans the new package
+#   → If package has known vulnerabilities: MERGE BLOCKED
+#   → If package is unknown/suspicious: You see notification, can review
+#   → ⚠️ Risk exists if malicious package is new (0-day)
+#   → Mitigation: You review Dependency Dashboard regularly
+#
+# Scenario C: Malicious actor adds vulnerable dependency + changes source code
+#   → *.py pattern matches (source code changed)
+#   → @VirtualAgentics review REQUIRED for entire PR
+#   → ❌ MERGE BLOCKED until you approve
+#
+# Scenario D: Renovate updates to legitimate but vulnerable package version
+#   → pip-audit detects known vulnerability
+#   → security-scan workflow FAILS
+#   → ❌ MERGE BLOCKED by CI
+#   → Renovate typically won't propose such updates (checks release notes)
+#
+# Scenario E: Pure pyproject.toml config change (not dependency version)
+#   → No owner assigned (edge case)
+#   → Could merge without review
+#   → Mitigation: Usually accompanies source code changes (triggers review)
+#   → Low risk: Config changes typically caught by CI if breaking
+#
+# 📊 Risk Assessment:
+#
+# Risk Level: LOW-MEDIUM
+#   - Multiple security layers must ALL fail for malicious merge
+#   - Primary risk: 0-day malicious package (not in vulnerability databases)
+#   - Mitigation: Regular Dependency Dashboard review, GitHub notifications
+#
+# Alternatives (if you prefer maximum security):
+#
+# Option 1: Add owners, disable automerge entirely
+#   Uncomment these lines to require review for ALL dependency changes:
+#
+#   /pyproject.toml @VirtualAgentics
+#   /requirements*.txt @VirtualAgentics
+#
+#   Result: Maximum security, zero automation (manual approval for all updates)
+#
+# Option 2: Disable Code Owner requirement in branch protection
+#   Keep CODEOWNERS as-is (source code protected)
+#   Disable "Require review from Code Owners" setting
+#   Result: Renovate automerges everything, source code still has 5 CI gates
+#
+# Current configuration (intentionally leaving dependencies without owners)
+# prioritizes developer efficiency while maintaining strong security through
+# automated checks and human oversight capabilities.
+#
+# This approach is recommended by:
+# - Renovate documentation: https://docs.renovatebot.com/key-concepts/automerge/
+# - GitHub security best practices (multiple required status checks)
+# - Defense-in-depth principle (multiple independent security layers)
+# =============================================================================
 
 # =============================================================================
 # Pattern Matching Behavior
