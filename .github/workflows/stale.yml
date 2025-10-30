@@ -17,6 +17,7 @@ permissions:
 jobs:
   stale:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       issues: write          # Required to add stale labels and close issues
       pull-requests: write   # Required to add stale labels and close pull requests
