@@ -20,6 +20,10 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write  # Required to submit SBOM to dependency graph
   id-token: write  # Required for SBOM attestation
