@@ -390,6 +390,7 @@ jobs:
             --json \
             --no-verification \
             --fail \
+            --exclude-paths=/repo/.truffleignore \
             > trufflehog-results.json || {
               # TruffleHog exits with non-zero if secrets found
               echo "TruffleHog found potential secrets"
