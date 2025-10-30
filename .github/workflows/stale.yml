@@ -18,8 +18,8 @@ jobs:
   stale:
     runs-on: ubuntu-latest
     permissions:
-      issues: write
-      pull-requests: write
+      issues: write          # Required to add stale labels and close issues
+      pull-requests: write   # Required to add stale labels and close pull requests
     steps:
       - name: Record job start time
         id: job-start
