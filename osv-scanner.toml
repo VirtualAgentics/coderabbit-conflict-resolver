@@ -1,0 +1,26 @@
+# OSV-Scanner Configuration
+# =========================
+# This file documents known false positives in vulnerability scanning.
+#
+# Purpose: Prevents CI failures from incorrectly flagged vulnerabilities
+# where the OSV database has not yet recognized version-based fixes.
+
+[[IgnoredVulns]]
+id = "PYSEC-2024-48"
+# Also known as: GHSA-fj7x-q9j7-g6q6 / CVE-2024-21503
+# Affects: black < commit f000936 (2024-03-15)
+# Issue: ReDoS in lines_with_leading_tabs_expanded()
+#
+# Reason: False positive - fixed in black commit f00093672628d212b8965a8993cee8bedf5fe9b8 (March 15, 2024)
+# Current version: black 25.9.0 (released September 2025)
+# Our version is 17+ months newer than the fix and includes the patch.
+# OSV database has not yet recognized this version as containing the fix.
+#
+# References:
+# - https://github.com/psf/black/commit/f00093672628d212b8965a8993cee8bedf5fe9b8
+# - https://osv.dev/vulnerability/PYSEC-2024-48
+# - https://github.com/advisories/GHSA-fj7x-q9j7-g6q6
+reason = "False positive: fixed in black commit f000936 (2024-03-15). We use black 25.9.0 (released 2025-09-19) which includes this fix."
+
+# Expiry set to allow periodic review - should be removed when OSV database recognizes 25.9.0 as patched
+expiresAt = "2026-03-31T00:00:00Z"
