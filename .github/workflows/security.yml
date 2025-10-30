@@ -514,7 +514,9 @@ jobs:
               # Scorecard uploads findings to GitHub Security but doesn't fail by default
               # We need to explicitly check for HIGH/CRITICAL findings and fail the workflow
               # SARIF uses numeric CVSS scores (0-10): HIGH=7.0-8.9, CRITICAL=9.0-10.0
-              HIGH_CRITICAL_COUNT=$(jq '[.runs[].results[] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0)] | length' scorecard-results.sarif 2>/dev/null || echo "0")
+              # NOTE: Scorecard stores security-severity in tool.driver.rules[], not results[]
+              # We must join results with their corresponding rules via ruleIndex
+              HIGH_CRITICAL_COUNT=$(jq '[.runs[] | . as $run | .results[] | . as $result | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0)] | length' scorecard-results.sarif 2>/dev/null || echo "0")
 
               # Check if there are HIGH/CRITICAL findings
               if [ "$HIGH_CRITICAL_COUNT" -gt 0 ]; then
@@ -523,7 +525,7 @@ jobs:
                 echo "**Security findings must be resolved before merging.**" >> $GITHUB_STEP_SUMMARY
                 echo "" >> $GITHUB_STEP_SUMMARY
                 echo "**HIGH/CRITICAL Findings:**" >> $GITHUB_STEP_SUMMARY
-                jq -r '.runs[].results[] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0) | "- \(.ruleId) (CVSS: \(.properties."security-severity")): \(.message.text | split("\n")[0])"' scorecard-results.sarif 2>/dev/null | head -10 >> $GITHUB_STEP_SUMMARY || true
+                jq -r '.runs[] | . as $run | .results[] | . as $result | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0) | "- \(.id) (CVSS: \(.properties."security-severity")): \(.shortDescription.text)"' scorecard-results.sarif 2>/dev/null | head -10 >> $GITHUB_STEP_SUMMARY || true
                 echo "" >> $GITHUB_STEP_SUMMARY
                 echo "View all findings: [Security tab](https://github.com/${{ github.repository }}/security/code-scanning?query=is:open+tool:Scorecard)" >> $GITHUB_STEP_SUMMARY
                 echo "" >> $GITHUB_STEP_SUMMARY
