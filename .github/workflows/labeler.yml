@@ -8,6 +8,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# Default permissions: read-only for security
+# Individual jobs override with specific permissions as needed
+permissions:
+  contents: read
+
 jobs:
   label:
     runs-on: ubuntu-latest

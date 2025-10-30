@@ -9,6 +9,11 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false  # Queue stale checks, don't cancel
 
+# Default permissions: read-only for security
+# Individual jobs override with specific permissions as needed
+permissions:
+  contents: read
+
 jobs:
   stale:
     runs-on: ubuntu-latest

@@ -14,7 +14,6 @@ pre-commit>=4.3.0,<4.4.0
 
 # Security
 bandit>=1.8.6,<2.0.0
-safety>=3.6.2,<4.0.0
 pip-audit>=2.9.0,<3.0.0
 
 # Type stubs

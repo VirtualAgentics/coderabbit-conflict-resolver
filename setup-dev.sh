@@ -33,7 +33,7 @@ source .venv/bin/activate
 
 # Upgrade pip
 echo "⬆️  Upgrading pip..."
-pip install --upgrade pip
+pip install pip==24.3.1
 
 # Install dependencies
 echo "📚 Installing dependencies..."
