@@ -34,7 +34,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install pip==24.3.1
+          python -m pip install --require-hashes -r .github/requirements-bootstrap.txt
           pip install -e ".[dev]"
 
       - name: Lint with Black
@@ -78,7 +78,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install pip==24.3.1
+          python -m pip install --require-hashes -r .github/requirements-bootstrap.txt
           pip install -e ".[dev]"
 
       - name: Run tests
@@ -159,7 +159,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install pip==24.3.1
+          python -m pip install --require-hashes -r .github/requirements-bootstrap.txt
           pip install -e ".[dev]"
 
       - name: Build package
