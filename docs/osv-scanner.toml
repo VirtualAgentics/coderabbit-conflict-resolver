@@ -1,0 +1,12 @@
+# OSV-Scanner Configuration (applies to manifests in this directory)
+# Black < 24.3.0 advisory — we pin 25.9.0, so this is a false positive.
+
+[[IgnoredVulns]]
+id = "PYSEC-2024-48"
+reason = "Black pinned to 25.9.0 (>=24.3.0 fixed)."
+expires = "2026-03-31"
+
+[[IgnoredVulns]]
+id = "GHSA-fj7x-q9j7-g6q6"
+reason = "Alias of PYSEC-2024-48; Black pinned to 25.9.0."
+expires = "2026-03-31"
