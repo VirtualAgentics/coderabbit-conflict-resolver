@@ -140,7 +140,7 @@ jobs:
               echo "### ❌ Bandit: Found $HIGH_ISSUES HIGH severity issues" >> $GITHUB_STEP_SUMMARY
               echo "❌ Found $HIGH_ISSUES HIGH severity security issues in Bandit scan"
               echo "High severity issues found:"
-              jq -r '.results[] | select(.issue_severity == "HIGH") | "- \(.issue_text) in \(.filename):\(.line_number)"' bandit-report.json | tee -a $GITHUB_STEP_SUMMARY
+              jq -r '.results[] | select(.issue_severity == "HIGH") | "- \(.issue_text) in \(.filename):\(.line_number)"' bandit-report.json | tee -a "$GITHUB_STEP_SUMMARY"
               ISSUES_FOUND=1
             else
               echo "### ✅ Bandit: No HIGH severity issues" >> $GITHUB_STEP_SUMMARY
@@ -155,8 +155,8 @@ jobs:
             if [ "$TOTAL_VULNS" -gt 0 ]; then
               echo "### ❌ pip-audit: Found $TOTAL_VULNS vulnerabilities" >> $GITHUB_STEP_SUMMARY
               echo "❌ Found $TOTAL_VULNS vulnerabilities in pip-audit scan"
-              echo "Vulnerabilities found:" | tee -a $GITHUB_STEP_SUMMARY
-              jq -r '.dependencies[].vulns[] | "- \(.id): \(.description // "No description")"' pip-audit-report.json 2>/dev/null | head -20 | tee -a $GITHUB_STEP_SUMMARY || true
+              echo "Vulnerabilities found:" | tee -a "$GITHUB_STEP_SUMMARY"
+              jq -r '.dependencies[].vulns[] | "- \(.id): \(.description // "No description")"' pip-audit-report.json 2>/dev/null | head -20 | tee -a "$GITHUB_STEP_SUMMARY" || true
               ISSUES_FOUND=1
             else
               echo "### ✅ pip-audit: No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
@@ -393,7 +393,6 @@ jobs:
             trufflesecurity/trufflehog:3.90.0 \
             git file:///repo \
             --json \
-            --no-verification \
             --fail \
             --exclude-paths=/repo/.truffleignore \
             > trufflehog-results.json || {
@@ -420,7 +419,7 @@ jobs:
               echo "**⚠️ Action Required:** Review and remove exposed secrets immediately." >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "Findings summary:" >> $GITHUB_STEP_SUMMARY
-              jq -r 'select(.SourceMetadata.Data.Git != null) | "- \(.DetectorName): \(.SourceMetadata.Data.Git.file // "unknown file")"' trufflehog-results.json 2>/dev/null | head -20 >> $GITHUB_STEP_SUMMARY || true
+              jq -r 'select(.SourceMetadata.Data.Git != null) | "- \(.DetectorName): \(.SourceMetadata.Data.Git.file // "unknown file")"' trufflehog-results.json 2>/dev/null | head -20 >> "$GITHUB_STEP_SUMMARY" || true
 
               # Fail the workflow if secrets found
               echo "" >> $GITHUB_STEP_SUMMARY
@@ -523,7 +522,7 @@ jobs:
               echo "**Security findings must be resolved before merging.**" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**HIGH/CRITICAL Findings:**" >> $GITHUB_STEP_SUMMARY
-              jq -r '.runs[] | . as $run | .results[] | . as $result | select(($result.message.text | contains("PYSEC-2024-48") or contains("GHSA-fj7x-q9j7-g6q6")) | not) | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0) | "- \(.id) (CVSS: \(.properties."security-severity")): \(.shortDescription.text)"' scorecard-results.sarif 2>/dev/null | head -10 >> $GITHUB_STEP_SUMMARY || true
+              jq -r '.runs[] | . as $run | .results[] | . as $result | select(($result.message.text | contains("PYSEC-2024-48") or contains("GHSA-fj7x-q9j7-g6q6")) | not) | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0) | "- \(.id) (CVSS: \(.properties."security-severity")): \(.shortDescription.text)"' scorecard-results.sarif 2>/dev/null | head -10 >> "$GITHUB_STEP_SUMMARY" || true
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "View all findings: [Security tab](https://github.com/${{ github.repository }}/security/code-scanning?query=is:open+tool:Scorecard)" >> $GITHUB_STEP_SUMMARY
               exit 1
