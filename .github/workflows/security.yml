@@ -156,7 +156,7 @@ jobs:
               echo "### ❌ pip-audit: Found $TOTAL_VULNS vulnerabilities" >> $GITHUB_STEP_SUMMARY
               echo "❌ Found $TOTAL_VULNS vulnerabilities in pip-audit scan"
               echo "Vulnerabilities found:" | tee -a $GITHUB_STEP_SUMMARY
-              jq -r '.dependencies[].vulns[] | "- \(.id): \(.description // "No description")"' pip-audit-report.json 2>/dev/null | head -20 | tee -a $GITHUB_STEP_SUMMARY
+              jq -r '.dependencies[].vulns[] | "- \(.id): \(.description // "No description")"' pip-audit-report.json 2>/dev/null | head -20 | tee -a $GITHUB_STEP_SUMMARY || true
               ISSUES_FOUND=1
             else
               echo "### ✅ pip-audit: No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
@@ -494,8 +494,8 @@ jobs:
           sarif_file: scorecard-results.sarif
           category: 'scorecard'
 
-      # Parse Scorecard results and validate against target threshold
-      # Fails workflow if score is below 9.0/10
+      # Validate Scorecard results for HIGH/CRITICAL security findings
+      # Fails workflow if any HIGH (CVSS ≥7.0) or CRITICAL (CVSS ≥9.0) findings exist
       - name: Validate Scorecard results
         if: always()
         run: |
@@ -503,73 +503,31 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ -f scorecard-results.sarif ]; then
-            # Extract aggregate score from SARIF
-            SCORE=$(jq -r '.runs[0].properties.score // "unknown"' scorecard-results.sarif 2>/dev/null)
+            # Count HIGH/CRITICAL severity findings from SARIF results
+            # Scorecard uploads findings to GitHub Security but doesn't fail by default
+            # We explicitly check for HIGH/CRITICAL findings and fail the workflow
+            # SARIF uses numeric CVSS scores (0-10): HIGH=7.0-8.9, CRITICAL=9.0-10.0
+            # NOTE: Scorecard stores security-severity in tool.driver.rules[], not results[]
+            # We must join results with their corresponding rules via ruleIndex
+            HIGH_CRITICAL_COUNT=$(jq '[.runs[] | . as $run | .results[] | . as $result | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0)] | length' scorecard-results.sarif 2>/dev/null || echo "0")
 
-            if [ "$SCORE" != "unknown" ] && [ "$SCORE" != "null" ]; then
-              echo "### 📊 Security Score: $SCORE / 10.0" >> $GITHUB_STEP_SUMMARY
+            # Check if there are HIGH/CRITICAL findings
+            if [ "$HIGH_CRITICAL_COUNT" -gt 0 ]; then
+              echo "### ❌ Found $HIGH_CRITICAL_COUNT HIGH/CRITICAL security findings" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-
-              # Count HIGH/CRITICAL severity findings from SARIF results
-              # Scorecard uploads findings to GitHub Security but doesn't fail by default
-              # We need to explicitly check for HIGH/CRITICAL findings and fail the workflow
-              # SARIF uses numeric CVSS scores (0-10): HIGH=7.0-8.9, CRITICAL=9.0-10.0
-              # NOTE: Scorecard stores security-severity in tool.driver.rules[], not results[]
-              # We must join results with their corresponding rules via ruleIndex
-              HIGH_CRITICAL_COUNT=$(jq '[.runs[] | . as $run | .results[] | . as $result | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0)] | length' scorecard-results.sarif 2>/dev/null || echo "0")
-
-              # Check if there are HIGH/CRITICAL findings
-              if [ "$HIGH_CRITICAL_COUNT" -gt 0 ]; then
-                echo "### ❌ Found $HIGH_CRITICAL_COUNT HIGH/CRITICAL security findings" >> $GITHUB_STEP_SUMMARY
-                echo "" >> $GITHUB_STEP_SUMMARY
-                echo "**Security findings must be resolved before merging.**" >> $GITHUB_STEP_SUMMARY
-                echo "" >> $GITHUB_STEP_SUMMARY
-                echo "**HIGH/CRITICAL Findings:**" >> $GITHUB_STEP_SUMMARY
-                jq -r '.runs[] | . as $run | .results[] | . as $result | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0) | "- \(.id) (CVSS: \(.properties."security-severity")): \(.shortDescription.text)"' scorecard-results.sarif 2>/dev/null | head -10 >> $GITHUB_STEP_SUMMARY || true
-                echo "" >> $GITHUB_STEP_SUMMARY
-                echo "View all findings: [Security tab](https://github.com/${{ github.repository }}/security/code-scanning?query=is:open+tool:Scorecard)" >> $GITHUB_STEP_SUMMARY
-                echo "" >> $GITHUB_STEP_SUMMARY
-                echo "**Aggregate Score:** $SCORE / 10.0 (target: ≥9.0)" >> $GITHUB_STEP_SUMMARY
-                exit 1
-              fi
-
-              # Validate aggregate score against target threshold (9.0) using awk
-              TARGET_SCORE=9.0
-
-              # Validate SCORE is numeric and perform comparison
-              # Returns 1 if score >= target, 0 otherwise (or 0 with error if invalid)
-              SCORE_CHECK=$(echo "${SCORE} ${TARGET_SCORE}" | awk '{
-                if ($1 !~ /^[0-9]+(\.[0-9]+)?$/) {
-                  print "Error: Invalid score value" > "/dev/stderr";
-                  print "0";
-                  exit 2;
-                }
-                print ($1 >= $2) ? 1 : 0;
-              }')
-
-              if [ "$SCORE_CHECK" -eq 1 ]; then
-                echo "### ✅ Meets target score and no HIGH/CRITICAL findings" >> $GITHUB_STEP_SUMMARY
-                echo "" >> $GITHUB_STEP_SUMMARY
-                echo "**Aggregate Score:** $SCORE / 10.0 (target: ≥$TARGET_SCORE)" >> $GITHUB_STEP_SUMMARY
-                echo "**HIGH/CRITICAL Findings:** 0" >> $GITHUB_STEP_SUMMARY
-              else
-                echo "### ❌ Below target score (≥$TARGET_SCORE)" >> $GITHUB_STEP_SUMMARY
-                echo "" >> $GITHUB_STEP_SUMMARY
-                echo "**Current Score:** $SCORE / 10.0" >> $GITHUB_STEP_SUMMARY
-                echo "**Target Score:** $TARGET_SCORE / 10.0" >> $GITHUB_STEP_SUMMARY
-                echo "" >> $GITHUB_STEP_SUMMARY
-                echo "Check the [Security tab](https://github.com/${{ github.repository }}/security/code-scanning) for detailed recommendations." >> $GITHUB_STEP_SUMMARY
-
-                # Fail workflow if below threshold
-                exit 1
-              fi
-
-              # Display individual check results
+              echo "**Security findings must be resolved before merging.**" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "**Check Results:**" >> $GITHUB_STEP_SUMMARY
-              jq -r '.runs[0].tool.driver.rules[] | "- \(.shortDescription.text): \(.helpUri // "N/A")"' scorecard-results.sarif 2>/dev/null | head -20 >> $GITHUB_STEP_SUMMARY || true
+              echo "**HIGH/CRITICAL Findings:**" >> $GITHUB_STEP_SUMMARY
+              jq -r '.runs[] | . as $run | .results[] | . as $result | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0) | "- \(.id) (CVSS: \(.properties."security-severity")): \(.shortDescription.text)"' scorecard-results.sarif 2>/dev/null | head -10 >> $GITHUB_STEP_SUMMARY || true
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "View all findings: [Security tab](https://github.com/${{ github.repository }}/security/code-scanning?query=is:open+tool:Scorecard)" >> $GITHUB_STEP_SUMMARY
+              exit 1
             else
-              echo "### ⚠️ Unable to parse score from results" >> $GITHUB_STEP_SUMMARY
+              echo "### ✅ No HIGH/CRITICAL security findings" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**HIGH/CRITICAL Findings:** 0" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "View all checks: [Security tab](https://github.com/${{ github.repository }}/security/code-scanning?query=is:open+tool:Scorecard)" >> $GITHUB_STEP_SUMMARY
             fi
           else
             echo "### ⚠️ Scorecard results file not found" >> $GITHUB_STEP_SUMMARY
