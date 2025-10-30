@@ -73,8 +73,17 @@
       "labels": ["dependencies", "production"]
     },
     {
-      "description": "GitHub Actions - weekly updates with automerge",
+      "description": "Pin Python version to 3.12 in GitHub Actions - prevent auto-upgrades",
       "matchManagers": ["github-actions"],
+      "matchDepNames": ["python"],
+      "matchDatasources": ["github-tags"],
+      "enabled": false,  // Disable automatic Python version updates
+      "labels": ["dependencies", "python-version"]
+    },
+    {
+      "description": "GitHub Actions - weekly updates with automerge (excluding Python version)",
+      "matchManagers": ["github-actions"],
+      "excludeDepNames": ["python"],
       "groupName": "GitHub Actions",
       "schedule": ["before 2am on monday"],
       "automerge": true,

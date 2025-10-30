@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://json.schemastore.org/pre-commit-config.json
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
