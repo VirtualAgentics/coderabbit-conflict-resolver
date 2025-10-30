@@ -24,14 +24,17 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Default permissions: read-only for security
 permissions:
-  contents: write  # Required to submit SBOM to dependency graph
-  id-token: write  # Required for SBOM attestation
+  contents: read
 
 jobs:
   sbom-generation:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write  # Required to submit SBOM to dependency graph
+      id-token: write  # Required for SBOM attestation
 
     steps:
       - name: Checkout repository
