@@ -496,6 +496,10 @@ jobs:
 
       # Validate Scorecard results for HIGH/CRITICAL security findings
       # Fails workflow if any HIGH (CVSS ≥7.0) or CRITICAL (CVSS ≥9.0) findings exist
+      # EXCEPTION: Excludes PYSEC-2024-48 / GHSA-fj7x-q9j7-g6q6 (known false positive)
+      #   - Black 25.9.0 includes fix from March 2024 (commit f000936)
+      #   - OSV-Scanner.toml not respected by Scorecard (upstream Issue #4530)
+      #   - Tracked in: https://github.com/VirtualAgentics/coderabbit-conflict-resolver/issues/75
       - name: Validate Scorecard results
         if: always()
         run: |
@@ -509,23 +513,25 @@ jobs:
             # SARIF uses numeric CVSS scores (0-10): HIGH=7.0-8.9, CRITICAL=9.0-10.0
             # NOTE: Scorecard stores security-severity in tool.driver.rules[], not results[]
             # We must join results with their corresponding rules via ruleIndex
-            HIGH_CRITICAL_COUNT=$(jq '[.runs[] | . as $run | .results[] | . as $result | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0)] | length' scorecard-results.sarif 2>/dev/null || echo "0")
+            # EXCEPTION: Filter out PYSEC-2024-48 / GHSA-fj7x-q9j7-g6q6 (known false positive for black 25.9.0)
+            HIGH_CRITICAL_COUNT=$(jq '[.runs[] | . as $run | .results[] | . as $result | select(($result.message.text | contains("PYSEC-2024-48") or contains("GHSA-fj7x-q9j7-g6q6")) | not) | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0)] | length' scorecard-results.sarif 2>/dev/null || echo "0")
 
-            # Check if there are HIGH/CRITICAL findings
+            # Check if there are HIGH/CRITICAL findings (excluding known false positives)
             if [ "$HIGH_CRITICAL_COUNT" -gt 0 ]; then
               echo "### ❌ Found $HIGH_CRITICAL_COUNT HIGH/CRITICAL security findings" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Security findings must be resolved before merging.**" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**HIGH/CRITICAL Findings:**" >> $GITHUB_STEP_SUMMARY
-              jq -r '.runs[] | . as $run | .results[] | . as $result | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0) | "- \(.id) (CVSS: \(.properties."security-severity")): \(.shortDescription.text)"' scorecard-results.sarif 2>/dev/null | head -10 >> $GITHUB_STEP_SUMMARY || true
+              jq -r '.runs[] | . as $run | .results[] | . as $result | select(($result.message.text | contains("PYSEC-2024-48") or contains("GHSA-fj7x-q9j7-g6q6")) | not) | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0) | "- \(.id) (CVSS: \(.properties."security-severity")): \(.shortDescription.text)"' scorecard-results.sarif 2>/dev/null | head -10 >> $GITHUB_STEP_SUMMARY || true
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "View all findings: [Security tab](https://github.com/${{ github.repository }}/security/code-scanning?query=is:open+tool:Scorecard)" >> $GITHUB_STEP_SUMMARY
               exit 1
             else
               echo "### ✅ No HIGH/CRITICAL security findings" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "**HIGH/CRITICAL Findings:** 0" >> $GITHUB_STEP_SUMMARY
+              echo "**HIGH/CRITICAL Findings:** 0 (excluding known false positives)" >> $GITHUB_STEP_SUMMARY
+              echo "**Known False Positives:** PYSEC-2024-48 / GHSA-fj7x-q9j7-g6q6 (black 25.9.0 includes fix)" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "View all checks: [Security tab](https://github.com/${{ github.repository }}/security/code-scanning?query=is:open+tool:Scorecard)" >> $GITHUB_STEP_SUMMARY
             fi
