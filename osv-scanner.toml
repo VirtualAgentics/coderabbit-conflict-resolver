@@ -1,11 +1,12 @@
-# OSV-Scanner Configuration
-# =========================
-# This file documents known false positives in vulnerability scanning.
-#
-# Purpose: Prevents CI failures from incorrectly flagged vulnerabilities
-# where the OSV database has not yet recognized version-based fixes.
+# OSV-Scanner Configuration (root applies to manifests in this directory)
+# Black < 24.3.0 advisory — we pin 25.9.0, so this is a false positive.
 
 [[IgnoredVulns]]
 id = "PYSEC-2024-48"
-ignoreUntil = "2026-03-31"
-reason = "False positive: Fixed in black commit f00093672628d212b8965a8993cee8bedf5fe9b8 (2024-03-15). We use black 25.9.0 (released 2025-09-19) which includes the fix. OSV database has not yet recognized version 25.9.0 as patched. Also known as GHSA-fj7x-q9j7-g6q6 / CVE-2024-21503."
+reason = "Black pinned to 25.9.0 (>=24.3.0 fixed)."
+expires = "2026-03-31"
+
+[[IgnoredVulns]]
+id = "GHSA-fj7x-q9j7-g6q6"
+reason = "Alias of PYSEC-2024-48; Black pinned to 25.9.0."
+expires = "2026-03-31"
