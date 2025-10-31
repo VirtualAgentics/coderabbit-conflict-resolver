@@ -31,9 +31,9 @@ python3.12 -m venv .venv
 echo "🔧 Activating virtual environment..."
 source .venv/bin/activate
 
-# Upgrade pip
+# Upgrade pip (hash-pinned for security)
 echo "⬆️  Upgrading pip..."
-pip install --upgrade pip
+pip install --require-hashes -r .github/requirements-bootstrap.txt
 
 # Install dependencies
 echo "📚 Installing dependencies..."

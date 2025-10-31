@@ -42,6 +42,11 @@ concurrency:
   group: docs-deploy-main
   cancel-in-progress: false  # Don't cancel deployments, queue them instead
 
+# Default permissions: read-only for security
+# Individual jobs override with specific permissions as needed
+permissions:
+  contents: read
+
 jobs:
   # ============================================================================
   # Build Job: Compile Sphinx documentation and upload as artifact
@@ -68,7 +73,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --require-hashes -r .github/requirements-bootstrap.txt
           pip install -e ".[dev]"
           pip install -r docs/requirements.txt
 

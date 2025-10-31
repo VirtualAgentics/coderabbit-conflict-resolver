@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write
-      id-token: write
+      contents: write  # Required to create GitHub releases and upload assets
+      id-token: write  # Required for trusted publishing to PyPI
 
     steps:
       - name: Record job start time
@@ -35,7 +35,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --require-hashes -r .github/requirements-bootstrap.txt
           pip install -e ".[dev]"
 
       - name: Build package

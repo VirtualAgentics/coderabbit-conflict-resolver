@@ -9,12 +9,18 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false  # Queue stale checks, don't cancel
 
+# Default permissions: read-only for security
+# Individual jobs override with specific permissions as needed
+permissions:
+  contents: read
+
 jobs:
   stale:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
-      issues: write
-      pull-requests: write
+      issues: write          # Required to add stale labels and close issues
+      pull-requests: write   # Required to add stale labels and close pull requests
     steps:
       - name: Record job start time
         id: job-start

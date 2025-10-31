@@ -1,0 +1,19 @@
+# Bootstrap Requirements - Hash-Pinned Pip Installation
+# =======================================================
+# This file contains cryptographically hash-pinned pip installation
+# to satisfy OpenSSF Scorecard PinnedDependencies check.
+#
+# Purpose: Ensures reproducible builds and prevents supply chain attacks
+# by verifying the integrity of pip before installing project dependencies.
+#
+# Hashes obtained from: https://pypi.org/pypi/pip/25.3/json
+# Date: 2025-10-27 (pip 25.3 release date)
+#
+# Both wheel and source distribution hashes are included for compatibility
+# across different platforms and installation methods.
+#
+# Security: pip 25.3 includes fix for GHSA-4xh5-x5gv-qwph (tarfile symlink vulnerability)
+
+pip==25.3 \
+    --hash=sha256:9655943313a94722b7774661c21049070f6bbb0a1516bf02f7c8d5d9201514cd \
+    --hash=sha256:8d0538dbbd7babbd207f261ed969c65de439f6bc9e5dbd3b3b9a77f25d95f343

@@ -1,0 +1,33 @@
+# TruffleHog Ignore File
+# =======================
+# Excludes paths from secret scanning to prevent false positives from test fixtures.
+# TruffleHog automatically loads this file when scanning.
+#
+# Purpose: Security test files contain intentional dummy/fake secrets (API keys, tokens,
+# connection strings) used to validate the SecretScanner and security detection functionality.
+# These test fixtures should be excluded from TruffleHog scanning to prevent false positives
+# while maintaining full secret detection coverage for production code.
+
+# Test directories containing dummy/fake secrets for validation
+tests/
+test/
+
+# Common locations for test fixtures and examples
+examples/
+fixtures/
+mocks/
+
+# Documentation that may contain example credentials
+docs/examples/
+*.example.*
+
+# Build artifacts and dependencies (scanned separately by Trivy)
+.venv/
+venv/
+node_modules/
+dist/
+build/
+htmlcov/
+
+# CI/CD and tooling configuration (may contain example values)
+.github/workflows/examples/
