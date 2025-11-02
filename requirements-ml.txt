@@ -1,0 +1,8 @@
+# ML dependencies with SHA-256 hash pinning for reproducibility
+# Note: Versions match pyproject.toml ml extra dependencies
+# Used by dependency-submission workflow
+
+numpy==2.3.4 \
+    --hash=sha256:e78aecd2800b32e8347ce49316d3eaf04aed849cd5b38e0af39f829a4e59f5eb
+scikit-learn==1.7.2 \
+    --hash=sha256:6b33579c10a3081d076ab403df4a4190da4f4432d443521674637677dc91e61f
