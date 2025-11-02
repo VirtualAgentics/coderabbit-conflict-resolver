@@ -51,6 +51,8 @@ repos:
           - --non-interactive
           - src/
           - tests/
+          - --exclude
+          - tests/security/test_fuzz_.*\.py
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.8.6

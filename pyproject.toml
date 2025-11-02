@@ -160,8 +160,14 @@ module = [
     "pytest.*",
     "rich.*",
     "pydantic.*",
+    "hypothesis.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.security.test_fuzz_*"]
+disallow_untyped_decorators = false
+disallow_any_unimported = false
 
 [tool.pytest.ini_options]
 testpaths = [
@@ -187,6 +193,7 @@ addopts = [
 markers = [
     "slow: marks tests as slow",
     "integration: marks tests as integration tests",
+    "fuzz: property-based fuzzing tests (deselect with '-m \"not fuzz\"')",
 ]
 
 [tool.bandit]
