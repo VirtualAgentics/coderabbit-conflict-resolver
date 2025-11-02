@@ -2,6 +2,7 @@
 
 import io
 import logging
+import os
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any
@@ -9,6 +10,7 @@ from unittest.mock import Mock
 
 import pytest
 from click import Context
+from hypothesis import HealthCheck, settings
 
 from pr_conflict_resolver.cli.main import cli
 from pr_conflict_resolver.handlers.json_handler import JsonHandler
@@ -194,8 +196,6 @@ def mock_param() -> Mock:
 # Hypothesis Configuration for Property-Based Testing / Fuzzing
 # ============================================================================
 
-from hypothesis import HealthCheck, settings  # noqa: E402
-
 # Configure Hypothesis profiles for different testing scenarios
 # - dev: Quick local development (50 examples)
 # - ci: Standard CI pipeline testing (100 examples)
@@ -223,6 +223,4 @@ settings.register_profile(
 )
 
 # Load profile from environment or use "dev" as default
-import os  # noqa: E402
-
 settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "dev"))

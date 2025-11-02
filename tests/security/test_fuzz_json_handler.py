@@ -118,7 +118,9 @@ def test_fuzz_json_duplicate_key_detection(key: str, value1: int, value2: int) -
         value2: Second value
     """
     # Create JSON with duplicate keys (manually constructed to bypass json.dumps)
-    content = f'{{"{key}": {value1}, "{key}": {value2}}}'
+    # Properly escape the key using json.dumps
+    key_escaped = json.dumps(key)
+    content = f"{{{key_escaped}: {value1}, {key_escaped}: {value2}}}"
 
     with tempfile.TemporaryDirectory() as tmpdir:
         handler = JsonHandler(workspace_root=Path(tmpdir))
@@ -139,7 +141,7 @@ def test_fuzz_json_duplicate_key_detection(key: str, value1: int, value2: int) -
 @pytest.mark.fuzz
 @given(
     keys=st.lists(
-        st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll")), min_size=1, max_size=15),
+        st.text(alphabet=st.characters(categories=("Lu", "Ll")), min_size=1, max_size=15),
         min_size=1,
         max_size=10,
         unique=True,
@@ -158,8 +160,9 @@ def test_fuzz_json_object_structures(keys: list[str], values: list[int | str | b
         keys: List of keys for JSON object
         values: List of values for JSON object
     """
-    # Create JSON object
-    json_obj = dict(zip(keys, values, strict=False))
+    # Create JSON object - truncate to minimum length for strict zip
+    min_len = min(len(keys), len(values))
+    json_obj = dict(zip(keys[:min_len], values[:min_len], strict=True))
     try:
         content = json.dumps(json_obj)
     except (TypeError, ValueError):

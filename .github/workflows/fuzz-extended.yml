@@ -64,7 +64,7 @@ jobs:
 
       - name: Upload failure artifacts
         if: failure()
-        uses: actions/upload-artifact@d0f816c1eb5f8b9e6d3e8b8e2e8e4e4f0e4e4e4e # v4.5.0
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: fuzz-failure-artifacts
           path: |

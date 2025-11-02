@@ -48,9 +48,7 @@ def test_fuzz_toml_validate_change_never_crashes(content: str) -> None:
 
 @pytest.mark.fuzz
 @given(
-    key=st.text(
-        alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")), min_size=1, max_size=20
-    ),
+    key=st.text(alphabet=st.characters(categories=("Lu", "Ll", "Nd")), min_size=1, max_size=20),
     value=st.one_of(st.integers(), st.text(max_size=30), st.booleans()),
 )
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -84,10 +82,8 @@ def test_fuzz_toml_validate_with_simple_pairs(key: str, value: int | str | bool)
 
 @pytest.mark.fuzz
 @given(
-    section=st.text(
-        alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")), min_size=1, max_size=20
-    ),
-    key=st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll")), min_size=1, max_size=15),
+    section=st.text(alphabet=st.characters(categories=("Lu", "Ll", "Nd")), min_size=1, max_size=20),
+    key=st.text(alphabet=st.characters(categories=("Lu", "Ll")), min_size=1, max_size=15),
     value=st.integers(),
 )
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -123,7 +119,7 @@ def test_fuzz_toml_section_handling(section: str, key: str, value: int) -> None:
 @pytest.mark.fuzz
 @given(
     sections=st.lists(
-        st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll")), min_size=1, max_size=10),
+        st.text(alphabet=st.characters(categories=("Lu", "Ll")), min_size=1, max_size=10),
         min_size=1,
         max_size=5,
         unique=True,
@@ -156,7 +152,7 @@ def test_fuzz_toml_multiple_sections(sections: list[str]) -> None:
 
 @pytest.mark.fuzz
 @given(
-    key=st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll")), min_size=1, max_size=15),
+    key=st.text(alphabet=st.characters(categories=("Lu", "Ll")), min_size=1, max_size=15),
     value_type=st.sampled_from(["int", "float", "bool", "string", "array"]),
 )
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -244,13 +240,9 @@ def test_fuzz_toml_malformed_structures(malformed: str) -> None:
 
 @pytest.mark.fuzz
 @given(
-    original_key=st.text(
-        alphabet=st.characters(whitelist_categories=("Lu", "Ll")), min_size=1, max_size=10
-    ),
+    original_key=st.text(alphabet=st.characters(categories=("Lu", "Ll")), min_size=1, max_size=10),
     original_value=st.integers(),
-    new_key=st.text(
-        alphabet=st.characters(whitelist_categories=("Lu", "Ll")), min_size=1, max_size=10
-    ),
+    new_key=st.text(alphabet=st.characters(categories=("Lu", "Ll")), min_size=1, max_size=10),
     new_value=st.integers(),
 )
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -291,7 +283,7 @@ def test_fuzz_toml_apply_change_never_crashes(
 @pytest.mark.fuzz
 @given(
     lines=st.lists(
-        st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Zs")), max_size=40),
+        st.text(alphabet=st.characters(categories=("Lu", "Ll", "Nd", "Zs")), max_size=40),
         min_size=1,
         max_size=10,
     )

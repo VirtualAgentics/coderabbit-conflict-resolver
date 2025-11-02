@@ -48,7 +48,7 @@ def path_strings(draw: st.DrawFn) -> str:
         parts = draw(
             st.lists(
                 st.text(
-                    alphabet=st.characters(blacklist_categories=("Cs",)), min_size=1, max_size=20
+                    alphabet=st.characters(exclude_categories=("Cs",)), min_size=1, max_size=20
                 ),
                 min_size=1,
                 max_size=5,
@@ -98,7 +98,7 @@ def extension_strings(draw: st.DrawFn) -> str:
         # Special characters
         return "." + draw(
             st.text(
-                alphabet=st.characters(blacklist_categories=("Cc", "Cs")), min_size=1, max_size=10
+                alphabet=st.characters(exclude_categories=("Cc", "Cs")), min_size=1, max_size=10
             )
         )
 
@@ -269,7 +269,7 @@ def test_fuzz_validate_github_url_never_crashes(url: str) -> None:
 @pytest.mark.fuzz
 @given(
     scheme=st.sampled_from(["http://", "https://", "ftp://", ""]),
-    subdomain=st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")), max_size=20),
+    subdomain=st.text(alphabet=st.characters(categories=("Lu", "Ll", "Nd")), max_size=20),
     domain=st.sampled_from(["github.com", "githob.com", "githua.com", "example.com"]),
     path=st.text(max_size=50),
 )
@@ -323,7 +323,7 @@ def test_fuzz_validate_github_token_never_crashes(token: str) -> None:
 @given(
     prefix=st.sampled_from(["ghp_", "gho_", "ghu_", "ghs_", "ghr_", "github_pat_", "xxx_"]),
     suffix=st.text(
-        alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd")), min_size=10, max_size=100
+        alphabet=st.characters(categories=("Lu", "Ll", "Nd")), min_size=10, max_size=100
     ),
 )
 def test_fuzz_validate_github_token_with_token_like_strings(prefix: str, suffix: str) -> None:
