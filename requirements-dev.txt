@@ -1,29 +1,30 @@
-# Development dependencies
+# Development dependencies with SHA-256 hash pinning for security
+# Note: CI workflows use pyproject.toml, this file is for local development and pre-commit hooks
 -r requirements.txt
 
 # Testing
-pytest>=7.4.0,<9.0.0
-pytest-cov>=4.1.0,<8.0.0  # Tested: 4.1.0, 5.0.0, 6.0.0, 6.3.0, 7.0.0 all work with pytest 7.4.x
-pytest-asyncio>=0.21.0,<2.0.0
-hypothesis==6.143.1 --hash=sha256:7974544d0d5b7041688b544aa2dbeac69a28def90e010ff5d2b2cbc85bd40dd2  # Property-based testing
+pytest==8.4.2 --hash=sha256:872f880de3fc3a5bdc88a11b39c9710c3497a547cfa9320bc3c5e62fbf272e79
+pytest-cov==7.0.0 --hash=sha256:3b8e9558b16cc1479da72058bdecf8073661c7f57f7d3c5f22a1c23507f2d861
+pytest-asyncio==1.2.0 --hash=sha256:8e17ae5e46d8e7efe51ab6494dd2010f4ca8dae51652aa3c8d55acf50bfb2e99
+hypothesis==6.143.1 --hash=sha256:7974544d0d5b7041688b544aa2dbeac69a28def90e010ff5d2b2cbc85bd40dd2
 
 # Code quality
-black>=25.9.0,<25.10.0
-ruff>=0.14.2,<1.0.0
-mypy>=1.18.2,<2.0.0
-pre-commit>=4.3.0,<4.4.0
+black==25.9.0 --hash=sha256:9101ee58ddc2442199a25cb648d46ba22cd580b00ca4b44234a324e3ec7a0f7e
+ruff==0.14.3 --hash=sha256:0e2f8a0bbcffcfd895df39c9a4ecd59bb80dca03dc43f7fb63e647ed176b741e
+mypy==1.18.2 --hash=sha256:01199871b6110a2ce984bde85acd481232d17413868c9807e95c1b0739a58914
+pre-commit==4.3.0 --hash=sha256:2b0747ad7e6e967169136edffee14c16e148a778a54e4f967921aa1ebf2308d8
 
 # Security
-bandit>=1.8.6,<2.0.0
-pip-audit>=2.9.0,<3.0.0
+bandit==1.8.6 --hash=sha256:3348e934d736fcdb68b6aa4030487097e23a501adf3e7827b63658df464dddd0
+pip-audit==2.9.0 --hash=sha256:348b16e60895749a0839875d7cc27ebd692e1584ebe5d5cb145941c8e25a80bd
 
 # Type stubs
-types-requests>=2.31.0,<3.0.0
+types-requests==2.32.4.20250913 --hash=sha256:78c9c1fffebbe0fa487a418e0fa5252017e9c60d1a2da394077f1780f655d7e1
+types-PyYAML==6.0.12.20250915 --hash=sha256:e7d4d9e064e89a3b3cae120b4990cd370874d2bf12fa5f46c97018dd5d3c9ab6
 # types-click not needed: Click 8.0+ includes built-in type annotations
-types-PyYAML>=6.0.0,<7.0.0
 
 # Documentation
-sphinx>=8.2.3,<8.3.0
-sphinx-rtd-theme>=3.0.2,<3.1.0
-sphinx-autodoc-typehints>=3.5.2,<3.6.0
-myst-parser>=4.0.1,<4.1.0
+sphinx==8.2.3 --hash=sha256:4405915165f13521d875a8c29c8970800a0141c14cc5416a38feca4ea5d9b9c3
+sphinx-rtd-theme==3.0.2 --hash=sha256:422ccc750c3a3a311de4ae327e82affdaf59eb695ba4936538552f3b00f4ee13
+sphinx-autodoc-typehints==3.5.2 --hash=sha256:0accd043619f53c86705958e323b419e41667917045ac9215d7be1b493648d8c
+myst-parser==4.0.1 --hash=sha256:9134e88959ec3b5780aedf8a99680ea242869d012e8821db3126d427edc9c95d
