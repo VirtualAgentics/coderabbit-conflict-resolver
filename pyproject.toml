@@ -24,6 +24,12 @@ classifiers = [
     "Topic :: Software Development :: Version Control :: Git",
     "Topic :: Software Development :: Quality Assurance",
 ]
+# NOTE: PEP 621 does not support SHA-256 hash pinning in pyproject.toml
+# Hash-pinned versions are maintained in:
+# - requirements.txt (production dependencies with hashes)
+# - requirements-dev.txt (development dependencies with hashes)
+# - docs/requirements.txt (documentation dependencies with hashes)
+# - .github/requirements-bootstrap.txt (CI bootstrap with hashes)
 dependencies = [
     "click==8.3.0",
     "requests==2.32.5",
