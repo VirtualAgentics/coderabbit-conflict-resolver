@@ -201,7 +201,16 @@ pre-commit install
 ### Running Tests
 
 ```bash
+# Run standard tests with coverage
 pytest tests/ --cov=src --cov-report=html
+
+# Run property-based fuzzing tests
+make test-fuzz              # Dev profile: 50 examples
+make test-fuzz-ci           # CI profile: 100 examples
+make test-fuzz-extended     # Extended: 1000 examples
+
+# Run all tests (standard + fuzzing)
+make test-all
 ```
 
 ## 📜 License

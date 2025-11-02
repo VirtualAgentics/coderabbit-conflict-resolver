@@ -205,12 +205,16 @@ Use `make help` to see all available commands:
 
 - `make setup` - Complete development setup
 - `make test` - Run tests with coverage
+- `make test-fuzz` - Run property-based fuzzing tests (dev profile: 50 examples)
+- `make test-fuzz-ci` - Run fuzzing with CI profile (100 examples)
+- `make test-fuzz-extended` - Run extended fuzzing (1000 examples)
+- `make test-all` - Run all tests including fuzzing
 - `make lint` - Run all linters (Black, Ruff, MyPy)
 - `make format` - Auto-format code
 - `make security` - Run security checks (Bandit for source code)
 - `make docs` - Build documentation
 - `make clean` - Clean build artifacts
-- `make check-all` - Run all checks (lint + test + security)
+- `make check-all` - Run all checks (lint + test + fuzzing + security)
 - `make install-hooks` - Install git hooks for quality checks
 
 ## Pre-Push Hook
@@ -290,8 +294,50 @@ make security   # Security checks
 
 - **Unit tests**: Test individual components in isolation
 - **Integration tests**: Test component interactions
+- **Property-based fuzzing**: Automated testing with generated inputs using Hypothesis
 - **Coverage**: Maintain >80% test coverage (strictly enforced in CI)
 - **Fixtures**: Use pytest fixtures for test data
+
+#### Property-Based Fuzzing
+
+This project uses [Hypothesis](https://hypothesis.readthedocs.io/) for property-based fuzzing tests to find edge cases and security vulnerabilities:
+
+**Fuzzing Profiles:**
+- **dev** (50 examples): Quick feedback during local development
+- **ci** (100 examples): Balanced coverage for CI/CD pipelines
+- **fuzz** (1000 examples): Comprehensive testing for weekly deep analysis
+
+**Running Fuzzing Tests:**
+
+```bash
+# Local development (50 examples, fastest)
+make test-fuzz
+
+# CI profile (100 examples, matches PR checks)
+make test-fuzz-ci
+
+# Extended fuzzing (1000 examples, thorough)
+make test-fuzz-extended
+
+# Run specific fuzzing test
+HYPOTHESIS_PROFILE=dev pytest tests/security/test_fuzz_input_validator.py -v
+
+# Exclude fuzzing from regular test runs
+pytest tests/ -m "not fuzz"
+```
+
+**Fuzzing Coverage:**
+- Input validation (path traversal, null bytes, Unicode normalization)
+- File extension validation (bypasses, double extensions)
+- Content sanitization (control characters, dangerous patterns)
+- URL validation (spoofing, encoding bypasses)
+- Token validation (format bypasses, special characters)
+- JSON/YAML/TOML parsing (malformed structures, injection attacks)
+
+**CI/CD Integration:**
+- **CI workflow** (`.github/workflows/ci.yml`): Runs fuzzing with ci profile (100 examples) on every PR
+- **Extended fuzzing workflow** (`.github/workflows/fuzz-extended.yml`): Weekly deep fuzzing with fuzz profile (1000 examples)
+- Failure artifacts are uploaded for debugging
 
 #### Coverage Requirements
 
