@@ -56,7 +56,7 @@ jobs:
           python -m pip install --require-hashes -r .github/requirements-bootstrap.txt
           python -m pip install --require-hashes -r requirements-dev.txt
           python -m pip install -e . --no-deps
-          python -m pip install -r docs/requirements.txt
+          python -m pip install --require-hashes -r docs/requirements.txt
 
       - name: Build documentation
         id: build-docs
