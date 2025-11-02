@@ -232,7 +232,7 @@ jobs:
       # Uses custom configuration for enhanced security coverage.
       # The config file specifies both security-extended and security-and-quality query suites.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@4e94bd11f71e507f7f87df81788dff88d1dacbfb # v4.31.0
+        uses: github/codeql-action/init@0499de31b99561a6d14a36a5f662c2a54f91beee # v4.31.2
         with:
           languages: ${{ matrix.language }}
           config-file: ./.github/codeql/codeql-config.yml
@@ -252,7 +252,7 @@ jobs:
       # Results can be viewed in the Security > Code scanning alerts tab
       - name: Perform CodeQL Analysis
         id: analyze
-        uses: github/codeql-action/analyze@4e94bd11f71e507f7f87df81788dff88d1dacbfb # v4.31.0
+        uses: github/codeql-action/analyze@0499de31b99561a6d14a36a5f662c2a54f91beee # v4.31.2
         with:
           category: "/language:${{matrix.language}}"  # Categorize results by language
           upload: true  # Upload SARIF results to GitHub Security tab
@@ -324,7 +324,7 @@ jobs:
       # Upload Trivy results to GitHub Security tab
       # Always runs even if scan fails, to ensure visibility
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@4e94bd11f71e507f7f87df81788dff88d1dacbfb  # v4.31.0
+        uses: github/codeql-action/upload-sarif@0499de31b99561a6d14a36a5f662c2a54f91beee  # v4.31.2
         if: always()  # Upload even if scan found vulnerabilities
         with:
           sarif_file: 'trivy-results.sarif'
@@ -488,7 +488,7 @@ jobs:
       # Run OpenSSF Scorecard analysis
       # Analyzes repository security posture across 18 security checks
       - name: Run OpenSSF Scorecard
-        uses: ossf/scorecard-action@99c09fe975337306107572b4fdf4db224cf8e2f2  # v2.4.3
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a  # v2.4.3
         with:
           results_file: scorecard-results.sarif
           results_format: sarif
@@ -497,7 +497,7 @@ jobs:
       # Upload Scorecard results to GitHub Security tab
       # Always uploads to track score trends over time
       - name: Upload Scorecard results to GitHub Security
-        uses: github/codeql-action/upload-sarif@4e94bd11f71e507f7f87df81788dff88d1dacbfb  # v4.31.0
+        uses: github/codeql-action/upload-sarif@0499de31b99561a6d14a36a5f662c2a54f91beee  # v4.31.2
         if: always()  # Upload even if score is below threshold
         with:
           sarif_file: scorecard-results.sarif
