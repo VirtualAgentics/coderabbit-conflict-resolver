@@ -9,12 +9,15 @@
 #   - Bandit: Static analysis for common security issues in Python code
 #   - pip-audit: Audits Python packages for security vulnerabilities (OSV database)
 #   - CodeQL: GitHub's semantic code analysis engine for security and quality
+#   - Trivy: Comprehensive vulnerability scanner for dependencies and filesystems
+#   - TruffleHog: Secret scanner with git history analysis and verification
+#   - OpenSSF Scorecard: Security best practices assessment tool
 # Note: Dependency updates and security alerts handled by Renovate
 #
 # Triggers:
 #   - Push to main or develop branches
 #   - Pull requests targeting main or develop branches
-#   - Weekly schedule: Every Monday at 2:00 AM UTC
+#   - Daily schedule: Every day at 2:00 AM UTC
 #
 # Behavior:
 #   - Fails the workflow if HIGH severity issues are found
@@ -23,13 +26,18 @@
 # ============================================================================
 name: Security
 
+# Default permissions: read-only for security
+# Individual jobs override with specific permissions as needed
+permissions:
+  contents: read  # Default: read-only access for repository checkout
+
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
   schedule:
-    - cron: "0 2 * * 1" # Weekly on Monday at 2 AM UTC
+    - cron: "0 2 * * *"  # Daily at 2 AM UTC
 
 # Concurrency: Prevents multiple security scans from running simultaneously
 # on the same branch/PR. When a new commit is pushed, any in-progress scan for
@@ -72,7 +80,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --require-hashes -r .github/requirements-bootstrap.txt
           pip install -e ".[dev]"
 
       # Bandit: Static analysis security testing (SAST) for Python
@@ -148,7 +156,7 @@ jobs:
               echo "### ❌ pip-audit: Found $TOTAL_VULNS vulnerabilities" >> $GITHUB_STEP_SUMMARY
               echo "❌ Found $TOTAL_VULNS vulnerabilities in pip-audit scan"
               echo "Vulnerabilities found:" | tee -a $GITHUB_STEP_SUMMARY
-              jq -r '.dependencies[].vulns[] | "- \(.id): \(.description // "No description")"' pip-audit-report.json 2>/dev/null | head -20 | tee -a $GITHUB_STEP_SUMMARY
+              jq -r '.dependencies[].vulns[] | "- \(.id): \(.description // "No description")"' pip-audit-report.json 2>/dev/null | head -20 | tee -a $GITHUB_STEP_SUMMARY || true
               ISSUES_FOUND=1
             else
               echo "### ✅ pip-audit: No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
@@ -276,3 +284,277 @@ jobs:
           echo "## ❌ Workflow Failed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "This workflow has failed. Please check the logs above for error details." >> $GITHUB_STEP_SUMMARY
+
+  # --------------------------------------------------------------------------
+  # Job: trivy-scan
+  # --------------------------------------------------------------------------
+  # Runs Trivy vulnerability scanner to detect security issues in dependencies,
+  # filesystem, and future container images. Trivy uses multiple vulnerability
+  # databases (NVD, GitHub Security Advisories, etc.) and supports SARIF output
+  # for integration with GitHub Security tab.
+  #
+  # Future-ready: Will scan Docker images when containerization is added.
+  # --------------------------------------------------------------------------
+  trivy-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # Prevents hanging jobs (typical runtime: 2-3 minutes)
+
+    # Permissions: Required for SARIF upload to GitHub Security
+    permissions:
+      contents: read          # Read repository code
+      security-events: write  # Write security analysis results to GitHub Security
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+
+      # Run Trivy vulnerability scanner on filesystem
+      # Scans dependencies and source code for known vulnerabilities
+      # Fails on CRITICAL or HIGH severity findings
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8  # v0.33.1
+        with:
+          scan-type: 'fs'              # Filesystem scan (will add 'image' when Docker is added)
+          scan-ref: '.'                # Scan entire repository
+          format: 'sarif'              # SARIF format for GitHub Security tab
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'    # Fail on critical/high severity only
+          exit-code: '1'               # Exit with error if vulnerabilities found
+
+      # Upload Trivy results to GitHub Security tab
+      # Always runs even if scan fails, to ensure visibility
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@4e94bd11f71e507f7f87df81788dff88d1dacbfb  # v4.31.0
+        if: always()  # Upload even if scan found vulnerabilities
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy'  # Categorize in Security tab
+
+      # Generate workflow summary with scan results
+      - name: Report Trivy scan results
+        if: always()
+        run: |
+          {
+            echo "## Trivy Vulnerability Scan Results"
+            echo ""
+            if [ -f trivy-results.sarif ]; then
+              VULN_COUNT=$(jq '[.runs[].results[]] | length' trivy-results.sarif 2>/dev/null || echo "0")
+              if [ "$VULN_COUNT" -gt 0 ]; then
+                echo "### ❌ Found $VULN_COUNT vulnerabilities (CRITICAL/HIGH)"
+                echo ""
+                echo "Check the [Security tab](https://github.com/${{ github.repository }}/security/code-scanning) for details."
+              else
+                echo "### ✅ No CRITICAL or HIGH vulnerabilities found"
+              fi
+            else
+              echo "### ⚠️ Scan completed but results file not found"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Upload Trivy SARIF results as artifact for investigation
+      - name: Upload Trivy SARIF artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
+        if: always()  # Upload regardless of scan status
+        with:
+          name: trivy-results
+          path: trivy-results.sarif
+          retention-days: 14
+
+  # --------------------------------------------------------------------------
+  # Job: trufflehog-scan
+  # --------------------------------------------------------------------------
+  # Runs TruffleHog secret scanner to detect exposed credentials, API keys,
+  # and other sensitive information in git history and current files.
+  # TruffleHog uses 700+ detection patterns and can verify found secrets
+  # by attempting to use them (disabled by default for safety).
+  #
+  # Scans entire git history to catch secrets that may have been committed
+  # and later removed.
+  # --------------------------------------------------------------------------
+  trufflehog-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20  # Prevents hanging jobs (typical runtime: 3-5 minutes)
+
+    # Permissions: Read-only access for scanning
+    permissions:
+      contents: read  # Read repository code and git history
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          fetch-depth: 0  # Fetch full git history for comprehensive secret scanning
+
+      # Run TruffleHog secret scanner
+      # Scans git history for exposed credentials and secrets
+      # Uses Docker container for consistent scanning environment
+      - name: Run TruffleHog secret scanner
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/repo" \
+            trufflesecurity/trufflehog:3.90.0 \
+            git file:///repo \
+            --json \
+            --no-verification \
+            --fail \
+            --exclude-paths=/repo/.truffleignore \
+            > trufflehog-results.json || {
+              # TruffleHog exits with non-zero if secrets found
+              echo "TruffleHog found potential secrets"
+              exit 0  # Don't fail here; let the check step handle it
+            }
+
+      # Analyze TruffleHog results and generate summary
+      # Fails workflow if verified secrets are found
+      - name: Analyze TruffleHog results
+        if: always()
+        run: |
+          {
+            echo "## TruffleHog Secret Scan Results"
+            echo ""
+
+            if [ -f trufflehog-results.json ] && [ -s trufflehog-results.json ]; then
+              # Count total findings
+              TOTAL_SECRETS=$(jq -s 'length' trufflehog-results.json 2>/dev/null || echo "0")
+
+              if [ "$TOTAL_SECRETS" -gt 0 ]; then
+                echo "### ❌ Found $TOTAL_SECRETS potential secrets"
+                echo ""
+                echo "**⚠️ Action Required:** Review and remove exposed secrets immediately."
+                echo ""
+                echo "Findings summary:"
+                jq -r 'select(.SourceMetadata.Data.Git != null) | "- \(.DetectorName): \(.SourceMetadata.Data.Git.file // "unknown file")"' trufflehog-results.json 2>/dev/null | head -20 || true
+                echo ""
+                echo "### 🚨 Secrets Detected - Workflow Failed"
+              else
+                echo "### ✅ No secrets detected"
+              fi
+            else
+              echo "### ✅ No secrets detected"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Exit after summary generation to ensure summary is written
+          if [ -f trufflehog-results.json ] && [ -s trufflehog-results.json ]; then
+            TOTAL_SECRETS=$(jq -s 'length' trufflehog-results.json 2>/dev/null || echo "0")
+            if [ "$TOTAL_SECRETS" -gt 0 ]; then
+              exit 1
+            fi
+          fi
+
+      # Upload TruffleHog results as artifact when secrets found
+      # Helps with investigation and remediation
+      - name: Upload TruffleHog results
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
+        if: failure()  # Upload only when secrets detected
+        with:
+          name: trufflehog-results
+          path: trufflehog-results.json
+          retention-days: 30
+
+  # --------------------------------------------------------------------------
+  # Job: scorecard
+  # --------------------------------------------------------------------------
+  # Runs OpenSSF Scorecard to assess repository security best practices.
+  # Scorecard checks for security measures like:
+  #   - Branch protection rules
+  #   - Code review requirements
+  #   - Signed commits
+  #   - Dependency pinning
+  #   - Security policy (SECURITY.md)
+  #   - Vulnerability disclosure
+  #   - CI/CD security (dangerous workflow patterns)
+  #
+  # Target: Score ≥9.0/10 (current target per Phase 0.7 requirements)
+  # Results uploaded to GitHub Security tab for tracking over time.
+  # --------------------------------------------------------------------------
+  scorecard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # Prevents hanging jobs (typical runtime: 2-3 minutes)
+
+    # Permissions: Required for Scorecard analysis and SARIF upload
+    permissions:
+      contents: read          # Read repository metadata
+      security-events: write  # Write security analysis results to GitHub Security
+      id-token: write         # Required for OIDC token (Scorecard API authentication)
+      actions: read           # Read workflow configurations
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false  # Don't persist GitHub token
+
+      # Run OpenSSF Scorecard analysis
+      # Analyzes repository security posture across 18 security checks
+      - name: Run OpenSSF Scorecard
+        uses: ossf/scorecard-action@99c09fe975337306107572b4fdf4db224cf8e2f2  # v2.4.3
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          publish_results: true  # Publish to OpenSSF Scorecard API (public repos only)
+
+      # Upload Scorecard results to GitHub Security tab
+      # Always uploads to track score trends over time
+      - name: Upload Scorecard results to GitHub Security
+        uses: github/codeql-action/upload-sarif@4e94bd11f71e507f7f87df81788dff88d1dacbfb  # v4.31.0
+        if: always()  # Upload even if score is below threshold
+        with:
+          sarif_file: scorecard-results.sarif
+          category: 'scorecard'
+
+      # Validate Scorecard results for HIGH/CRITICAL security findings
+      # Fails workflow if any HIGH (CVSS ≥7.0) or CRITICAL (CVSS ≥9.0) findings exist
+      # EXCEPTION: Excludes PYSEC-2024-48 / GHSA-fj7x-q9j7-g6q6 (known false positive)
+      #   - Black 25.9.0 includes fix from March 2024 (commit f000936)
+      #   - OSV-Scanner.toml not respected by Scorecard (upstream Issue #4530)
+      #   - Tracked in: https://github.com/VirtualAgentics/coderabbit-conflict-resolver/issues/75
+      - name: Validate Scorecard results
+        if: always()
+        run: |
+          {
+            echo "## OpenSSF Scorecard Results"
+            echo ""
+
+            if [ -f scorecard-results.sarif ]; then
+              # Count HIGH/CRITICAL severity findings from SARIF results
+              # Scorecard uploads findings to GitHub Security but doesn't fail by default
+              # We explicitly check for HIGH/CRITICAL findings and fail the workflow
+              # SARIF uses numeric CVSS scores (0-10): HIGH=7.0-8.9, CRITICAL=9.0-10.0
+              # NOTE: Scorecard stores security-severity in tool.driver.rules[], not results[]
+              # We must join results with their corresponding rules via ruleIndex
+              # EXCEPTION: Filter out PYSEC-2024-48 / GHSA-fj7x-q9j7-g6q6 (known false positive for black 25.9.0)
+              HIGH_CRITICAL_COUNT=$(jq '[.runs[] | . as $run | .results[] | . as $result | select(($result.message.text | contains("PYSEC-2024-48") or contains("GHSA-fj7x-q9j7-g6q6")) | not) | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0)] | length' scorecard-results.sarif 2>/dev/null || echo "0")
+
+              # Check if there are HIGH/CRITICAL findings (excluding known false positives)
+              if [ "$HIGH_CRITICAL_COUNT" -gt 0 ]; then
+                echo "### ❌ Found $HIGH_CRITICAL_COUNT HIGH/CRITICAL security findings"
+                echo ""
+                echo "**Security findings must be resolved before merging.**"
+                echo ""
+                echo "**HIGH/CRITICAL Findings:**"
+                jq -r '.runs[] | . as $run | .results[] | . as $result | select(($result.message.text | contains("PYSEC-2024-48") or contains("GHSA-fj7x-q9j7-g6q6")) | not) | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0) | "- \(.id) (CVSS: \(.properties."security-severity")): \(.shortDescription.text)"' scorecard-results.sarif 2>/dev/null | head -10 || true
+                echo ""
+                echo "View all findings: [Security tab](https://github.com/${{ github.repository }}/security/code-scanning?query=is:open+tool:Scorecard)"
+              else
+                echo "### ✅ No HIGH/CRITICAL security findings"
+                echo ""
+                echo "**HIGH/CRITICAL Findings:** 0 (excluding known false positives)"
+                echo "**Known False Positives:** PYSEC-2024-48 / GHSA-fj7x-q9j7-g6q6 (black 25.9.0 includes fix)"
+                echo ""
+                echo "View all checks: [Security tab](https://github.com/${{ github.repository }}/security/code-scanning?query=is:open+tool:Scorecard)"
+              fi
+            else
+              echo "### ⚠️ Scorecard results file not found"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Exit after summary generation to ensure summary is written
+          if [ -f scorecard-results.sarif ]; then
+            HIGH_CRITICAL_COUNT=$(jq '[.runs[] | . as $run | .results[] | . as $result | select(($result.message.text | contains("PYSEC-2024-48") or contains("GHSA-fj7x-q9j7-g6q6")) | not) | $run.tool.driver.rules[$result.ruleIndex] | select(.properties."security-severity" != null) | select((.properties."security-severity" | tonumber) >= 7.0)] | length' scorecard-results.sarif 2>/dev/null || echo "0")
+            if [ "$HIGH_CRITICAL_COUNT" -gt 0 ]; then
+              exit 1
+            fi
+          else
+            exit 1
+          fi
