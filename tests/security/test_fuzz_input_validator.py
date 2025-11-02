@@ -47,9 +47,7 @@ def path_strings(draw: st.DrawFn) -> str:
         # Simple relative path
         parts = draw(
             st.lists(
-                st.text(
-                    alphabet=st.characters(exclude_categories=("Cs",)), min_size=1, max_size=20
-                ),
+                st.text(alphabet=st.characters(exclude_categories=["Cs"]), min_size=1, max_size=20),
                 min_size=1,
                 max_size=5,
             )

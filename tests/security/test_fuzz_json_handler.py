@@ -72,7 +72,7 @@ def test_fuzz_json_validate_change_never_crashes(content: str) -> None:
 @given(json_obj=json_values)
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_fuzz_json_validate_with_valid_structures(
-    json_obj: dict | list | str | int | float | bool | None,
+    json_obj: dict[str, object] | list[object] | str | int | float | bool | None,
 ) -> None:
     """Fuzz JSON validation with structurally valid JSON.
 
