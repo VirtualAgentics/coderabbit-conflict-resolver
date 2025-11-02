@@ -35,13 +35,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --require-hashes -r .github/requirements-bootstrap.txt
-          pip install --require-hashes -r requirements-dev.txt
-          pip install -e . --no-deps
+          python -m pip install --require-hashes -r requirements-dev.txt
+          python -m pip install -e . --no-deps
 
       - name: Run extended fuzzing tests
         env:
           HYPOTHESIS_PROFILE: fuzz
-        run: pytest tests/ -m fuzz -v --tb=short
+        run: pytest tests/ -m fuzz -v --tb=short --override-ini="addopts="
 
       - name: Generate extended fuzz summary
         if: always()

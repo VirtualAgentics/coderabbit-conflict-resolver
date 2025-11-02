@@ -117,8 +117,7 @@ def test_fuzz_validate_file_path_never_crashes(path: str) -> None:
     Args:
         path: Arbitrary string to test as a file path
     """
-    validator = InputValidator()
-    result = validator.validate_file_path(path)
+    result = InputValidator.validate_file_path(path)
     assert isinstance(result, bool), "validate_file_path must return bool"
 
 
@@ -176,8 +175,7 @@ def test_fuzz_validate_file_extension_never_crashes(extension: str) -> None:
     Args:
         extension: Arbitrary string to test as file extension
     """
-    validator = InputValidator()
-    result = validator.validate_file_extension(extension)
+    result = InputValidator.validate_file_extension(extension)
     assert isinstance(result, bool)
 
 
@@ -259,8 +257,7 @@ def test_fuzz_validate_github_url_never_crashes(url: str) -> None:
     Args:
         url: Arbitrary string to test as URL
     """
-    validator = InputValidator()
-    result = validator.validate_github_url(url)
+    result = InputValidator.validate_github_url(url)
     assert isinstance(result, bool)
 
 
@@ -312,8 +309,7 @@ def test_fuzz_validate_github_token_never_crashes(token: str) -> None:
     Args:
         token: Arbitrary string to test as token
     """
-    validator = InputValidator()
-    result = validator.validate_github_token(token)
+    result = InputValidator.validate_github_token(token)
     assert isinstance(result, bool)
 
 
