@@ -168,7 +168,7 @@ jobs:
       - name: Run fuzzing tests
         env:
           HYPOTHESIS_PROFILE: ci
-        run: pytest tests/ -m fuzz -v --tb=short
+        run: pytest tests/ -m fuzz -v --tb=short --override-ini="addopts="
 
       - name: Generate fuzz test summary
         if: always()
