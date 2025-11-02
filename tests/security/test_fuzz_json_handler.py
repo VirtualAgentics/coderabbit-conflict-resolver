@@ -302,7 +302,7 @@ def test_fuzz_json_apply_change_never_crashes(
 @pytest.mark.fuzz
 @given(
     content=st.text(
-        alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Zs", "Po")),
+        alphabet=st.characters(categories=("Lu", "Ll", "Nd", "Zs", "Po")),
         min_size=1,
         max_size=100,
     )

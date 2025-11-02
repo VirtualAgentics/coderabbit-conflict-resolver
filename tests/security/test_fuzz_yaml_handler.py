@@ -47,7 +47,7 @@ def test_fuzz_yaml_validate_change_never_crashes(content: str) -> None:
 
 @pytest.mark.fuzz
 @given(
-    key=st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll")), min_size=1, max_size=20),
+    key=st.text(alphabet=st.characters(categories=("Lu", "Ll")), min_size=1, max_size=20),
     value=st.one_of(
         st.none(), st.booleans(), st.integers(), st.floats(allow_nan=False), st.text(max_size=50)
     ),
@@ -182,7 +182,7 @@ def test_fuzz_yaml_control_character_detection(content: str) -> None:
 @pytest.mark.fuzz
 @given(
     lines=st.lists(
-        st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Zs")), max_size=50),
+        st.text(alphabet=st.characters(categories=("Lu", "Ll", "Nd", "Zs")), max_size=50),
         min_size=1,
         max_size=20,
     )
@@ -208,7 +208,7 @@ def test_fuzz_yaml_multiline_content(lines: list[str]) -> None:
 @pytest.mark.fuzz
 @given(
     indent=st.integers(min_value=0, max_value=10),
-    key=st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll")), min_size=1, max_size=20),
+    key=st.text(alphabet=st.characters(categories=("Lu", "Ll")), min_size=1, max_size=20),
     value=st.text(max_size=50),
 )
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
