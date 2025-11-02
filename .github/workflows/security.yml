@@ -512,6 +512,9 @@ jobs:
       - name: Validate Scorecard results
         if: always()
         run: |
+          # Disable exit-on-error for grouped block to prevent premature script termination
+          # This ensures the summary is always written to $GITHUB_STEP_SUMMARY
+          set +e
           {
             echo "## OpenSSF Scorecard Results"
             echo ""
@@ -548,6 +551,8 @@ jobs:
               echo "### ⚠️ Scorecard results file not found"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+          # Re-enable exit-on-error for exit logic below
+          set -e
 
           # Exit after summary generation to ensure summary is written
           if [ -f scorecard-results.sarif ]; then
