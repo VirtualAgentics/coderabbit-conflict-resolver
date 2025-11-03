@@ -20,9 +20,10 @@ echo "[*] Installing project package..."
 python3 -m pip install .
 
 # Install additional runtime dependencies explicitly
-# ruamel.yaml is required by the file handlers being fuzzed
+# ruamel.yaml is required by the yaml_handler
+# PyYAML is required by input_validator and conflict_detector
 echo "[*] Installing additional runtime dependencies..."
-python3 -m pip install "ruamel.yaml==0.18.16"
+python3 -m pip install "ruamel.yaml==0.18.16" "PyYAML==6.0.3"
 
 # NOTE: Atheris is pre-installed in gcr.io/oss-fuzz-base/base-builder-python
 # No need to install it separately
