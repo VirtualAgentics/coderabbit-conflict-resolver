@@ -4,25 +4,27 @@
 #
 # Build script for OSS-Fuzz and ClusterFuzzLite fuzzing
 # Compiles Atheris fuzz targets for coverage-guided fuzzing
+#
+# Base image info:
+#   - Python 3.11.13 (Atheris doesn't support Python 3.12 yet)
+#   - Atheris 2.3.0 pre-installed
+#   - pip already upgraded to latest version
 
-# Install project dependencies
+# Install project dependencies (standard installation, not editable mode)
 echo "[*] Installing project dependencies..."
-pip3 install -e .
+pip3 install .
 
-# Install Atheris fuzzing engine
-echo "[*] Installing Atheris..."
-pip3 install atheris
+# NOTE: Atheris is pre-installed in gcr.io/oss-fuzz-base/base-builder-python
+# No need to install it separately
 
-# Build each fuzz target
+# Build each fuzz target using compile_python_fuzzer helper
 echo "[*] Building fuzz targets..."
 for fuzzer in $SRC/fuzz_*.py; do
     fuzzer_basename=$(basename -s .py "$fuzzer")
     echo "[*] Compiling $fuzzer_basename..."
 
-    # compile_python_fuzzer creates a standalone fuzzing binary
-    # --add-binary includes Python dependencies in the binary
-    compile_python_fuzzer "$fuzzer" \
-        --add-binary=/usr/local/lib/python3.*/site-packages:site-packages
+    # compile_python_fuzzer handles all compilation and packaging
+    compile_python_fuzzer "$fuzzer"
 done
 
 echo "[*] Build complete! Fuzz targets ready."

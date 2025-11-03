@@ -6,8 +6,12 @@
 pytest==8.4.2
 pytest-cov==7.0.0
 pytest-asyncio==1.2.0
-hypothesis==6.143.1
-atheris==2.3.0
+hypothesis==6.144.0
+
+# NOTE: Atheris removed from requirements
+# Atheris 2.3.0 doesn't support Python 3.12 (only ≤3.11)
+# Fuzzing runs in Docker with Python 3.11 (OSS-Fuzz base image)
+# See fuzz/README.md for details
 
 # Code quality
 black==25.9.0

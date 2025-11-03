@@ -12,15 +12,9 @@ annotated-types==0.7.0 \
     --hash=sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53 \
     --hash=sha256:aff07c09a53a08bc8cfccb9c85b05f1aa9a2a6f23728d790723543408344ce89
     # via pydantic
-atheris==2.3.0 \
-    --hash=sha256:005bde4b5a70e998b7fa097e9aa195972dcc2e04092156a0149cff7aa0de970e \
-    --hash=sha256:6d4e83c8a518e7f7d1c82ee52453255bf6309b7b335657534e83747d4fdfa110 \
-    --hash=sha256:9877b6c2bd5386f9fbbb2989a939c717383d9639f5476411c06fe50fe2fe09a6 \
-    --hash=sha256:b91cb296d60915c3efa4f6db48f09c4678b574cddb7ca98035f1cb9d9fb96f64 \
-    --hash=sha256:c353952ee375bf851527e8b2ea57fdefd7ad16aadfe18143801998075485eccd \
-    --hash=sha256:cf1fdf5fa220a41a2f262b32363fc566549502b2cb0addf4e1baad5531c0e825 \
-    --hash=sha256:e4e43d1ee4760916a84ff73c9c6cf9ac6eee80fc030479bbed43fe0b8e994981
-    # via -r requirements-dev.in
+# NOTE: Atheris removed - doesn't support Python 3.12 (only ≤3.11)
+# Fuzzing runs in Docker with Python 3.11 (OSS-Fuzz base image)
+# See fuzz/README.md for details
 attrs==25.4.0 \
     --hash=sha256:16d5969b87f0859ef33a48b35d55ac1be6e42ae49d5e853b597db70c35c57e11 \
     --hash=sha256:adcf7e2a1fb3b36ac48d97835bb6d8ade15b8dcce26aba8bf1d14847b57a3373

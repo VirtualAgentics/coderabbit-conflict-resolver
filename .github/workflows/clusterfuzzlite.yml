@@ -61,14 +61,14 @@ jobs:
     steps:
       - name: Build Fuzzers (${{ matrix.sanitizer }})
         id: build
-        uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+        uses: google/clusterfuzzlite/actions/build_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05 # v1
         with:
           language: python
           sanitizer: ${{ matrix.sanitizer }}
 
       - name: Run Fuzzers (${{ matrix.sanitizer }})
         id: run
-        uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+        uses: google/clusterfuzzlite/actions/run_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05 # v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fuzz-seconds: 120  # 2 minutes per sanitizer
@@ -106,14 +106,14 @@ jobs:
 
       - name: Build Fuzzers (${{ matrix.sanitizer }})
         id: build
-        uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+        uses: google/clusterfuzzlite/actions/build_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05 # v1
         with:
           language: python
           sanitizer: ${{ matrix.sanitizer }}
 
       - name: Run Fuzzers (${{ matrix.sanitizer }})
         id: run
-        uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+        uses: google/clusterfuzzlite/actions/run_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05 # v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fuzz-seconds: 1800  # 30 minutes per sanitizer
@@ -146,7 +146,11 @@ jobs:
           echo "**Mode:** Comprehensive batch fuzzing" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ steps.run.outcome }}" == "failure" ]; then
+          if [ "${{ steps.build.outcome }}" == "failure" ]; then
+            echo "### ⚠️ Build Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Fuzz targets failed to build. Check build logs for compilation errors." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.run.outcome }}" == "failure" ]; then
             echo "### ⚠️ Crashes Found" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Fuzzing discovered potential bugs. Check artifacts for details." >> $GITHUB_STEP_SUMMARY

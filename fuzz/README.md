@@ -10,6 +10,15 @@ This directory contains coverage-guided fuzzing infrastructure for finding secur
 
 Both run in CI and provide different security benefits.
 
+### Python Version Note
+
+**Fuzzing runs on Python 3.11** (not 3.12):
+- Atheris 2.3.0 (latest) only supports Python ≤3.11
+- Python 3.12 support tracked in [Atheris issue #60](https://github.com/google/atheris/issues/60)
+- OSS-Fuzz base image uses Python 3.11.13
+- Main project code continues to use Python 3.12+
+- Fuzzing in Docker is isolated from main project Python version
+
 ## Fuzz Targets
 
 ### `fuzz_handlers.py`
