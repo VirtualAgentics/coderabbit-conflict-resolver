@@ -1,13 +1,49 @@
 # CodeRabbit Conflict Resolver
 
-An intelligent, automated conflict resolution system for GitHub PR comments, specifically designed for [CodeRabbit AI](https://coderabbit.ai) but extensible to other code review bots.
+<p align="center">
+  <strong>An intelligent, automated conflict resolution system for GitHub PR comments</strong>
+  <br>
+  Specifically designed for <a href="https://coderabbit.ai">CodeRabbit AI</a> but extensible to other code review bots
+</p>
 
-[![CI](https://github.com/VirtualAgentics/coderabbit-conflict-resolver/workflows/CI/badge.svg)](https://github.com/VirtualAgentics/coderabbit-conflict-resolver/actions)
-[![codecov](https://codecov.io/gh/VirtualAgentics/coderabbit-conflict-resolver/branch/main/graph/badge.svg)](https://codecov.io/gh/VirtualAgentics/coderabbit-conflict-resolver)
-[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/VirtualAgentics/coderabbit-conflict-resolver?utm_source=oss&utm_medium=github&utm_campaign=VirtualAgentics%2Fcoderabbit-conflict-resolver&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)](https://coderabbit.ai)
-[![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+<p align="center">
+  <!-- Build & Quality -->
+  <a href="https://github.com/VirtualAgentics/coderabbit-conflict-resolver/actions"><img src="https://github.com/VirtualAgentics/coderabbit-conflict-resolver/workflows/CI/badge.svg" alt="CI"></a>
+  <a href="https://codecov.io/gh/VirtualAgentics/coderabbit-conflict-resolver"><img src="https://codecov.io/gh/VirtualAgentics/coderabbit-conflict-resolver/branch/main/graph/badge.svg" alt="codecov"></a>
+  <a href="https://github.com/VirtualAgentics/coderabbit-conflict-resolver/actions/workflows/security.yml"><img src="https://github.com/VirtualAgentics/coderabbit-conflict-resolver/workflows/Security/badge.svg" alt="Security"></a>
+  <a href="https://virtualagent ics.github.io/coderabbit-conflict-resolver/"><img src="https://github.com/VirtualAgentics/coderabbit-conflict-resolver/workflows/Documentation/badge.svg" alt="Documentation"></a>
+  <br>
+  <!-- Code Quality -->
+  <a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black"></a>
+  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
+  <a href="http://mypy-lang.org/"><img src="https://img.shields.io/badge/mypy-checked-blue" alt="MyPy"></a>
+  <a href="https://github.com/pre-commit/pre-commit"><img src="https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit" alt="pre-commit"></a>
+  <br>
+  <!-- Security & Compliance -->
+  <a href="https://securityscorecards.dev/viewer/?uri=github.com/VirtualAgentics/coderabbit-conflict-resolver"><img src="https://api.securityscorecards.dev/projects/github.com/VirtualAgentics/coderabbit-conflict-resolver/badge" alt="OpenSSF Scorecard"></a>
+  <a href="https://coderabbit.ai"><img src="https://img.shields.io/coderabbit/prs/github/VirtualAgentics/coderabbit-conflict-resolver?utm_source=oss&utm_medium=github&utm_campaign=VirtualAgentics%2Fcoderabbit-conflict-resolver&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews" alt="CodeRabbit Reviews"></a>
+  <br>
+  <!-- Project Info -->
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
+  <img src="https://img.shields.io/badge/status-alpha-orange" alt="Status: Alpha">
+</p>
+
+---
+
+## 📋 Table of Contents
+
+- [Problem Statement](#-problem-statement)
+- [Quick Start](#-quick-start)
+- [Features](#-features)
+- [Architecture](#️-architecture)
+- [Use Cases](#-use-cases)
+- [Documentation](#-documentation)
+- [Contributing](#-contributing)
+- [Project Status](#-project-status)
+- [License](#-license)
+
+---
 
 ## 🎯 Problem Statement
 
@@ -103,13 +139,24 @@ print(f"Success rate: {results.success_rate}%")
 
 ## 📖 Documentation
 
+### User Guides
 - [Getting Started Guide](docs/getting-started.md)
-- [Architecture Overview](docs/architecture.md)
 - [Configuration Reference](docs/configuration.md)
 - [Conflict Types Explained](docs/conflict-types.md)
 - [Resolution Strategies](docs/resolution-strategies.md)
 - [API Reference](docs/api-reference.md)
+
+### Architecture & Development
+- [Architecture Overview](docs/architecture.md)
 - [Contributing Guide](CONTRIBUTING.md)
+
+### Security
+- [Security Policy](SECURITY.md) - Vulnerability reporting, security features
+- [Security Architecture](docs/security-architecture.md) - Design principles, threat model
+- [Threat Model](docs/security/threat-model.md) - STRIDE analysis, risk assessment
+- [Incident Response](docs/security/incident-response.md) - Security incident procedures
+- [Compliance](docs/security/compliance.md) - GDPR, OWASP, SOC2, OpenSSF
+- [Security Testing](docs/security/security-testing.md) - Testing guide, fuzzing, SAST
 
 ## 🏗️ Architecture
 
@@ -229,12 +276,30 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 **Roadmap**:
 
-- ✅ Phase 0: Repository setup and architecture
-- 🔄 Phase 1: Core conflict detection and analysis
-- 📅 Phase 2: Priority system and basic strategies
-- 📅 Phase 3: Advanced strategies and configuration
-- 📅 Phase 4: ML-assisted learning
-- 📅 Phase 5: Performance optimization
+- ✅ **Phase 0: Security Foundation (COMPLETE)**
+  - ✅ 0.1: Security Architecture Design
+  - ✅ 0.2: Input Validation & Sanitization
+  - ✅ 0.3: Secure File Handling
+  - ✅ 0.4: Secret Detection (14+ patterns)
+  - ✅ 0.5: Security Testing Suite (95%+ coverage)
+  - ✅ 0.6: Security Configuration
+  - ✅ 0.7: CI/CD Security Scanning (7+ tools)
+  - ✅ 0.8: Security Documentation
+- 🔄 **Phase 1: Core Features (IN PROGRESS)**
+  - Core conflict detection and analysis
+  - File handlers (JSON, YAML, TOML)
+  - Priority system
+- 📅 **Phase 2**: Advanced resolution strategies
+- 📅 **Phase 3**: CLI and configuration system
+- 📅 **Phase 4**: ML-assisted learning
+- 📅 **Phase 5**: Performance optimization
+
+### Security Highlights
+- **ClusterFuzzLite**: Continuous fuzzing (3 fuzz targets, ASan + UBSan)
+- **Test Coverage**: 82.35% overall, 95%+ for security modules
+- **Security Scanning**: CodeQL, Trivy, TruffleHog, Bandit, pip-audit, OpenSSF Scorecard
+- **Secret Detection**: 14+ pattern types (GitHub tokens, AWS keys, API keys, etc.)
+- **Documentation**: Comprehensive security documentation (threat model, incident response, compliance)
 
 ## 🔗 Related Projects
 
