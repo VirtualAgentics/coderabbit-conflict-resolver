@@ -6,7 +6,7 @@ authors = [
     { name = "VirtualAgentics", email = "contact@virtualagentics.com" },
 ]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 keywords = [
     "github",
     "coderabbit",
@@ -20,6 +20,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Version Control :: Git",
     "Topic :: Software Development :: Quality Assurance",
