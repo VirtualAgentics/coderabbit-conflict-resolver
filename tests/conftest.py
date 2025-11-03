@@ -2,6 +2,7 @@
 
 import io
 import logging
+import os
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any
@@ -9,6 +10,7 @@ from unittest.mock import Mock
 
 import pytest
 from click import Context
+from hypothesis import HealthCheck, settings
 
 from pr_conflict_resolver.cli.main import cli
 from pr_conflict_resolver.handlers.json_handler import JsonHandler
@@ -188,3 +190,37 @@ def mock_param() -> Mock:
     param = Mock()
     param.name = "test"
     return param
+
+
+# ============================================================================
+# Hypothesis Configuration for Property-Based Testing / Fuzzing
+# ============================================================================
+
+# Configure Hypothesis profiles for different testing scenarios
+# - dev: Quick local development (50 examples)
+# - ci: Standard CI pipeline testing (100 examples)
+# - fuzz: Extended fuzzing for comprehensive testing (1000 examples)
+
+settings.register_profile(
+    "dev",
+    max_examples=50,
+    deadline=300,  # 300ms per example
+    suppress_health_check=[HealthCheck.too_slow],
+)
+
+settings.register_profile(
+    "ci",
+    max_examples=100,
+    deadline=500,  # 500ms per example
+    suppress_health_check=[HealthCheck.too_slow],
+)
+
+settings.register_profile(
+    "fuzz",
+    max_examples=1000,
+    deadline=2000,  # 2s per example for complex scenarios
+    suppress_health_check=[HealthCheck.too_slow],
+)
+
+# Load profile from environment or use "dev" as default
+settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "dev"))

@@ -1,4 +1,4 @@
-.PHONY: all help setup test lint format type-check clean install-dev install-docs docs build publish install-hooks
+.PHONY: all help setup test test-fuzz test-fuzz-ci test-fuzz-extended lint format type-check clean install-dev install-docs docs build publish install-hooks
 
 all: lint format type-check test build ## Default target - run all checks
 
@@ -28,6 +28,18 @@ test: ## Run tests with coverage
 
 test-fast: ## Run tests without coverage (faster)
 	pytest tests/ -v
+
+test-fuzz: ## Run property-based fuzzing tests (dev profile: 50 examples)
+	HYPOTHESIS_PROFILE=dev pytest tests/ -m fuzz -v --tb=short --no-cov
+
+test-fuzz-ci: ## Run fuzzing tests with CI profile (100 examples)
+	HYPOTHESIS_PROFILE=ci pytest tests/ -m fuzz -v --tb=short --no-cov
+
+test-fuzz-extended: ## Run extended fuzzing tests (1000 examples)
+	HYPOTHESIS_PROFILE=fuzz pytest tests/ -m fuzz -v --tb=short --no-cov
+
+test-all: ## Run all tests including fuzzing
+	pytest tests/ --cov=src --cov-report=html --cov-report=term-missing -v
 
 .ONESHELL:
 lint: ## Run all linters
@@ -70,7 +82,7 @@ publish: ## Publish to PyPI (requires PyPI credentials)
 clean: ## Clean build artifacts
 	./scripts/clean.py
 
-check-all: lint test security ## Run all checks (lint, test, security)
+check-all: lint test test-fuzz security ## Run all checks (lint, test, fuzzing, security)
 
 pre-commit: ## Run pre-commit hooks on all files
 	pre-commit run --all-files
@@ -82,6 +94,7 @@ ci: ## Run CI checks locally
 	@echo "Running CI checks..."
 	make lint
 	make test
+	make test-fuzz-ci
 	make security
 	@echo "All CI checks passed!"
 

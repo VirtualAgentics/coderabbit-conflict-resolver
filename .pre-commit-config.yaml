@@ -44,6 +44,7 @@ repos:
           - ruamel.yaml==0.18.16
           - tomli-w==1.2.0
           - pydantic==2.12.3
+          - hypothesis==6.144.0
         pass_filenames: false
         args:
           - --strict

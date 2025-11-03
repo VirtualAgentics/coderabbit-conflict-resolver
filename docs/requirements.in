@@ -1,0 +1,9 @@
+# Documentation dependencies
+# Use pip-compile --generate-hashes to generate requirements.txt with all transitive deps
+sphinx==8.2.3
+sphinx-rtd-theme==3.0.2
+sphinx-autodoc-typehints==3.5.2
+myst-parser==4.0.1
+sphinx-copybutton==0.5.2
+sphinx-tabs==3.4.7
+linkify-it-py==2.0.3

@@ -1,0 +1,4 @@
+# ML dependencies
+# Use pip-compile --generate-hashes to generate requirements-ml.txt with all transitive deps
+numpy==2.3.4
+scikit-learn==1.7.2
