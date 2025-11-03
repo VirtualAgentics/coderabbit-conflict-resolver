@@ -9,13 +9,12 @@
 
 FROM gcr.io/oss-fuzz-base/base-builder-python@sha256:6fc98ba9122e5392ec51909d14bcd5405e65af84d71a9f1a8f03003ab08cbc87
 
-# Clone the repository
-# For OSS-Fuzz: GitHub URL is used
-# For ClusterFuzzLite: Local checkout is mounted
-RUN git clone --depth 1 https://github.com/VirtualAgentics/coderabbit-conflict-resolver coderabbit-conflict-resolver
+# Copy local repository (ClusterFuzzLite tests PR code directly)
+# For OSS-Fuzz: Replace this with: RUN git clone --depth 1 https://github.com/VirtualAgentics/coderabbit-conflict-resolver
+COPY . $SRC/coderabbit-conflict-resolver
 
 # Set working directory
-WORKDIR coderabbit-conflict-resolver
+WORKDIR $SRC/coderabbit-conflict-resolver
 
 # Copy build script and fuzz targets from parent directory
 COPY .clusterfuzzlite/build.sh $SRC/build.sh
