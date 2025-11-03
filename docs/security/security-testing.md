@@ -191,18 +191,29 @@ docker run --rm -v $(pwd):/src clusterfuzzlite-build bash -c \
 #### Fuzz Targets
 
 **1. fuzz_input_validator.py**
-- Tests: `InputValidator.validate_file_path()`, `validate_github_url()`, `validate_json/yaml/toml()`
-- Corpus: Automatically generated
-- Max length: 4096 bytes
-- Timeout: 60 seconds per input
+- **Tests**: `InputValidator.validate_file_path()`, `validate_github_url()`, `validate_json/yaml/toml()`
+- **Coverage**: Path traversal, null bytes, special characters, URL spoofing, token format bypasses
+- **Corpus**: Automatically generated
+- **Max length**: 4096 bytes
+- **Timeout**: 60 seconds per input
 
-**2. fuzz_json_handler.py**
-- Tests: JSON parsing, duplicate key detection, path handling
-- Focus: Edge cases in JSON structure
+**2. fuzz_handlers.py**
+- **Tests**: JSON, YAML, TOML parsing, validation, modification
+- **Coverage**: Parser crashes, injection attacks, path traversal, resource exhaustion
+- **Focus**: Malformed/malicious inputs across all file handlers
+- **Handlers**: JsonHandler, YamlHandler, TomlHandler
 
-**3. fuzz_yaml_handler.py**
-- Tests: YAML parsing safety, injection prevention
-- Focus: Malicious YAML constructs
+**3. fuzz_secret_scanner.py**
+- **Tests**: `SecretScanner.scan_content()`, `has_secrets()`, `_is_false_positive()`, `_redact_secret()`, `scan_content_generator()`
+- **Coverage**: ReDoS vulnerabilities (14+ regex patterns), Unicode edge cases, false positive logic, redaction safety
+- **Focus**: Regular expression denial of service, secret detection edge cases
+- **Max length**: 10KB per input (prevent timeout)
+- **Key Vulnerabilities Tested**:
+  - ReDoS (catastrophic backtracking in regex patterns)
+  - Unicode normalization issues
+  - Null byte injection (`\x00`)
+  - Boundary conditions (empty strings, extremely long inputs)
+  - False positive detection logic errors
 
 #### CI/CD Fuzzing
 
