@@ -64,7 +64,6 @@ reviews:
     # de-noise prose unless they are the only changes
     - "!docs/_build/**"
     - "!docs/build/**"
-    - "!**/*.md"
 
   # Repo-aware instructions
   path_instructions:
