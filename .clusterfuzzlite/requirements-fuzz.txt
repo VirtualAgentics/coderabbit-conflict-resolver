@@ -1,0 +1,22 @@
+# ClusterFuzzLite Fuzzing Runtime Dependencies
+# Hash-pinned dependencies for supply chain security
+#
+# All hashes verified for Python 3.11 (cp311-manylinux2014_x86_64)
+# Last verified: 2025-11-03
+#
+# Usage: pip install --require-hashes -r requirements-fuzz.txt
+
+# PyYAML: Required by input_validator and conflict_detector
+# Hash: cp311-manylinux2014_x86_64 wheel
+PyYAML==6.0.3 \
+    --hash=sha256:b8bb0864c5a28024fac8a632c443c87c5aa6f215c0b126c449ae1a150412f31d
+
+# ruamel.yaml: Required by yaml_handler
+# Hash: py3-none-any universal wheel
+ruamel.yaml==0.18.16 \
+    --hash=sha256:048f26d64245bae57a4f9ef6feb5b552a386830ef7a826f235ffb804c59efbba
+
+# ruamel.yaml.clib: Transitive dependency of ruamel.yaml
+# Hash: cp311-manylinux2014_x86_64 wheel
+ruamel.yaml.clib==0.2.14 \
+    --hash=sha256:dba72975485f2b87b786075e18a6e5d07dc2b4d8973beb2732b9b2816f1bad70
