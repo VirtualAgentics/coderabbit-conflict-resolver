@@ -1,0 +1,59 @@
+# Docker build optimization for ClusterFuzzLite
+# Exclude files not needed in fuzzing container to reduce build time and image size
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python cache and build artifacts
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+dist
+build
+*.egg
+.eggs
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.hypothesis
+
+# Virtual environments
+venv
+.venv
+env
+ENV
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# CI/CD (not needed in container)
+.github
+
+# Documentation (not needed for fuzzing)
+docs
+*.md
+!README.md
+
+# Test artifacts
+htmlcov
+.coverage
+coverage.xml
+*.cover
+
+# Development tools config
+.pre-commit-config.yaml
+.bandit
+.ruff.toml
+
+# OS files
+.DS_Store
+Thumbs.db

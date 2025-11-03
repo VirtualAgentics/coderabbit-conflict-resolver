@@ -1,0 +1,161 @@
+# ============================================================================
+# Workflow: ClusterFuzzLite Coverage-Guided Fuzzing
+# ============================================================================
+# Purpose:
+#   Runs Atheris-based coverage-guided fuzzing to find crashes, hangs, and
+#   security vulnerabilities. Complements Hypothesis property-based testing.
+#
+# Triggers:
+#   - Pull requests (quick 2-min fuzz on changed code)
+#   - Weekly schedule (deep 30-min fuzz on Sundays)
+#   - Manual dispatch
+#
+# Outputs:
+#   - Crash artifacts (uploaded if bugs found)
+#   - Coverage reports
+#   - OpenSSF Scorecard recognition
+#
+# Self-Hosted Runner Option:
+#   To use your self-hosted runner (zero CI cost), uncomment the runner matrix
+#   option below and ensure Docker is installed on the runner host.
+# ============================================================================
+name: ClusterFuzzLite
+
+on:
+  pull_request:
+    paths:
+      - 'src/**/*.py'
+      - 'fuzz/**'
+      - '.github/workflows/clusterfuzzlite.yml'
+  schedule:
+    # Weekly deep fuzz: Sundays at 3 AM UTC
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+# Allow concurrent fuzzing runs, but cancel outdated PR runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Default permissions: read-only for security
+permissions:
+  contents: read
+
+jobs:
+  # ==========================================================================
+  # PR Quick Fuzz: Fast fuzzing on code changes (2 min per sanitizer)
+  # ==========================================================================
+  pr-fuzz:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    # Uncomment below and comment out ubuntu-latest to use self-hosted runner:
+    # runs-on: self-hosted
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, undefined]
+    permissions:
+      contents: read
+
+    steps:
+      - name: Build Fuzzers (${{ matrix.sanitizer }})
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05 # v1
+        with:
+          language: python
+          sanitizer: ${{ matrix.sanitizer }}
+
+      - name: Run Fuzzers (${{ matrix.sanitizer }})
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05 # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 120  # 2 minutes per sanitizer
+          mode: 'code-change'  # Only fuzz modified code
+          sanitizer: ${{ matrix.sanitizer }}
+
+      - name: Upload Crashes
+        if: failure() && steps.run.outcome == 'failure'
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: crashes-pr-${{ matrix.sanitizer }}-${{ github.event.pull_request.number }}
+          path: ./out/artifacts
+          retention-days: 14
+
+  # ==========================================================================
+  # Weekly Deep Fuzz: Comprehensive fuzzing (30 min per sanitizer)
+  # ==========================================================================
+  scheduled-fuzz:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    # Uncomment below and comment out ubuntu-latest to use self-hosted runner:
+    # runs-on: self-hosted
+    timeout-minutes: 120  # 2 hours total
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, undefined, coverage]
+    permissions:
+      contents: read
+
+    steps:
+      - name: Record job start time
+        id: job-start
+        run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Build Fuzzers (${{ matrix.sanitizer }})
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05 # v1
+        with:
+          language: python
+          sanitizer: ${{ matrix.sanitizer }}
+
+      - name: Run Fuzzers (${{ matrix.sanitizer }})
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05 # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 1800  # 30 minutes per sanitizer
+          mode: 'batch'  # Comprehensive fuzzing
+          sanitizer: ${{ matrix.sanitizer }}
+
+      - name: Upload Crashes
+        if: failure() && steps.run.outcome == 'failure'
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: crashes-scheduled-${{ matrix.sanitizer }}-${{ github.run_number }}
+          path: ./out/artifacts
+          retention-days: 30  # Keep scheduled run crashes longer
+
+      - name: Generate fuzz summary
+        if: always()
+        run: |
+          # Calculate job duration
+          END_TIME=$(date +%s)
+          START_TIME=${{ steps.job-start.outputs.start_time }}
+          DURATION=$((END_TIME - START_TIME))
+          DURATION_MIN=$((DURATION / 60))
+          DURATION_SEC=$((DURATION % 60))
+
+          echo "## Fuzzing Summary (${{ matrix.sanitizer }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Duration:** ${DURATION_MIN}m ${DURATION_SEC}s" >> $GITHUB_STEP_SUMMARY
+          echo "**Fuzzing Time:** 30 minutes" >> $GITHUB_STEP_SUMMARY
+          echo "**Sanitizer:** ${{ matrix.sanitizer }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Mode:** Comprehensive batch fuzzing" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.build.outcome }}" == "failure" ]; then
+            echo "### ⚠️ Build Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Fuzz targets failed to build. Check build logs for compilation errors." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.run.outcome }}" == "failure" ]; then
+            echo "### ⚠️ Crashes Found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Fuzzing discovered potential bugs. Check artifacts for details." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ No Crashes Found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All fuzz targets completed successfully without finding crashes." >> $GITHUB_STEP_SUMMARY
+          fi

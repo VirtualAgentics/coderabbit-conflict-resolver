@@ -13,14 +13,14 @@ import stat
 import tempfile
 from os import PathLike
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias
 
 from pr_conflict_resolver.core.models import Change, Conflict
 from pr_conflict_resolver.handlers.base import BaseHandler
 from pr_conflict_resolver.security.input_validator import InputValidator
 from pr_conflict_resolver.utils.path_utils import resolve_file_path
 
-type JsonValue = dict[str, Any] | list[Any] | str | int | float | bool | None
+JsonValue: TypeAlias = dict[str, Any] | list[Any] | str | int | float | bool | None
 
 
 class JsonHandler(BaseHandler):
