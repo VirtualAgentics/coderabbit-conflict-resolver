@@ -1,5 +1,13 @@
 # CodeRabbit Conflict Resolver - Kickstart Plan for Future Session
 
+**⚠️ DEPRECATED**: This document represents early planning before the security-first pivot. It has been superseded by `COMPLETE_IMPLEMENTATION_PLAN.md` (now `docs/planning/ROADMAP.md`) which incorporates Phase 0 (Security Foundation) as the critical first phase.
+
+**Historical Context**: This plan was created before the decision to establish a comprehensive security foundation (Phase 0) prior to feature development. The current roadmap prioritizes security-first development with Phase 0 complete and Phases 1-8 pending.
+
+**Current Planning Document**: See `docs/planning/ROADMAP.md` for the active development roadmap.
+
+---
+
 ## Overview
 
 Complete the repository setup by addressing identified gaps in documentation, CI/CD, examples, test infrastructure, and preparation for production deployment.
@@ -373,3 +381,10 @@ Issues #74 and #75 already created in ContextForge Memory repository.
 - Focus on making the package production-ready
 - Prioritize documentation and CI/CD for user adoption
 - Feature enhancements can be done incrementally
+
+---
+
+**Document Status**: Archived
+**Superseded By**: `docs/planning/ROADMAP.md`
+**Archived Date**: 2025-11-03
+**Original Creation**: 2025-10-25
