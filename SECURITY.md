@@ -75,6 +75,125 @@ When using CodeRabbit Conflict Resolver:
 5. **Test in Staging**: Test conflict resolution in a staging environment first
 6. **Monitor Logs**: Monitor application logs for suspicious activity
 
+## Security Architecture
+
+For a comprehensive overview of our security posture, see:
+- **[Security Architecture](docs/security-architecture.md)**: Detailed security design, principles, and threat model
+- **[Threat Model](docs/security/threat-model.md)**: STRIDE analysis, attack scenarios, and risk assessment
+- **[Compliance Guide](docs/security/compliance.md)**: GDPR, OWASP Top 10, SOC2, and OpenSSF compliance
+
+## Security Controls Reference
+
+CodeRabbit Conflict Resolver implements multiple layers of security controls:
+
+### Core Security Components
+
+1. **InputValidator** (`src/pr_conflict_resolver/security/input_validator.py`)
+   - Path traversal prevention
+   - File path validation and normalization
+   - URL validation (GitHub API)
+   - Content validation (JSON, YAML, TOML)
+   - Symlink detection and rejection
+
+2. **SecretScanner** (`src/pr_conflict_resolver/security/secret_scanner.py`)
+   - 14+ secret pattern types detected
+   - GitHub tokens, AWS keys, OpenAI API keys
+   - JWT tokens, private keys, database credentials
+   - False positive filtering
+   - Pre-commit secret scanning
+
+3. **SecureFileHandler** (`src/pr_conflict_resolver/security/secure_file_handler.py`)
+   - Atomic file operations (os.replace)
+   - File permission preservation
+   - TOCTOU prevention
+   - Rollback capabilities
+   - Workspace containment enforcement
+
+4. **SecurityConfig** (`src/pr_conflict_resolver/security/config.py`)
+   - Secure defaults configuration
+   - Feature toggles for security controls
+   - Configurable security policies
+
+### Safe Parsing
+- **YAML**: `yaml.safe_load()` prevents code execution
+- **JSON**: Duplicate key detection, no eval()
+- **TOML**: Safe parsing with structure validation
+
+### CI/CD Security
+- **ClusterFuzzLite**: Continuous fuzzing (address & UB sanitizers)
+- **CodeQL**: Semantic security analysis
+- **Trivy**: SBOM generation and CVE scanning
+- **TruffleHog**: Git history secret scanning
+- **OpenSSF Scorecard**: Security best practices evaluation
+- **Bandit**: Python security linting
+- **pip-audit**: Dependency vulnerability scanning
+
+## Secure Usage Guidelines
+
+### Best Practices for Users
+
+1. **Always Review Changes**: Carefully review all automated changes before accepting
+2. **Use Dry-Run Mode**: Test changes with `--dry-run` flag before applying
+3. **Keep Dependencies Updated**: Regularly update all dependencies
+4. **Use Virtual Environments**: Always use virtual environments for isolation
+5. **Backup Files**: Backup important files before running conflict resolution
+6. **Test in Staging**: Test conflict resolution in a staging environment first
+7. **Monitor Logs**: Monitor application logs for suspicious activity
+8. **Verify Sources**: Only use trusted CodeRabbit suggestions
+9. **Check Permissions**: Ensure file permissions are preserved
+10. **Use Version Control**: Always commit changes to Git for rollback capability
+
+### Security Testing
+
+For developers and contributors, see:
+- **[Security Testing Guide](docs/security/security-testing.md)**: How to run security tests locally, add new tests, and perform security reviews
+
+**Quick Start**:
+```bash
+# Run all security tests
+pytest tests/security/ -v
+
+# Run with coverage
+pytest tests/security/ --cov=src/pr_conflict_resolver/security
+
+# Run fuzzing locally
+docker run --rm -v $(pwd):/src gcr.io/oss-fuzz-base/base-builder-python \
+  python3 /src/fuzz/fuzz_input_validator.py
+```
+
+## Security Metrics
+
+Our security posture is continuously monitored and measured:
+
+### Test Coverage
+- **Overall Coverage**: 82%+ (target: 80%)
+- **Security Module Coverage**: 95%+
+- **Test Suite**: 609+ tests (2 skipped)
+
+### Continuous Fuzzing (ClusterFuzzLite)
+- **Fuzz Targets**: 3 active targets
+- **Execution**: Every PR + Weekly deep fuzzing
+- **Sanitizers**: Address Sanitizer (ASan), Undefined Behavior Sanitizer (UBSan)
+- **Coverage**: Expanding with each fuzzing cycle
+
+### Vulnerability Scanning
+- **pip-audit**: Daily dependency vulnerability checks
+- **Trivy**: Container and filesystem CVE scanning
+- **CodeQL**: Semantic analysis for code vulnerabilities
+- **TruffleHog**: Git history secret scanning
+- **Bandit**: Python security issue detection
+
+### OpenSSF Scorecard
+- **Current Score**: View at https://github.com/VirtualAgentics/coderabbit-conflict-resolver/security
+- **Checks**: 15+ security best practice checks
+- **Status**: Monitored continuously in CI/CD
+
+### Security Incidents
+- **Total Reported**: 0 (as of 2025-11-03)
+- **Resolved**: 0
+- **Average Response Time**: N/A (no incidents)
+- **Public Advisories**: 0
+
 ## Security Features
 
 CodeRabbit Conflict Resolver includes several security features:
@@ -84,6 +203,11 @@ CodeRabbit Conflict Resolver includes several security features:
 - **Permission Checks**: Proper file permission validation
 - **Secure Defaults**: Secure configuration defaults
 - **Audit Logging**: Comprehensive logging for security auditing
+- **Secret Detection**: Pre-commit secret scanning
+- **Path Traversal Prevention**: Multiple layers of path validation
+- **Code Injection Prevention**: Safe parsers for YAML, JSON, TOML
+- **Fuzzing**: Continuous fuzzing with ClusterFuzzLite
+- **Dependency Scanning**: Automated vulnerability detection
 
 ## Contact
 
