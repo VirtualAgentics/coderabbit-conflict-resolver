@@ -10,11 +10,10 @@
 #   - Atheris 2.3.0 pre-installed
 #   - pip already upgraded to latest version
 
-# Install project dependencies (standard installation, not editable mode)
-# Use --no-deps to avoid unpinned transitive dependencies (Scorecard requirement)
-# Project dependencies are already installed in the base image
+# Install project with dependencies (standard installation, not editable mode)
+# Dependencies from pyproject.toml will be installed (all pinned to exact versions)
 echo "[*] Installing project package..."
-pip3 install --no-deps .
+pip3 install .
 
 # NOTE: Atheris is pre-installed in gcr.io/oss-fuzz-base/base-builder-python
 # No need to install it separately
