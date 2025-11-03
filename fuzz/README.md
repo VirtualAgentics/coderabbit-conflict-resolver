@@ -52,8 +52,8 @@ python fuzz/fuzz_handlers.py fuzz/testcases/crash-1234567890
 
 ### Docker Build (ClusterFuzzLite Compatible)
 ```bash
-# Build fuzzing Docker image
-docker build -t local-fuzz fuzz/
+# Build fuzzing Docker image (Dockerfile is in .clusterfuzzlite/)
+docker build -t local-fuzz -f .clusterfuzzlite/Dockerfile .
 
 # Run fuzzer in container
 docker run --rm -v $(pwd)/out:/out local-fuzz \

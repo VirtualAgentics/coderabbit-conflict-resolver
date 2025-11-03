@@ -17,5 +17,6 @@ RUN git clone --depth 1 https://github.com/VirtualAgentics/coderabbit-conflict-r
 # Set working directory
 WORKDIR coderabbit-conflict-resolver
 
-# Copy build script and fuzz targets
-COPY build.sh fuzz_*.py $SRC/
+# Copy build script and fuzz targets from parent directory
+COPY .clusterfuzzlite/build.sh $SRC/build.sh
+COPY fuzz/fuzz_*.py $SRC/
