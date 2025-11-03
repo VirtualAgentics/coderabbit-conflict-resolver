@@ -19,11 +19,11 @@
 echo "[*] Installing project package..."
 python3 -m pip install .
 
-# Install additional runtime dependencies explicitly
-# ruamel.yaml is required by the yaml_handler
-# PyYAML is required by input_validator and conflict_detector
+# Install additional runtime dependencies with SHA256 hash pinning
+# Dependencies defined in requirements-fuzz.txt with --require-hashes enforcement
+# See requirements-fuzz.txt for package details and hash verification info
 echo "[*] Installing additional runtime dependencies..."
-python3 -m pip install "ruamel.yaml==0.18.16" "PyYAML==6.0.3"
+python3 -m pip install --require-hashes -r /src/.clusterfuzzlite/requirements-fuzz.txt
 
 # NOTE: Atheris is pre-installed in gcr.io/oss-fuzz-base/base-builder-python
 # No need to install it separately
