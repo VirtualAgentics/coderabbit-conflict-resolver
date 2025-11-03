@@ -19,7 +19,7 @@ mocks/
 
 # Documentation that may contain example credentials
 docs/examples/
-*.example.*
+**/*.example.*
 
 # Build artifacts and dependencies (scanned separately by Trivy)
 .venv/
