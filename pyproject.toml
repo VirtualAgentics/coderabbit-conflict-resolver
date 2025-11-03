@@ -62,6 +62,7 @@ dev = [
     "sphinx-rtd-theme==3.0.2",
     "sphinx-autodoc-typehints==3.5.2",
     "myst-parser==4.0.1",
+    "atheris>=2.3.0",
 ]
 ml = [
     "numpy==2.3.4",
@@ -135,6 +136,11 @@ ignore = [
     "S603",  # subprocess calls in integration tests are intentional
     "D",
     "RUF043",  # regex patterns in pytest.raises are ok
+]
+"fuzz/**/*.py" = [
+    "S101",  # assert statements are intentional in fuzzing for crash detection
+    "T201",  # print statements ok for fuzzing error reporting
+    "D301",  # backslashes in docstrings ok for fuzzing documentation
 ]
 
 [tool.ruff.lint.pydocstyle]
