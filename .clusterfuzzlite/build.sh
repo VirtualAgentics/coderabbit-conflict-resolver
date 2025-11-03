@@ -9,11 +9,20 @@
 #   - Python 3.11.13 (Atheris doesn't support Python 3.12 yet)
 #   - Atheris 2.3.0 pre-installed
 #   - pip already upgraded to latest version
+#
+# Security note: Using 'python3 -m pip' instead of 'pip3' ensures we invoke
+# the pip module bundled with the Python interpreter, which is the security
+# best practice followed throughout this project.
 
 # Install project with dependencies (standard installation, not editable mode)
 # Dependencies from pyproject.toml will be installed (all pinned to exact versions)
 echo "[*] Installing project package..."
-pip3 install .
+python3 -m pip install .
+
+# Install additional runtime dependencies explicitly
+# ruamel.yaml is required by the file handlers being fuzzed
+echo "[*] Installing additional runtime dependencies..."
+python3 -m pip install "ruamel.yaml==0.18.16"
 
 # NOTE: Atheris is pre-installed in gcr.io/oss-fuzz-base/base-builder-python
 # No need to install it separately

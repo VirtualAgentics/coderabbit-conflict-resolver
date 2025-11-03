@@ -57,7 +57,7 @@ Validation points:
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeAlias, TypedDict
+from typing import TypedDict
 
 
 class FileType(Enum):
@@ -84,7 +84,7 @@ class ChangeMetadata(TypedDict, total=False):
 
 
 # Type aliases for clarity and strict typing
-LineRange: TypeAlias = tuple[int, int]
+type LineRange = tuple[int, int]
 
 
 @dataclass(frozen=True, slots=True)

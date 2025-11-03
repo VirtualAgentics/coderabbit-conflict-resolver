@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from re import Pattern
-from typing import TYPE_CHECKING, ClassVar, TypeAlias
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
     from pr_conflict_resolver.security.config import SecurityConfig
@@ -26,11 +26,11 @@ class Severity(Enum):
 # Type alias for the complete summary including dynamic keys
 # Contains fixed fields: "total", "high", "medium", "low"
 # Plus dynamic fields: "type_<secret_type>" for each secret type found
-SummaryDict: TypeAlias = dict[str, int]
+type SummaryDict = dict[str, int]
 
 # Type alias for secret detection patterns
 # Tuple containing: (regex pattern, secret type name, severity level)
-PatternDef: TypeAlias = tuple[Pattern[str], str, Severity]
+type PatternDef = tuple[Pattern[str], str, Severity]
 
 
 @dataclass(frozen=True, slots=True)

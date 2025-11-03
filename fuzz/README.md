@@ -12,12 +12,14 @@ Both run in CI and provide different security benefits.
 
 ### Python Version Note
 
-**Fuzzing runs on Python 3.11** (not 3.12):
-- Atheris 2.3.0 (latest) only supports Python ≤3.11
+**Fuzzing runs on Python 3.11 ONLY in Docker** (main project uses Python 3.12):
+- **Main Project**: Python >=3.12 (development, CI, production)
+- **Fuzzing Container**: Python 3.11.13 (isolated in Docker only)
+- **Why?**: Atheris 2.3.0 (latest) only supports Python ≤3.11
 - Python 3.12 support tracked in [Atheris issue #60](https://github.com/google/atheris/issues/60)
-- OSS-Fuzz base image uses Python 3.11.13
-- Main project code continues to use Python 3.12+
-- Fuzzing in Docker is isolated from main project Python version
+- Atheris is **NOT** installed in dev dependencies to avoid breaking Python 3.12 workflows
+- Atheris comes pre-installed in the OSS-Fuzz base Docker image (`gcr.io/oss-fuzz-base/base-builder-python`)
+- Complete isolation: Fuzzing environment does not affect main project tooling or CI
 
 ## Fuzz Targets
 
@@ -38,9 +40,12 @@ Tests InputValidator (security-critical) for:
 
 ## Running Locally
 
-### Quick Test (Native)
+### Quick Test (Native - Requires Python 3.11)
 ```bash
-# Install Atheris
+# IMPORTANT: You need Python 3.11 for native execution
+# Atheris does NOT work with Python 3.12
+
+# Install Atheris (Python 3.11 only)
 pip install atheris
 
 # Run a fuzz target for 60 seconds

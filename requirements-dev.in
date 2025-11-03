@@ -7,7 +7,6 @@ pytest==8.4.2
 pytest-cov==7.0.0
 pytest-asyncio==1.2.0
 hypothesis==6.144.0
-atheris==2.3.0  # Fuzzing library (Python 3.11 only, runs in Docker)
 
 # Code quality
 black==25.9.0

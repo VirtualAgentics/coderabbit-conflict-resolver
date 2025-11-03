@@ -6,8 +6,7 @@ authors = [
     { name = "VirtualAgentics", email = "contact@virtualagentics.com" },
 ]
 readme = "README.md"
-# NOTE: Python 3.11+ required (fuzzing uses 3.11 until Atheris supports 3.12)
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 keywords = [
     "github",
     "coderabbit",
@@ -21,7 +20,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Version Control :: Git",
     "Topic :: Software Development :: Quality Assurance",
@@ -64,7 +62,6 @@ dev = [
     "sphinx-rtd-theme==3.0.2",
     "sphinx-autodoc-typehints==3.5.2",
     "myst-parser==4.0.1",
-    "atheris==2.3.0",
 ]
 ml = [
     "numpy==2.3.4",
@@ -83,13 +80,12 @@ pr-resolve = "pr_conflict_resolver.cli.main:cli"
 [tool.black]
 line-length = 100
 target-version = [
-    "py311",
     "py312",
 ]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.format]
 quote-style = "double"
@@ -150,7 +146,7 @@ ignore = [
 convention = "google"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
