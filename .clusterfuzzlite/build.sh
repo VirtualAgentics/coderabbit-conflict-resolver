@@ -14,10 +14,15 @@
 # the pip module bundled with the Python interpreter, which is the security
 # best practice followed throughout this project.
 
-# Install project with dependencies (standard installation, not editable mode)
-# Dependencies from pyproject.toml will be installed (all pinned to exact versions)
+# Install project dependencies with hash verification (Python 3.11)
+# Using requirements-py311.txt ensures correct wheel hashes for Python 3.11
+# (different from requirements.txt which has Python 3.12 hashes)
+echo "[*] Installing project dependencies..."
+python3 -m pip install --require-hashes -r /src/.clusterfuzzlite/requirements-py311.txt
+
+# Install project package without dependencies (standard installation, not editable mode)
 echo "[*] Installing project package..."
-python3 -m pip install .
+python3 -m pip install --no-deps /src
 
 # Install additional runtime dependencies with SHA256 hash pinning
 # Dependencies defined in requirements-fuzz.txt with --require-hashes enforcement

@@ -13,7 +13,8 @@ ClusterFuzzLite runs coverage-guided fuzzing on pull requests and scheduled work
 ## Files
 
 - **`build.sh`**: Build script that installs dependencies and compiles fuzz targets
-- **`requirements-fuzz.txt`**: Hash-pinned runtime dependencies for fuzzing
+- **`requirements-py311.txt`**: Hash-pinned core dependencies for Python 3.11
+- **`requirements-fuzz.txt`**: Hash-pinned additional runtime dependencies for fuzzing
 - **`Dockerfile`**: Docker configuration (if present)
 
 ## Critical: Hash Pinning for OpenSSF Scorecard
@@ -100,9 +101,30 @@ pip-compile --generate-hashes requirements.in -o requirements-fuzz.txt
 - Tag: `cp311` (CPython 3.11), `manylinux2014_x86_64` (Linux x86_64)
 - Hash: **Different per Python version** ⚠️
 
+## Requirements Files
+
+### `requirements-py311.txt` - Core Dependencies
+
+Contains all core project dependencies (from `pyproject.toml`) with Python 3.11 hashes:
+- click, requests, pydantic, ruamel.yaml, tomli-w, rich
+- All transitive dependencies (annotated-types, certifi, charset-normalizer, etc.)
+- Installed first in `build.sh` with `--require-hashes` flag
+- Project is then installed with `--no-deps` to avoid dependency conflicts
+
+**Why separate from `requirements.txt`?**
+- Root `requirements.txt` has Python 3.12 hashes
+- Compiled packages (charset-normalizer, pydantic-core) have different wheel hashes per Python version
+- ClusterFuzzLite Docker image uses Python 3.11.13 (Atheris limitation)
+
+### `requirements-fuzz.txt` - Additional Runtime Dependencies
+
+Contains additional dependencies needed only for fuzzing (not in core dependencies):
+- PyYAML (if not already in core)
+- ruamel.yaml runtime components
+
 ## Updating Dependencies
 
-### Step 1: Update `requirements-fuzz.txt`
+### Step 1: Update `requirements-py311.txt` and `requirements-fuzz.txt`
 
 1. **Check current version on PyPI**: https://pypi.org/project/<package>/
 2. **Generate hash** for Python 3.11 (see methods above)
