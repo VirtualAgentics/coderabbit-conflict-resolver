@@ -115,15 +115,16 @@ def TestOneInput(data: bytes) -> None:
 
             # Verify return type
             assert isinstance(redacted, str), "_redact_secret must return string"
-            assert len(redacted) > 0, "_redact_secret must not return empty string"
 
-            # Verify redaction format for short secrets (<=8 chars)
-            if 0 < len(secret) <= 8:
+            # Verify redaction format based on input length
+            if len(secret) == 0:
+                # Empty secret should return empty redaction
+                assert redacted == "", "Empty secret must return empty redaction"
+            elif len(secret) <= 8:
+                # Short secrets (1-8 chars) should be fully masked
                 assert redacted == "*" * len(secret), "Short secrets must be fully masked"
-
-            # Verify redaction format for long secrets (>8 chars)
-            if len(secret) > 8:
-                # Should be first4...last4 format
+            else:
+                # Long secrets (>8 chars) should use first4...last4 format
                 assert "..." in redacted, "Long secrets must use '...' format"
                 # Should not expose more than 8 characters
                 assert redacted.count("*") == 0 or len(redacted) <= len(
