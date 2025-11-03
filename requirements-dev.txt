@@ -453,9 +453,9 @@ filelock==3.20.0 \
     # via
     #   cachecontrol
     #   virtualenv
-hypothesis==6.145.0 \
-    --hash=sha256:75946d124cbc3e928bcd0e3e29617a1187bcb37a1381d8cce352515f90e4971b \
-    --hash=sha256:c9675afc69980ba13da59bbc66cd0760a2440d4c16e8c162fdcf4cc8e5dde562
+hypothesis==6.145.1 \
+    --hash=sha256:4e7610923de7e0c7d5c1bfa84114f2579e06f0e83a4ce9f073ca0c887d222b7e \
+    --hash=sha256:8b4c2d93adbacd235153a3ee075012fc870da341b32c3035838963b6241d6281
     # via pr-conflict-resolver (/home/bofh/projects/coderabbit-conflict-resolver/pyproject.toml)
 id==1.5.0 \
     --hash=sha256:292cb8a49eacbbdbce97244f47a97b4c62540169c976552e497fd57df0734c1d \
