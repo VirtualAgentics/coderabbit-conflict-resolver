@@ -191,3 +191,11 @@ git
 # Claude local configuration (exclude from repo)
 .claude/
 claude.md
+
+# Fuzzing artifacts (ClusterFuzzLite / Atheris)
+fuzz/corpus/
+fuzz/crashes/
+fuzz/testcases/
+out/
+*.profdata
+*.profraw
