@@ -10,7 +10,11 @@ from rich.console import Console
 from rich.table import Table
 
 from pr_conflict_resolver.config.presets import PresetConfig
-from pr_conflict_resolver.config.runtime_config import ApplicationMode, RuntimeConfig
+from pr_conflict_resolver.config.runtime_config import (
+    PRESET_NAMES,
+    ApplicationMode,
+    RuntimeConfig,
+)
 from pr_conflict_resolver.core.resolver import ConflictResolver
 
 console = Console()
@@ -322,8 +326,11 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
 )
 @click.option(
     "--config",
-    type=click.Path(exists=True, dir_okay=False),
-    help="Path to configuration file (YAML or TOML)",
+    type=str,
+    help=(
+        "Configuration preset name (conservative/balanced/aggressive/semantic) "
+        "or path to configuration file (YAML/TOML)"
+    ),
 )
 @click.option(
     "--log-level",
@@ -392,10 +399,19 @@ def apply(
     """
     # Load runtime configuration with proper precedence
     try:
-        # Step 1: Load from config file if provided, otherwise from env vars
+        # Step 1: Load from config (preset name or file) if provided, otherwise from env vars
         if config:
-            runtime_config = RuntimeConfig.from_file(Path(config))
-            console.print(f"[dim]Loaded configuration from: {config}[/dim]")
+            # Check if config is a preset name or file path
+            if config.lower() in PRESET_NAMES:
+                # Load preset configuration
+                preset_method = getattr(RuntimeConfig, f"from_{config.lower()}")
+                runtime_config = preset_method()
+                console.print(f"[dim]Loaded preset configuration: {config}[/dim]")
+            else:
+                # Load from configuration file
+                config_path = Path(config)
+                runtime_config = RuntimeConfig.from_file(config_path)
+                console.print(f"[dim]Loaded configuration from: {config}[/dim]")
         else:
             runtime_config = RuntimeConfig.from_env()
 
@@ -483,7 +499,16 @@ def apply(
             console.print("Resolving conflicts...")
             # Convert ApplicationMode enum to string for resolver
             mode_str = runtime_config.mode.value  # Use the enum's value directly
-            result = resolver.resolve_pr_conflicts(owner, repo, pr, mode=mode_str)
+            result = resolver.resolve_pr_conflicts(
+                owner,
+                repo,
+                pr,
+                mode=mode_str,
+                validate=runtime_config.validate_before_apply,
+                parallel=runtime_config.parallel_processing,
+                max_workers=runtime_config.max_workers,
+                enable_rollback=runtime_config.enable_rollback,
+            )
 
             # Display results
             console.print("\n[bold green]✅ Results:[/bold green]")

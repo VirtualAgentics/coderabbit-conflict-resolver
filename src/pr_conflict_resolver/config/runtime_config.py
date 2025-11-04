@@ -15,6 +15,9 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Available configuration presets
+PRESET_NAMES = {"conservative", "balanced", "aggressive", "semantic"}
+
 
 class ApplicationMode(str, Enum):
     """Application execution modes for conflict resolution.
@@ -113,6 +116,100 @@ class RuntimeConfig:
             validate_before_apply=True,
             parallel_processing=False,
             max_workers=4,
+            log_level="INFO",
+            log_file=None,
+        )
+
+    @classmethod
+    def from_conservative(cls) -> "RuntimeConfig":
+        """Create conservative configuration for maximum safety.
+
+        Conservative settings prioritize safety and correctness over performance.
+        Ideal for production environments or critical changes.
+
+        Returns:
+            RuntimeConfig with conservative settings.
+
+        Example:
+            >>> config = RuntimeConfig.from_conservative()
+            >>> assert config.enable_rollback is True
+            >>> assert config.validate_before_apply is True
+            >>> assert config.parallel_processing is False
+        """
+        return cls(
+            mode=ApplicationMode.ALL,
+            enable_rollback=True,
+            validate_before_apply=True,
+            parallel_processing=False,
+            max_workers=2,
+            log_level="INFO",
+            log_file=None,
+        )
+
+    @classmethod
+    def from_balanced(cls) -> "RuntimeConfig":
+        """Create balanced configuration (same as defaults).
+
+        Balanced settings provide a good mix of safety and performance.
+        This is the recommended configuration for most use cases.
+
+        Returns:
+            RuntimeConfig with balanced settings.
+
+        Example:
+            >>> config = RuntimeConfig.from_balanced()
+            >>> assert config.mode == ApplicationMode.ALL
+            >>> assert config.enable_rollback is True
+        """
+        return cls.from_defaults()
+
+    @classmethod
+    def from_aggressive(cls) -> "RuntimeConfig":
+        """Create aggressive configuration for maximum performance.
+
+        Aggressive settings prioritize performance over safety checks.
+        Use only in trusted environments with good testing coverage.
+
+        Returns:
+            RuntimeConfig with aggressive settings.
+
+        Example:
+            >>> config = RuntimeConfig.from_aggressive()
+            >>> assert config.parallel_processing is True
+            >>> assert config.max_workers == 16
+        """
+        return cls(
+            mode=ApplicationMode.ALL,
+            enable_rollback=False,
+            validate_before_apply=False,
+            parallel_processing=True,
+            max_workers=16,
+            log_level="WARNING",
+            log_file=None,
+        )
+
+    @classmethod
+    def from_semantic(cls) -> "RuntimeConfig":
+        """Create semantic configuration for semantic-preserving changes.
+
+        Semantic settings are tuned for changes that preserve code semantics.
+        Enables validation and moderate parallelism for careful processing.
+
+        Returns:
+            RuntimeConfig with semantic settings.
+
+        Example:
+            >>> config = RuntimeConfig.from_semantic()
+            >>> assert config.validate_before_apply is True
+            >>> assert config.parallel_processing is True
+            >>> assert config.max_workers == 8
+        """
+        return cls(
+            mode=ApplicationMode.ALL,
+            enable_rollback=True,
+            validate_before_apply=True,
+            parallel_processing=True,
+            max_workers=8,
             log_level="INFO",
             log_file=None,
         )

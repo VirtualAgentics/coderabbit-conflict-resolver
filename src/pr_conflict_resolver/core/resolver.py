@@ -1026,6 +1026,10 @@ class ConflictResolver:
         repo: str,
         pr_number: int,
         mode: str = "conflicts-only",
+        validate: bool = True,
+        parallel: bool = False,
+        max_workers: int = 4,
+        enable_rollback: bool = True,
     ) -> ResolutionResult:
         """Orchestrates detection, resolution, and application of suggested changes.
 
@@ -1038,6 +1042,10 @@ class ConflictResolver:
                 - "conflicts-only": Only apply conflicting changes after resolution
                   (default, legacy behavior)
                 - "non-conflicts-only": Only apply non-conflicting changes, skip conflicts
+            validate: Whether to validate changes before applying (default: True).
+            parallel: Whether to use parallel processing (default: False).
+            max_workers: Number of worker threads for parallel processing (default: 4).
+            enable_rollback: Whether to enable automatic rollback on failure (default: True).
 
         Returns:
             ResolutionResult: Summary of applied resolutions and statistics. The returned object's
@@ -1090,8 +1098,21 @@ class ConflictResolver:
             conflict_resolutions = result.resolutions
 
         if mode in ("all", "non-conflicts-only"):
-            # Apply non-conflicting changes directly
-            applied, skipped, failed = self.apply_changes(non_conflicting_changes)
+            # Apply non-conflicting changes directly with runtime config parameters
+            if enable_rollback:
+                applied, skipped, failed = self.apply_changes_with_rollback(
+                    non_conflicting_changes,
+                    validate=validate,
+                    parallel=parallel,
+                    max_workers=max_workers,
+                )
+            else:
+                applied, skipped, failed = self.apply_changes(
+                    non_conflicting_changes,
+                    validate=validate,
+                    parallel=parallel,
+                    max_workers=max_workers,
+                )
 
             non_conflicting_applied = len(applied)
             non_conflicting_skipped = len(skipped)

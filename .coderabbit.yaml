@@ -5,6 +5,9 @@ tone_instructions: "Be concise and professional. Prioritize conflict resolution 
 
 language: en-US
 
+# Timeout for context gathering from checks (15 minutes)
+checks_timeout_ms: 900000
+
 reviews:
   profile: assertive
   request_changes_workflow: true
