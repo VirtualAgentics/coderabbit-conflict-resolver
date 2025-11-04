@@ -314,8 +314,14 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
         "'non-conflicts-only' (only non-conflicting changes), 'dry-run' (analyze without applying)"
     ),
 )
-@click.option("--no-rollback", is_flag=True, help="Disable automatic rollback on failure")
-@click.option("--no-validation", is_flag=True, help="Disable pre-application validation")
+@click.option(
+    "--rollback/--no-rollback", default=None, help="Enable/disable automatic rollback on failure"
+)
+@click.option(
+    "--validation/--no-validation",
+    default=None,
+    help="Enable/disable pre-application validation",
+)
 @click.option(
     "--parallel", is_flag=True, help="Enable parallel processing of changes (experimental)"
 )
@@ -350,8 +356,8 @@ def apply(
     strategy: str,
     dry_run: bool,
     mode: str | None,
-    no_rollback: bool,
-    no_validation: bool,
+    rollback: bool | None,
+    validation: bool | None,
     parallel: bool,
     max_workers: int | None,
     config: str | None,
@@ -372,8 +378,10 @@ def apply(
         strategy: Resolution strategy to use (e.g., "priority").
         dry_run: (Deprecated) If True, use dry-run mode. Use --mode=dry-run instead.
         mode: Application mode (all, conflicts-only, non-conflicts-only, dry-run).
-        no_rollback: Disable automatic rollback on failure.
-        no_validation: Disable pre-application validation.
+        rollback: Enable (True) or disable (False) automatic rollback on failure.
+            None uses config/env/defaults.
+        validation: Enable (True) or disable (False) pre-application validation.
+            None uses config/env/defaults.
         parallel: Enable parallel processing of changes.
         max_workers: Maximum number of worker threads (default: 4).
         config: Path to configuration file (YAML or TOML).
@@ -418,7 +426,7 @@ def apply(
         else:
             # Start with defaults when no config file/preset specified
             runtime_config = RuntimeConfig.from_defaults()
-            preset_name = "balanced"  # Default preset
+            preset_name = None  # Using defaults, not a named preset
 
         # Step 2: Apply environment variable overrides
         # Use validated parsing from RuntimeConfig.from_env()
@@ -460,8 +468,8 @@ def apply(
 
         cli_overrides = {
             "mode": mode,
-            "enable_rollback": False if no_rollback else None,
-            "validate_before_apply": False if no_validation else None,
+            "enable_rollback": rollback,  # None, True, or False
+            "validate_before_apply": validation,  # None, True, or False
             "parallel_processing": True if parallel else None,
             "max_workers": max_workers,
             "log_level": log_level.upper() if log_level else None,
@@ -516,7 +524,8 @@ def apply(
         # Map preset name to PresetConfig attribute
         config_preset = getattr(PresetConfig, preset_name.upper(), PresetConfig.BALANCED)
     else:
-        # No preset specified (loaded from file), use balanced as default
+        # No preset specified (using defaults or loaded from file),
+        # use balanced as default resolver strategy
         config_preset = PresetConfig.BALANCED
 
     # Initialize resolver

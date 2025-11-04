@@ -1,5 +1,6 @@
 """Additional tests for RuntimeConfig to achieve 80%+ coverage."""
 
+import builtins
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -108,9 +109,16 @@ class TestYAMLLoadingErrors:
         config_file = tmp_path / "config.yaml"
         config_file.write_text("mode: all\n")
 
-        # Mock yaml import to raise ImportError
+        # Mock yaml import to raise ModuleNotFoundError using import hook
+        real_import = builtins.__import__
+
+        def fake_import(name: str, *args: object, **kwargs: object) -> object:
+            if name == "yaml":
+                raise ModuleNotFoundError("No module named 'yaml'")
+            return real_import(name, *args, **kwargs)  # type: ignore[arg-type]
+
         with (
-            patch.dict(sys.modules, {"yaml": None}),
+            patch("builtins.__import__", new=fake_import),
             pytest.raises(ConfigError, match="PyYAML not installed"),
         ):
             RuntimeConfig.from_file(config_file)
@@ -141,9 +149,16 @@ class TestTOMLLoadingErrors:
         config_file = tmp_path / "config.toml"
         config_file.write_text('mode = "all"\n')
 
-        # Mock tomli import to raise ImportError
+        # Mock tomli import to raise ModuleNotFoundError using import hook
+        real_import = builtins.__import__
+
+        def fake_import(name: str, *args: object, **kwargs: object) -> object:
+            if name == "tomli":
+                raise ModuleNotFoundError("No module named 'tomli'")
+            return real_import(name, *args, **kwargs)  # type: ignore[arg-type]
+
         with (
-            patch.dict(sys.modules, {"tomli": None}),
+            patch("builtins.__import__", new=fake_import),
             pytest.raises(ConfigError, match="tomli not installed"),
         ):
             RuntimeConfig.from_file(config_file)

@@ -121,6 +121,12 @@ class TestParallelProcessing:
         assert len(skipped) == 0
         assert len(failed) == 0
 
+        # Verify file content contains all modifications
+        content = test_file.read_text()
+        assert "modified_line1" in content
+        assert "modified_line3" in content
+        assert "modified_line5" in content
+
     def test_apply_changes_parallel_vs_sequential_equivalence(self, temp_workspace: Path) -> None:
         """Test parallel and sequential processing produce equivalent results."""
         # Create multiple test files
@@ -469,6 +475,10 @@ class TestParallelProcessing:
 
         # Test with different max_workers values
         for max_workers in [1, 4, 8]:
+            # Reset files for each iteration to ensure clean state
+            for file in files:
+                file.write_text("line1\nline2\nline3\n")
+
             applied, skipped, failed = resolver.apply_changes(
                 changes, validate=True, parallel=True, max_workers=max_workers
             )
