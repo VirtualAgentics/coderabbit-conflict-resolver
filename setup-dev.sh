@@ -35,9 +35,12 @@ source .venv/bin/activate
 echo "⬆️  Upgrading pip..."
 pip install --require-hashes -r .github/requirements-bootstrap.txt
 
-# Install dependencies
-echo "📚 Installing dependencies..."
-pip install -e ".[dev]"
+# Install dependencies with hash verification
+echo "📚 Installing dev dependencies with hash verification..."
+pip install --require-hashes -r requirements-dev.txt
+
+echo "📦 Installing project in editable mode..."
+pip install --no-deps -e .
 
 # Install pre-commit hooks
 echo "🪝 Installing pre-commit hooks..."
