@@ -2,6 +2,7 @@
 
 import hashlib
 import logging
+import os
 import re
 from pathlib import Path
 
@@ -399,7 +400,7 @@ def apply(
     """
     # Load runtime configuration with proper precedence
     try:
-        # Step 1: Load from config (preset name or file) if provided, otherwise from env vars
+        # Step 1: Load base configuration (preset, file, or defaults)
         if config:
             # Check if config is a preset name or file path
             if config.lower() in PRESET_NAMES:
@@ -413,9 +414,49 @@ def apply(
                 runtime_config = RuntimeConfig.from_file(config_path)
                 console.print(f"[dim]Loaded configuration from: {config}[/dim]")
         else:
-            runtime_config = RuntimeConfig.from_env()
+            # Start with defaults when no config file/preset specified
+            runtime_config = RuntimeConfig.from_defaults()
 
-        # Step 2: Apply CLI overrides
+        # Step 2: Apply environment variable overrides
+        # Extract only the env vars that are actually set (not defaults)
+        env_overrides: dict[str, str | bool | int] = {}
+        if "CR_MODE" in os.environ:
+            env_overrides["mode"] = os.environ["CR_MODE"]
+        if "CR_ENABLE_ROLLBACK" in os.environ:
+            env_overrides["enable_rollback"] = os.environ["CR_ENABLE_ROLLBACK"].lower() in (
+                "true",
+                "1",
+                "yes",
+                "on",
+            )
+        if "CR_VALIDATE" in os.environ:
+            env_overrides["validate_before_apply"] = os.environ["CR_VALIDATE"].lower() in (
+                "true",
+                "1",
+                "yes",
+                "on",
+            )
+        if "CR_PARALLEL" in os.environ:
+            env_overrides["parallel_processing"] = os.environ["CR_PARALLEL"].lower() in (
+                "true",
+                "1",
+                "yes",
+                "on",
+            )
+        if "CR_MAX_WORKERS" in os.environ:
+            env_overrides["max_workers"] = int(os.environ["CR_MAX_WORKERS"])
+        if "CR_LOG_LEVEL" in os.environ:
+            env_overrides["log_level"] = os.environ["CR_LOG_LEVEL"].upper()
+        if "CR_LOG_FILE" in os.environ:
+            env_overrides["log_file"] = os.environ["CR_LOG_FILE"]
+
+        if env_overrides:
+            runtime_config = runtime_config.merge_with_cli(**env_overrides)
+            console.print(
+                f"[dim]Applied {len(env_overrides)} environment variable override(s)[/dim]"
+            )
+
+        # Step 3: Apply CLI overrides
         # Handle deprecated --dry-run flag (maps to mode)
         if dry_run and mode:
             console.print(
