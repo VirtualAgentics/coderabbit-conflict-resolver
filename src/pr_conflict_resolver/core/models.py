@@ -125,10 +125,28 @@ class Resolution:
 
 @dataclass(frozen=True, slots=True)
 class ResolutionResult:
-    """Result of conflict resolution."""
+    """Result of conflict resolution and change application.
+
+    Attributes:
+        applied_count: Total number of changes successfully applied (from both
+            conflict resolutions and non-conflicting changes).
+        conflict_count: Number of conflicts that could not be resolved.
+        success_rate: Percentage of successful applications (0-100).
+        resolutions: List of successfully applied conflict resolutions.
+        conflicts: List of detected conflicts.
+        non_conflicting_applied: Number of non-conflicting changes applied directly
+            (without going through conflict resolution). Default: 0 for backward compatibility.
+        non_conflicting_skipped: Number of non-conflicting changes skipped due to
+            validation failures. Default: 0 for backward compatibility.
+        non_conflicting_failed: Number of non-conflicting changes that failed to apply.
+            Default: 0 for backward compatibility.
+    """
 
     applied_count: int
     conflict_count: int
     success_rate: float
     resolutions: list[Resolution]
     conflicts: list[Conflict]
+    non_conflicting_applied: int = 0
+    non_conflicting_skipped: int = 0
+    non_conflicting_failed: int = 0

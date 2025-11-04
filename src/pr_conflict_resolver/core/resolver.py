@@ -431,6 +431,242 @@ class ConflictResolver:
 
         return (overlap_len / union_len) * 100.0
 
+    def separate_changes_by_conflict_status(
+        self, changes: list[Change], conflicts: list[Conflict]
+    ) -> tuple[list[Change], list[Change]]:
+        """Separate changes into conflicting and non-conflicting sets.
+
+        A change is considered conflicting if its fingerprint appears in any of the
+        provided conflicts. Non-conflicting changes can be safely applied independently
+        without resolution logic.
+
+        Args:
+            changes: List of all changes extracted from PR comments.
+            conflicts: List of detected conflicts containing overlapping changes.
+
+        Returns:
+            Tuple of (conflicting_changes, non_conflicting_changes) where:
+                - conflicting_changes: Changes that appear in at least one conflict
+                - non_conflicting_changes: Changes that don't appear in any conflict
+        """
+        # Extract all fingerprints from conflicting changes
+        conflicting_fingerprints: set[str] = set()
+        for conflict in conflicts:
+            for change in conflict.changes:
+                conflicting_fingerprints.add(change.fingerprint)
+
+        # Partition changes based on whether they're in conflicts
+        conflicting_changes: list[Change] = []
+        non_conflicting_changes: list[Change] = []
+
+        for change in changes:
+            if change.fingerprint in conflicting_fingerprints:
+                conflicting_changes.append(change)
+            else:
+                non_conflicting_changes.append(change)
+
+        return conflicting_changes, non_conflicting_changes
+
+    def apply_changes(
+        self, changes: list[Change], validate: bool = True
+    ) -> tuple[list[Change], list[Change], list[tuple[Change, str]]]:
+        """Apply a batch of changes and track results.
+
+        Applies each change sequentially and tracks which succeeded, were skipped, or failed.
+        This method provides more granular tracking than apply_resolutions() and is designed
+        for applying non-conflicting changes directly.
+
+        Args:
+            changes: List of changes to apply.
+            validate: If True, validate each change before applying (default: True).
+                When False, skips validation for performance (use with caution).
+
+        Returns:
+            Tuple of three lists:
+                - applied: Changes that were successfully applied
+                - skipped: Changes that were skipped (validation failed but not an error)
+                - failed: Tuples of (change, error_message) for changes that failed to apply
+
+        Example:
+            >>> applied, skipped, failed = resolver.apply_changes(non_conflicting_changes)
+            >>> print(f"Applied: {len(applied)}, Skipped: {len(skipped)}, Failed: {len(failed)}")
+        """
+        applied: list[Change] = []
+        skipped: list[Change] = []
+        failed: list[tuple[Change, str]] = []
+
+        for change in changes:
+            # Optional validation step
+            if validate:
+                is_valid, reason = self._validate_change(change)
+                if not is_valid:
+                    self.logger.debug(
+                        f"Skipping change {change.fingerprint} in {change.path}: {reason}"
+                    )
+                    skipped.append(change)
+                    continue
+
+            # Attempt to apply the change
+            try:
+                success = self._apply_change(change)
+                if success:
+                    self.logger.info(
+                        f"Applied change {change.fingerprint} to {change.path} "
+                        f"(lines {change.start_line}-{change.end_line})"
+                    )
+                    applied.append(change)
+                else:
+                    error_msg = "Application returned False (unspecified failure)"
+                    self.logger.warning(
+                        f"Failed to apply change {change.fingerprint} to {change.path}: {error_msg}"
+                    )
+                    failed.append((change, error_msg))
+            except Exception as e:
+                error_msg = f"{type(e).__name__}: {e}"
+                self.logger.error(
+                    f"Exception applying change {change.fingerprint} to {change.path}: {error_msg}"
+                )
+                failed.append((change, error_msg))
+
+        return applied, skipped, failed
+
+    def _validate_change(self, change: Change) -> tuple[bool, str]:
+        """Validate a change before applying it.
+
+        Checks if the change can be safely applied by delegating to the appropriate
+        handler's validate_change() method if available, or performing basic checks
+        for plaintext files.
+
+        Args:
+            change: Change to validate.
+
+        Returns:
+            Tuple of (is_valid, reason) where:
+                - is_valid: True if change is valid and can be applied
+                - reason: Empty string if valid, otherwise explanation of why invalid
+        """
+        # Get appropriate handler
+        handler = self.handlers.get(change.file_type)
+
+        # If handler exists and has validate_change method, use it
+        if handler and hasattr(handler, "validate_change"):
+            try:
+                return handler.validate_change(
+                    change.path, change.content, change.start_line, change.end_line
+                )
+            except Exception as e:
+                return False, f"Validation error: {e}"
+
+        # For plaintext or when handler doesn't have validation, do basic checks
+        # Validate path
+        if not InputValidator.validate_file_path(
+            change.path, base_dir=str(self.workspace_root), allow_absolute=True
+        ):
+            return False, "Invalid or unsafe file path"
+
+        # Check file exists
+        try:
+            file_path = resolve_file_path(
+                change.path,
+                self.workspace_root,
+                allow_absolute=True,
+                validate_workspace=True,
+                enforce_containment=True,
+            )
+            if not file_path.exists():
+                return False, "Target file does not exist"
+
+            # Check for symlinks
+            for component in (file_path, *file_path.parents):
+                try:
+                    if component.is_symlink():
+                        return False, "Symlink detected in path hierarchy"
+                except OSError as e:
+                    return False, f"OSError checking symlink in path hierarchy: {e}"
+
+        except (ValueError, OSError) as e:
+            return False, f"Path resolution error: {e}"
+
+        # Basic validation passed
+        return True, ""
+
+    def apply_changes_with_rollback(
+        self, changes: list[Change], validate: bool = True
+    ) -> tuple[list[Change], list[Change], list[tuple[Change, str]]]:
+        """Apply changes with automatic rollback on failure.
+
+        This method wraps apply_changes() with RollbackManager to provide automatic
+        rollback capability. If any change fails to apply or an exception occurs,
+        all changes are rolled back to the pre-application state.
+
+        Args:
+            changes: List of changes to apply.
+            validate: If True, validate each change before applying (default: True).
+
+        Returns:
+            Tuple of three lists (same as apply_changes()):
+                - applied: Changes that were successfully applied
+                - skipped: Changes that were skipped due to validation failures
+                - failed: Tuples of (change, error_message) for changes that failed
+
+        Raises:
+            RollbackError: If rollback operation fails after a change application failure.
+
+        Example:
+            >>> try:
+            >>>     applied, skipped, failed = resolver.apply_changes_with_rollback(changes)
+            >>>     if failed:
+            >>>         print(f"Failed to apply {len(failed)} changes (rolled back)")
+            >>> except RollbackError as e:
+            >>>     print(f"Rollback failed: {e}")
+        """
+        from pr_conflict_resolver.core.rollback import RollbackError, RollbackManager
+
+        try:
+            rollback_manager = RollbackManager(self.workspace_root)
+        except (ValueError, RollbackError) as e:
+            self.logger.warning(
+                f"Could not initialize RollbackManager: {e}. "
+                "Proceeding without rollback support."
+            )
+            # Fall back to regular apply_changes without rollback
+            return self.apply_changes(changes, validate=validate)
+
+        try:
+            # Create checkpoint before applying changes
+            checkpoint_id = rollback_manager.create_checkpoint()
+            self.logger.info(f"Created rollback checkpoint: {checkpoint_id}")
+
+            # Apply changes
+            applied, skipped, failed = self.apply_changes(changes, validate=validate)
+
+            # Check if any changes failed
+            if failed:
+                # Some changes failed, rollback
+                self.logger.warning(f"{len(failed)} changes failed. Rolling back all changes...")
+                rollback_manager.rollback()
+                # Return empty applied list because, although some changes were applied earlier,
+                # rollback_manager.rollback() reverted them all, leaving no net applied changes
+                return [], skipped, failed
+            else:
+                # All changes succeeded, commit checkpoint
+                self.logger.info("All changes applied successfully. Committing checkpoint.")
+                rollback_manager.commit()
+                return applied, skipped, failed
+
+        except Exception as e:
+            # Unexpected exception, attempt rollback
+            self.logger.error(f"Exception during change application: {e}. Attempting rollback...")
+            try:
+                if rollback_manager.has_checkpoint():
+                    rollback_manager.rollback()
+                    self.logger.info("Rollback successful after exception")
+            except RollbackError as rollback_err:
+                self.logger.error(f"Rollback failed: {rollback_err}")
+                raise
+            # Re-raise the original exception
+            raise
+
     def resolve_conflicts(self, conflicts: list[Conflict]) -> list[Resolution]:
         """Resolve each provided conflict using the configured priority strategy.
 
@@ -642,16 +878,42 @@ class ConflictResolver:
                 f"(owner={owner}, repo={repo}, pr_number={pr_number}): {e}"
             ) from e
 
-    def resolve_pr_conflicts(self, owner: str, repo: str, pr_number: int) -> ResolutionResult:
+    def resolve_pr_conflicts(
+        self,
+        owner: str,
+        repo: str,
+        pr_number: int,
+        mode: str = "conflicts-only",
+    ) -> ResolutionResult:
         """Orchestrates detection, resolution, and application of suggested changes.
+
+        Args:
+            owner: Repository owner.
+            repo: Repository name.
+            pr_number: Pull request number.
+            mode: Application mode controlling which changes to apply:
+                - "all": Apply both conflicting (resolved) and non-conflicting changes
+                - "conflicts-only": Only apply conflicting changes after resolution
+                  (default, legacy behavior)
+                - "non-conflicts-only": Only apply non-conflicting changes, skip conflicts
 
         Returns:
             ResolutionResult: Summary of applied resolutions and statistics. The returned object's
                 `conflicts` attribute is populated with the list of detected conflicts for the PR.
+                When mode="all" or mode="non-conflicts-only", the non_conflicting_* fields will
+                contain statistics about non-conflicting change application.
 
         Raises:
             RuntimeError: If fetching PR comments fails.
+            ValueError: If mode parameter is invalid.
         """
+        # Validate mode parameter
+        valid_modes = {"all", "conflicts-only", "non-conflicts-only"}
+        if mode not in valid_modes:
+            raise ValueError(
+                f"Invalid mode '{mode}'. Must be one of: {', '.join(sorted(valid_modes))}"
+            )
+
         # Extract comments from GitHub
         comments = self._fetch_comments_with_error_context(owner, repo, pr_number)
 
@@ -661,18 +923,62 @@ class ConflictResolver:
         # Detect conflicts
         conflicts = self.detect_conflicts(changes)
 
-        # Resolve conflicts
-        resolutions = self.resolve_conflicts(conflicts)
+        # Separate changes by conflict status
+        # Conflicting changes intentionally ignored here - we only apply non-conflicting changes
+        _conflicting_changes, non_conflicting_changes = self.separate_changes_by_conflict_status(
+            changes, conflicts
+        )
 
-        # Apply resolutions
-        result = self.apply_resolutions(resolutions)
-        # Recreate result with conflicts set, as dataclasses are frozen
+        # Initialize counters for non-conflicting changes
+        non_conflicting_applied = 0
+        non_conflicting_skipped = 0
+        non_conflicting_failed = 0
+        total_applied = 0
+        total_conflicts = 0
+        conflict_resolutions: list[Resolution] = []
+
+        # Apply changes based on mode
+        if mode in ("all", "conflicts-only"):
+            # Resolve and apply conflicting changes
+            resolutions = self.resolve_conflicts(conflicts)
+            result = self.apply_resolutions(resolutions)
+
+            total_applied += result.applied_count
+            total_conflicts += result.conflict_count
+            conflict_resolutions = result.resolutions
+
+        if mode in ("all", "non-conflicts-only"):
+            # Apply non-conflicting changes directly
+            applied, skipped, failed = self.apply_changes(non_conflicting_changes)
+
+            non_conflicting_applied = len(applied)
+            non_conflicting_skipped = len(skipped)
+            non_conflicting_failed = len(failed)
+            total_applied += non_conflicting_applied
+            total_conflicts += non_conflicting_failed + non_conflicting_skipped
+
+            self.logger.info(
+                f"Non-conflicting changes: {non_conflicting_applied} applied, "
+                f"{non_conflicting_skipped} skipped, {non_conflicting_failed} failed"
+            )
+        else:
+            # mode == "conflicts-only": count non-conflicting changes as conflicts for success_rate
+            total_conflicts += len(non_conflicting_changes)
+
+        # Calculate success rate
+        total_attempts = total_applied + total_conflicts
+        success_rate = (total_applied / total_attempts * 100) if total_attempts > 0 else 0
+
+        # Return comprehensive result
         return ResolutionResult(
-            applied_count=result.applied_count,
-            conflict_count=result.conflict_count,
-            success_rate=result.success_rate,
-            resolutions=result.resolutions,
+            applied_count=total_applied,
+            conflict_count=total_conflicts,
+            success_rate=success_rate,
+            resolutions=conflict_resolutions,
             conflicts=conflicts,
+            non_conflicting_applied=non_conflicting_applied,
+            non_conflicting_skipped=non_conflicting_skipped,
+            non_conflicting_failed=non_conflicting_failed,
         )
 
     def analyze_conflicts(self, owner: str, repo: str, pr_number: int) -> list[Conflict]:
