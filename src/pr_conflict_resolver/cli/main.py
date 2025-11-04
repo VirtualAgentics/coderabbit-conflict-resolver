@@ -2,6 +2,7 @@
 
 import hashlib
 import logging
+import os
 import re
 from pathlib import Path
 
@@ -420,15 +421,23 @@ def apply(
             preset_name = "balanced"  # Default preset
 
         # Step 2: Apply environment variable overrides
-        # Use validated parsing from RuntimeConfig.from_env() instead of manual parsing
+        # Use validated parsing from RuntimeConfig.from_env()
+        # Check for presence of each CR_* variable (not value equality with defaults)
+        # to respect explicit user overrides even when they match default values
         env_config = RuntimeConfig.from_env()
-        default_config = RuntimeConfig.from_defaults()
-
-        # Extract only fields that differ from defaults (actual env overrides)
+        env_var_map = {
+            "mode": "CR_MODE",
+            "enable_rollback": "CR_ENABLE_ROLLBACK",
+            "validate_before_apply": "CR_VALIDATE",
+            "parallel_processing": "CR_PARALLEL",
+            "max_workers": "CR_MAX_WORKERS",
+            "log_level": "CR_LOG_LEVEL",
+            "log_file": "CR_LOG_FILE",
+        }
         env_overrides = {
             field_name: getattr(env_config, field_name)
-            for field_name in default_config.__dataclass_fields__
-            if getattr(env_config, field_name) != getattr(default_config, field_name)
+            for field_name, env_var in env_var_map.items()
+            if env_var in os.environ
         }
 
         if env_overrides:
