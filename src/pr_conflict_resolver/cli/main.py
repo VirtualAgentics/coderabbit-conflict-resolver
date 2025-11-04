@@ -401,11 +401,13 @@ def apply(
     # Load runtime configuration with proper precedence
     try:
         # Step 1: Load base configuration (preset, file, or defaults)
+        preset_name = None  # Track which preset was loaded (if any)
         if config:
             # Check if config is a preset name or file path
             if config.lower() in PRESET_NAMES:
                 # Load preset configuration
-                preset_method = getattr(RuntimeConfig, f"from_{config.lower()}")
+                preset_name = config.lower()
+                preset_method = getattr(RuntimeConfig, f"from_{preset_name}")
                 runtime_config = preset_method()
                 console.print(f"[dim]Loaded preset configuration: {config}[/dim]")
             else:
@@ -416,6 +418,7 @@ def apply(
         else:
             # Start with defaults when no config file/preset specified
             runtime_config = RuntimeConfig.from_defaults()
+            preset_name = "balanced"  # Default preset
 
         # Step 2: Apply environment variable overrides
         # Extract only the env vars that are actually set (not defaults)
@@ -521,8 +524,13 @@ def apply(
         )
     console.print()
 
-    # Get configuration preset
-    config_preset = PresetConfig.BALANCED
+    # Get configuration preset (map from RuntimeConfig preset to PresetConfig)
+    if preset_name:
+        # Map preset name to PresetConfig attribute
+        config_preset = getattr(PresetConfig, preset_name.upper(), PresetConfig.BALANCED)
+    else:
+        # No preset specified (loaded from file), use balanced as default
+        config_preset = PresetConfig.BALANCED
 
     # Initialize resolver
     resolver = ConflictResolver(config_preset)
