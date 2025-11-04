@@ -482,7 +482,7 @@ def apply(
         }
         runtime_config = runtime_config.merge_with_cli(**cli_overrides)
 
-        # Step 3: Configure logging
+        # Step 4: Configure logging
         log_handler = (
             logging.FileHandler(runtime_config.log_file)
             if runtime_config.log_file
