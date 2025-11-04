@@ -10,11 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Phase 1**: Core functionality to apply ALL suggestions (Issue #14)
   - `ConflictResolver.separate_changes_by_conflict_status()` - Separate conflicting vs non-conflicting changes
-  - `ConflictResolver.apply_changes_batch()` - Apply changes in batches with mode support
-  - `ConflictResolver.apply_non_conflicting_changes_only()` - Apply only non-conflicting suggestions
-  - `ConflictResolver.apply_all_changes()` - Apply all suggestions (conflicting + non-conflicting)
+  - `ConflictResolver.apply_changes()` - Apply changes with validation and batch processing
+  - `ConflictResolver.resolve_pr_conflicts()` - Enhanced with application mode support (`all`, `conflicts-only`, `non-conflicts-only`)
   - Enhanced `ResolutionResult` model with detailed counters for conflicting/non-conflicting changes
-  - Support for application modes: `all`, `conflicts-only`, `non-conflicts-only`
+  - Unit tests for change separation and application logic (80%+ coverage achieved)
 - **Phase 2**: Git-based rollback system for safe change application (Issue #14)
   - `RollbackManager` class for checkpoint/rollback functionality using git stash
   - `ConflictResolver.apply_changes_with_rollback()` - Apply changes with automatic rollback on failure
