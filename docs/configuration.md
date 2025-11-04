@@ -241,33 +241,309 @@ Handler-specific options control how different file types are processed.
 }
 ```
 
-## Environment Variables
+## Runtime Configuration
 
-Set these environment variables for configuration:
+As of version 0.2.0, the resolver includes a comprehensive runtime configuration system that supports multiple configuration sources with proper precedence handling.
 
-### GITHUB_TOKEN
+### Configuration Precedence
 
-**Required:** GitHub personal access token for API access
+Configuration values are loaded in the following order (later sources override earlier ones):
 
-```bash
-export GITHUB_TOKEN="your_token_here"
+1. **Defaults** - Safe, sensible defaults built into the application
+2. **Config File** - YAML or TOML configuration files (if specified)
+3. **Environment Variables** - Environment variables with `CR_` prefix
+4. **CLI Flags** - Command-line flags (highest priority)
+
+### Application Modes
+
+The runtime configuration introduces four application modes that control which changes are applied:
+
+| Mode | Value | Description |
+|------|-------|-------------|
+| All | `all` | Apply both conflicting and non-conflicting changes (default) |
+| Conflicts Only | `conflicts-only` | Apply only changes that have conflicts (after resolution) |
+| Non-Conflicts Only | `non-conflicts-only` | Apply only non-conflicting changes |
+| Dry Run | `dry-run` | Analyze conflicts without applying any changes |
+
+### Configuration File Format
+
+Create a configuration file in YAML or TOML format:
+
+**YAML Example** (`config.yaml`):
+```yaml
+# Application mode
+mode: all  # all, conflicts-only, non-conflicts-only, dry-run
+
+# Safety features
+rollback:
+  enabled: true  # Enable automatic rollback on failure
+
+validation:
+  enabled: true  # Enable pre-application validation
+
+# Parallel processing (experimental)
+parallel:
+  enabled: false  # Enable parallel processing
+  max_workers: 4  # Maximum number of worker threads
+
+# Logging configuration
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file:  # Optional log file path (leave empty for stdout only)
 ```
 
-### PR_CONFLICT_RESOLVER_CONFIG
+**TOML Example** (`config.toml`):
+```toml
+# Application mode
+mode = "conflicts-only"
 
-**Optional:** Path to configuration file
+# Safety features
+[rollback]
+enabled = true
 
-```bash
-export PR_CONFLICT_RESOLVER_CONFIG="/path/to/config.json"
+[validation]
+enabled = true
+
+# Parallel processing
+[parallel]
+enabled = true
+max_workers = 8
+
+# Logging
+[logging]
+level = "DEBUG"
+file = "/var/log/pr-resolver/resolver.log"
 ```
 
-### PR_CONFLICT_RESOLVER_LOG_LEVEL
+### Environment Variables
 
-**Optional:** Logging level (DEBUG, INFO, WARNING, ERROR)
+Set these environment variables for runtime configuration:
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `CR_MODE` | string | `all` | Application mode |
+| `CR_ENABLE_ROLLBACK` | boolean | `true` | Enable automatic rollback on failure |
+| `CR_VALIDATE` | boolean | `true` | Enable pre-application validation |
+| `CR_PARALLEL` | boolean | `false` | Enable parallel processing |
+| `CR_MAX_WORKERS` | integer | `4` | Maximum number of worker threads |
+| `CR_LOG_LEVEL` | string | `INFO` | Logging level |
+| `CR_LOG_FILE` | string | (empty) | Log file path (optional) |
+| `GITHUB_PERSONAL_ACCESS_TOKEN` | string | (required) | GitHub API token |
+
+**Boolean Values:** Accept `true`/`false`, `1`/`0`, `yes`/`no`, `on`/`off` (case-insensitive)
+
+**Example:**
+```bash
+# Set environment variables
+export CR_MODE="dry-run"
+export CR_ENABLE_ROLLBACK="true"
+export CR_VALIDATE="true"
+export CR_PARALLEL="false"
+export CR_MAX_WORKERS="4"
+export CR_LOG_LEVEL="INFO"
+export GITHUB_PERSONAL_ACCESS_TOKEN="your_token_here"
+
+# Run the resolver (will use env vars)
+pr-resolve apply --pr 123 --owner myorg --repo myrepo
+```
+
+### CLI Configuration Flags
+
+Command-line flags provide the highest priority configuration:
 
 ```bash
-export PR_CONFLICT_RESOLVER_LOG_LEVEL="INFO"
+# Basic usage with mode
+pr-resolve apply --pr 123 --owner myorg --repo myrepo --mode dry-run
+
+# Apply only conflicting changes with parallel processing
+pr-resolve apply --pr 123 --owner myorg --repo myrepo \
+  --mode conflicts-only \
+  --parallel \
+  --max-workers 8
+
+# Load configuration from file and override specific settings
+pr-resolve apply --pr 123 --owner myorg --repo myrepo \
+  --config /path/to/config.yaml \
+  --log-level DEBUG
+
+# Disable safety features (not recommended)
+pr-resolve apply --pr 123 --owner myorg --repo myrepo \
+  --no-rollback \
+  --no-validation
+
+# Enable logging to file
+pr-resolve apply --pr 123 --owner myorg --repo myrepo \
+  --log-level DEBUG \
+  --log-file /tmp/resolver.log
 ```
+
+### CLI Flag Reference
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--mode` | choice | Application mode (all, conflicts-only, non-conflicts-only, dry-run) |
+| `--config` | path | Path to configuration file (YAML or TOML) |
+| `--no-rollback` | flag | Disable automatic rollback on failure |
+| `--no-validation` | flag | Disable pre-application validation |
+| `--parallel` | flag | Enable parallel processing of changes |
+| `--max-workers` | int | Maximum number of worker threads (default: 4) |
+| `--log-level` | choice | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) |
+| `--log-file` | path | Path to log file (default: stdout only) |
+
+### Configuration Precedence Example
+
+```bash
+# config.yaml contains: mode=all, max_workers=4
+# Environment has: CR_MODE=conflicts-only, CR_MAX_WORKERS=8
+# CLI provides: --mode dry-run
+
+# Result: mode=dry-run (CLI wins), max_workers=8 (env wins over file)
+pr-resolve apply --pr 123 --owner myorg --repo myrepo \
+  --config config.yaml \
+  --mode dry-run
+```
+
+### Python API Usage
+
+```python
+from pathlib import Path
+from pr_conflict_resolver.config.runtime_config import RuntimeConfig, ApplicationMode
+
+# Load from defaults
+config = RuntimeConfig.from_defaults()
+
+# Load from environment variables
+config = RuntimeConfig.from_env()
+
+# Load from configuration file
+config = RuntimeConfig.from_file(Path("config.yaml"))
+
+# Apply CLI overrides
+config = config.merge_with_cli(
+    mode=ApplicationMode.DRY_RUN,
+    parallel_processing=True,
+    max_workers=16
+)
+
+# Access configuration values
+print(f"Mode: {config.mode}")
+print(f"Rollback enabled: {config.enable_rollback}")
+print(f"Parallel: {config.parallel_processing}")
+```
+
+### Safety Features
+
+#### Automatic Rollback
+
+When `enable_rollback` is `true` (default), the resolver creates a git stash checkpoint before applying changes. If any error occurs, all changes are automatically rolled back.
+
+```bash
+# Rollback enabled (default)
+pr-resolve apply --pr 123 --owner myorg --repo myrepo
+
+# Rollback disabled (not recommended)
+pr-resolve apply --pr 123 --owner myorg --repo myrepo --no-rollback
+```
+
+#### Pre-Application Validation
+
+When `validate_before_apply` is `true` (default), all changes are validated before being applied to catch errors early.
+
+```bash
+# Validation enabled (default)
+pr-resolve apply --pr 123 --owner myorg --repo myrepo
+
+# Validation disabled (for performance, not recommended)
+pr-resolve apply --pr 123 --owner myorg --repo myrepo --no-validation
+```
+
+### Parallel Processing (Experimental)
+
+Enable parallel processing for improved performance on large PRs with many changes:
+
+```bash
+# Enable parallel processing with default workers (4)
+pr-resolve apply --pr 123 --owner myorg --repo myrepo --parallel
+
+# Enable with custom worker count
+pr-resolve apply --pr 123 --owner myorg --repo myrepo --parallel --max-workers 16
+```
+
+**Notes:**
+- Parallel processing uses ThreadPoolExecutor for I/O-bound operations
+- Thread-safe collections ensure data integrity
+- Maintains result order across parallel execution
+- Recommended workers: 4-8 (higher values may not improve performance)
+- **Experimental:** May affect logging order
+
+### Configuration Examples
+
+#### Example 1: Development Environment
+
+```yaml
+# dev-config.yaml
+mode: all
+rollback:
+  enabled: true
+validation:
+  enabled: true
+parallel:
+  enabled: true
+  max_workers: 8
+logging:
+  level: DEBUG
+  file: /tmp/pr-resolver-dev.log
+```
+
+```bash
+pr-resolve apply --pr 123 --owner myorg --repo myrepo --config dev-config.yaml
+```
+
+#### Example 2: Production Environment
+
+```yaml
+# prod-config.yaml
+mode: conflicts-only  # Only resolve actual conflicts
+rollback:
+  enabled: true  # Always enable in production
+validation:
+  enabled: true  # Always validate in production
+parallel:
+  enabled: false  # Disable for predictable behavior
+logging:
+  level: WARNING  # Less verbose logging
+  file: /var/log/pr-resolver/production.log
+```
+
+#### Example 3: CI/CD Pipeline
+
+```bash
+# Set via environment variables in CI/CD
+export CR_MODE="dry-run"  # Analyze only, don't apply
+export CR_LOG_LEVEL="INFO"
+export GITHUB_PERSONAL_ACCESS_TOKEN="${GITHUB_TOKEN}"  # From CI secrets
+
+pr-resolve apply --pr $PR_NUMBER --owner $REPO_OWNER --repo $REPO_NAME
+```
+
+#### Example 4: Quick Dry-Run
+
+```bash
+# Fastest way to analyze without applying
+pr-resolve apply --pr 123 --owner myorg --repo myrepo --mode dry-run
+```
+
+### Legacy Environment Variables
+
+For backwards compatibility, these environment variables are also supported:
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `GITHUB_TOKEN` | string | GitHub personal access token (legacy alias) |
+| `PR_CONFLICT_RESOLVER_CONFIG` | string | Path to configuration file (legacy) |
+| `PR_CONFLICT_RESOLVER_LOG_LEVEL` | string | Logging level (legacy) |
+
+**Note:** New projects should use the `CR_*` prefix for runtime configuration and `GITHUB_PERSONAL_ACCESS_TOKEN` for authentication.
 
 ## Configuration Examples
 

@@ -3,12 +3,14 @@
 import hashlib
 import logging
 import re
+from pathlib import Path
 
 import click
 from rich.console import Console
 from rich.table import Table
 
 from pr_conflict_resolver.config.presets import PresetConfig
+from pr_conflict_resolver.config.runtime_config import ApplicationMode, RuntimeConfig
 from pr_conflict_resolver.core.resolver import ConflictResolver
 
 console = Console()
@@ -292,37 +294,175 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
     help="Repository name",
 )
 @click.option("--strategy", default="priority", help="Resolution strategy")
-@click.option("--dry-run", is_flag=True, help="Simulate without applying changes")
-def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
-    """Apply or simulate applying conflict-resolution suggestions to a pull request.
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Simulate without applying changes (deprecated: use --mode=dry-run)",
+)
+@click.option(
+    "--mode",
+    type=click.Choice(
+        ["all", "conflicts-only", "non-conflicts-only", "dry-run"], case_sensitive=False
+    ),
+    help=(
+        "Application mode: 'all' (apply all changes), 'conflicts-only' (only conflicting changes), "
+        "'non-conflicts-only' (only non-conflicting changes), 'dry-run' (analyze without applying)"
+    ),
+)
+@click.option("--no-rollback", is_flag=True, help="Disable automatic rollback on failure")
+@click.option("--no-validation", is_flag=True, help="Disable pre-application validation")
+@click.option(
+    "--parallel", is_flag=True, help="Enable parallel processing of changes (experimental)"
+)
+@click.option(
+    "--max-workers",
+    type=int,
+    default=None,
+    help="Maximum number of worker threads for parallel processing (default: 4)",
+)
+@click.option(
+    "--config",
+    type=click.Path(exists=True, dir_okay=False),
+    help="Path to configuration file (YAML or TOML)",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
+    help="Logging level (default: INFO)",
+)
+@click.option(
+    "--log-file",
+    type=click.Path(dir_okay=False),
+    help="Path to log file (default: stdout only)",
+)
+def apply(
+    pr: int,
+    owner: str,
+    repo: str,
+    strategy: str,
+    dry_run: bool,
+    mode: str | None,
+    no_rollback: bool,
+    no_validation: bool,
+    parallel: bool,
+    max_workers: int | None,
+    config: str | None,
+    log_level: str | None,
+    log_file: str | None,
+) -> None:
+    r"""Apply or simulate applying conflict-resolution suggestions to a pull request.
 
-    When `dry_run` is True, analyzes conflicts and reports how many would be
-    processed without making changes. Otherwise, applies suggestions for the given
-    PR using the specified strategy and reports counts and success rate.
+    Supports multiple application modes, configuration from files/env vars/CLI flags,
+    parallel processing, and automatic rollback on failure.
+
+    Configuration precedence: CLI flags > environment variables > config file > defaults
 
     Args:
-        pr (int): Pull request number.
-        owner (str): Repository owner or organization.
-        repo (str): Repository name.
-        strategy (str): Resolution strategy to use (e.g., "priority").
-        dry_run (bool): If True, do not apply changes; only simulate and report.
+        pr: Pull request number.
+        owner: Repository owner or organization.
+        repo: Repository name.
+        strategy: Resolution strategy to use (e.g., "priority").
+        dry_run: (Deprecated) If True, use dry-run mode. Use --mode=dry-run instead.
+        mode: Application mode (all, conflicts-only, non-conflicts-only, dry-run).
+        no_rollback: Disable automatic rollback on failure.
+        no_validation: Disable pre-application validation.
+        parallel: Enable parallel processing of changes.
+        max_workers: Maximum number of worker threads (default: 4).
+        config: Path to configuration file (YAML or TOML).
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+        log_file: Path to log file for output.
 
     Raises:
         click.Abort: If an error occurs while analyzing or applying suggestions.
+
+    Examples:
+        # Apply all changes with default settings
+        $ pr-resolve apply --pr 123 --owner myorg --repo myrepo
+
+        # Dry-run mode to analyze without applying
+        $ pr-resolve apply --pr 123 --owner myorg --repo myrepo --mode dry-run
+
+        # Apply only conflicting changes with parallel processing
+        $ pr-resolve apply --pr 123 --owner myorg --repo myrepo \\
+            --mode conflicts-only --parallel --max-workers 8
+
+        # Load configuration from file
+        $ pr-resolve apply --pr 123 --owner myorg --repo myrepo \\
+            --config /path/to/config.yaml
     """
+    # Load runtime configuration with proper precedence
+    try:
+        # Step 1: Load from config file if provided, otherwise from env vars
+        if config:
+            runtime_config = RuntimeConfig.from_file(Path(config))
+            console.print(f"[dim]Loaded configuration from: {config}[/dim]")
+        else:
+            runtime_config = RuntimeConfig.from_env()
+
+        # Step 2: Apply CLI overrides
+        # Handle deprecated --dry-run flag (maps to mode)
+        if dry_run and mode:
+            console.print(
+                "[yellow]Warning: Both --dry-run and --mode specified. Using --mode.[/yellow]"
+            )
+        elif dry_run:
+            mode = "dry-run"
+            console.print(
+                "[yellow]Warning: --dry-run is deprecated. Use --mode=dry-run instead.[/yellow]"
+            )
+
+        cli_overrides = {
+            "mode": mode,
+            "enable_rollback": False if no_rollback else None,
+            "validate_before_apply": False if no_validation else None,
+            "parallel_processing": True if parallel else None,
+            "max_workers": max_workers,
+            "log_level": log_level.upper() if log_level else None,
+            "log_file": str(log_file) if log_file else None,
+        }
+        runtime_config = runtime_config.merge_with_cli(**cli_overrides)
+
+        # Step 3: Configure logging
+        log_handler = (
+            logging.FileHandler(runtime_config.log_file)
+            if runtime_config.log_file
+            else logging.StreamHandler()
+        )
+        logging.basicConfig(
+            level=getattr(logging, runtime_config.log_level),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=[log_handler],
+            force=True,
+        )
+
+    except Exception as e:
+        console.print(f"[red]❌ Configuration error: {e}[/red]")
+        raise click.Abort() from e
+
+    # Display configuration summary
     safe_owner = sanitize_for_output(owner)
     safe_repo = sanitize_for_output(repo)
-
-    if dry_run:
-        console.print(
-            f"[yellow]DRY RUN:[/yellow] Would apply suggestions to PR #{pr} "
-            f"for {safe_owner}/{safe_repo}"
-        )
-    else:
-        console.print(f"Applying suggestions to PR #{pr} for {safe_owner}/{safe_repo}")
-
     safe_strategy = sanitize_for_output(strategy)
-    console.print(f"Using strategy: {safe_strategy}")
+
+    console.print("\n[bold]PR Conflict Resolver[/bold]")
+    console.print(f"Repository: {safe_owner}/{safe_repo} PR #{pr}")
+    console.print(f"Strategy: {safe_strategy}")
+    console.print(f"Mode: [cyan]{runtime_config.mode}[/cyan]")
+    rollback_status = (
+        "[green]enabled[/green]" if runtime_config.enable_rollback else "[yellow]disabled[/yellow]"
+    )
+    console.print(f"Rollback: {rollback_status}")
+    validation_status = (
+        "[green]enabled[/green]"
+        if runtime_config.validate_before_apply
+        else "[yellow]disabled[/yellow]"
+    )
+    console.print(f"Validation: {validation_status}")
+    if runtime_config.parallel_processing:
+        console.print(
+            f"Parallel processing: [cyan]enabled[/cyan] (workers: {runtime_config.max_workers})"
+        )
+    console.print()
 
     # Get configuration preset
     config_preset = PresetConfig.BALANCED
@@ -331,24 +471,32 @@ def apply(pr: int, owner: str, repo: str, strategy: str, dry_run: bool) -> None:
     resolver = ConflictResolver(config_preset)
 
     try:
-        if dry_run:
-            # Just analyze conflicts
+        if runtime_config.mode == ApplicationMode.DRY_RUN:
+            # Dry-run mode: Just analyze conflicts
+            console.print(
+                "[yellow]DRY RUN MODE:[/yellow] Analyzing conflicts without applying changes"
+            )
             conflicts = resolver.analyze_conflicts(owner, repo, pr)
             console.print(f"📊 Would process {len(conflicts)} conflicts")
         else:
-            # Resolve conflicts
-            result = resolver.resolve_pr_conflicts(owner, repo, pr)
+            # Apply mode: Resolve conflicts with configured settings
+            console.print("Resolving conflicts...")
+            # Convert ApplicationMode enum to string for resolver
+            mode_str = runtime_config.mode.value  # Use the enum's value directly
+            result = resolver.resolve_pr_conflicts(owner, repo, pr, mode=mode_str)
 
             # Display results
-            console.print(f"✅ Applied {result.applied_count} suggestions")
-            console.print(f"⚠️  Skipped {result.conflict_count} conflicts")
-            console.print(f"📈 Success rate: {result.success_rate:.1f}%")
+            console.print("\n[bold green]✅ Results:[/bold green]")
+            console.print(f"  Applied: {result.applied_count} suggestions")
+            console.print(f"  Skipped: {result.conflict_count} conflicts")
+            console.print(f"  Success rate: {result.success_rate:.1f}%")
 
             if result.conflict_count > 0:
-                console.print("💡 Some conflicts require manual review")
+                console.print("\n[yellow]💡 Some conflicts require manual review[/yellow]")
 
     except Exception as e:
-        console.print(f"❌ Error applying suggestions: {e}")
+        console.print(f"\n[red]❌ Error applying suggestions: {e}[/red]")
+        logger.exception("Failed to apply conflict resolution")
         raise click.Abort() from e
 
 

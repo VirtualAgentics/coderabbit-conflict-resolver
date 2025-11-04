@@ -10,6 +10,8 @@ import hashlib
 import logging
 import os
 import stat
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from os import PathLike
 from pathlib import Path
 from typing import Any
@@ -468,18 +470,26 @@ class ConflictResolver:
         return conflicting_changes, non_conflicting_changes
 
     def apply_changes(
-        self, changes: list[Change], validate: bool = True
+        self,
+        changes: list[Change],
+        validate: bool = True,
+        parallel: bool = False,
+        max_workers: int = 4,
     ) -> tuple[list[Change], list[Change], list[tuple[Change, str]]]:
         """Apply a batch of changes and track results.
 
-        Applies each change sequentially and tracks which succeeded, were skipped, or failed.
-        This method provides more granular tracking than apply_resolutions() and is designed
-        for applying non-conflicting changes directly.
+        Applies each change either sequentially or in parallel (if enabled) and tracks
+        which succeeded, were skipped, or failed. This method provides more granular
+        tracking than apply_resolutions() and is designed for applying non-conflicting
+        changes directly.
 
         Args:
             changes: List of changes to apply.
             validate: If True, validate each change before applying (default: True).
                 When False, skips validation for performance (use with caution).
+            parallel: If True, apply changes in parallel using ThreadPoolExecutor (default: False).
+            max_workers: Maximum number of worker threads for parallel processing (default: 4).
+                Only used when parallel=True. Recommended range: 4-8 for optimal performance.
 
         Returns:
             Tuple of three lists:
@@ -488,8 +498,31 @@ class ConflictResolver:
                 - failed: Tuples of (change, error_message) for changes that failed to apply
 
         Example:
+            >>> # Sequential processing
             >>> applied, skipped, failed = resolver.apply_changes(non_conflicting_changes)
             >>> print(f"Applied: {len(applied)}, Skipped: {len(skipped)}, Failed: {len(failed)}")
+            >>>
+            >>> # Parallel processing (faster for large batches)
+            >>> applied, skipped, failed = resolver.apply_changes(
+            ...     non_conflicting_changes, parallel=True, max_workers=8
+            ... )
+        """
+        if parallel:
+            return self._apply_changes_parallel(changes, validate, max_workers)
+        else:
+            return self._apply_changes_sequential(changes, validate)
+
+    def _apply_changes_sequential(
+        self, changes: list[Change], validate: bool
+    ) -> tuple[list[Change], list[Change], list[tuple[Change, str]]]:
+        """Apply changes sequentially (internal helper).
+
+        Args:
+            changes: List of changes to apply.
+            validate: If True, validate each change before applying.
+
+        Returns:
+            Tuple of (applied, skipped, failed) lists.
         """
         applied: list[Change] = []
         skipped: list[Change] = []
@@ -527,6 +560,103 @@ class ConflictResolver:
                     f"Exception applying change {change.fingerprint} to {change.path}: {error_msg}"
                 )
                 failed.append((change, error_msg))
+
+        return applied, skipped, failed
+
+    def _apply_changes_parallel(
+        self, changes: list[Change], validate: bool, max_workers: int
+    ) -> tuple[list[Change], list[Change], list[tuple[Change, str]]]:
+        """Apply changes in parallel with file-level serialization to prevent race conditions.
+
+        Groups changes by file path and processes each file's changes sequentially, while
+        processing different files in parallel. This prevents concurrent modifications to
+        the same file. Results are accumulated in completion order (not input order).
+        Parallel processing is particularly beneficial for large batches of changes (>20-30).
+
+        Args:
+            changes: List of changes to apply.
+            validate: If True, validate each change before applying.
+            max_workers: Maximum number of worker threads.
+
+        Returns:
+            Tuple of (applied, skipped, failed) lists.
+        """
+        # Group changes by file path to prevent same-file race conditions
+        from collections import defaultdict
+
+        changes_by_file: dict[str, list[Change]] = defaultdict(list)
+        for change in changes:
+            changes_by_file[change.path].append(change)
+
+        # Thread-safe collections with locks
+        applied_lock = threading.Lock()
+        skipped_lock = threading.Lock()
+        failed_lock = threading.Lock()
+
+        applied: list[Change] = []
+        skipped: list[Change] = []
+        failed: list[tuple[Change, str]] = []
+
+        def process_file_changes(file_changes: list[Change]) -> None:
+            """Process all changes for a single file sequentially (thread worker function)."""
+            for change in file_changes:
+                # Optional validation step
+                if validate:
+                    is_valid, reason = self._validate_change(change)
+                    if not is_valid:
+                        self.logger.debug(
+                            f"Skipping change {change.fingerprint} in {change.path}: {reason}"
+                        )
+                        with skipped_lock:
+                            skipped.append(change)
+                        continue
+
+                # Attempt to apply the change
+                try:
+                    success = self._apply_change(change)
+                    if success:
+                        self.logger.info(
+                            f"Applied change {change.fingerprint} to {change.path} "
+                            f"(lines {change.start_line}-{change.end_line})"
+                        )
+                        with applied_lock:
+                            applied.append(change)
+                    else:
+                        error_msg = "Application returned False (unspecified failure)"
+                        self.logger.warning(
+                            "Failed to apply change %s to %s: %s",
+                            change.fingerprint,
+                            change.path,
+                            error_msg,
+                        )
+                        with failed_lock:
+                            failed.append((change, error_msg))
+                except Exception as e:
+                    error_msg = f"{type(e).__name__}: {e}"
+                    self.logger.error(
+                        "Exception applying change %s to %s: %s",
+                        change.fingerprint,
+                        change.path,
+                        error_msg,
+                    )
+                    with failed_lock:
+                        failed.append((change, error_msg))
+
+        # Process different files in parallel (each file's changes are processed sequentially)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit one task per file
+            futures = [
+                executor.submit(process_file_changes, file_changes)
+                for file_changes in changes_by_file.values()
+            ]
+
+            # Wait for all tasks to complete
+            for future in as_completed(futures):
+                # Propagate any exceptions from worker threads
+                try:
+                    future.result()
+                except Exception as e:
+                    self.logger.error(f"Worker thread raised exception: {e}")
 
         return applied, skipped, failed
 
@@ -591,7 +721,11 @@ class ConflictResolver:
         return True, ""
 
     def apply_changes_with_rollback(
-        self, changes: list[Change], validate: bool = True
+        self,
+        changes: list[Change],
+        validate: bool = True,
+        parallel: bool = False,
+        max_workers: int = 4,
     ) -> tuple[list[Change], list[Change], list[tuple[Change, str]]]:
         """Apply changes with automatic rollback on failure.
 
@@ -602,6 +736,8 @@ class ConflictResolver:
         Args:
             changes: List of changes to apply.
             validate: If True, validate each change before applying (default: True).
+            parallel: If True, apply changes in parallel using ThreadPoolExecutor (default: False).
+            max_workers: Maximum number of worker threads for parallel processing (default: 4).
 
         Returns:
             Tuple of three lists (same as apply_changes()):
@@ -614,7 +750,9 @@ class ConflictResolver:
 
         Example:
             >>> try:
-            >>>     applied, skipped, failed = resolver.apply_changes_with_rollback(changes)
+            >>>     applied, skipped, failed = resolver.apply_changes_with_rollback(
+            ...         changes, parallel=True, max_workers=8
+            ...     )
             >>>     if failed:
             >>>         print(f"Failed to apply {len(failed)} changes (rolled back)")
             >>> except RollbackError as e:
@@ -630,7 +768,9 @@ class ConflictResolver:
                 "Proceeding without rollback support."
             )
             # Fall back to regular apply_changes without rollback
-            return self.apply_changes(changes, validate=validate)
+            return self.apply_changes(
+                changes, validate=validate, parallel=parallel, max_workers=max_workers
+            )
 
         try:
             # Create checkpoint before applying changes
@@ -638,7 +778,9 @@ class ConflictResolver:
             self.logger.info(f"Created rollback checkpoint: {checkpoint_id}")
 
             # Apply changes
-            applied, skipped, failed = self.apply_changes(changes, validate=validate)
+            applied, skipped, failed = self.apply_changes(
+                changes, validate=validate, parallel=parallel, max_workers=max_workers
+            )
 
             # Check if any changes failed
             if failed:

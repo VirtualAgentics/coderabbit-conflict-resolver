@@ -62,8 +62,8 @@ def test_cli_apply_dry_run() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["apply", "--pr", "7", "--owner", "o", "--repo", "r", "--dry-run"])
     assert result.exit_code == 0
-    assert "DRY RUN:" in result.output
-    assert "Would apply suggestions to PR #7" in result.output
+    assert "DRY RUN MODE:" in result.output
+    assert "Analyzing conflicts without applying changes" in result.output
 
 
 @patch("pr_conflict_resolver.cli.main.ConflictResolver")
@@ -82,8 +82,8 @@ def test_cli_apply_success(mock_resolver: Mock) -> None:
     result = runner.invoke(cli, ["apply", "--pr", "8", "--owner", "o", "--repo", "r"])
 
     assert result.exit_code == 0
-    assert "Applied 3 suggestions" in result.output
-    assert "Skipped 2 conflicts" in result.output
+    assert "Applied: 3 suggestions" in result.output
+    assert "Skipped: 2 conflicts" in result.output
     assert "Success rate: 60.0%" in result.output
 
 
