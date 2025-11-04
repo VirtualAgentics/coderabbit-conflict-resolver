@@ -591,6 +591,380 @@ strict_config = {
 }
 ```
 
+## Integration Examples
+
+These examples demonstrate combining multiple features for real-world scenarios.
+
+### Example 1: Full-Featured Production Workflow
+
+Combining all safety features with parallel processing for a large PR:
+
+```bash
+# Create a comprehensive production configuration
+cat > prod-workflow.yaml <<EOF
+mode: conflicts-only
+rollback:
+  enabled: true
+validation:
+  enabled: true
+parallel:
+  enabled: true
+  max_workers: 8
+logging:
+  level: INFO
+  file: /var/log/pr-resolver/prod.log
+EOF
+
+# Apply with configuration file
+pr-resolve apply --pr 456 --owner myorg --repo myproject --config prod-workflow.yaml
+
+# Or use environment variables for CI/CD
+export CR_MODE="conflicts-only"
+export CR_ENABLE_ROLLBACK="true"
+export CR_VALIDATE="true"
+export CR_PARALLEL="true"
+export CR_MAX_WORKERS="8"
+export CR_LOG_LEVEL="INFO"
+export CR_LOG_FILE="/var/log/pr-resolver/prod.log"
+
+pr-resolve apply --pr 456 --owner myorg --repo myproject
+```
+
+### Example 2: Development Workflow with Debug Logging
+
+Fast iteration with comprehensive logging for debugging:
+
+```bash
+# Quick dry-run with debug logging
+pr-resolve apply --pr 789 --owner myorg --repo myproject \
+  --mode dry-run \
+  --log-level DEBUG \
+  --log-file /tmp/debug-$(date +%Y%m%d-%H%M%S).log
+
+# If dry-run looks good, apply with rollback protection
+pr-resolve apply --pr 789 --owner myorg --repo myproject \
+  --mode all \
+  --rollback \
+  --validation \
+  --log-level DEBUG
+```
+
+### Example 3: High-Performance Large PR Processing
+
+Optimized for very large PRs (100+ files):
+
+```yaml
+# perf-config.yaml
+mode: all
+rollback:
+  enabled: true  # Keep safety enabled
+validation:
+  enabled: false  # Disable for speed (if confident)
+parallel:
+  enabled: true
+  max_workers: 16  # High parallelism
+logging:
+  level: WARNING  # Reduce logging overhead
+```
+
+```bash
+pr-resolve apply --pr 999 --owner myorg --repo myproject \
+  --config perf-config.yaml \
+  --parallel \
+  --max-workers 16
+```
+
+### Example 4: Conservative Production with Manual Checkpoints
+
+Maximum safety for critical production systems:
+
+```bash
+# Step 1: Analyze conflicts only
+pr-resolve analyze --pr 111 --owner myorg --repo myproject
+
+# Step 2: Dry-run to see what would be applied
+pr-resolve apply --pr 111 --owner myorg --repo myproject --mode dry-run
+
+# Step 3: Apply only non-conflicting changes first
+pr-resolve apply --pr 111 --owner myorg --repo myproject \
+  --mode non-conflicts-only \
+  --rollback \
+  --validation
+
+# Step 4: Review and apply conflicting changes
+pr-resolve apply --pr 111 --owner myorg --repo myproject \
+  --mode conflicts-only \
+  --rollback \
+  --validation \
+  --log-level INFO \
+  --log-file /var/log/conflicts-$(date +%Y%m%d).log
+```
+
+### Example 5: CI/CD Integration with Precedence Chain
+
+Using all configuration sources together:
+
+```bash
+# 1. Create base configuration file (lowest priority)
+cat > ci-base.yaml <<EOF
+rollback:
+  enabled: true
+validation:
+  enabled: true
+parallel:
+  enabled: false
+logging:
+  level: INFO
+EOF
+
+# 2. Set environment variables (medium priority)
+export CR_MODE="dry-run"  # Default to dry-run in CI
+export CR_LOG_LEVEL="DEBUG"  # More verbose in CI
+
+# 3. Use CLI flags for job-specific overrides (highest priority)
+# For PR validation job: analyze only
+pr-resolve apply --pr $PR_NUMBER --owner $ORG --repo $REPO \
+  --config ci-base.yaml \
+  --mode dry-run
+
+# For auto-apply job: apply with parallel processing
+pr-resolve apply --pr $PR_NUMBER --owner $ORG --repo $REPO \
+  --config ci-base.yaml \
+  --mode conflicts-only \
+  --parallel \
+  --max-workers 8
+```
+
+### Example 6: Python API with Dynamic Configuration
+
+Building configuration programmatically:
+
+```python
+from pathlib import Path
+from pr_conflict_resolver import ConflictResolver
+from pr_conflict_resolver.config.runtime_config import RuntimeConfig, ApplicationMode
+from pr_conflict_resolver.config import PresetConfig
+
+# Start with preset configuration
+base_config = PresetConfig.BALANCED
+
+# Load runtime configuration with precedence
+runtime_config = RuntimeConfig.from_file(Path("base-config.yaml"))
+runtime_config = runtime_config.merge_with_env()
+
+# Determine mode based on PR size
+pr_size = 150  # files changed
+if pr_size > 100:
+    runtime_config = runtime_config.merge_with_cli(
+        parallel_processing=True,
+        max_workers=16,
+        validate_before_apply=False  # Skip validation for speed
+    )
+elif pr_size < 10:
+    runtime_config = runtime_config.merge_with_cli(
+        parallel_processing=False,
+        validate_before_apply=True
+    )
+
+# Initialize resolver with both configurations
+resolver = ConflictResolver(config=base_config)
+
+# Apply with runtime configuration
+results = resolver.resolve_pr_conflicts(
+    owner="myorg",
+    repo="myproject",
+    pr_number=123,
+    mode=runtime_config.mode,
+    validate=runtime_config.validate_before_apply,
+    parallel=runtime_config.parallel_processing,
+    max_workers=runtime_config.max_workers,
+    enable_rollback=runtime_config.enable_rollback
+)
+
+print(f"Applied: {results.applied_count}/{results.total_count}")
+print(f"Success rate: {results.success_rate}%")
+```
+
+## Performance Tuning
+
+### Understanding Performance Characteristics
+
+The resolver's performance is affected by several factors:
+
+1. **PR Size**: Number of files and changes
+2. **Conflict Complexity**: Semantic analysis overhead
+3. **I/O Operations**: File reading/writing
+4. **Validation**: Pre-application checks
+5. **Logging**: Debug logging overhead
+
+### Parallel Processing Guidelines
+
+#### When to Enable Parallel Processing
+
+**Enable for:**
+- Large PRs (30+ files)
+- Independent file changes
+- I/O-bound workloads
+- Time-critical resolutions
+
+**Disable for:**
+- Small PRs (< 10 files)
+- Dependent changes across files
+- Debugging sessions (easier to trace)
+- Systems with limited CPU cores (< 4)
+
+#### Optimal Worker Count
+
+The optimal number of workers depends on your system and workload:
+
+**General Guidelines:**
+```bash
+# Small PRs (10-30 files): 2-4 workers
+pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 4
+
+# Medium PRs (30-100 files): 4-8 workers
+pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 8
+
+# Large PRs (100-300 files): 8-16 workers
+pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 16
+
+# Very large PRs (300+ files): 16-32 workers
+pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 32
+```
+
+**CPU-Based Guidelines:**
+```bash
+# Rule of thumb: 2x CPU cores for I/O-bound work
+WORKERS=$(($(nproc) * 2))
+pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers $WORKERS
+
+# Conservative: Match CPU cores
+pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers $(nproc)
+```
+
+#### Benchmarking Your Configuration
+
+Test different configurations to find optimal settings:
+
+```bash
+# Benchmark script
+#!/bin/bash
+PR_NUMBER=123
+OWNER=myorg
+REPO=myrepo
+
+echo "Testing different worker counts..."
+for workers in 1 4 8 16 32; do
+    echo "Testing with $workers workers..."
+    time pr-resolve apply --pr $PR_NUMBER --owner $OWNER --repo $REPO \
+        --mode dry-run \
+        --parallel \
+        --max-workers $workers \
+        --log-level WARNING
+done
+```
+
+### Validation Trade-offs
+
+**Pre-application validation** catches errors early but adds overhead:
+
+```bash
+# Maximum safety (slower): validation enabled
+pr-resolve apply --pr 123 --owner org --repo repo --validation
+
+# Performance optimized (faster, riskier): validation disabled
+pr-resolve apply --pr 123 --owner org --repo repo --no-validation --rollback
+```
+
+**Recommendations:**
+- **Enable validation** for: Production systems, critical changes, unfamiliar PRs
+- **Disable validation** for: Trusted PRs, time-critical resolutions, when rollback is enabled
+
+### Logging Performance Impact
+
+Debug logging can significantly impact performance:
+
+```bash
+# Production: minimal logging overhead
+pr-resolve apply --pr 123 --owner org --repo repo --log-level WARNING
+
+# Development: detailed logging
+pr-resolve apply --pr 123 --owner org --repo repo --log-level DEBUG
+
+# Performance critical: log to file, not stdout
+pr-resolve apply --pr 123 --owner org --repo repo \
+  --log-level INFO \
+  --log-file /var/log/pr-resolver/perf.log
+```
+
+**Performance Impact by Log Level:**
+- `ERROR`: Minimal overhead (< 1%)
+- `WARNING`: Low overhead (1-2%)
+- `INFO`: Moderate overhead (2-5%)
+- `DEBUG`: High overhead (10-20%)
+
+### Optimization Strategies
+
+#### Strategy 1: Staged Application
+
+For very large PRs, apply in stages:
+
+```bash
+# Stage 1: Non-conflicting changes (fastest)
+pr-resolve apply --pr 999 --owner org --repo repo \
+  --mode non-conflicts-only \
+  --parallel --max-workers 16 \
+  --no-validation
+
+# Stage 2: Conflicting changes (slower, more careful)
+pr-resolve apply --pr 999 --owner org --repo repo \
+  --mode conflicts-only \
+  --parallel --max-workers 8 \
+  --validation
+```
+
+#### Strategy 2: Configuration Caching
+
+Reuse configuration across multiple PRs:
+
+```bash
+# Create optimized configuration once
+cat > optimized.yaml <<EOF
+parallel:
+  enabled: true
+  max_workers: 16
+validation:
+  enabled: false
+rollback:
+  enabled: true
+logging:
+  level: WARNING
+EOF
+
+# Reuse for multiple PRs
+for pr in 100 101 102 103; do
+    pr-resolve apply --pr $pr --owner org --repo repo --config optimized.yaml
+done
+```
+
+#### Strategy 3: Resource Monitoring
+
+Monitor system resources during execution:
+
+```bash
+# Run with resource monitoring
+(pr-resolve apply --pr 123 --owner org --repo repo \
+  --parallel --max-workers 16 \
+  --log-level INFO) &
+
+PID=$!
+# Monitor CPU and memory
+while kill -0 $PID 2>/dev/null; do
+    ps -p $PID -o %cpu,%mem,cmd
+    sleep 1
+done
+```
+
 ## CLI Configuration
 
 Specify configuration when using the CLI:
@@ -624,32 +998,752 @@ except ValueError as e:
 
 ## Best Practices
 
-1. **Start with Balanced** - Use the balanced preset as a starting point
-2. **Adjust for Your Workflow** - Customize priority rules to match your team's needs
-3. **Test Configuration** - Use dry-run mode to test configuration changes
-4. **Document Custom Configs** - Document any custom configurations for your team
-5. **Version Control** - Store custom configurations in version control
-6. **Monitor Results** - Track success rates and adjust configuration as needed
+### Configuration Organization
+
+1. **Start with Balanced Preset**
+   - Use the balanced preset as a starting point for most workflows
+   - Override specific settings rather than creating from scratch
+   - Understand each preset's trade-offs before switching
+
+2. **Use Configuration Files for Persistence**
+   ```bash
+   # Store team configuration in version control
+   mkdir -p .pr-resolver
+   cat > .pr-resolver/team-config.yaml <<EOF
+   mode: conflicts-only
+   rollback:
+     enabled: true
+   validation:
+     enabled: true
+   parallel:
+     enabled: true
+     max_workers: 8
+   EOF
+
+   # Share with team
+   git add .pr-resolver/team-config.yaml
+   git commit -m "Add PR resolver team configuration"
+   ```
+
+3. **Use Environment Variables for Environment-Specific Settings**
+   ```bash
+   # Development environment
+   cat >> ~/.bashrc <<EOF
+   export CR_LOG_LEVEL="DEBUG"
+   export CR_MAX_WORKERS="4"
+   EOF
+
+   # Production environment (via CI/CD)
+   export CR_LOG_LEVEL="WARNING"
+   export CR_MAX_WORKERS="16"
+   export CR_MODE="conflicts-only"
+   ```
+
+4. **Use CLI Flags for One-Off Overrides**
+   ```bash
+   # Normal workflow: use team config
+   pr-resolve apply --pr 123 --owner org --repo repo --config .pr-resolver/team-config.yaml
+
+   # One-off: need extra debugging
+   pr-resolve apply --pr 123 --owner org --repo repo \
+     --config .pr-resolver/team-config.yaml \
+     --log-level DEBUG
+   ```
+
+### Configuration Strategy by Environment
+
+#### Development Environment
+```yaml
+# dev-config.yaml - Optimized for iteration speed
+mode: all
+rollback:
+  enabled: true
+validation:
+  enabled: true
+parallel:
+  enabled: false  # Easier debugging
+logging:
+  level: DEBUG
+  file: /tmp/pr-resolver-dev.log
+```
+
+#### CI/CD Environment
+```yaml
+# ci-config.yaml - Optimized for automated testing
+mode: dry-run  # Analyze only by default
+rollback:
+  enabled: true
+validation:
+  enabled: true
+parallel:
+  enabled: true
+  max_workers: 8
+logging:
+  level: INFO
+```
+
+#### Production Environment
+```yaml
+# prod-config.yaml - Optimized for safety
+mode: conflicts-only
+rollback:
+  enabled: true  # Always enable
+validation:
+  enabled: true  # Always enable
+parallel:
+  enabled: true
+  max_workers: 16
+logging:
+  level: WARNING
+  file: /var/log/pr-resolver/production.log
+```
+
+### Testing Configuration Changes
+
+1. **Always Test with Dry-Run First**
+   ```bash
+   # Test new configuration without applying changes
+   pr-resolve apply --pr 123 --owner org --repo repo \
+     --config new-config.yaml \
+     --mode dry-run
+   ```
+
+2. **Use Non-Conflicts Only for Safe Testing**
+   ```bash
+   # Apply only safe changes to test configuration
+   pr-resolve apply --pr 123 --owner org --repo repo \
+     --config new-config.yaml \
+     --mode non-conflicts-only
+   ```
+
+3. **Test on Small PRs First**
+   ```bash
+   # Find a small PR for testing
+   gh pr list --limit 10 --json number,additions,deletions
+
+   # Test on small PR
+   pr-resolve apply --pr <small-pr> --owner org --repo repo \
+     --config new-config.yaml
+   ```
+
+### Documentation and Maintenance
+
+1. **Document Custom Configurations**
+   ```yaml
+   # team-config.yaml
+   # Custom configuration for MyTeam
+   # Optimized for large PRs with many conflicts
+   # Last updated: 2025-01-15
+   # Contact: team-lead@company.com
+
+   mode: conflicts-only
+   rollback:
+     enabled: true
+   # ... rest of configuration
+   ```
+
+2. **Version Control All Configurations**
+   - Store in `.pr-resolver/` directory
+   - Include comments explaining choices
+   - Document changes in commit messages
+   - Review configuration changes in PRs
+
+3. **Monitor and Adjust**
+   ```bash
+   # Track success rates
+   pr-resolve apply --pr 123 --owner org --repo repo \
+     --config team-config.yaml \
+     --log-file logs/pr-123-$(date +%Y%m%d).log
+
+   # Review logs periodically
+   grep "Success rate" logs/*.log
+   grep "Rollback triggered" logs/*.log
+   ```
+
+### Common Patterns
+
+#### Pattern 1: Progressive Enhancement
+```bash
+# Start conservative, gradually increase automation
+# Week 1: Analyze only
+pr-resolve apply --pr $PR --owner $ORG --repo $REPO --mode dry-run
+
+# Week 2: Apply non-conflicts
+pr-resolve apply --pr $PR --owner $ORG --repo $REPO --mode non-conflicts-only
+
+# Week 3: Apply conflicts with validation
+pr-resolve apply --pr $PR --owner $ORG --repo $REPO --mode conflicts-only --validation
+
+# Week 4: Full automation with rollback
+pr-resolve apply --pr $PR --owner $ORG --repo $REPO --mode all --rollback
+```
+
+#### Pattern 2: Defense in Depth
+```bash
+# Multiple safety layers
+pr-resolve apply --pr 123 --owner org --repo repo \
+  --rollback \          # Layer 1: Automatic rollback
+  --validation \        # Layer 2: Pre-validation
+  --log-level INFO \    # Layer 3: Detailed logging
+  --log-file audit.log  # Layer 4: Audit trail
+```
+
+#### Pattern 3: Configuration Inheritance
+```python
+# Base configuration for all teams
+from pr_conflict_resolver.config import PresetConfig
+
+base_config = PresetConfig.BALANCED
+
+# Team A: Override for their needs
+team_a_config = {
+    **base_config,
+    "priority_rules": {
+        **base_config["priority_rules"],
+        "security_fixes": 95,  # Higher priority
+    }
+}
+
+# Team B: Different overrides
+team_b_config = {
+    **base_config,
+    "semantic_merging": False,  # More conservative
+}
+```
+
+### Security Considerations
+
+1. **Protect GitHub Tokens**
+   ```bash
+   # Never commit tokens
+   echo 'GITHUB_PERSONAL_ACCESS_TOKEN="***"' >> .gitignore
+
+   # Use environment variables
+   export GITHUB_PERSONAL_ACCESS_TOKEN="ghp_xxx"
+
+   # Or use secret managers in CI/CD
+   # GitHub Actions: ${{ secrets.GITHUB_TOKEN }}
+   # GitLab CI: $GITHUB_TOKEN
+   ```
+
+2. **Review Configuration Changes**
+   - Treat configuration as code
+   - Require PR reviews for config changes
+   - Test in non-production first
+   - Monitor for unexpected behavior
+
+3. **Audit Logging**
+   ```yaml
+   # Enable comprehensive logging for auditing
+   logging:
+     level: INFO
+     file: /var/log/pr-resolver/audit-${USER}-${DATE}.log
+   ```
+
+### Performance Best Practices
+
+1. **Match Workers to Workload**
+   - Small PRs: 2-4 workers
+   - Medium PRs: 4-8 workers
+   - Large PRs: 8-16 workers
+   - Very large PRs: 16-32 workers
+
+2. **Disable Validation Strategically**
+   - Keep enabled for production
+   - Disable for trusted automated PRs
+   - Always enable rollback if validation is disabled
+
+3. **Optimize Logging**
+   - Use WARNING in production
+   - Use DEBUG only for troubleshooting
+   - Log to file for performance-critical operations
+
+4. **Use Staged Application**
+   - Apply non-conflicts first (fast)
+   - Then apply conflicts (slower)
+   - Reduces overall execution time
 
 ## Troubleshooting
 
-### Configuration not applied
+### Configuration Issues
+
+#### Configuration not applied
 
 **Problem:** Configuration seems to be ignored
 
-**Solution:** Verify configuration format and check for validation errors
+**Possible Causes:**
+- Configuration file not found
+- Invalid YAML/TOML syntax
+- Incorrect precedence (CLI flags override config file)
 
-### Unexpected resolution behavior
+**Solutions:**
+```bash
+# 1. Verify configuration file exists and is valid
+cat config.yaml
+python3 -c "import yaml; yaml.safe_load(open('config.yaml'))"
+
+# 2. Use absolute path for config file
+pr-resolve apply --pr 123 --owner org --repo repo --config /full/path/to/config.yaml
+
+# 3. Check which configuration is being used
+pr-resolve apply --pr 123 --owner org --repo repo \
+  --config config.yaml \
+  --log-level DEBUG \
+  | grep -i "configuration"
+
+# 4. Verify precedence - CLI flags override config file
+# If you specify --mode dry-run, it will override mode in config file
+```
+
+#### Environment variables not recognized
+
+**Problem:** Environment variables like `CR_MODE` seem ignored
+
+**Possible Causes:**
+- Typo in variable name
+- Variable not exported
+- Shell not sourced after setting
+
+**Solutions:**
+```bash
+# 1. Verify variable is set
+echo $CR_MODE
+env | grep CR_
+
+# 2. Ensure variable is exported
+export CR_MODE="conflicts-only"
+
+# 3. Check for typos - correct prefix is CR_
+export CR_MODE="dry-run"  # Correct
+export RESOLVER_MODE="dry-run"  # Wrong - will be ignored
+
+# 4. Source your shell profile if you added to .bashrc
+source ~/.bashrc
+```
+
+#### Configuration validation errors
+
+**Problem:** Configuration rejected with validation error
+
+**Possible Causes:**
+- Invalid type (string instead of boolean)
+- Invalid value (unknown mode)
+- Missing required fields
+
+**Solutions:**
+```bash
+# Check error message for details
+pr-resolve apply --pr 123 --owner org --repo repo --config config.yaml 2>&1 | grep -i error
+
+# Common fixes:
+# - Boolean values: use true/false, not "true"/"false"
+# - Mode values: all, conflicts-only, non-conflicts-only, dry-run
+# - Worker count: must be positive integer
+```
+
+**Valid Configuration:**
+```yaml
+mode: conflicts-only  # String, no quotes needed
+rollback:
+  enabled: true  # Boolean, no quotes
+parallel:
+  enabled: true
+  max_workers: 8  # Integer, no quotes
+```
+
+### Runtime Configuration Issues
+
+#### Unexpected resolution behavior
 
 **Problem:** Conflicts resolved in unexpected ways
 
-**Solution:** Review priority rules and adjust according to your needs
+**Possible Causes:**
+- Priority rules not configured correctly
+- Mode filtering changes being applied
+- Preset configuration not suitable for use case
 
-### Handler options not working
+**Solutions:**
+```bash
+# 1. Check what would be applied with dry-run
+pr-resolve apply --pr 123 --owner org --repo repo --mode dry-run
 
-**Problem:** Handler-specific options seem ignored
+# 2. Review priority rules in configuration
+cat config.yaml | grep -A 10 "priority_rules"
 
-**Solution:** Check handler documentation and ensure options are valid for file type
+# 3. Try different preset
+pr-resolve apply --pr 123 --owner org --repo repo --config conservative
+
+# 4. Enable debug logging to see decision-making
+pr-resolve apply --pr 123 --owner org --repo repo --log-level DEBUG
+```
+
+#### Mode not filtering correctly
+
+**Problem:** Wrong changes being applied for selected mode
+
+**Possible Causes:**
+- Misunderstanding of mode behavior
+- Conflict detection not working correctly
+- Changes incorrectly categorized
+
+**Solutions:**
+```bash
+# 1. Analyze conflicts first
+pr-resolve analyze --pr 123 --owner org --repo repo
+
+# 2. Test each mode separately
+pr-resolve apply --pr 123 --owner org --repo repo --mode dry-run
+pr-resolve apply --pr 123 --owner org --repo repo --mode non-conflicts-only --dry-run
+pr-resolve apply --pr 123 --owner org --repo repo --mode conflicts-only --dry-run
+
+# 3. Check the resolution logic
+# - all: applies everything
+# - conflicts-only: applies ONLY changes that HAVE conflicts (after resolution)
+# - non-conflicts-only: applies ONLY changes with NO conflicts
+# - dry-run: applies nothing, analyzes only
+```
+
+### Rollback System Issues
+
+#### Rollback not triggering
+
+**Problem:** Errors occur but rollback doesn't activate
+
+**Possible Causes:**
+- Rollback disabled in configuration
+- Git repository not initialized
+- Insufficient git permissions
+
+**Solutions:**
+```bash
+# 1. Verify rollback is enabled
+pr-resolve apply --pr 123 --owner org --repo repo --rollback
+
+# 2. Check git repository status
+git status
+git stash list  # See if stash is created
+
+# 3. Verify git is configured
+git config --list | grep user
+
+# 4. Check permissions
+ls -la .git/
+```
+
+#### Rollback fails to restore
+
+**Problem:** Rollback attempted but files not restored
+
+**Possible Causes:**
+- Uncommitted changes before running
+- Git stash conflicts
+- Repository in detached HEAD state
+
+**Solutions:**
+```bash
+# 1. Check for uncommitted changes BEFORE running resolver
+git status
+
+# 2. Commit or stash existing changes first
+git stash push -m "Before PR resolver"
+
+# 3. Check git state
+git branch -v
+git log -1
+
+# 4. Manual rollback if automatic fails
+git stash list
+git stash apply stash@{0}  # Apply most recent stash
+```
+
+#### Rollback leaves repository dirty
+
+**Problem:** After rollback, `git status` shows changes
+
+**Possible Causes:**
+- Normal behavior - rollback restores to pre-resolver state
+- Some files were not tracked by git
+- File permission changes
+
+**Solutions:**
+```bash
+# 1. Check what changed
+git status
+git diff
+
+# 2. If changes are expected (rollback worked)
+# Files that were modified by resolver before failure
+
+# 3. If unexpected, manually clean
+git reset --hard HEAD
+git clean -fd
+
+# 4. Review resolver logs
+pr-resolve apply --pr 123 --owner org --repo repo --log-level DEBUG
+```
+
+### Parallel Processing Issues
+
+#### Parallel processing slower than sequential
+
+**Problem:** Using `--parallel` makes execution slower
+
+**Possible Causes:**
+- Too many workers for small PR
+- Worker overhead exceeds benefits
+- I/O contention
+- CPU-bound rather than I/O-bound
+
+**Solutions:**
+```bash
+# 1. Reduce worker count
+pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 4
+
+# 2. Disable parallel for small PRs
+# Only use parallel for 30+ files
+pr-resolve apply --pr 123 --owner org --repo repo  # No --parallel
+
+# 3. Benchmark different worker counts
+for workers in 1 4 8 16; do
+  echo "Testing $workers workers..."
+  time pr-resolve apply --pr 123 --owner org --repo repo \
+    --mode dry-run --parallel --max-workers $workers
+done
+```
+
+#### Thread safety errors
+
+**Problem:** Errors related to threading or concurrent access
+
+**Possible Causes:**
+- Race condition in file operations
+- Shared state corruption
+- Log file contention
+
+**Solutions:**
+```bash
+# 1. Disable parallel processing temporarily
+pr-resolve apply --pr 123 --owner org --repo repo  # No --parallel
+
+# 2. Reduce worker count
+pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 2
+
+# 3. Use separate log files if needed
+pr-resolve apply --pr 123 --owner org --repo repo \
+  --parallel \
+  --log-file /tmp/resolver-$$.log  # $$ = process ID
+```
+
+#### Worker pool hangs
+
+**Problem:** Execution hangs with parallel processing enabled
+
+**Possible Causes:**
+- Deadlock in worker threads
+- Exception in worker not handled
+- Resource exhaustion
+
+**Solutions:**
+```bash
+# 1. Check system resources
+top  # Look for high CPU or memory usage
+ps aux | grep pr-resolve
+
+# 2. Kill hung process
+pkill -f pr-resolve
+
+# 3. Reduce worker count
+pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 4
+
+# 4. Disable parallel and report issue
+pr-resolve apply --pr 123 --owner org --repo repo
+```
+
+### Validation Issues
+
+#### Validation failing for valid changes
+
+**Problem:** Pre-application validation rejects valid changes
+
+**Possible Causes:**
+- Overly strict validation rules
+- File format differences
+- Encoding issues
+
+**Solutions:**
+```bash
+# 1. Check validation error details
+pr-resolve apply --pr 123 --owner org --repo repo --validation --log-level DEBUG
+
+# 2. Temporarily disable validation (with rollback)
+pr-resolve apply --pr 123 --owner org --repo repo --no-validation --rollback
+
+# 3. Review specific file causing validation failure
+# Check logs for filename and error
+
+# 4. Report issue with reproduction steps
+```
+
+#### Validation taking too long
+
+**Problem:** Validation step significantly slows execution
+
+**Possible Causes:**
+- Large number of changes
+- Complex semantic validation
+- File I/O overhead
+
+**Solutions:**
+```bash
+# 1. Disable validation for performance (use rollback instead)
+pr-resolve apply --pr 123 --owner org --repo repo --no-validation --rollback
+
+# 2. Use validation only for conflicts
+pr-resolve apply --pr 123 --owner org --repo repo --mode non-conflicts-only --no-validation
+pr-resolve apply --pr 123 --owner org --repo repo --mode conflicts-only --validation
+
+# 3. Profile validation time
+time pr-resolve apply --pr 123 --owner org --repo repo --validation --mode dry-run
+time pr-resolve apply --pr 123 --owner org --repo repo --no-validation --mode dry-run
+```
+
+### Performance Issues
+
+#### Extremely slow execution
+
+**Problem:** Resolution takes much longer than expected
+
+**Possible Causes:**
+- Very large PR (100+ files)
+- Complex conflicts requiring semantic analysis
+- Debug logging enabled
+- Sequential processing when parallel would help
+
+**Solutions:**
+```bash
+# 1. Enable parallel processing
+pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 8
+
+# 2. Reduce logging verbosity
+pr-resolve apply --pr 123 --owner org --repo repo --log-level WARNING
+
+# 3. Disable validation (use rollback instead)
+pr-resolve apply --pr 123 --owner org --repo repo --no-validation --rollback
+
+# 4. Apply in stages
+pr-resolve apply --pr 123 --owner org --repo repo --mode non-conflicts-only --parallel
+pr-resolve apply --pr 123 --owner org --repo repo --mode conflicts-only
+
+# 5. Profile execution
+time pr-resolve apply --pr 123 --owner org --repo repo --mode dry-run
+```
+
+#### High memory usage
+
+**Problem:** Process uses excessive memory
+
+**Possible Causes:**
+- Very large files
+- Too many parallel workers
+- Memory leak
+
+**Solutions:**
+```bash
+# 1. Reduce parallel workers
+pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 4
+
+# 2. Disable parallel processing
+pr-resolve apply --pr 123 --owner org --repo repo
+
+# 3. Monitor memory usage
+ps aux | grep pr-resolve
+top -p $(pgrep pr-resolve)
+
+# 4. Report issue with PR details
+```
+
+### GitHub API Issues
+
+#### Authentication failures
+
+**Problem:** GitHub API authentication fails
+
+**Possible Causes:**
+- Token not set or incorrect
+- Token expired
+- Insufficient token permissions
+
+**Solutions:**
+```bash
+# 1. Verify token is set
+echo $GITHUB_PERSONAL_ACCESS_TOKEN | cut -c1-10  # Show first 10 chars
+
+# 2. Test token manually
+curl -H "Authorization: token $GITHUB_PERSONAL_ACCESS_TOKEN" https://api.github.com/user
+
+# 3. Regenerate token with correct scopes
+# Required: repo, read:org
+
+# 4. Use token inline for testing
+GITHUB_PERSONAL_ACCESS_TOKEN="ghp_xxx" pr-resolve apply --pr 123 --owner org --repo repo
+```
+
+#### Rate limiting
+
+**Problem:** GitHub API rate limit exceeded
+
+**Solutions:**
+```bash
+# 1. Check current rate limit
+curl -H "Authorization: token $GITHUB_PERSONAL_ACCESS_TOKEN" https://api.github.com/rate_limit
+
+# 2. Wait for reset or use authenticated token (higher limits)
+
+# 3. Reduce API calls by using dry-run once
+pr-resolve apply --pr 123 --owner org --repo repo --mode dry-run  # Cache results
+```
+
+### General Troubleshooting
+
+#### Getting detailed logs
+
+```bash
+# Enable maximum logging
+pr-resolve apply --pr 123 --owner org --repo repo \
+  --log-level DEBUG \
+  --log-file /tmp/resolver-debug-$(date +%Y%m%d-%H%M%S).log
+
+# Review logs
+less /tmp/resolver-debug-*.log
+grep -i error /tmp/resolver-debug-*.log
+grep -i rollback /tmp/resolver-debug-*.log
+```
+
+#### Isolating the issue
+
+```bash
+# 1. Test with minimal configuration
+pr-resolve apply --pr 123 --owner org --repo repo --mode dry-run
+
+# 2. Test with safe defaults
+pr-resolve apply --pr 123 --owner org --repo repo --rollback --validation
+
+# 3. Test different modes
+pr-resolve apply --pr 123 --owner org --repo repo --mode non-conflicts-only
+
+# 4. Compare with analyze command
+pr-resolve analyze --pr 123 --owner org --repo repo
+```
+
+#### Reporting issues
+
+When reporting issues, include:
+1. Full command used
+2. Configuration file (if used)
+3. Error message
+4. Log file (with `--log-level DEBUG`)
+5. PR details (size, complexity)
+6. Environment (OS, Python version, git version)
 
 ## See Also
 

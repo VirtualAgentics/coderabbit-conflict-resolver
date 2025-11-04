@@ -97,7 +97,7 @@ for conflict in conflicts:
     print(f"Conflict in {conflict.file_path}: {conflict.conflict_type}")
 ```
 
-##### `resolve_pr_conflicts(owner: str, repo: str, pr_number: int) -> ResolutionResult`
+##### `resolve_pr_conflicts(owner: str, repo: str, pr_number: int, mode: ApplicationMode = ApplicationMode.ALL, validate: bool = True, parallel: bool = False, max_workers: int = 4, enable_rollback: bool = True) -> ResolutionResult`
 
 Resolve all conflicts in a pull request and return results.
 
@@ -105,16 +105,320 @@ Resolve all conflicts in a pull request and return results.
 - `owner` (str): Repository owner
 - `repo` (str): Repository name
 - `pr_number` (int): Pull request number
+- `mode` (ApplicationMode, optional): Application mode (default: ALL)
+  - `ApplicationMode.ALL`: Apply both conflicting and non-conflicting changes
+  - `ApplicationMode.CONFLICTS_ONLY`: Apply only conflicting changes
+  - `ApplicationMode.NON_CONFLICTS_ONLY`: Apply only non-conflicting changes
+  - `ApplicationMode.DRY_RUN`: Analyze without applying
+- `validate` (bool, optional): Enable pre-application validation (default: True)
+- `parallel` (bool, optional): Enable parallel processing (default: False)
+- `max_workers` (int, optional): Number of parallel workers (default: 4)
+- `enable_rollback` (bool, optional): Enable automatic rollback on failure (default: True)
 
 **Returns:**
 - `ResolutionResult`: Complete resolution results with counts and details
 
 **Example:**
 ```python
-results = resolver.resolve_pr_conflicts("myorg", "myrepo", 123)
+from pr_conflict_resolver.config.runtime_config import ApplicationMode
+
+# Apply only conflicting changes with rollback
+results = resolver.resolve_pr_conflicts(
+    "myorg", "myrepo", 123,
+    mode=ApplicationMode.CONFLICTS_ONLY,
+    enable_rollback=True
+)
+
+# Parallel processing for large PRs
+results = resolver.resolve_pr_conflicts(
+    "myorg", "myrepo", 456,
+    parallel=True,
+    max_workers=8
+)
+
 print(f"Applied: {results.applied_count}")
 print(f"Conflicts: {results.conflict_count}")
 print(f"Success rate: {results.success_rate}%")
+```
+
+##### `apply_changes(changes: list[Change], validate: bool = True, parallel: bool = False, max_workers: int = 4) -> tuple[list[Change], list[Change], list[tuple[Change, str]]]`
+
+Apply changes to files with optional validation and parallel processing.
+
+**Parameters:**
+- `changes` (list[Change]): List of changes to apply
+- `validate` (bool, optional): Validate changes before applying (default: True)
+- `parallel` (bool, optional): Process files in parallel (default: False)
+- `max_workers` (int, optional): Number of parallel workers (default: 4)
+
+**Returns:**
+- `tuple`: (applied_changes, skipped_changes, failed_changes_with_errors)
+
+**Example:**
+```python
+applied, skipped, failed = resolver.apply_changes(
+    changes,
+    validate=True,
+    parallel=True,
+    max_workers=8
+)
+
+for change in applied:
+    print(f"Applied: {change.path}:{change.start_line}")
+
+for change, error in failed:
+    print(f"Failed {change.path}: {error}")
+```
+
+##### `apply_changes_with_rollback(changes: list[Change], enable_rollback: bool = True, parallel: bool = False, max_workers: int = 4) -> tuple[int, int, int]`
+
+Apply changes with automatic rollback on failure.
+
+**Parameters:**
+- `changes` (list[Change]): List of changes to apply
+- `enable_rollback` (bool, optional): Enable rollback (default: True)
+- `parallel` (bool, optional): Process files in parallel (default: False)
+- `max_workers` (int, optional): Number of parallel workers (default: 4)
+
+**Returns:**
+- `tuple[int, int, int]`: (applied_count, skipped_count, failed_count)
+
+**Example:**
+```python
+applied_count, skipped_count, failed_count = resolver.apply_changes_with_rollback(
+    changes,
+    enable_rollback=True,
+    parallel=True,
+    max_workers=8
+)
+
+print(f"Applied: {applied_count}, Skipped: {skipped_count}, Failed: {failed_count}")
+```
+
+##### `separate_changes_by_conflict_status(changes: list[Change]) -> tuple[list[Change], list[Change]]`
+
+Separate changes into conflicting and non-conflicting groups.
+
+**Parameters:**
+- `changes` (list[Change]): List of changes to separate
+
+**Returns:**
+- `tuple[list[Change], list[Change]]`: (conflicting_changes, non_conflicting_changes)
+
+**Example:**
+```python
+conflicting, non_conflicting = resolver.separate_changes_by_conflict_status(changes)
+
+print(f"Conflicting: {len(conflicting)}")
+print(f"Non-conflicting: {len(non_conflicting)}")
+```
+
+### RollbackManager
+
+Manages git-based rollback checkpoints for safe change application.
+
+```python
+from pr_conflict_resolver.core.rollback import RollbackManager
+
+rollback_manager = RollbackManager(workspace_root="/path/to/repo")
+```
+
+#### Methods
+
+##### `__init__(workspace_root: Path | str) -> None`
+
+Initialize the rollback manager.
+
+**Parameters:**
+- `workspace_root` (Path | str): Path to git repository root
+
+##### `create_checkpoint() -> str`
+
+Create a rollback checkpoint using git stash.
+
+**Returns:**
+- `str`: Checkpoint identifier
+
+**Example:**
+```python
+checkpoint_id = rollback_manager.create_checkpoint()
+print(f"Created checkpoint: {checkpoint_id}")
+```
+
+##### `rollback(checkpoint_id: str) -> bool`
+
+Restore from a checkpoint.
+
+**Parameters:**
+- `checkpoint_id` (str): Checkpoint identifier to restore
+
+**Returns:**
+- `bool`: True if rollback successful, False otherwise
+
+**Example:**
+```python
+success = rollback_manager.rollback(checkpoint_id)
+if success:
+    print("Rollback successful")
+else:
+    print("Rollback failed")
+```
+
+##### Context Manager Usage
+
+Use as a context manager for automatic rollback on exception:
+
+```python
+with RollbackManager(workspace_root="/path/to/repo") as rollback:
+    # Apply changes here
+    # Automatically rolls back if exception occurs
+    apply_changes(changes)
+# Cleanup happens automatically
+```
+
+### RuntimeConfig
+
+Runtime configuration with multiple source support (defaults, file, env, CLI).
+
+```python
+from pr_conflict_resolver.config.runtime_config import RuntimeConfig, ApplicationMode
+
+# Load from defaults
+config = RuntimeConfig.from_defaults()
+
+# Load from file
+config = RuntimeConfig.from_file("config.yaml")
+
+# Load from environment variables
+config = RuntimeConfig.from_env()
+
+# Use preset configurations
+config = RuntimeConfig.from_conservative()
+config = RuntimeConfig.from_balanced()
+config = RuntimeConfig.from_aggressive()
+config = RuntimeConfig.from_semantic()
+```
+
+#### Attributes
+
+- `mode` (ApplicationMode): Application mode
+- `enable_rollback` (bool): Enable automatic rollback
+- `validate_before_apply` (bool): Enable pre-application validation
+- `parallel_processing` (bool): Enable parallel processing
+- `max_workers` (int): Number of parallel workers
+- `log_level` (str): Logging level
+- `log_file` (str | None): Log file path
+
+#### Class Methods
+
+##### `from_defaults() -> RuntimeConfig`
+
+Create configuration with default values.
+
+**Returns:**
+- `RuntimeConfig`: Configuration with defaults
+
+##### `from_file(file_path: Path | str) -> RuntimeConfig`
+
+Load configuration from YAML or TOML file.
+
+**Parameters:**
+- `file_path` (Path | str): Path to configuration file
+
+**Returns:**
+- `RuntimeConfig`: Loaded configuration
+
+**Example:**
+```python
+config = RuntimeConfig.from_file("config.yaml")
+```
+
+##### `from_env() -> RuntimeConfig`
+
+Load configuration from environment variables (CR_* prefix).
+
+**Returns:**
+- `RuntimeConfig`: Configuration from environment
+
+**Example:**
+```python
+# Set environment: CR_MODE=conflicts-only, CR_PARALLEL=true
+config = RuntimeConfig.from_env()
+```
+
+##### `from_conservative() -> RuntimeConfig`
+
+Create conservative preset configuration.
+
+**Returns:**
+- `RuntimeConfig`: Conservative configuration
+
+##### `from_balanced() -> RuntimeConfig`
+
+Create balanced preset configuration (default).
+
+**Returns:**
+- `RuntimeConfig`: Balanced configuration
+
+##### `from_aggressive() -> RuntimeConfig`
+
+Create aggressive preset configuration.
+
+**Returns:**
+- `RuntimeConfig`: Aggressive configuration
+
+##### `from_semantic() -> RuntimeConfig`
+
+Create semantic preset configuration.
+
+**Returns:**
+- `RuntimeConfig`: Semantic configuration
+
+#### Instance Methods
+
+##### `merge_with_cli(**cli_overrides) -> RuntimeConfig`
+
+Merge configuration with CLI overrides.
+
+**Parameters:**
+- `**cli_overrides`: CLI flag overrides (mode, enable_rollback, etc.)
+
+**Returns:**
+- `RuntimeConfig`: New configuration with CLI overrides applied
+
+**Example:**
+```python
+config = RuntimeConfig.from_file("config.yaml")
+config = config.merge_with_cli(
+    mode="conflicts-only",
+    parallel_processing=True,
+    max_workers=8
+)
+```
+
+### ApplicationMode
+
+Enumeration of application modes.
+
+```python
+from pr_conflict_resolver.config.runtime_config import ApplicationMode
+
+ApplicationMode.ALL  # Apply both conflicting and non-conflicting changes (default)
+ApplicationMode.CONFLICTS_ONLY  # Apply only conflicting changes
+ApplicationMode.NON_CONFLICTS_ONLY  # Apply only non-conflicting changes
+ApplicationMode.DRY_RUN  # Analyze without applying changes
+```
+
+**Usage:**
+```python
+from pr_conflict_resolver import ConflictResolver
+from pr_conflict_resolver.config.runtime_config import ApplicationMode
+
+resolver = ConflictResolver()
+results = resolver.resolve_pr_conflicts(
+    "myorg", "myrepo", 123,
+    mode=ApplicationMode.CONFLICTS_ONLY
+)
 ```
 
 ## Data Models

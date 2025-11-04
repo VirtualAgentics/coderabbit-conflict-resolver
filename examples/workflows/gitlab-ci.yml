@@ -1,0 +1,36 @@
+# GitLab CI Pipeline for PR Conflict Resolution
+# Place this file in: .gitlab-ci.yml (or merge with existing)
+
+stages:
+  - resolve
+
+resolve_conflicts:
+  stage: resolve
+  image: python:3.12-slim
+  only:
+    - merge_requests
+  variables:
+    CR_MODE: "conflicts-only"
+    CR_PARALLEL: "true"
+    CR_MAX_WORKERS: "8"
+    CR_ENABLE_ROLLBACK: "true"
+    CR_LOG_LEVEL: "INFO"
+  before_script:
+    - pip install pr-conflict-resolver
+    - git config --global user.name "GitLab CI"
+    - git config --global user.email "ci@gitlab.com"
+  script:
+    - |
+      pr-resolve apply \
+        --pr $CI_MERGE_REQUEST_IID \
+        --owner $CI_PROJECT_NAMESPACE \
+        --repo $CI_PROJECT_NAME \
+        --parallel --max-workers 8 \
+        --rollback \
+        --log-file resolution.log || true
+  artifacts:
+    paths:
+      - resolution.log
+    expire_in: 1 week
+    when: always
+  allow_failure: true

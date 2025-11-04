@@ -1,0 +1,25 @@
+# Development Environment Configuration
+# Optimized for debugging and local testing
+
+# Application mode
+mode: all  # Apply all changes (both conflicting and non-conflicting)
+
+# Safety features
+rollback:
+  enabled: true  # Always enable rollback for safety
+
+validation:
+  enabled: true  # Enable validation to catch errors early
+
+# Parallel processing (disabled for easier debugging)
+parallel:
+  enabled: false  # Sequential processing for clearer logs and easier tracing
+  max_workers: 4  # Not used when disabled
+
+# Logging configuration
+logging:
+  level: DEBUG  # Verbose logging for development
+  file:  # Optional: /tmp/pr-resolver-dev.log
+
+# Usage:
+# pr-resolve apply --pr 123 --owner myorg --repo myrepo --config dev-config.yaml

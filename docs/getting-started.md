@@ -47,15 +47,17 @@ You'll need a GitHub personal access token with the following permissions:
 **Set the token:**
 
 ```bash
-export GITHUB_TOKEN="your_token_here"
+export GITHUB_PERSONAL_ACCESS_TOKEN="your_token_here"
 ```
 
 Or add to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
 
 ```bash
-echo 'export GITHUB_TOKEN="your_token_here"' >> ~/.bashrc
+echo 'export GITHUB_PERSONAL_ACCESS_TOKEN="your_token_here"' >> ~/.bashrc
 source ~/.bashrc
 ```
+
+**Note:** The tool also supports `GITHUB_TOKEN` for backward compatibility, but `GITHUB_PERSONAL_ACCESS_TOKEN` is preferred.
 
 ### Configuration
 
@@ -67,6 +69,90 @@ The resolver uses preset configurations. The default is `balanced`:
 - **semantic**: Focus on structure-aware merging for config files
 
 See [Configuration Reference](configuration.md) for details.
+
+### Runtime Configuration System
+
+The resolver supports multiple configuration sources with a precedence chain:
+
+**CLI flags > Environment variables > Config file > Defaults**
+
+#### Configuration Files
+
+Create a `config.yaml` or `config.toml` file:
+
+**YAML Example:**
+```yaml
+mode: conflicts-only
+rollback:
+  enabled: true
+validation:
+  enabled: true
+parallel:
+  enabled: true
+  max_workers: 8
+logging:
+  level: INFO
+  file: resolver.log
+```
+
+**TOML Example:**
+```toml
+mode = "conflicts-only"
+
+[rollback]
+enabled = true
+
+[validation]
+enabled = true
+
+[parallel]
+enabled = true
+max_workers = 8
+
+[logging]
+level = "INFO"
+file = "resolver.log"
+```
+
+Load configuration from file:
+```bash
+pr-resolve apply --pr 123 --owner myorg --repo myproject --config config.yaml
+```
+
+#### Environment Variables
+
+Set configuration using `CR_*` prefix environment variables:
+
+```bash
+export CR_MODE="conflicts-only"
+export CR_ENABLE_ROLLBACK="true"
+export CR_VALIDATE="true"
+export CR_PARALLEL="true"
+export CR_MAX_WORKERS="8"
+export CR_LOG_LEVEL="INFO"
+export CR_LOG_FILE="resolver.log"
+```
+
+See [`.env.example`](../.env.example) in the root directory for all available environment variables.
+
+#### Application Modes
+
+The resolver supports different application modes:
+
+- **all** (default): Apply both conflicting and non-conflicting changes
+- **conflicts-only**: Apply only changes that have conflicts
+- **non-conflicts-only**: Apply only changes without conflicts
+- **dry-run**: Analyze and report without applying any changes
+
+Set via CLI:
+```bash
+pr-resolve apply --pr 123 --owner myorg --repo myproject --mode conflicts-only
+```
+
+Set via environment:
+```bash
+export CR_MODE="dry-run"
+```
 
 ## First PR Analysis
 
@@ -134,19 +220,39 @@ pr-resolve apply \
   --pr <number> \
   --owner <owner> \
   --repo <repo> \
+  --mode <mode> \
   --strategy <strategy> \
-  --dry-run
+  --config <file> \
+  --parallel \
+  --max-workers <n> \
+  --rollback / --no-rollback \
+  --validation / --no-validation \
+  --log-level <level> \
+  --log-file <path>
 ```
 
 **Options:**
 - `--pr`: Pull request number (required)
 - `--owner`: Repository owner or organization (required)
 - `--repo`: Repository name (required)
+- `--mode`: Application mode (`all`, `conflicts-only`, `non-conflicts-only`, `dry-run`)
 - `--strategy`: Resolution strategy (default: `priority`)
-- `--dry-run`: Simulate without applying changes
+- `--config`: Load configuration from YAML/TOML file
+- `--parallel`: Enable parallel processing
+- `--max-workers`: Number of parallel workers (default: 4)
+- `--rollback` / `--no-rollback`: Enable/disable automatic rollback (default: enabled)
+- `--validation` / `--no-validation`: Enable/disable pre-application validation (default: enabled)
+- `--log-level`: Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`)
+- `--log-file`: Write logs to file
 
-**Strategies:**
-- `priority`: Priority-based resolution (user selections > security > syntax > regular)
+**Application Modes:**
+- `all` (default): Apply both conflicting and non-conflicting changes
+- `conflicts-only`: Apply only changes that have conflicts
+- `non-conflicts-only`: Apply only changes without conflicts
+- `dry-run`: Analyze and report without applying any changes
+
+**Resolution Strategies:**
+- `priority` (default): Priority-based resolution (user selections > security > syntax > regular)
 - `skip`: Skip all conflicts (conservative)
 - `override`: Override conflicts (aggressive)
 - `merge`: Semantic merging for compatible changes
@@ -235,6 +341,119 @@ Simulate with conservative config to see all conflicts:
 pr-resolve simulate --pr 456 --owner myorg --repo myproject --config conservative
 ```
 
+### 5. Apply Only Conflicting Changes
+
+Focus on resolving conflicts only:
+
+```bash
+pr-resolve apply --pr 456 --owner myorg --repo myproject --mode conflicts-only
+```
+
+### 6. Parallel Processing for Large PRs
+
+Speed up processing with parallel workers:
+
+```bash
+pr-resolve apply --pr 456 --owner myorg --repo myproject --parallel --max-workers 8
+```
+
+### 7. Safe Apply with Rollback
+
+Apply changes with automatic rollback on failure (default):
+
+```bash
+pr-resolve apply --pr 456 --owner myorg --repo myproject --rollback
+```
+
+Disable rollback if you have your own backup:
+
+```bash
+pr-resolve apply --pr 456 --owner myorg --repo myproject --no-rollback
+```
+
+## Rollback System
+
+The resolver includes an automatic rollback system using Git stash:
+
+### How It Works
+
+1. **Checkpoint Creation**: Before applying changes, creates a git stash checkpoint
+2. **Change Application**: Applies resolved changes to files
+3. **Automatic Rollback**: If any error occurs, automatically restores from checkpoint
+4. **Cleanup**: Removes checkpoint after successful application
+
+### Enabling/Disabling
+
+Rollback is enabled by default. Control it via:
+
+**CLI:**
+```bash
+# Enable (default)
+pr-resolve apply --pr 123 --owner myorg --repo myproject --rollback
+
+# Disable
+pr-resolve apply --pr 123 --owner myorg --repo myproject --no-rollback
+```
+
+**Environment Variable:**
+```bash
+export CR_ENABLE_ROLLBACK="false"
+```
+
+**Config File:**
+```yaml
+rollback:
+  enabled: false
+```
+
+See [Rollback System](rollback-system.md) for complete documentation.
+
+## Parallel Processing
+
+Process multiple files concurrently for faster resolution:
+
+### When to Use
+
+- **Large PRs**: 20+ files with changes
+- **Multiple Independent Files**: Changes don't depend on each other
+- **Performance Critical**: Time-sensitive resolutions
+
+### When NOT to Use
+
+- **Small PRs**: < 10 files (overhead not worth it)
+- **Dependent Changes**: Changes across files that interact
+- **Debugging**: Sequential processing easier to debug
+
+### Configuration
+
+**CLI:**
+```bash
+pr-resolve apply --pr 123 --owner myorg --repo myproject \
+  --parallel --max-workers 8
+```
+
+**Environment:**
+```bash
+export CR_PARALLEL="true"
+export CR_MAX_WORKERS="8"
+```
+
+**Config File:**
+```yaml
+parallel:
+  enabled: true
+  max_workers: 8
+```
+
+### Performance Tips
+
+- **2-4 workers**: Small to medium PRs (10-30 files)
+- **4-8 workers**: Large PRs (30-100 files)
+- **8-16 workers**: Very large PRs (100+ files)
+- **CPU cores**: Don't exceed CPU core count
+
+See [Parallel Processing](parallel-processing.md) for detailed tuning guide.
+
 ## Troubleshooting
 
 ### "Authentication failed" Error
@@ -242,9 +461,10 @@ pr-resolve simulate --pr 456 --owner myorg --repo myproject --config conservativ
 **Problem:** GitHub API authentication fails.
 
 **Solution:**
-- Verify your `GITHUB_TOKEN` is set: `echo $GITHUB_TOKEN`
-- Check token has required permissions
+- Verify your `GITHUB_PERSONAL_ACCESS_TOKEN` is set: `echo $GITHUB_PERSONAL_ACCESS_TOKEN`
+- Check token has required permissions (`repo`, `read:org`)
 - Regenerate token if expired
+- Note: `GITHUB_TOKEN` is also supported for backward compatibility
 
 ### "Repository not found" Error
 
@@ -287,7 +507,10 @@ pr-resolve simulate --pr 456 --owner myorg --repo myproject --config conservativ
 - Learn about [Conflict Types](conflict-types.md)
 - Explore [Resolution Strategies](resolution-strategies.md)
 - Customize [Configuration](configuration.md)
+- Understand the [Rollback System](rollback-system.md)
+- Optimize with [Parallel Processing](parallel-processing.md)
 - Read the [API Reference](api-reference.md)
+- Review [Migration Guide](migration-guide.md) for upgrading
 
 ## Getting Help
 

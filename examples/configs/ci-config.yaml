@@ -1,0 +1,27 @@
+# CI/CD Pipeline Configuration
+# Balanced configuration for automated pipelines
+
+# Application mode
+mode: dry-run  # Default to dry-run for safety (override in pipeline)
+
+# Safety features
+rollback:
+  enabled: true  # Always enable in CI
+
+validation:
+  enabled: true  # Validate in CI for early error detection
+
+# Parallel processing
+parallel:
+  enabled: true
+  max_workers: 8  # Moderate parallelism for CI runners
+
+# Logging configuration
+logging:
+  level: INFO  # Standard logging for CI logs
+  file:  # CI systems handle output redirection
+
+# Usage in CI/CD:
+# pr-resolve apply --pr $PR_NUMBER --owner $ORG --repo $REPO \
+#   --config ci-config.yaml \
+#   --mode conflicts-only  # Override dry-run for actual application

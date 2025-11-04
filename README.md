@@ -38,6 +38,7 @@
 - [Features](#-features)
 - [Architecture](#️-architecture)
 - [Use Cases](#-use-cases)
+- [Environment Variables](#-environment-variables)
 - [Documentation](#-documentation)
 - [Contributing](#-contributing)
 - [Project Status](#-project-status)
@@ -72,14 +73,26 @@ pip install pr-conflict-resolver
 ### Basic Usage
 
 ```bash
+# Set your GitHub token (required)
+export GITHUB_PERSONAL_ACCESS_TOKEN="your_token_here"
+
 # Analyze conflicts in a PR
-pr-resolve analyze --pr 123
+pr-resolve analyze --owner VirtualAgentics --repo my-repo --pr 123
 
 # Apply suggestions with conflict resolution
-pr-resolve apply --pr 123 --strategy priority
+pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --strategy priority
 
-# Simulate without applying changes
-pr-resolve simulate --pr 123 --config balanced
+# Apply only conflicting changes
+pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --mode conflicts-only
+
+# Simulate without applying changes (dry-run mode)
+pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --mode dry-run
+
+# Use parallel processing for large PRs
+pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --parallel --max-workers 8
+
+# Load configuration from file
+pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --config config.yaml
 ```
 
 ### Python API
@@ -137,18 +150,49 @@ print(f"Success rate: {results.success_rate}%")
 - **Aggressive**: Maximize automation, user selections always win
 - **Semantic**: Focus on structure-aware merging for config files
 
+### Application Modes
+
+- **all**: Apply both conflicting and non-conflicting changes (default)
+- **conflicts-only**: Apply only changes that have conflicts
+- **non-conflicts-only**: Apply only changes without conflicts
+- **dry-run**: Analyze and report without applying any changes
+
+### Rollback & Safety Features
+
+- **Automatic Rollback**: Git-based checkpointing with automatic rollback on failure
+- **Pre-Application Validation**: Validates changes before applying (optional)
+- **File Integrity Checks**: Verifies file safety and containment
+- **Detailed Logging**: Comprehensive logging for debugging and audit trails
+
+### Runtime Configuration
+
+Configure via multiple sources with precedence chain:
+**CLI flags > Environment variables > Config file > Defaults**
+
+- **Configuration Files**: Load settings from YAML or TOML files
+- **Environment Variables**: Set options using `CR_*` prefix variables
+- **CLI Overrides**: Override any setting via command-line flags
+
+See [`.env.example`](.env.example) for available environment variables.
+
 ## 📖 Documentation
 
 ### User Guides
-- [Getting Started Guide](docs/getting-started.md)
-- [Configuration Reference](docs/configuration.md)
-- [Conflict Types Explained](docs/conflict-types.md)
-- [Resolution Strategies](docs/resolution-strategies.md)
-- [API Reference](docs/api-reference.md)
+- [Getting Started Guide](docs/getting-started.md) - Installation, setup, and first steps
+- [Configuration Reference](docs/configuration.md) - Complete configuration options
+- [Rollback System](docs/rollback-system.md) - Automatic rollback and recovery
+- [Parallel Processing](docs/parallel-processing.md) - Performance tuning guide
+- [Migration Guide](docs/migration-guide.md) - Upgrading from earlier versions
+- [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
+
+### Reference Documentation
+- [API Reference](docs/api-reference.md) - Python API documentation
+- [Conflict Types Explained](docs/conflict-types.md) - Understanding conflict categories
+- [Resolution Strategies](docs/resolution-strategies.md) - Strategy selection guide
 
 ### Architecture & Development
-- [Architecture Overview](docs/architecture.md)
-- [Contributing Guide](CONTRIBUTING.md)
+- [Architecture Overview](docs/architecture.md) - System design and components
+- [Contributing Guide](CONTRIBUTING.md) - How to contribute
 
 ### Security
 - [Security Policy](SECURITY.md) - Vulnerability reporting, security features
@@ -230,6 +274,21 @@ print(f"Success rate: {results.success_rate}%")
 **Problem**: Manual conflict resolution is time-consuming
 **Solution**: Parallel processing + caching resolves conflicts in seconds
 
+## 🔧 Environment Variables
+
+Configure the tool using environment variables (see [`.env.example`](.env.example) for all options):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `GITHUB_PERSONAL_ACCESS_TOKEN` | GitHub API token (required) | None |
+| `CR_MODE` | Application mode (`all`, `conflicts-only`, `non-conflicts-only`, `dry-run`) | `all` |
+| `CR_ENABLE_ROLLBACK` | Enable automatic rollback on failure | `true` |
+| `CR_VALIDATE` | Enable pre-application validation | `true` |
+| `CR_PARALLEL` | Enable parallel processing | `false` |
+| `CR_MAX_WORKERS` | Number of parallel workers | `4` |
+| `CR_LOG_LEVEL` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) | `INFO` |
+| `CR_LOG_FILE` | Log file path (optional) | None |
+
 ## 🤝 Contributing
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
@@ -285,14 +344,22 @@ MIT License - see [LICENSE](LICENSE) for details.
   - ✅ 0.6: Security Configuration
   - ✅ 0.7: CI/CD Security Scanning (7+ tools)
   - ✅ 0.8: Security Documentation
-- 🔄 **Phase 1: Core Features (IN PROGRESS)**
-  - Core conflict detection and analysis
-  - File handlers (JSON, YAML, TOML)
-  - Priority system
-- 📅 **Phase 2**: Advanced resolution strategies
-- 📅 **Phase 3**: CLI and configuration system
-- 📅 **Phase 4**: ML-assisted learning
-- 📅 **Phase 5**: Performance optimization
+- ✅ **Phase 1: Core Features (COMPLETE)**
+  - ✅ Core conflict detection and analysis
+  - ✅ File handlers (JSON, YAML, TOML)
+  - ✅ Priority system
+  - ✅ Rollback system with git-based checkpointing
+- ✅ **Phase 2: CLI & Configuration (COMPLETE)**
+  - ✅ CLI with comprehensive options
+  - ✅ Runtime configuration system
+  - ✅ Application modes (all, conflicts-only, non-conflicts-only, dry-run)
+  - ✅ Parallel processing support
+  - ✅ Multiple configuration sources (file, env, CLI)
+- 🔄 **Phase 3: Documentation & Examples (IN PROGRESS)**
+  - 🔄 Comprehensive documentation updates
+  - 📅 Example configurations and use cases
+- 📅 **Phase 4**: Advanced resolution strategies and ML-assisted learning
+- 📅 **Phase 5**: Performance optimization and caching
 
 ### Security Highlights
 - **ClusterFuzzLite**: Continuous fuzzing (3 fuzz targets, ASan + UBSan)

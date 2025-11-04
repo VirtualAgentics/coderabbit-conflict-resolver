@@ -1,0 +1,25 @@
+# Production Environment Configuration
+# Maximum safety with balanced performance
+
+# Application mode
+mode: conflicts-only  # Only apply changes that have conflicts (safer)
+
+# Safety features (ALWAYS enabled in production)
+rollback:
+  enabled: true  # Automatic rollback on any failure
+
+validation:
+  enabled: true  # Pre-application validation
+
+# Parallel processing (moderate for safety and performance balance)
+parallel:
+  enabled: true
+  max_workers: 8  # Moderate parallelism
+
+# Logging configuration
+logging:
+  level: INFO  # Standard production logging
+  file: /var/log/pr-resolver/production.log  # Always log to file in production
+
+# Usage:
+# pr-resolve apply --pr 123 --owner myorg --repo myrepo --config prod-config.yaml

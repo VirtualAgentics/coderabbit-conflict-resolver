@@ -1,0 +1,30 @@
+# Performance-Optimized Configuration
+# For large PRs where speed is critical
+
+# Application mode
+mode: all  # Apply everything for maximum throughput
+
+# Safety features
+rollback:
+  enabled: true  # Keep rollback enabled for safety
+
+validation:
+  enabled: false  # Disable validation for speed (rely on rollback)
+
+# Parallel processing (maximum for performance)
+parallel:
+  enabled: true
+  max_workers: 32  # High parallelism for large PRs
+
+# Logging configuration
+logging:
+  level: WARNING  # Minimal logging overhead
+  file:  # Optional: Only log warnings and errors
+
+# Usage:
+# pr-resolve apply --pr 123 --owner myorg --repo myrepo --config perf-config.yaml
+#
+# Recommended for:
+# - PRs with 100+ files
+# - Time-critical resolutions
+# - Systems with 16+ CPU cores
