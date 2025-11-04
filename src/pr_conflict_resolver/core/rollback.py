@@ -288,7 +288,7 @@ class RollbackManager:
         # Drop the stash if it's not the empty checkpoint marker
         if self.checkpoint_id != "EMPTY_CHECKPOINT":
             try:
-                # Find and drop the stash by SHA
+                # Drop the stash by reference (e.g., "stash@{0}")
                 self._run_git_command(["stash", "drop", self.checkpoint_id], check=False)
             except RollbackError:
                 # Non-fatal if stash was already removed
