@@ -535,8 +535,8 @@ class TestCommandSuccessPaths:
         result = runner.invoke(cli, ["apply", "--pr", "1", "--owner", "test", "--repo", "test"])
 
         assert result.exit_code == 0
-        assert "Applied 5 suggestions" in result.output
-        assert "Skipped 2 conflicts" in result.output
+        assert "Applied: 5 suggestions" in result.output
+        assert "Skipped: 2 conflicts" in result.output
         assert "Success rate: 71.4%" in result.output
 
     @patch("pr_conflict_resolver.core.resolver.ConflictResolver.analyze_conflicts")

@@ -20,6 +20,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive integration tests for RollbackManager (17 tests)
   - Support for empty checkpoints and untracked file cleanup
   - Context manager pattern for automatic rollback on exceptions
+- **Phase 2: CLI Enhancements - Multiple Modes & Configuration** (Issue #15)
+  - `RuntimeConfig` system for flexible configuration management (runtime_config.py)
+    - Support for environment variables (`CR_*` prefix), config files (YAML/TOML), and CLI flags
+    - Configuration precedence: CLI flags > env vars > config file > defaults
+    - Immutable dataclass with `frozen=True` and `slots=True` for efficiency
+  - `ApplicationMode` enum with four execution modes:
+    - `all` - Apply both conflicting and non-conflicting changes (default)
+    - `conflicts-only` - Apply only changes with conflicts after resolution
+    - `non-conflicts-only` - Apply only non-conflicting changes
+    - `dry-run` - Analyze conflicts without applying any changes
+  - Parallel processing support for improved performance (experimental)
+    - `ConflictResolver._apply_changes_parallel()` - Thread-safe parallel change application
+    - ThreadPoolExecutor with configurable worker threads (default: 4, recommended: 4-8)
+    - Thread-safe collections with locks for data integrity
+    - Maintains result order across parallel execution
+  - Enhanced CLI with comprehensive configuration flags:
+    - `--mode` - Select application mode
+    - `--config` - Load configuration from YAML/TOML file
+    - `--parallel` / `--max-workers` - Enable and configure parallel processing
+    - `--no-rollback` / `--no-validation` - Disable safety features (not recommended)
+    - `--log-level` / `--log-file` - Configure logging
+  - `.env.example` template with comprehensive documentation of all configuration options
+  - Comprehensive unit tests for RuntimeConfig (54 tests, 79% coverage)
+    - Tests for defaults, environment variables, file loading (YAML/TOML), validation, merging, precedence
+  - Enhanced documentation in docs/configuration.md with runtime configuration examples
 - Initial repository structure and architecture
 - Comprehensive documentation framework
 - GitHub Actions CI/CD pipeline
@@ -31,6 +56,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Enhanced `ResolutionResult` to track conflicting vs non-conflicting changes separately
 - Updated unit tests for change separation logic
+- **CLI Enhancement** (Issue #15):
+  - Enhanced `ConflictResolver.apply_changes()` to support parallel processing with `parallel` and `max_workers` parameters
+  - Updated `ConflictResolver.apply_changes_with_rollback()` to pass through parallel processing parameters
+  - Enhanced `pr-resolve apply` command with comprehensive configuration options
+  - Deprecated `--dry-run` flag in favor of `--mode=dry-run` (backwards compatible with deprecation warning)
+  - Improved CLI output with configuration summary display
 
 ### Deprecated
 - N/A
