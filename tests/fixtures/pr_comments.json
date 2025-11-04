@@ -1,0 +1,42 @@
+[
+  {
+    "path": "src/example.json",
+    "body": "```suggestion\n{\n  \"name\": \"updated-name\",\n  \"version\": \"2.0.0\"\n}\n```",
+    "start_line": 1,
+    "line": 3,
+    "html_url": "https://github.com/test/repo/pull/1#discussion_r1",
+    "user": {"login": "coderabbit"}
+  },
+  {
+    "path": "src/config.yaml",
+    "body": "```suggestion\nname: updated-config\nversion: 2.0.0\n```",
+    "start_line": 1,
+    "line": 2,
+    "html_url": "https://github.com/test/repo/pull/1#discussion_r2",
+    "user": {"login": "coderabbit"}
+  },
+  {
+    "path": "pyproject.toml",
+    "body": "```suggestion\nname = \"updated-project\"\nversion = \"2.0.0\"\n```",
+    "start_line": 1,
+    "line": 2,
+    "html_url": "https://github.com/test/repo/pull/1#discussion_r3",
+    "user": {"login": "coderabbit"}
+  },
+  {
+    "path": "src/example.py",
+    "body": "```suggestion\ndef updated_function():\n    return \"updated\"\n```",
+    "start_line": 10,
+    "line": 12,
+    "html_url": "https://github.com/test/repo/pull/1#discussion_r4",
+    "user": {"login": "coderabbit"}
+  },
+  {
+    "path": "src/example.py",
+    "body": "```suggestion\ndef another_update():\n    return \"also updated\"\n```",
+    "start_line": 11,
+    "line": 13,
+    "html_url": "https://github.com/test/repo/pull/1#discussion_r5",
+    "user": {"login": "coderabbit"}
+  }
+]

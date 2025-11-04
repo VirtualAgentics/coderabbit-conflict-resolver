@@ -135,6 +135,7 @@ ignore = [
 "tests/integration/**/*.py" = [
     "S101",
     "S603",  # subprocess calls in integration tests are intentional
+    "S607",  # partial executable paths (git commands) are intentional
     "D",
     "RUF043",  # regex patterns in pytest.raises are ok
 ]

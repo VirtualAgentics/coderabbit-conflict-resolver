@@ -192,3 +192,185 @@ class TestConflictResolver:
         conflicts = resolver.analyze_conflicts("owner", "repo", 123)
 
         assert conflicts == []
+
+    def test_separate_changes_by_conflict_status_no_conflicts(self) -> None:
+        """Test separating changes when there are no conflicts."""
+        from pr_conflict_resolver.core.models import Conflict
+
+        resolver = ConflictResolver()
+
+        # Create non-conflicting changes
+        changes = [
+            Change("test.py", 10, 15, "content1", {}, "fp1", FileType.PYTHON),
+            Change("test.py", 20, 25, "content2", {}, "fp2", FileType.PYTHON),
+            Change("test.py", 30, 35, "content3", {}, "fp3", FileType.PYTHON),
+        ]
+
+        conflicts: list[Conflict] = []
+
+        conflicting, non_conflicting = resolver.separate_changes_by_conflict_status(
+            changes, conflicts
+        )
+
+        # All changes should be non-conflicting
+        assert len(conflicting) == 0
+        assert len(non_conflicting) == 3
+        assert {c.fingerprint for c in non_conflicting} == {"fp1", "fp2", "fp3"}
+
+    def test_separate_changes_by_conflict_status_all_conflicting(self) -> None:
+        """Test separating changes when all changes are conflicting."""
+        from pr_conflict_resolver.core.models import Conflict
+
+        resolver = ConflictResolver()
+
+        # Create overlapping changes
+        change1 = Change("test.py", 10, 15, "content1", {}, "fp1", FileType.PYTHON)
+        change2 = Change("test.py", 12, 18, "content2", {}, "fp2", FileType.PYTHON)
+        change3 = Change("test.py", 14, 20, "content3", {}, "fp3", FileType.PYTHON)
+
+        changes = [change1, change2, change3]
+
+        # Create conflict containing all changes
+        conflict = Conflict(
+            file_path="test.py",
+            line_range=(10, 20),
+            changes=[change1, change2, change3],
+            conflict_type="multiple",
+            severity="low",
+            overlap_percentage=50.0,
+        )
+        conflicts = [conflict]
+
+        conflicting, non_conflicting = resolver.separate_changes_by_conflict_status(
+            changes, conflicts
+        )
+
+        # All changes should be conflicting
+        assert len(conflicting) == 3
+        assert len(non_conflicting) == 0
+        assert {c.fingerprint for c in conflicting} == {"fp1", "fp2", "fp3"}
+
+    def test_separate_changes_by_conflict_status_mixed(self) -> None:
+        """Test separating changes with mix of conflicting and non-conflicting."""
+        from pr_conflict_resolver.core.models import Conflict
+
+        resolver = ConflictResolver()
+
+        # Create mixed changes: some conflicting, some not
+        change1 = Change("test.py", 10, 15, "content1", {}, "fp1", FileType.PYTHON)
+        change2 = Change("test.py", 12, 18, "content2", {}, "fp2", FileType.PYTHON)
+        change3 = Change("test.py", 30, 35, "content3", {}, "fp3", FileType.PYTHON)
+        change4 = Change("test.py", 50, 55, "content4", {}, "fp4", FileType.PYTHON)
+
+        changes = [change1, change2, change3, change4]
+
+        # Create conflict for change1 and change2 only
+        conflict = Conflict(
+            file_path="test.py",
+            line_range=(10, 18),
+            changes=[change1, change2],
+            conflict_type="partial",
+            severity="low",
+            overlap_percentage=40.0,
+        )
+        conflicts = [conflict]
+
+        conflicting, non_conflicting = resolver.separate_changes_by_conflict_status(
+            changes, conflicts
+        )
+
+        # change1 and change2 should be conflicting, change3 and change4 non-conflicting
+        assert len(conflicting) == 2
+        assert len(non_conflicting) == 2
+        assert {c.fingerprint for c in conflicting} == {"fp1", "fp2"}
+        assert {c.fingerprint for c in non_conflicting} == {"fp3", "fp4"}
+
+    def test_separate_changes_by_conflict_status_multiple_conflicts(self) -> None:
+        """Test separating changes with multiple separate conflicts."""
+        from pr_conflict_resolver.core.models import Conflict
+
+        resolver = ConflictResolver()
+
+        # Create changes with multiple separate conflict groups
+        change1 = Change("test.py", 10, 15, "content1", {}, "fp1", FileType.PYTHON)
+        change2 = Change("test.py", 12, 18, "content2", {}, "fp2", FileType.PYTHON)
+        change3 = Change("test.py", 30, 35, "content3", {}, "fp3", FileType.PYTHON)
+        change4 = Change("test.py", 50, 55, "content4", {}, "fp4", FileType.PYTHON)
+        change5 = Change("test.py", 52, 58, "content5", {}, "fp5", FileType.PYTHON)
+
+        changes = [change1, change2, change3, change4, change5]
+
+        # Create two separate conflicts
+        conflict1 = Conflict(
+            file_path="test.py",
+            line_range=(10, 18),
+            changes=[change1, change2],
+            conflict_type="partial",
+            severity="low",
+            overlap_percentage=40.0,
+        )
+        conflict2 = Conflict(
+            file_path="test.py",
+            line_range=(50, 58),
+            changes=[change4, change5],
+            conflict_type="partial",
+            severity="low",
+            overlap_percentage=30.0,
+        )
+        conflicts = [conflict1, conflict2]
+
+        conflicting, non_conflicting = resolver.separate_changes_by_conflict_status(
+            changes, conflicts
+        )
+
+        # change1, change2, change4, change5 should be conflicting; change3 non-conflicting
+        assert len(conflicting) == 4
+        assert len(non_conflicting) == 1
+        assert {c.fingerprint for c in conflicting} == {"fp1", "fp2", "fp4", "fp5"}
+        assert {c.fingerprint for c in non_conflicting} == {"fp3"}
+
+    def test_separate_changes_by_conflict_status_empty_inputs(self) -> None:
+        """Test separating changes with empty inputs."""
+
+        resolver = ConflictResolver()
+
+        # Test empty changes list
+        conflicting, non_conflicting = resolver.separate_changes_by_conflict_status([], [])
+        assert len(conflicting) == 0
+        assert len(non_conflicting) == 0
+
+        # Test empty conflicts list with changes
+        changes = [
+            Change("test.py", 10, 15, "content1", {}, "fp1", FileType.PYTHON),
+        ]
+        conflicting, non_conflicting = resolver.separate_changes_by_conflict_status(changes, [])
+        assert len(conflicting) == 0
+        assert len(non_conflicting) == 1
+
+    def test_apply_changes_with_rollback_no_rollback_manager(self) -> None:
+        """Test apply_changes_with_rollback when rollback_manager is None."""
+        resolver = ConflictResolver()
+
+        # When rollback_manager is None, should call apply_changes directly
+        applied, skipped, failed = resolver.apply_changes_with_rollback([], validate=True)
+
+        assert len(applied) == 0
+        assert len(skipped) == 0
+        assert len(failed) == 0
+
+    @patch("pr_conflict_resolver.core.rollback.RollbackManager")
+    def test_apply_changes_with_rollback_initialization_failure(
+        self, mock_rollback_manager: Mock
+    ) -> None:
+        """Test apply_changes_with_rollback falls back when RollbackManager init fails."""
+        # Make RollbackManager raise ValueError on initialization
+        mock_rollback_manager.side_effect = ValueError("Git not available")
+
+        resolver = ConflictResolver()
+
+        # Should fall back to apply_changes when RollbackManager fails to initialize
+        applied, skipped, failed = resolver.apply_changes_with_rollback([], validate=True)
+
+        assert len(applied) == 0
+        assert len(skipped) == 0
+        assert len(failed) == 0
