@@ -18,7 +18,7 @@
 # Using requirements-py311.txt ensures correct wheel hashes for Python 3.11
 # (different from requirements.txt which has Python 3.12 hashes)
 echo "[*] Installing project dependencies..."
-python3 -m pip install --require-hashes -r /src/.clusterfuzzlite/requirements-py311.txt
+python3 -m pip install --require-hashes -r /src/coderabbit-conflict-resolver/.clusterfuzzlite/requirements-py311.txt
 
 # Install project package without dependencies (standard installation, not editable mode)
 # Path matches Dockerfile COPY destination: $SRC/coderabbit-conflict-resolver
@@ -29,14 +29,14 @@ python3 -m pip install --no-deps /src/coderabbit-conflict-resolver
 # Dependencies defined in requirements-fuzz.txt with --require-hashes enforcement
 # See requirements-fuzz.txt for package details and hash verification info
 echo "[*] Installing additional runtime dependencies..."
-python3 -m pip install --require-hashes -r /src/.clusterfuzzlite/requirements-fuzz.txt
+python3 -m pip install --require-hashes -r /src/coderabbit-conflict-resolver/.clusterfuzzlite/requirements-fuzz.txt
 
 # NOTE: Atheris is pre-installed in gcr.io/oss-fuzz-base/base-builder-python
 # No need to install it separately
 
 # Build each fuzz target using compile_python_fuzzer helper
 echo "[*] Building fuzz targets..."
-for fuzzer in $SRC/fuzz_*.py; do
+for fuzzer in $SRC/coderabbit-conflict-resolver/fuzz/fuzz_*.py; do
     fuzzer_basename=$(basename -s .py "$fuzzer")
     echo "[*] Compiling $fuzzer_basename..."
 
