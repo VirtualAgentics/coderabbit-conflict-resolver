@@ -2,7 +2,6 @@
 
 import hashlib
 import logging
-import os
 import re
 from pathlib import Path
 
@@ -421,37 +420,16 @@ def apply(
             preset_name = "balanced"  # Default preset
 
         # Step 2: Apply environment variable overrides
-        # Extract only the env vars that are actually set (not defaults)
-        env_overrides: dict[str, str | bool | int] = {}
-        if "CR_MODE" in os.environ:
-            env_overrides["mode"] = os.environ["CR_MODE"]
-        if "CR_ENABLE_ROLLBACK" in os.environ:
-            env_overrides["enable_rollback"] = os.environ["CR_ENABLE_ROLLBACK"].lower() in (
-                "true",
-                "1",
-                "yes",
-                "on",
-            )
-        if "CR_VALIDATE" in os.environ:
-            env_overrides["validate_before_apply"] = os.environ["CR_VALIDATE"].lower() in (
-                "true",
-                "1",
-                "yes",
-                "on",
-            )
-        if "CR_PARALLEL" in os.environ:
-            env_overrides["parallel_processing"] = os.environ["CR_PARALLEL"].lower() in (
-                "true",
-                "1",
-                "yes",
-                "on",
-            )
-        if "CR_MAX_WORKERS" in os.environ:
-            env_overrides["max_workers"] = int(os.environ["CR_MAX_WORKERS"])
-        if "CR_LOG_LEVEL" in os.environ:
-            env_overrides["log_level"] = os.environ["CR_LOG_LEVEL"].upper()
-        if "CR_LOG_FILE" in os.environ:
-            env_overrides["log_file"] = os.environ["CR_LOG_FILE"]
+        # Use validated parsing from RuntimeConfig.from_env() instead of manual parsing
+        env_config = RuntimeConfig.from_env()
+        default_config = RuntimeConfig.from_defaults()
+
+        # Extract only fields that differ from defaults (actual env overrides)
+        env_overrides = {
+            field_name: getattr(env_config, field_name)
+            for field_name in default_config.__dataclass_fields__
+            if getattr(env_config, field_name) != getattr(default_config, field_name)
+        }
 
         if env_overrides:
             runtime_config = runtime_config.merge_with_cli(**env_overrides)
