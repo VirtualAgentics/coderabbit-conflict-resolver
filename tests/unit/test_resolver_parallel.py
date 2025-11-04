@@ -435,12 +435,20 @@ class TestParallelProcessing:
                 changes, validate=True, parallel=True, max_workers=2
             )
 
-            # Worker thread exceptions are logged but don't populate failed list
-            # This is current behavior - exceptions in worker threads are caught
-            # by future.result() handler which only logs them
+            # Worker thread exceptions should add affected changes to failed list
             assert len(applied) == 0
             assert len(skipped) == 0
-            assert len(failed) == 0
+            assert len(failed) == 2  # Both changes should be in failed list
+
+            # Verify the correct changes are in the failed list
+            failed_fingerprints = {change.fingerprint for change, _ in failed}
+            assert failed_fingerprints == {"fp1", "fp2"}
+
+            # Verify error messages contain proper context
+            for _, error_msg in failed:
+                assert "Worker thread exception" in error_msg
+                assert "RuntimeError" in error_msg
+                assert "Validation crashed" in error_msg
 
             # Verify exceptions were logged
             assert mock_error.call_count >= 2

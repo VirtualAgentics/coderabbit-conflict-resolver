@@ -11,7 +11,7 @@ import logging
 import os
 import stat
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from os import PathLike
 from pathlib import Path
 from typing import Any
@@ -644,19 +644,33 @@ class ConflictResolver:
 
         # Process different files in parallel (each file's changes are processed sequentially)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit one task per file
-            futures = [
-                executor.submit(process_file_changes, file_changes)
-                for file_changes in changes_by_file.values()
-            ]
+            # Submit one task per file and maintain a mapping to track which changes
+            # each future is responsible for (following the future_to_url pattern
+            # from Python's concurrent.futures documentation)
+            future_to_changes: dict[Future[None], list[Change]] = {}
+
+            for file_changes in changes_by_file.values():
+                future = executor.submit(process_file_changes, file_changes)
+                future_to_changes[future] = file_changes
 
             # Wait for all tasks to complete
-            for future in as_completed(futures):
+            for future in as_completed(future_to_changes):
                 # Propagate any exceptions from worker threads
                 try:
                     future.result()
                 except Exception as e:
-                    self.logger.error(f"Worker thread raised exception: {e}")
+                    # Identify which changes failed due to this worker thread exception
+                    affected_changes = future_to_changes[future]
+                    error_msg = f"Worker thread exception: {type(e).__name__}: {e}"
+                    self.logger.error(
+                        f"Worker thread raised exception while processing {len(affected_changes)} "
+                        f"change(s): {error_msg}"
+                    )
+
+                    # Add all affected changes to the failed list with thread-safe access
+                    with failed_lock:
+                        for change in affected_changes:
+                            failed.append((change, error_msg))
 
         return applied, skipped, failed
 
