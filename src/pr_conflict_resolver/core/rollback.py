@@ -146,8 +146,9 @@ class RollbackManager:
     def create_checkpoint(self) -> str:
         """Create a checkpoint of the current working directory state.
 
-        Uses `git stash create` to create a stash entry without modifying the working directory.
-        The stash can later be used to restore the state via rollback().
+        Uses `git stash push --include-untracked` to save both tracked and untracked changes,
+        then immediately reapplies them to restore the working directory. The stash is kept
+        for later rollback or dropped on commit.
 
         Returns:
             Checkpoint ID (stash SHA) that can be used to restore this state.
@@ -173,15 +174,33 @@ class RollbackManager:
             self.checkpoint_id = "EMPTY_CHECKPOINT"
             return self.checkpoint_id
 
-        # Create stash without removing changes from working directory
+        # Create stash using push (create doesn't support --include-untracked)
+        # We use push, capture the ref, then apply to restore working directory
+        self._run_git_command(
+            ["stash", "push", "--include-untracked", "-m", "RollbackManager checkpoint"],
+            check=True,
+        )
+
+        # Get the stash reference (SHA)
         result = self._run_git_command(
-            ["stash", "create", "--include-untracked"],
+            ["rev-parse", "stash@{0}"],
             check=True,
         )
         stash_sha = result.stdout.strip()
 
         if not stash_sha:
-            raise RollbackError("Failed to create checkpoint: git stash create returned empty SHA")
+            raise RollbackError("Failed to create checkpoint: could not get stash reference")
+
+        # Immediately apply (not pop) to restore working directory to original state
+        # This keeps the stash for later rollback while restoring files now
+        try:
+            self._run_git_command(["stash", "apply", "stash@{0}"], check=True)
+        except RollbackError as e:
+            # If apply fails, try to clean up the stash
+            self._run_git_command(["stash", "drop", "stash@{0}"], check=False)
+            raise RollbackError(
+                "Failed to restore working directory after checkpoint creation"
+            ) from e
 
         self.checkpoint_id = stash_sha
         self.logger.info(f"Created checkpoint: {stash_sha}")
@@ -233,6 +252,13 @@ class RollbackManager:
             self.logger.info(f"Applying checkpoint: {self.checkpoint_id}")
             self._run_git_command(["stash", "apply", self.checkpoint_id], check=True)
 
+            # Drop the stash after successful apply
+            try:
+                self._run_git_command(["stash", "drop", self.checkpoint_id], check=False)
+            except RollbackError:
+                # Non-fatal if stash was already removed
+                self.logger.warning(f"Could not drop stash {self.checkpoint_id} after rollback")
+
             self.logger.info("Rollback successful")
             self.checkpoint_id = None
             return True
@@ -246,7 +272,7 @@ class RollbackManager:
         """Commit the checkpoint (mark changes as successful).
 
         Clears the checkpoint without rolling back, indicating that changes were
-        successfully applied and should be kept.
+        successfully applied and should be kept. Drops the stash to clean up.
 
         Example:
             >>> manager.create_checkpoint()
@@ -256,6 +282,17 @@ class RollbackManager:
         if self.checkpoint_id is None:
             self.logger.warning("No checkpoint to commit")
             return
+
+        # Drop the stash if it's not the empty checkpoint marker
+        if self.checkpoint_id != "EMPTY_CHECKPOINT":
+            try:
+                # Find and drop the stash by SHA
+                self._run_git_command(["stash", "drop", self.checkpoint_id], check=False)
+            except RollbackError:
+                # Non-fatal if stash was already removed
+                self.logger.warning(
+                    f"Could not drop stash {self.checkpoint_id} (may have been removed)"
+                )
 
         self.logger.info(f"Committing checkpoint: {self.checkpoint_id}")
         self.checkpoint_id = None

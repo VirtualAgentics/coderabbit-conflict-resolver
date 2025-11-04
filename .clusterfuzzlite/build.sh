@@ -22,6 +22,11 @@ python3 -m pip install --require-hashes -r /src/coderabbit-conflict-resolver/.cl
 
 # Install project package without dependencies (standard installation, not editable mode)
 # Path matches Dockerfile COPY destination: $SRC/coderabbit-conflict-resolver
+# Security Note: --require-hashes cannot be used for local package installation.
+# This is safe because:
+#   1. Source is from the same Docker image (controlled by Dockerfile COPY)
+#   2. All transitive dependencies are installed with --require-hashes above/below
+#   3. --no-deps ensures no additional packages are installed
 echo "[*] Installing project package..."
 python3 -m pip install --no-deps /src/coderabbit-conflict-resolver
 

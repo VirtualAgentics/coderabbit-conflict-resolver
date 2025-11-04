@@ -43,12 +43,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CodeRabbit Feedback**: Success rate metric now correctly counts non-conflicting failures/skips (resolver.py:958)
   - Prevents incorrect 100% success_rate when validation skips or failures occur in non-conflicting changes
   - Includes non_conflicting_failed + non_conflicting_skipped in total_conflicts for accurate metrics
-- **CodeRabbit Feedback**: RollbackManager now captures untracked files using `--include-untracked` flag (rollback.py:177-180)
-  - Prevents permanent data loss of legitimate untracked files during rollback operations
-  - Critical security fix for preserving workspace state
-- ClusterFuzzLite build script path corrected from `/src` to `/src/coderabbit-conflict-resolver` (build.sh:26)
-  - Fixes both failing fuzz jobs (address & undefined)
-  - Path now matches Dockerfile COPY destination
+- **CodeRabbit Critical**: Fixed git stash command in RollbackManager (rollback.py:176-204)
+  - Changed from `git stash create --include-untracked` (unsupported flag) to `git stash push --include-untracked`
+  - Now captures stash ref with `git rev-parse stash@{0}` and immediately reapplies to restore working directory
+  - Properly drops stash on both commit() and rollback() for cleanup
+  - Addresses CodeRabbit review feedback about silent failures when untracked files exist
+- ClusterFuzzLite build script fixes:
+  - Fixed all path references from `/src` to `/src/coderabbit-conflict-resolver` (build.sh:21, 26, 32, 39)
+  - Added mdurl==0.1.2 dependency to requirements-py311.txt (required by markdown-it-py)
+  - Documented security rationale for local package installation without --require-hashes (build.sh:25-29)
+  - Fixes pr-fuzz (address) and pr-fuzz (undefined) CI failures
 - OSError handling for symlink checks in path validation (resolver.py:580-582)
 - Clarified rollback behavior comments for better code maintainability
 - Improved variable naming for intentionally unused values
