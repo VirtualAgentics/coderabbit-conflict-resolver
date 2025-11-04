@@ -83,7 +83,8 @@ class TestRollbackManagerIntegration:
         checkpoint_id = manager.create_checkpoint()
 
         assert checkpoint_id is not None
-        assert len(checkpoint_id) == 40  # SHA hash length
+        # Checkpoint ID should be a stash reference like "stash@{0}"
+        assert checkpoint_id.startswith("stash@{")
         assert manager.checkpoint_id == checkpoint_id
         assert manager.has_checkpoint()
 

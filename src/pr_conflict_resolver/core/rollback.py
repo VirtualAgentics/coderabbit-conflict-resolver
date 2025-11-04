@@ -51,11 +51,8 @@ class RollbackManager:
         # the appropriate validation layer for each use case.
 
         # Validate and resolve repository path
+        # Note: resolve() always returns an absolute path
         self.repo_path = Path(repo_path).resolve()
-
-        # Security: Require absolute paths to avoid ambiguity
-        if not self.repo_path.is_absolute():
-            raise ValueError(f"Repository path must be absolute: {repo_path}")
 
         if not self.repo_path.exists():
             raise ValueError(f"Repository path does not exist: {self.repo_path}")
@@ -181,9 +178,13 @@ class RollbackManager:
             check=True,
         )
 
-        # Get the stash reference (SHA)
+        # Store the stash reference (not SHA) for later use with apply/drop
+        # Git stash commands require references like "stash@{0}", not SHA hashes
+        stash_ref = "stash@{0}"
+
+        # Get the SHA for logging/verification purposes only
         result = self._run_git_command(
-            ["rev-parse", "stash@{0}"],
+            ["rev-parse", stash_ref],
             check=True,
         )
         stash_sha = result.stdout.strip()
@@ -194,17 +195,18 @@ class RollbackManager:
         # Immediately apply (not pop) to restore working directory to original state
         # This keeps the stash for later rollback while restoring files now
         try:
-            self._run_git_command(["stash", "apply", "stash@{0}"], check=True)
+            self._run_git_command(["stash", "apply", stash_ref], check=True)
         except RollbackError as e:
             # If apply fails, try to clean up the stash
-            self._run_git_command(["stash", "drop", "stash@{0}"], check=False)
+            self._run_git_command(["stash", "drop", stash_ref], check=False)
             raise RollbackError(
                 "Failed to restore working directory after checkpoint creation"
             ) from e
 
-        self.checkpoint_id = stash_sha
-        self.logger.info(f"Created checkpoint: {stash_sha}")
-        return stash_sha
+        # Store the reference (not SHA) so apply/drop work correctly later
+        self.checkpoint_id = stash_ref
+        self.logger.info(f"Created checkpoint: {stash_ref} (SHA: {stash_sha})")
+        return stash_ref
 
     def rollback(self) -> bool:
         """Roll back to the checkpoint state.
