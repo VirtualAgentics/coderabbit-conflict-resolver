@@ -174,7 +174,10 @@ class RollbackManager:
             return self.checkpoint_id
 
         # Create stash without removing changes from working directory
-        result = self._run_git_command(["stash", "create"], check=True)
+        result = self._run_git_command(
+            ["stash", "create", "--include-untracked"],
+            check=True,
+        )
         stash_sha = result.stdout.strip()
 
         if not stash_sha:

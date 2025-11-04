@@ -40,6 +40,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - N/A
 
 ### Fixed
+- **CodeRabbit Feedback**: Success rate metric now correctly counts non-conflicting failures/skips (resolver.py:958)
+  - Prevents incorrect 100% success_rate when validation skips or failures occur in non-conflicting changes
+  - Includes non_conflicting_failed + non_conflicting_skipped in total_conflicts for accurate metrics
+- **CodeRabbit Feedback**: RollbackManager now captures untracked files using `--include-untracked` flag (rollback.py:177-180)
+  - Prevents permanent data loss of legitimate untracked files during rollback operations
+  - Critical security fix for preserving workspace state
+- ClusterFuzzLite build script path corrected from `/src` to `/src/coderabbit-conflict-resolver` (build.sh:26)
+  - Fixes both failing fuzz jobs (address & undefined)
+  - Path now matches Dockerfile COPY destination
 - OSError handling for symlink checks in path validation (resolver.py:580-582)
 - Clarified rollback behavior comments for better code maintainability
 - Improved variable naming for intentionally unused values
@@ -47,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Path validation in RollbackManager using defense-in-depth approach
 - Separate validation layers for user input vs internal paths
+- Prevents data loss during rollback operations by capturing all file states
 
 ## [0.1.0] - 2025-01-01
 

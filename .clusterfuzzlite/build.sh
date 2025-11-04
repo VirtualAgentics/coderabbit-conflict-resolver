@@ -21,8 +21,9 @@ echo "[*] Installing project dependencies..."
 python3 -m pip install --require-hashes -r /src/.clusterfuzzlite/requirements-py311.txt
 
 # Install project package without dependencies (standard installation, not editable mode)
+# Path matches Dockerfile COPY destination: $SRC/coderabbit-conflict-resolver
 echo "[*] Installing project package..."
-python3 -m pip install --no-deps /src
+python3 -m pip install --no-deps /src/coderabbit-conflict-resolver
 
 # Install additional runtime dependencies with SHA256 hash pinning
 # Dependencies defined in requirements-fuzz.txt with --require-hashes enforcement

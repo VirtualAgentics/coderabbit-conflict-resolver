@@ -955,6 +955,7 @@ class ConflictResolver:
             non_conflicting_skipped = len(skipped)
             non_conflicting_failed = len(failed)
             total_applied += non_conflicting_applied
+            total_conflicts += non_conflicting_failed + non_conflicting_skipped
 
             self.logger.info(
                 f"Non-conflicting changes: {non_conflicting_applied} applied, "
