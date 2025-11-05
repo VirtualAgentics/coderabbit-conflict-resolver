@@ -178,6 +178,7 @@ See [`.env.example`](.env.example) for available environment variables.
 ## 📖 Documentation
 
 ### User Guides
+
 - [Getting Started Guide](docs/getting-started.md) - Installation, setup, and first steps
 - [Configuration Reference](docs/configuration.md) - Complete configuration options
 - [Rollback System](docs/rollback-system.md) - Automatic rollback and recovery
@@ -186,11 +187,13 @@ See [`.env.example`](.env.example) for available environment variables.
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 
 ### Reference Documentation
+
 - [API Reference](docs/api-reference.md) - Python API documentation
 - [Conflict Types Explained](docs/conflict-types.md) - Understanding conflict categories
 - [Resolution Strategies](docs/resolution-strategies.md) - Strategy selection guide
 
 ### Architecture & Development
+
 - [Architecture Overview](docs/architecture.md) - System design and components
 - [Contributing Guide](CONTRIBUTING.md) - How to contribute
 
