@@ -1,0 +1,59 @@
+{
+  "description": "Scenario where all changes have conflicts",
+  "conflicts": [
+    {
+      "file_path": "settings.py",
+      "line_number": 5,
+      "changes": [
+        {
+          "id": "change-1",
+          "old_content": "VERSION = '1.0.0'",
+          "new_content": "VERSION = '2.0.0'",
+          "priority": 1
+        },
+        {
+          "id": "change-2",
+          "old_content": "VERSION = '1.0.0'",
+          "new_content": "VERSION = '1.1.0'",
+          "priority": 2
+        }
+      ]
+    },
+    {
+      "file_path": "settings.py",
+      "line_number": 10,
+      "changes": [
+        {
+          "id": "change-3",
+          "old_content": "API_KEY = None",
+          "new_content": "API_KEY = os.getenv('API_KEY')",
+          "priority": 1
+        },
+        {
+          "id": "change-4",
+          "old_content": "API_KEY = None",
+          "new_content": "API_KEY = config.get('api_key')",
+          "priority": 1
+        }
+      ]
+    },
+    {
+      "file_path": "settings.py",
+      "line_number": 15,
+      "changes": [
+        {
+          "id": "change-5",
+          "old_content": "LOG_LEVEL = 'INFO'",
+          "new_content": "LOG_LEVEL = 'DEBUG'",
+          "priority": 2
+        },
+        {
+          "id": "change-6",
+          "old_content": "LOG_LEVEL = 'INFO'",
+          "new_content": "LOG_LEVEL = 'WARNING'",
+          "priority": 1
+        }
+      ]
+    }
+  ]
+}

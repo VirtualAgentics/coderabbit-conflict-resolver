@@ -1,0 +1,52 @@
+{
+  "description": "Mixed changes - some conflicting, some non-conflicting",
+  "conflicting_changes": [
+    {
+      "id": "conflict-1",
+      "file_path": "app.py",
+      "line_number": 10,
+      "old_content": "DEBUG = False",
+      "new_content": "DEBUG = True",
+      "change_type": "update",
+      "priority": 1
+    },
+    {
+      "id": "conflict-2",
+      "file_path": "app.py",
+      "line_number": 10,
+      "old_content": "DEBUG = False",
+      "new_content": "DEBUG = os.getenv('DEBUG', False)",
+      "change_type": "update",
+      "priority": 2
+    }
+  ],
+  "non_conflicting_changes": [
+    {
+      "id": "change-1",
+      "file_path": "app.py",
+      "line_number": 15,
+      "old_content": "PORT = 8000",
+      "new_content": "PORT = 3000",
+      "change_type": "update",
+      "priority": 1
+    },
+    {
+      "id": "change-2",
+      "file_path": "app.py",
+      "line_number": 20,
+      "old_content": "# TODO: Add error handling",
+      "new_content": "# Error handling implemented below",
+      "change_type": "update",
+      "priority": 1
+    },
+    {
+      "id": "change-3",
+      "file_path": "tests.py",
+      "line_number": 5,
+      "old_content": "class TestBasic:",
+      "new_content": "class TestBasic:\n    \"\"\"Basic test suite.\"\"\"",
+      "change_type": "update",
+      "priority": 1
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "description": "Complex conflict scenario - multiple files, multiple conflicts",
+  "conflicts": [
+    {
+      "file_path": "src/config.py",
+      "line_number": 10,
+      "conflict_type": "duplicate_change",
+      "changes": [
+        {
+          "id": "change-1",
+          "file_path": "src/config.py",
+          "line_number": 10,
+          "old_content": "MAX_RETRIES = 3",
+          "new_content": "MAX_RETRIES = 5",
+          "change_type": "update",
+          "priority": 1
+        },
+        {
+          "id": "change-2",
+          "file_path": "src/config.py",
+          "line_number": 10,
+          "old_content": "MAX_RETRIES = 3",
+          "new_content": "MAX_RETRIES = 10",
+          "change_type": "update",
+          "priority": 2
+        }
+      ]
+    },
+    {
+      "file_path": "src/utils.py",
+      "line_number": 25,
+      "conflict_type": "duplicate_change",
+      "changes": [
+        {
+          "id": "change-3",
+          "file_path": "src/utils.py",
+          "line_number": 25,
+          "old_content": "return None",
+          "new_content": "return {}",
+          "change_type": "update",
+          "priority": 1
+        },
+        {
+          "id": "change-4",
+          "file_path": "src/utils.py",
+          "line_number": 25,
+          "old_content": "return None",
+          "new_content": "return []",
+          "change_type": "update",
+          "priority": 1
+        }
+      ]
+    },
+    {
+      "file_path": "README.md",
+      "line_number": 50,
+      "conflict_type": "overlapping_change",
+      "changes": [
+        {
+          "id": "change-5",
+          "file_path": "README.md",
+          "line_number": 50,
+          "old_content": "## Installation",
+          "new_content": "## Installation Guide",
+          "change_type": "update",
+          "priority": 2
+        },
+        {
+          "id": "change-6",
+          "file_path": "README.md",
+          "line_number": 50,
+          "old_content": "## Installation",
+          "new_content": "## Setup Instructions",
+          "change_type": "update",
+          "priority": 1
+        }
+      ]
+    }
+  ]
+}

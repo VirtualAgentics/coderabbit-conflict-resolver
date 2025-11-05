@@ -1,0 +1,38 @@
+{
+  "description": "Nested JSON/YAML conflict scenario",
+  "file_path": "config.yaml",
+  "line_number": 15,
+  "conflict_type": "nested_structure_conflict",
+  "changes": [
+    {
+      "id": "change-1",
+      "file_path": "config.yaml",
+      "line_number": 15,
+      "old_content": "  database:\n    host: localhost\n    port: 5432",
+      "new_content": "  database:\n    host: db.example.com\n    port: 5432",
+      "change_type": "update",
+      "priority": 1,
+      "nested_path": "database.host"
+    },
+    {
+      "id": "change-2",
+      "file_path": "config.yaml",
+      "line_number": 15,
+      "old_content": "  database:\n    host: localhost\n    port: 5432",
+      "new_content": "  database:\n    host: localhost\n    port: 5433",
+      "change_type": "update",
+      "priority": 2,
+      "nested_path": "database.port"
+    },
+    {
+      "id": "change-3",
+      "file_path": "config.yaml",
+      "line_number": 15,
+      "old_content": "  database:\n    host: localhost\n    port: 5432",
+      "new_content": "  database:\n    host: db.prod.com\n    port: 5432\n    ssl: true",
+      "change_type": "update",
+      "priority": 1,
+      "nested_path": "database"
+    }
+  ]
+}

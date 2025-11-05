@@ -1,0 +1,50 @@
+{
+  "description": "Scenario with no conflicts - all changes target different locations",
+  "changes": [
+    {
+      "id": "change-1",
+      "file_path": "utils.py",
+      "line_number": 10,
+      "old_content": "def helper():",
+      "new_content": "def helper() -> None:",
+      "change_type": "update",
+      "priority": 1
+    },
+    {
+      "id": "change-2",
+      "file_path": "utils.py",
+      "line_number": 20,
+      "old_content": "return result",
+      "new_content": "return result  # Return processed result",
+      "change_type": "update",
+      "priority": 1
+    },
+    {
+      "id": "change-3",
+      "file_path": "models.py",
+      "line_number": 5,
+      "old_content": "class User:",
+      "new_content": "class User:\n    \"\"\"User model class.\"\"\"",
+      "change_type": "update",
+      "priority": 1
+    },
+    {
+      "id": "change-4",
+      "file_path": "models.py",
+      "line_number": 30,
+      "old_content": "    pass",
+      "new_content": "    \"\"\"TODO: Implement validation.\"\"\"",
+      "change_type": "update",
+      "priority": 1
+    },
+    {
+      "id": "change-5",
+      "file_path": "README.md",
+      "line_number": 1,
+      "old_content": "# Project",
+      "new_content": "# Project Name",
+      "change_type": "update",
+      "priority": 1
+    }
+  ]
+}

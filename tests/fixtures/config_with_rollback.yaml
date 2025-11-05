@@ -1,0 +1,35 @@
+# Configuration with rollback enabled
+# Automatically rolls back on any error
+
+mode: all
+parallel: false
+max_workers: 1
+strategy: priority
+rollback_on_error: true
+
+# Rollback settings
+rollback:
+  enabled: true
+  create_checkpoint_before_apply: true
+  auto_rollback_on_error: true
+  preserve_checkpoint_on_success: false
+
+# Conflict resolution settings
+conflict_resolution:
+  auto_resolve: true
+  prefer_higher_priority: true
+  log_conflicts: true
+  stop_on_first_error: true
+
+# File handling
+file_handling:
+  backup_before_apply: true
+  preserve_permissions: true
+  validate_syntax: true
+  verify_after_apply: true
+
+# Logging
+logging:
+  level: DEBUG
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  log_rollback_events: true

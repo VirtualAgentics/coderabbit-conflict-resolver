@@ -1,0 +1,25 @@
+# Configuration for ALL application mode
+# Applies both conflicting and non-conflicting changes
+
+mode: all
+parallel: false
+max_workers: 1
+strategy: priority
+rollback_on_error: true
+
+# Conflict resolution settings
+conflict_resolution:
+  auto_resolve: true
+  prefer_higher_priority: true
+  log_conflicts: true
+
+# File handling
+file_handling:
+  backup_before_apply: true
+  preserve_permissions: true
+  validate_syntax: true
+
+# Logging
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

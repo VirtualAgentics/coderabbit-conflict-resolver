@@ -1,0 +1,27 @@
+# Configuration for DRY_RUN application mode
+# Analyzes conflicts without applying any changes
+
+mode: dry-run
+parallel: false
+max_workers: 1
+strategy: priority
+rollback_on_error: false  # Not needed in dry-run
+
+# Conflict resolution settings
+conflict_resolution:
+  auto_resolve: true
+  prefer_higher_priority: true
+  log_conflicts: true
+  generate_report: true
+
+# Analysis settings
+analysis:
+  detailed_output: true
+  show_diffs: true
+  export_results: true
+  output_format: json
+
+# Logging
+logging:
+  level: DEBUG
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

@@ -1,0 +1,28 @@
+{
+  "description": "Simple conflict scenario - two changes targeting the same line",
+  "file_path": "config.json",
+  "line_number": 5,
+  "conflict_type": "duplicate_change",
+  "changes": [
+    {
+      "id": "change-1",
+      "file_path": "config.json",
+      "line_number": 5,
+      "old_content": "\"timeout\": 30",
+      "new_content": "\"timeout\": 60",
+      "change_type": "update",
+      "priority": 1,
+      "source": "coderabbit-1"
+    },
+    {
+      "id": "change-2",
+      "file_path": "config.json",
+      "line_number": 5,
+      "old_content": "\"timeout\": 30",
+      "new_content": "\"timeout\": 45",
+      "change_type": "update",
+      "priority": 2,
+      "source": "coderabbit-2"
+    }
+  ]
+}
