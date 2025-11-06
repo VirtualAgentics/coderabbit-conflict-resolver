@@ -5,6 +5,18 @@
 **Status:** Planning Phase
 **Target Release:** v2.0
 
+> **📌 Important Note on Issue Numbers**:
+> This document was created referencing issues #25-#31, but GitHub actually assigned issues #114-#120 for the LLM phases. When reading this document, interpret issue numbers as follows:
+> - #25 → **#114** (Phase 0: Foundation)
+> - #26 → **#115** (Phase 1: Basic LLM Parsing)
+> - #27 → **#116** (Phase 2: Multi-Provider Support)
+> - #28 → **#117** (Phase 3: CLI Integration Polish)
+> - #29 → **#118** (Phase 4: Local Model Support)
+> - #30 → **#119** (Phase 5: Optimization & Production Readiness)
+> - #31 → **#120** (Phase 6: Documentation & Migration)
+>
+> All other references in this document remain accurate.
+
 ---
 
 ## Table of Contents

@@ -474,7 +474,7 @@ Comprehensive planning documentation available:
 - **Phase 0-6**: 10-12 weeks implementation
 - **Estimated Release**: Q2 2025
 - **GitHub Milestone**: [v2.0 - LLM-First Architecture](https://github.com/VirtualAgentics/coderabbit-conflict-resolver/milestone/2)
-- **GitHub Issues**: #25-#31
+- **GitHub Issues**: #114-#120 (Phases 0-6)
 
 ---
 

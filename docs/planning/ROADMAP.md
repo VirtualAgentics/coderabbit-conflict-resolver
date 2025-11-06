@@ -68,20 +68,20 @@ Transform the CodeRabbit Conflict Resolver into a production-ready, professional
 
 **Reference**: See `docs/planning/archive/phase-0-complete.md` for full Phase 0 specifications.
 
-### 🚧 In Progress (v0.1.0 - Core Features) - 0%
+### 🚧 In Progress (v2.0 - LLM-First Architecture) - 0%
 
 **GitHub Issues**:
-- Issue #14: Phase 1 - Apply All Suggestions (NOT STARTED)
-- Issue #15: Phase 2 - CLI Enhancements (NOT STARTED)
-- Issue #16: Phase 3 - Documentation (NOT STARTED)
-- Issue #17: Phase 4 - Testing Infrastructure (NOT STARTED)
-- Issue #21: Phase 5 - CI/CD Enhancements (NOT STARTED)
-- Issue #22: Phase 6 - Handler Improvements (NOT STARTED)
-- Issue #23: Phase 7 - Examples & Tutorials (NOT STARTED)
-- Issue #24: Phase 8 - PyPI Publication (NOT STARTED)
-- Issue #18: Phase 44 - Repository Branding (NOT STARTED)
-- Issue #19: Phase 45 - Enhanced Documentation (NOT STARTED)
-- Issue #20: Phase 46 - Community Engagement (NOT STARTED)
+- Issue #114: Phase 0 - LLM Foundation (NOT STARTED)
+- Issue #115: Phase 1 - Basic LLM Parsing (NOT STARTED)
+- Issue #116: Phase 2 - Multi-Provider Support (NOT STARTED)
+- Issue #117: Phase 3 - CLI Integration Polish (NOT STARTED)
+- Issue #118: Phase 4 - Local Model Support (NOT STARTED)
+- Issue #119: Phase 5 - Optimization & Production Readiness (NOT STARTED)
+- Issue #120: Phase 6 - Documentation & Migration (NOT STARTED)
+- Issue #13: Security Configuration, Testing & Scanning (IN PROGRESS - integrated into v2.0)
+- Issue #21: CI/CD Enhancements with Security (IN PROGRESS - integrated into v2.0)
+
+**Note**: Issues #14-16 were closed (already complete). Issues #17, #22, #24 were closed as superseded by v2.0 LLM architecture. Issues #18-20, #23, #94, #112 moved to v2.1 milestone (post-launch enhancements).
 
 **What Currently Works**:
 - GitHub API integration
@@ -123,11 +123,44 @@ Transform the CodeRabbit Conflict Resolver into a production-ready, professional
 
 ---
 
-## Phase 1: Core Functionality - Apply All Suggestions ⭐ CRITICAL
+## Status of Original v0.1.0 Phases
+
+The original Phase 1-8 and Phase 44-46 have been reorganized as part of the v2.0 LLM-first architecture pivot:
+
+**Completed & Closed**:
+- Phase 1 (#14): Apply All Suggestions - ✅ Closed (already implemented)
+- Phase 2 (#15): CLI Enhancements - ✅ Closed (already implemented)
+- Phase 3 (#16): Documentation - ✅ Closed (already implemented)
+
+**Superseded by v2.0 LLM Architecture**:
+- Phase 4 (#17): Testing Infrastructure - ❌ Closed (superseded by #119 - Phase 5: Optimization & Production Readiness)
+- Phase 6 (#22): Handler Improvements - ❌ Closed (LLM handles all formats, no longer needed)
+- Phase 8 (#24): PyPI Publication - ❌ Closed (deferred to post-v2.0 release)
+
+**Integrated into v2.0 Milestone**:
+- Phase 0.5-0.8 (#13): Security Configuration, Testing & Scanning - 🔄 Moved to v2.0 milestone
+- Phase 5 (#21): CI/CD Enhancements with Security Integration - 🔄 Moved to v2.0 milestone
+
+**Moved to v2.1 Milestone (Post-Launch Enhancements)**:
+- Phase 44 (#18): Repository Branding & Metadata
+- Phase 45 (#19): Enhanced Documentation Files
+- Phase 46 (#20): Community Engagement Setup
+- Phase 7 (#23): Examples & Tutorials (will include LLM examples)
+- Additional: #94 (OpenSSF Scorecard improvements), #112 (Dry-run enhancements)
+
+See [LLM Refactor Roadmap](./LLM_REFACTOR_ROADMAP.md) for detailed v2.0 implementation plan and [LLM Architecture](./LLM_ARCHITECTURE.md) for technical specifications.
+
+---
+
+## Version 0.1.0 - Legacy Phase Details (Archived)
+
+The following sections are kept for historical reference but are no longer active in the current roadmap:
+
+### Phase 1: Core Functionality - Apply All Suggestions ⭐ CRITICAL (COMPLETED - #14 CLOSED)
 
 **Estimated**: 12-15 hours
 **Priority**: Must complete first
-**GitHub Issue**: #14
+**GitHub Issue**: #14 (CLOSED)
 **Goal**: Enable system to apply both conflicting (after resolution) AND non-conflicting suggestions
 
 ### 1.1 Add Change Application Infrastructure
@@ -284,11 +317,11 @@ def validate_change(self, path: str, content: str,
 
 ---
 
-## Phase 2: CLI Enhancements - Multiple Modes & Dry-Run ⭐ HIGH
+### Phase 2: CLI Enhancements - Multiple Modes & Dry-Run ⭐ HIGH (COMPLETED - #15 CLOSED)
 
 **Estimated**: 6-8 hours
 **Priority**: Critical for usability
-**GitHub Issue**: #15
+**GitHub Issue**: #15 (CLOSED)
 **Goal**: Professional CLI with multiple operational modes
 
 ### 2.1 Add Configuration System
@@ -384,11 +417,11 @@ CR_LOG_FILE=cr_resolver.log
 
 ---
 
-## Phase 3: Documentation ⭐ HIGH
+### Phase 3: Documentation ⭐ HIGH (COMPLETED - #16 CLOSED)
 
 **Estimated**: 8-10 hours
 **Priority**: Critical for adoption
-**GitHub Issue**: #16
+**GitHub Issue**: #16 (CLOSED)
 **Goal**: Comprehensive, professional documentation
 
 ### 3.1 Getting Started Guide
@@ -440,12 +473,13 @@ CR_LOG_FILE=cr_resolver.log
 
 ---
 
-## Phase 4: Testing Infrastructure ⭐ HIGH
+### Phase 4: Testing Infrastructure ⭐ HIGH (SUPERSEDED - #17 CLOSED)
 
 **Estimated**: 6-8 hours
 **Priority**: Critical for reliability
-**GitHub Issue**: #17
+**GitHub Issue**: #17 (CLOSED - superseded by #119)
 **Goal**: Comprehensive test coverage for all modes
+**Status**: Superseded by Phase 5 (#119) in v2.0 LLM roadmap
 
 ### 4.1 Create Test Fixtures
 
@@ -498,12 +532,13 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
-## Phase 5: CI/CD Enhancements with Security Integration
+### Phase 5: CI/CD Enhancements with Security Integration (MOVED TO v2.0 - #21)
 
 **Estimated**: 6-8 hours
 **Priority**: High
-**GitHub Issue**: #21
+**GitHub Issue**: #21 (moved to v2.0 milestone)
 **Goal**: Production-ready CI/CD pipeline with security gates
+**Status**: Integrated into v2.0 development workflow
 
 ### 5.1 Enhanced Security Scanning
 
@@ -565,12 +600,13 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
-## Phase 6: Handler Improvements
+### Phase 6: Handler Improvements (DEPRIORITIZED - #22 CLOSED)
 
 **Estimated**: 8-10 hours
 **Priority**: Medium
-**GitHub Issue**: #22
+**GitHub Issue**: #22 (CLOSED - deprioritized)
 **Goal**: Robust file-type handling
+**Status**: Deprioritized - LLM-first architecture handles all formats without format-specific handler improvements
 
 ### 6.1 Enhance JSON Handler
 
@@ -599,12 +635,13 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
-## Phase 7: Examples & Guides
+### Phase 7: Examples & Guides (MOVED TO v2.1 - #23)
 
 **Estimated**: 6-8 hours
 **Priority**: Medium
-**GitHub Issue**: #23
+**GitHub Issue**: #23 (moved to v2.1 milestone)
 **Goal**: Help users understand and use the system
+**Status**: Moved to post-v2.0 launch to include LLM examples
 
 ### 7.1 Create Example Scripts
 
@@ -634,12 +671,13 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
-## Phase 8: PyPI Publication Preparation
+### Phase 8: PyPI Publication Preparation (DEFERRED - #24 CLOSED)
 
 **Estimated**: 4-6 hours
 **Priority**: Medium
-**GitHub Issue**: #24
+**GitHub Issue**: #24 (CLOSED - deferred to post-v2.0)
 **Goal**: Ready for public distribution
+**Status**: Deferred to post-v2.0 release (better to publish with 95%+ coverage)
 
 ### 8.1 Validate Package
 
@@ -668,12 +706,13 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
-## Phase 44: Repository Metadata & Branding ⭐ HIGH PRIORITY
+### Phase 44: Repository Metadata & Branding ⭐ HIGH PRIORITY (MOVED TO v2.1 - #18)
 
 **Estimated**: 3-4 hours
 **Priority**: High
-**GitHub Issue**: #18
+**GitHub Issue**: #18 (moved to v2.1 milestone)
 **Goal**: Make repository visually appealing and discoverable
+**Status**: Moved to post-v2.0 launch (more impactful with 95%+ coverage showcase)
 
 ### Tasks
 
@@ -715,12 +754,13 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
-## Phase 45: Enhanced Documentation ⭐ HIGH PRIORITY
+### Phase 45: Enhanced Documentation ⭐ HIGH PRIORITY (MOVED TO v2.1 - #19)
 
 **Estimated**: 4-5 hours
 **Priority**: High
-**GitHub Issue**: #19
+**GitHub Issue**: #19 (moved to v2.1 milestone)
 **Goal**: Professional, comprehensive documentation
+**Status**: Core docs in #120 (Phase 6), additional enhancements post-v2.0
 
 ### Files to Create
 
@@ -760,12 +800,13 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
-## Phase 46: Community Engagement ⭐ HIGH PRIORITY
+### Phase 46: Community Engagement ⭐ HIGH PRIORITY (MOVED TO v2.1 - #20)
 
 **Estimated**: 2-3 hours
 **Priority**: High
-**GitHub Issue**: #20
+**GitHub Issue**: #20 (moved to v2.1 milestone)
 **Goal**: Foster community participation
+**Status**: More effective post-v2.0 launch with LLM showcase
 
 ### Files to Create
 
@@ -1296,17 +1337,20 @@ Week 12:    Testing, bugfixes, v2.0 release
 ### Immediate Actions
 
 1. ✅ Phase 0 - Security foundation (COMPLETE)
-2. Create GitHub milestones for remaining versions
-3. Update GitHub Projects board with current status
-4. Begin Phase 1 implementation (Issue #14)
+2. ✅ Create GitHub milestones for v2.0 and v2.1 (COMPLETE)
+3. ✅ Reorganize issues to align with v2.0 roadmap (COMPLETE)
+4. Begin Phase 0 implementation (Issue #114 - LLM Foundation)
 
 ### Development Priority
 
-1. **Phase 1**: Core functionality (apply all suggestions)
-2. **Phase 2**: CLI enhancements (modes)
-3. **Phase 3**: Documentation updates
-4. **Phase 4**: Testing infrastructure
-5. **Parallel work**: Phase 44-46 (branding and community)
+1. **Phase 0 (#114)**: LLM Foundation (data models, config)
+2. **Phase 1 (#115)**: Basic LLM Parsing (OpenAI API)
+3. **Phase 2 (#116)**: Multi-Provider Support (5 providers)
+4. **Phase 3 (#117)**: CLI Integration Polish
+5. **Phase 4 (#118)**: Local Model Support (Ollama)
+6. **Phase 5 (#119)**: Optimization & Production Readiness
+7. **Phase 6 (#120)**: Documentation & Migration
+8. **Parallel work**: #13 (Security), #21 (CI/CD)
 
 ### Launch Preparation
 
