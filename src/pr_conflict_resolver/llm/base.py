@@ -143,4 +143,4 @@ class LLMParser(ABC):
             - Log parsing failures for debugging
             - Support fallback to regex parsing when enabled
         """
-        ...
+        pass

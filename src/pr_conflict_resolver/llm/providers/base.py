@@ -61,7 +61,7 @@ class LLMProvider(Protocol):
             (API timeouts, rate limits, authentication) and convert
             them to the standard exceptions above.
         """
-        ...
+        pass
 
     def count_tokens(self, text: str) -> int:
         """Count tokens in text using provider's tokenizer.
@@ -87,4 +87,4 @@ class LLMProvider(Protocol):
             that don't expose tokenization APIs. API providers should
             return exact counts using their official tokenizers.
         """
-        ...
+        pass

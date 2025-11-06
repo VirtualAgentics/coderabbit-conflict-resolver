@@ -148,6 +148,12 @@ ignore = [
     "T201",  # print statements ok for fuzzing error reporting
     "D301",  # backslashes in docstrings ok for fuzzing documentation
 ]
+"src/pr_conflict_resolver/llm/base.py" = [
+    "PIE790",  # pass is necessary to satisfy CodeQL py/ineffectual-statement
+]
+"src/pr_conflict_resolver/llm/providers/base.py" = [
+    "PIE790",  # pass is necessary to satisfy CodeQL py/ineffectual-statement
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
