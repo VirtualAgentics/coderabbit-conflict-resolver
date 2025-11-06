@@ -13,6 +13,10 @@ import os
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+
+# Skip all tests if openai package is not installed
+pytest.importorskip("openai")
+
 from openai import APIConnectionError, APITimeoutError, OpenAIError, RateLimitError
 
 from pr_conflict_resolver.llm.exceptions import (

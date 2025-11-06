@@ -15,12 +15,12 @@ tomli-w==1.2.0 \
     --hash=sha256:188306098d013b691fcadc011abd66727d3c414c571bb01b1a174ba8c983cf90
 rich==14.2.0 \
     --hash=sha256:76bc51fe2e57d2b1be1f96c524b890b816e334ab4c1e45888799bfaab0021edd
-openai==1.58.1 \
-    --hash=sha256:e2910b1170a6b7f88ef491ac3a42c387f08bd3db533411f7ee391d166571d63c
-tenacity==9.0.0 \
-    --hash=sha256:93de0c98785b27fcf659856aa9f54bfbd399e29969b0621bc7f762bd441b4539
-tiktoken==0.9.0 \
-    --hash=sha256:99376e1370d59bcf6935c933cb9ba64adc29033b7e73f5f7569f3aad86552b22
+openai==2.7.1 \
+    --hash=sha256:2f2530354d94c59c614645a4662b9dab0a5b881c5cd767a8587398feac0c9021
+tenacity==9.1.2 \
+    --hash=sha256:f77bf36710d8b73a50b2dd155c97b870017ad21afe6ab300326b0371b3b05138
+tiktoken==0.12.0 \
+    --hash=sha256:edde1ec917dfd21c1f2f8046b86348b0f54a2c0547f68149d8600859598769ad
 
 # Transitive dependencies (required by above packages)
 distro==1.9.0 \

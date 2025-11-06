@@ -54,7 +54,7 @@ class LLMProvider(Protocol):
             RuntimeError: If generation fails after retries
             ValueError: If prompt is empty or max_tokens is invalid
             ConnectionError: If provider is unreachable
-            AuthenticationError: If API credentials are invalid
+            LLMAuthenticationError: If API credentials are invalid
 
         Note:
             Implementations should handle provider-specific errors
