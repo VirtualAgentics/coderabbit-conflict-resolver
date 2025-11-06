@@ -371,6 +371,113 @@ MIT License - see [LICENSE](LICENSE) for details.
 - **Secret Detection**: 14+ pattern types (GitHub tokens, AWS keys, API keys, etc.)
 - **Documentation**: Comprehensive security documentation (threat model, incident response, compliance)
 
+## 🚀 Upcoming Features (v2.0 - LLM-First Architecture)
+
+**Coming Soon**: Major architecture upgrade to parse **95%+** of CodeRabbit comments (up from 20%)
+
+### The Problem We're Solving
+
+Current system only parses **```suggestion** blocks, missing:
+- ❌ Diff blocks (```diff) - **60% of CodeRabbit comments**
+- ❌ Natural language suggestions - **20% of comments**
+- ❌ Multi-option suggestions
+- ❌ Multiple diff blocks per comment
+
+**Result**: Only **1 out of 5** CodeRabbit comments are currently parsed.
+
+### The Solution: LLM-First Parsing
+
+```
+┌─────────────────────────────────────────────────────────┐
+│           LLM Parser (Primary - All Formats)            │
+│  • Diff blocks        • Suggestion blocks              │
+│  • Natural language   • Multi-options                   │
+│  • 95%+ coverage      • Intelligent understanding       │
+└──────────────────────────┬──────────────────────────────┘
+                           │
+                  ┌────────┴────────┐
+                  │  Fallback if    │
+                  │  LLM fails      │
+                  └────────┬────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│       Regex Parser (Fallback - Suggestion Blocks)       │
+│  • 100% reliable      • Zero cost                       │
+│  • Legacy support     • Always available                │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Multi-Provider Support (User Choice)
+
+Choose your preferred LLM provider:
+
+| Provider | Cost Model | Best For | Est. Cost (1000 comments) |
+|----------|-----------|----------|---------------------------|
+| **Claude CLI** | Subscription ($20/mo) | Best quality + zero marginal cost | $0 (covered) |
+| **Codex CLI** | Subscription ($20/mo) | Cost-effective, OpenAI quality | $0 (covered) |
+| **Ollama** | Free (local) | Privacy, offline, no API costs | $0 |
+| **OpenAI API** | Pay-per-token | Pay-as-you-go, low volume | $0.07 (with caching) |
+| **Anthropic API** | Pay-per-token | Best quality, willing to pay | $0.22 (with caching) |
+
+### Quick Preview
+
+```bash
+# Current (v1.x) - regex-only
+pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123
+# Parses: 1/5 comments (20%)
+
+# v2.0 - LLM-powered (opt-in)
+pr-resolve apply --llm --llm-provider claude-cli --owner VirtualAgentics --repo my-repo --pr 123
+# Parses: 5/5 comments (100%)
+
+# Use presets for quick config
+pr-resolve apply --llm-preset claude-cli-sonnet --owner VirtualAgentics --repo my-repo --pr 123
+pr-resolve apply --llm-preset ollama-local --owner VirtualAgentics --repo my-repo --pr 123  # Privacy-first
+```
+
+### Backward Compatibility Guarantee
+
+✅ **Zero Breaking Changes** - All v1.x code works unchanged in v2.0
+
+- LLM parsing **disabled by default** (opt-in via `--llm` flag)
+- Automatic **fallback to regex** if LLM fails
+- v1.x CLI commands **work identically**
+- v1.x Python API **unchanged**
+
+### Enhanced Change Metadata
+
+```python
+# v2.0: Changes include AI-powered insights
+change = Change(
+    path="src/module.py",
+    start_line=10,
+    end_line=12,
+    content="new code",
+    # NEW in v2.0 (optional fields)
+    llm_confidence=0.95,  # How confident the LLM is
+    llm_provider="claude-cli",  # Which provider parsed it
+    parsing_method="llm",  # "llm" or "regex"
+    change_rationale="Improves error handling",  # Why change was suggested
+    risk_level="low"  # "low", "medium", "high"
+)
+```
+
+### Documentation
+
+Comprehensive planning documentation available:
+- [LLM Refactor Roadmap](./docs/planning/LLM_REFACTOR_ROADMAP.md) (15K words) - Full implementation plan
+- [LLM Architecture](./docs/planning/LLM_ARCHITECTURE.md) (8K words) - Technical specification
+- [Migration Guide](./docs/planning/MIGRATION_GUIDE.md) (3K words) - v1.x → v2.0 upgrade path
+
+### Timeline
+
+- **Phase 0-6**: 10-12 weeks implementation
+- **Estimated Release**: Q2 2025
+- **GitHub Milestone**: [v2.0 - LLM-First Architecture](https://github.com/VirtualAgentics/coderabbit-conflict-resolver/milestone/2)
+- **GitHub Issues**: #25-#31
+
+---
+
 ## 🔗 Related Projects
 
 - [ContextForge Memory](https://github.com/VirtualAgentics/ConextForge_memory) - Original implementation

@@ -798,6 +798,267 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
+## LLM-First Architecture Refactor (v2.0.0) 🆕 MAJOR UPDATE
+
+**Estimated**: 188-238 hours (with 25% buffer)
+**Priority**: Critical for format coverage
+**Timeline**: 10-12 weeks
+**Related Documents**:
+- [LLM Refactor Roadmap](./LLM_REFACTOR_ROADMAP.md) (Detailed 15K word specification)
+- [LLM Architecture](./LLM_ARCHITECTURE.md) (8K word technical specification)
+- [Migration Guide](./MIGRATION_GUIDE.md) (v1.x → v2.0 migration path)
+
+**GitHub Issues**: #25-#31
+**Milestone**: v2.0 - LLM-First Architecture
+
+### Why This Refactor?
+
+**Current Problem**: The system only parses **20%** of CodeRabbit comment formats (```suggestion blocks only).
+
+**Evidence**: PR #8 dry-run test showed **1/5 comments** parsed successfully:
+- 3 comments (60%) with diff blocks only → ❌ Not parsed
+- 1 comment (20%) with both diff + suggestion → ⚠️ Partially parsed
+- 1 comment (20%) with natural language → ❌ Not parsed
+
+**Solution**: LLM-first architecture that understands all CodeRabbit formats:
+- ✅ Diff blocks (```diff)
+- ✅ Suggestion blocks (```suggestion)
+- ✅ Natural language prompts
+- ✅ Multi-option suggestions
+- ✅ Multiple diff blocks per comment
+
+**Expected Improvement**: **20% → 95%+** parsing coverage
+
+### Architecture Overview
+
+```
+LLM Parser (Primary)          Regex Parser (Fallback)
+     ↓                                ↓
+Multi-Provider Support:           Legacy Support:
+- OpenAI API (gpt-5-mini)        - ```suggestion blocks
+- Anthropic API (claude-sonnet)  - 100% reliable
+- Claude CLI (subscription)      - Zero cost
+- Codex CLI (subscription)
+- Ollama (local, privacy-first)
+     ↓                                ↓
+         Unified Change Models
+               ↓
+      (Rest of system unchanged)
+```
+
+### LLM Refactor Phases
+
+#### Phase 0: Foundation (20-25 hours) - Issue #25
+
+**Goal**: Prepare data models and infrastructure for LLM integration
+
+**Key Tasks**:
+- Extend `Change` model with LLM metadata fields (confidence, provider, rationale, risk_level)
+- Create `LLMConfig` configuration model
+- Add LLM preset configurations
+- Update CLI with feature flag support (`--llm`, `--llm-provider`)
+- Create test fixtures for LLM validation
+
+**Deliverables**:
+- [ ] Updated `core/models.py` with backward-compatible fields
+- [ ] New `config/llm_config.py` with LLMConfig class
+- [ ] CLI flags for LLM control
+- [ ] Test fixtures for validation
+- [ ] Documentation updates
+
+#### Phase 1: Basic LLM Parsing (35-45 hours) - Issue #26
+
+**Goal**: Implement LLM-based parsing with single provider (OpenAI API)
+
+**Key Tasks**:
+- Create `llm/` module structure
+- Implement abstract `LLMParser` interface
+- Build OpenAI API provider implementation
+- Create prompt templates with few-shot examples
+- Implement structured output parsing (Pydantic)
+- Add fallback mechanism (LLM → regex)
+- Integration with `ConflictResolver`
+
+**Deliverables**:
+- [ ] `llm/base.py` - Abstract parser interface
+- [ ] `llm/providers/openai_api.py` - OpenAI implementation
+- [ ] `llm/prompts/base_prompt.py` - Prompt engineering
+- [ ] `llm/parsers/structured_output.py` - Output validation
+- [ ] Integration tests with real OpenAI API
+- [ ] Fallback tests (LLM failure → regex)
+
+#### Phase 2: Multi-Provider Support (25-30 hours) - Issue #27
+
+**Goal**: Add support for all provider types (CLI, API, local)
+
+**Key Tasks**:
+- Implement Anthropic API provider
+- Implement Claude Code CLI provider
+- Implement Codex CLI provider
+- Implement Ollama local provider
+- Create `LLMParserFactory` for provider selection
+- Add provider validation and health checks
+- Implement prompt caching (50-90% cost reduction)
+
+**Deliverables**:
+- [ ] 5 provider implementations (OpenAI, Anthropic, Claude CLI, Codex CLI, Ollama)
+- [ ] `llm/factory.py` - Provider factory
+- [ ] `llm/cache/prompt_cache.py` - Caching system
+- [ ] Provider comparison tests
+- [ ] Cost tracking and budget limits
+
+#### Phase 3: CLI Integration Polish (15-20 hours) - Issue #28
+
+**Goal**: Professional CLI experience for LLM features
+
+**Key Tasks**:
+- Add `--llm-preset` flag for quick configuration
+- Implement configuration precedence chain (CLI > env > file > defaults)
+- Add cost tracking output
+- Enhanced error messages for provider issues
+- Provider authentication guides
+- Configuration validation
+
+**Deliverables**:
+- [ ] CLI preset support (5 presets)
+- [ ] Configuration loading from YAML/TOML
+- [ ] `.env.example` with LLM variables
+- [ ] User-friendly error messages
+- [ ] Provider setup documentation
+
+#### Phase 4: Local Model Support (15-20 hours) - Issue #29
+
+**Goal**: Privacy-first offline inference with Ollama
+
+**Key Tasks**:
+- Optimize Ollama integration
+- Add model download automation
+- GPU acceleration support
+- Benchmark local vs. API performance
+- Privacy-focused documentation
+- Offline operation validation
+
+**Deliverables**:
+- [ ] Ollama auto-setup script
+- [ ] GPU detection and configuration
+- [ ] Performance benchmarks (local vs. API)
+- [ ] Privacy guide (100% local operation)
+- [ ] Offline integration tests
+
+#### Phase 5: Optimization & Production Readiness (25-30 hours) - Issue #30
+
+**Goal**: Production-ready system with cost optimization and monitoring
+
+**Key Tasks**:
+- Parallel comment parsing (4x faster for large PRs)
+- Advanced prompt caching strategies
+- Retry logic with exponential backoff
+- Circuit breaker for provider failures
+- Comprehensive metrics and monitoring
+- Cost optimization analysis
+- Security audit for LLM integration
+
+**Deliverables**:
+- [ ] Parallel processing implementation
+- [ ] Advanced caching (50-90% cost reduction)
+- [ ] Retry and circuit breaker logic
+- [ ] Metrics dashboard (success rate, latency, cost)
+- [ ] Security review (API key handling, data sanitization)
+- [ ] Performance tuning guide
+
+#### Phase 6: Documentation & Migration (15-20 hours) - Issue #31
+
+**Goal**: Complete documentation for v2.0 launch
+
+**Key Tasks**:
+- Migration guide (v1.x → v2.0)
+- Provider selection guide
+- Cost analysis by provider
+- Troubleshooting guide
+- API reference updates
+- Tutorial videos (optional)
+
+**Deliverables**:
+- [ ] `MIGRATION_GUIDE.md` (v1.x → v2.0)
+- [ ] `LLM_ARCHITECTURE.md` (technical specification)
+- [ ] `LLM_REFACTOR_ROADMAP.md` (implementation plan)
+- [ ] Updated README with LLM features
+- [ ] Provider comparison matrix
+- [ ] Cost optimization guide
+
+### Backward Compatibility Guarantee
+
+**Zero Breaking Changes**: All v1.x code works unchanged in v2.0.
+
+- ✅ LLM parsing **disabled by default** (opt-in via `--llm` flag)
+- ✅ All new data model fields have **default values**
+- ✅ Automatic **fallback to regex** if LLM fails
+- ✅ v1.x CLI commands **work identically**
+- ✅ v1.x Python API **unchanged**
+
+**Migration Path**:
+1. Upgrade to v2.0 (no code changes needed)
+2. Test with `--llm` flag on a single PR
+3. Enable globally via configuration when ready
+4. Optional: Switch to different provider based on needs
+
+### Provider Comparison
+
+| Provider | Cost Model | Best For | Est. Cost (1000 comments) |
+|----------|-----------|----------|---------------------------|
+| **Claude CLI** | Subscription ($20/mo) | Best quality + zero marginal cost | $0 (covered) |
+| **Codex CLI** | Subscription ($20/mo) | Cost-effective, OpenAI quality | $0 (covered) |
+| **Ollama** | Free (local) | Privacy, offline, no API costs | $0 |
+| **OpenAI API** | Pay-per-token | Pay-as-you-go, low volume | $0.07 (with caching) |
+| **Anthropic API** | Pay-per-token | Best quality, willing to pay | $0.22 (with caching) |
+
+### Success Metrics (v2.0)
+
+| Metric | v1.x Baseline | v2.0 Target |
+|--------|--------------|-------------|
+| **Parsing Coverage** | 20% (1/5 comments) | 95%+ (5/5 comments) |
+| **Supported Formats** | 1 (```suggestion) | 4+ (diff, suggestion, natural language, multi-option) |
+| **Providers** | 0 (regex-only) | 5 (OpenAI, Anthropic, Claude CLI, Codex CLI, Ollama) |
+| **Error Rate** | <1% | <1% (with fallback) |
+| **Breaking Changes** | N/A | 0 (100% backward compatible) |
+| **Cost (1000 comments)** | $0 | $0-$0.22 (provider-dependent) |
+
+### Timeline & Milestones
+
+```
+Week 1-2:   Phase 0 (Foundation)
+Week 3-4:   Phase 1 (Basic LLM Parsing)
+Week 5-6:   Phase 2 (Multi-Provider Support)
+Week 7:     Phase 3 (CLI Polish)
+Week 8:     Phase 4 (Local Models)
+Week 9-10:  Phase 5 (Optimization)
+Week 11:    Phase 6 (Documentation)
+Week 12:    Testing, bugfixes, v2.0 release
+```
+
+**Milestone**: v2.0.0 - LLM-First Architecture
+**Estimated Release**: 12 weeks from start
+**Breaking Changes**: None (100% backward compatible)
+
+### Risks & Mitigation
+
+| Risk | Impact | Likelihood | Mitigation |
+|------|--------|-----------|------------|
+| **LLM API costs exceed budget** | High | Medium | Caching (50-90% reduction), budget limits, free provider options |
+| **LLM parsing accuracy <95%** | High | Low | Fallback to regex, prompt engineering, model fine-tuning |
+| **Provider API changes** | Medium | Low | Version pinning, comprehensive tests, multiple provider options |
+| **Performance regression** | Medium | Low | Parallel processing (4x faster), caching, benchmarking |
+| **Security concerns (API keys)** | High | Low | Environment variables, key redaction, secure storage |
+
+### Post-v2.0 Optimization (v2.1)
+
+- Fine-tuned models for CodeRabbit comments (higher accuracy, lower cost)
+- Advanced prompt optimization (reduced token usage)
+- Multi-provider fallback chains (primary → secondary → tertiary)
+- LLM-based conflict resolution (Phase 7: AI-Assisted Resolution)
+
+---
+
 ## Future Releases
 
 ### Phases 9-10: Metrics & Polish (v0.1.x)
