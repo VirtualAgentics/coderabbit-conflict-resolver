@@ -590,6 +590,20 @@ class TestRuntimeConfigLLMFields:
                 llm_max_tokens=-100,
             )
 
+    def test_zero_llm_max_tokens_raises_error(self) -> None:
+        """Test that llm_max_tokens=0 raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_max_tokens must be positive"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=False,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_max_tokens=0,
+            )
+
     def test_negative_llm_cost_budget_raises_error(self) -> None:
         """Test that negative llm_cost_budget raises ConfigError."""
         with pytest.raises(ConfigError, match="llm_cost_budget must be positive"):
@@ -672,3 +686,25 @@ class TestRuntimeConfigLLMFields:
 
         assert config.llm_enabled is True
         assert "no API key provided" not in caplog.text
+
+    def test_llm_enabled_from_env_without_api_key_warns(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test that from_env() with LLM enabled and API provider without key logs warning."""
+        import logging
+
+        # Clear any existing API key env vars
+        monkeypatch.delenv("CR_LLM_API_KEY", raising=False)
+
+        # Set up environment for LLM with anthropic provider
+        monkeypatch.setenv("CR_LLM_ENABLED", "true")
+        monkeypatch.setenv("CR_LLM_PROVIDER", "anthropic")
+
+        with caplog.at_level(logging.WARNING):
+            config = RuntimeConfig.from_env()
+
+        assert config.llm_enabled is True
+        assert config.llm_provider == "anthropic"
+        assert config.llm_api_key is None
+        assert "no API key provided" in caplog.text
+        assert "anthropic" in caplog.text
