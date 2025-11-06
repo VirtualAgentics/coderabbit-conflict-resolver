@@ -18,7 +18,7 @@ from typing import ClassVar
 import tiktoken
 from openai import APIConnectionError, APITimeoutError, OpenAI, OpenAIError, RateLimitError
 from tenacity import (
-    retry,
+    Retrying,
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
@@ -109,11 +109,6 @@ class OpenAIAPIProvider:
 
         logger.info(f"Initialized OpenAI provider: model={model}, timeout={timeout}s")
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((APITimeoutError, RateLimitError, APIConnectionError)),
-    )
     def generate(self, prompt: str, max_tokens: int = 2000) -> str:
         """Generate text completion from prompt with retry logic.
 
@@ -141,6 +136,29 @@ class OpenAIAPIProvider:
             - Does NOT retry on authentication errors or invalid requests
             - Tracks token usage for cost calculation
             - Uses JSON mode for structured output
+        """
+        retryer = Retrying(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=2, max=10),
+            retry=retry_if_exception_type((APITimeoutError, RateLimitError, APIConnectionError)),
+        )
+        return retryer(self._generate_once, prompt, max_tokens)
+
+    def _generate_once(self, prompt: str, max_tokens: int = 2000) -> str:
+        """Single generation attempt (called by retry logic).
+
+        Args:
+            prompt: Input prompt for generation
+            max_tokens: Maximum tokens to generate in response
+
+        Returns:
+            Generated text from the model (typically JSON string)
+
+        Raises:
+            APITimeoutError, RateLimitError, APIConnectionError: Transient errors (will be retried)
+            LLMAPIError: If generation fails
+            LLMAuthenticationError: For authentication errors
+            ValueError: If prompt is empty or max_tokens is invalid
         """
         if not prompt:
             raise ValueError("Prompt cannot be empty")
