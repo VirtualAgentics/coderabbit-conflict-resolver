@@ -448,6 +448,15 @@ class TestRuntimeConfigToDict:
         assert "max_workers" in data
         assert "log_level" in data
         assert "log_file" in data
+        # LLM fields
+        assert "llm_enabled" in data
+        assert "llm_provider" in data
+        assert "llm_model" in data
+        assert "llm_api_key" in data
+        assert "llm_fallback_to_regex" in data
+        assert "llm_cache_enabled" in data
+        assert "llm_max_tokens" in data
+        assert "llm_cost_budget" in data
 
     def test_to_dict_values(self) -> None:
         config = RuntimeConfig(
@@ -458,6 +467,14 @@ class TestRuntimeConfigToDict:
             max_workers=8,
             log_level="DEBUG",
             log_file="/tmp/test.log",
+            llm_enabled=True,
+            llm_provider="anthropic",
+            llm_model="claude-3-opus",
+            llm_api_key="test-key-12345",
+            llm_fallback_to_regex=False,
+            llm_cache_enabled=False,
+            llm_max_tokens=4000,
+            llm_cost_budget=50.0,
         )
         data = config.to_dict()
         assert data["mode"] == "dry-run"  # Enum converted to string
@@ -467,6 +484,15 @@ class TestRuntimeConfigToDict:
         assert data["max_workers"] == 8
         assert data["log_level"] == "DEBUG"
         assert data["log_file"] == "/tmp/test.log"
+        # LLM fields
+        assert data["llm_enabled"] is True
+        assert data["llm_provider"] == "anthropic"
+        assert data["llm_model"] == "claude-3-opus"
+        assert data["llm_api_key"] == "test-key-12345"
+        assert data["llm_fallback_to_regex"] is False
+        assert data["llm_cache_enabled"] is False
+        assert data["llm_max_tokens"] == 4000
+        assert data["llm_cost_budget"] == 50.0
 
     def test_to_dict_none_log_file(self) -> None:
         config = RuntimeConfig.from_defaults()
@@ -562,6 +588,27 @@ class TestRuntimeConfigLLMFields:
 
         assert config.llm_enabled is True
         assert config.llm_provider == "claude-cli"
+
+    @pytest.mark.parametrize(
+        "provider",
+        ["openai", "anthropic", "claude-cli", "codex-cli", "ollama"],
+    )
+    def test_all_valid_llm_providers(self, provider: str) -> None:
+        """Test that all valid LLM providers are accepted without error."""
+        config = RuntimeConfig(
+            mode=ApplicationMode.ALL,
+            enable_rollback=False,
+            validate_before_apply=True,
+            parallel_processing=False,
+            max_workers=4,
+            log_level="INFO",
+            log_file=None,
+            llm_enabled=True,
+            llm_provider=provider,
+        )
+
+        assert config.llm_enabled is True
+        assert config.llm_provider == provider
 
     def test_invalid_llm_provider_raises_error(self) -> None:
         """Test that invalid LLM provider raises ConfigError."""

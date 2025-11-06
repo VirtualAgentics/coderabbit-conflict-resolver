@@ -601,4 +601,12 @@ class RuntimeConfig:
             "max_workers": self.max_workers,
             "log_level": self.log_level,
             "log_file": self.log_file,
+            "llm_enabled": self.llm_enabled,
+            "llm_provider": self.llm_provider,
+            "llm_model": self.llm_model,
+            "llm_api_key": self.llm_api_key,
+            "llm_fallback_to_regex": self.llm_fallback_to_regex,
+            "llm_cache_enabled": self.llm_cache_enabled,
+            "llm_max_tokens": self.llm_max_tokens,
+            "llm_cost_budget": self.llm_cost_budget,
         }
