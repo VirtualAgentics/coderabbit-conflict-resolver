@@ -8,6 +8,7 @@ import os
 from dataclasses import dataclass
 
 from pr_conflict_resolver.config.runtime_config import ConfigError
+from pr_conflict_resolver.llm.constants import VALID_LLM_PROVIDERS
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,9 +55,10 @@ class LLMConfig:
         Raises:
             ValueError: If any field has an invalid value
         """
-        valid_providers = {"claude-cli", "openai", "anthropic", "codex-cli", "ollama"}
-        if self.provider not in valid_providers:
-            raise ValueError(f"provider must be one of {valid_providers}, got '{self.provider}'")
+        if self.provider not in VALID_LLM_PROVIDERS:
+            raise ValueError(
+                f"provider must be one of {VALID_LLM_PROVIDERS}, got '{self.provider}'"
+            )
 
         if self.max_tokens <= 0:
             raise ValueError(f"max_tokens must be positive, got {self.max_tokens}")

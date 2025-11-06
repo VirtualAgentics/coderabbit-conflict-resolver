@@ -116,10 +116,13 @@ class RuntimeConfig:
             raise ConfigError(f"mode must be ApplicationMode enum, got {type(self.mode).__name__}")
 
         # Validate LLM configuration
-        valid_providers = {"claude-cli", "openai", "anthropic", "codex-cli", "ollama"}
-        if self.llm_provider not in valid_providers:
+        # Import here to avoid circular import
+        # (runtime_config -> llm.constants -> llm.config -> runtime_config)
+        from pr_conflict_resolver.llm.constants import VALID_LLM_PROVIDERS
+
+        if self.llm_provider not in VALID_LLM_PROVIDERS:
             raise ConfigError(
-                f"llm_provider must be one of {valid_providers}, got '{self.llm_provider}'"
+                f"llm_provider must be one of {VALID_LLM_PROVIDERS}, got '{self.llm_provider}'"
             )
 
         if self.llm_max_tokens <= 0:
@@ -136,7 +139,7 @@ class RuntimeConfig:
         ):
             logger.warning(
                 f"LLM enabled with provider '{self.llm_provider}' but no API key provided. "
-                f"Set CR_LLM_API_KEY environment variable or --llm-api-key CLI flag."
+                f"Set CR_LLM_API_KEY environment variable."
             )
 
     @classmethod
