@@ -1,5 +1,6 @@
 """Unit tests for RuntimeConfig in pr_conflict_resolver.config.runtime_config."""
 
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -247,6 +248,42 @@ level = "WARNING"
             finally:
                 os.unlink(f.name)
 
+    def test_from_file_yaml_with_llm_config(self) -> None:
+        """Test loading YAML with LLM configuration section."""
+        yaml_content = """
+mode: all
+rollback:
+  enabled: true
+llm:
+  enabled: true
+  provider: anthropic
+  model: claude-3-opus
+  api_key: test-key-12345
+  fallback_to_regex: false
+  cache_enabled: true
+  max_tokens: 4000
+  cost_budget: 50.0
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(yaml_content)
+            f.flush()
+            try:
+                config = RuntimeConfig.from_file(Path(f.name))
+                # LLM fields
+                assert config.llm_enabled is True
+                assert config.llm_provider == "anthropic"
+                assert config.llm_model == "claude-3-opus"
+                assert config.llm_api_key == "test-key-12345"
+                assert config.llm_fallback_to_regex is False
+                assert config.llm_cache_enabled is True
+                assert config.llm_max_tokens == 4000
+                assert config.llm_cost_budget == 50.0
+                # Non-LLM fields from YAML
+                assert config.mode == ApplicationMode.ALL
+                assert config.enable_rollback is True
+            finally:
+                os.unlink(f.name)
+
     def test_from_file_yaml_partial_config(self) -> None:
         """Test YAML with only some fields (rest should be defaults)."""
         yaml_content = """
@@ -447,6 +484,15 @@ class TestRuntimeConfigToDict:
         assert "max_workers" in data
         assert "log_level" in data
         assert "log_file" in data
+        # LLM fields
+        assert "llm_enabled" in data
+        assert "llm_provider" in data
+        assert "llm_model" in data
+        assert "llm_api_key" in data
+        assert "llm_fallback_to_regex" in data
+        assert "llm_cache_enabled" in data
+        assert "llm_max_tokens" in data
+        assert "llm_cost_budget" in data
 
     def test_to_dict_values(self) -> None:
         config = RuntimeConfig(
@@ -457,6 +503,14 @@ class TestRuntimeConfigToDict:
             max_workers=8,
             log_level="DEBUG",
             log_file="/tmp/test.log",
+            llm_enabled=True,
+            llm_provider="anthropic",
+            llm_model="claude-3-opus",
+            llm_api_key="test-key-12345",
+            llm_fallback_to_regex=False,
+            llm_cache_enabled=False,
+            llm_max_tokens=4000,
+            llm_cost_budget=50.0,
         )
         data = config.to_dict()
         assert data["mode"] == "dry-run"  # Enum converted to string
@@ -466,6 +520,15 @@ class TestRuntimeConfigToDict:
         assert data["max_workers"] == 8
         assert data["log_level"] == "DEBUG"
         assert data["log_file"] == "/tmp/test.log"
+        # LLM fields
+        assert data["llm_enabled"] is True
+        assert data["llm_provider"] == "anthropic"
+        assert data["llm_model"] == "claude-3-opus"
+        assert data["llm_api_key"] == "test-key-12345"
+        assert data["llm_fallback_to_regex"] is False
+        assert data["llm_cache_enabled"] is False
+        assert data["llm_max_tokens"] == 4000
+        assert data["llm_cost_budget"] == 50.0
 
     def test_to_dict_none_log_file(self) -> None:
         config = RuntimeConfig.from_defaults()
@@ -527,3 +590,247 @@ class TestConfigError:
     def test_config_error_message(self) -> None:
         error = ConfigError("test message")
         assert str(error) == "test message"
+
+
+class TestRuntimeConfigLLMFields:
+    """Test RuntimeConfig LLM fields (Phase 0)."""
+
+    def test_llm_defaults(self) -> None:
+        """Test that LLM fields have safe defaults."""
+        config = RuntimeConfig.from_defaults()
+
+        assert config.llm_enabled is False
+        assert config.llm_provider == "claude-cli"
+        assert config.llm_model == "claude-sonnet-4-5"
+        assert config.llm_api_key is None
+        assert config.llm_fallback_to_regex is True
+        assert config.llm_cache_enabled is True
+        assert config.llm_max_tokens == 2000
+        assert config.llm_cost_budget is None
+
+    def test_llm_enabled_with_valid_provider(self) -> None:
+        """Test RuntimeConfig with LLM enabled."""
+        config = RuntimeConfig(
+            mode=ApplicationMode.ALL,
+            enable_rollback=False,
+            validate_before_apply=True,
+            parallel_processing=False,
+            max_workers=4,
+            log_level="INFO",
+            log_file=None,
+            llm_enabled=True,
+            llm_provider="claude-cli",
+        )
+
+        assert config.llm_enabled is True
+        assert config.llm_provider == "claude-cli"
+
+    @pytest.mark.parametrize(
+        "provider",
+        ["openai", "anthropic", "claude-cli", "codex-cli", "ollama"],
+    )
+    def test_all_valid_llm_providers(self, provider: str) -> None:
+        """Test that all valid LLM providers are accepted without error."""
+        # API-based providers require an API key when enabled
+        api_key = "test-key" if provider in {"openai", "anthropic"} else None
+
+        config = RuntimeConfig(
+            mode=ApplicationMode.ALL,
+            enable_rollback=False,
+            validate_before_apply=True,
+            parallel_processing=False,
+            max_workers=4,
+            log_level="INFO",
+            log_file=None,
+            llm_enabled=True,
+            llm_provider=provider,
+            llm_api_key=api_key,
+        )
+
+        assert config.llm_enabled is True
+        assert config.llm_provider == provider
+
+    def test_invalid_llm_provider_raises_error(self) -> None:
+        """Test that invalid LLM provider raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_provider must be one of"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=False,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_provider="invalid-provider",
+            )
+
+    def test_negative_llm_max_tokens_raises_error(self) -> None:
+        """Test that negative llm_max_tokens raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_max_tokens must be positive"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=False,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_max_tokens=-100,
+            )
+
+    def test_zero_llm_max_tokens_raises_error(self) -> None:
+        """Test that llm_max_tokens=0 raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_max_tokens must be positive"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=False,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_max_tokens=0,
+            )
+
+    def test_negative_llm_cost_budget_raises_error(self) -> None:
+        """Test that negative llm_cost_budget raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_cost_budget must be positive"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=False,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_cost_budget=-50.0,
+            )
+
+    def test_zero_llm_cost_budget_raises_error(self) -> None:
+        """Test that llm_cost_budget=0 raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_cost_budget must be positive"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=False,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_cost_budget=0.0,
+            )
+
+    def test_from_env_with_llm_settings(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test from_env() with LLM environment variables."""
+        monkeypatch.setenv("CR_LLM_ENABLED", "true")
+        monkeypatch.setenv("CR_LLM_PROVIDER", "openai")
+        monkeypatch.setenv("CR_LLM_MODEL", "gpt-4")
+        monkeypatch.setenv("CR_LLM_API_KEY", "sk-test-key")  # Required for openai
+        monkeypatch.setenv("CR_LLM_MAX_TOKENS", "4000")
+        monkeypatch.setenv("CR_LLM_COST_BUDGET", "25.50")
+
+        config = RuntimeConfig.from_env()
+
+        assert config.llm_enabled is True
+        assert config.llm_provider == "openai"
+        assert config.llm_model == "gpt-4"
+        assert config.llm_api_key == "sk-test-key"
+        assert config.llm_max_tokens == 4000
+        assert config.llm_cost_budget == 25.50
+
+    def test_from_env_invalid_llm_max_tokens_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that invalid CR_LLM_MAX_TOKENS raises ConfigError."""
+        monkeypatch.setenv("CR_LLM_MAX_TOKENS", "invalid")
+        with pytest.raises(ConfigError, match="Invalid CR_LLM_MAX_TOKENS"):
+            RuntimeConfig.from_env()
+
+    def test_from_env_invalid_llm_cost_budget_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that invalid CR_LLM_COST_BUDGET raises ConfigError."""
+        monkeypatch.setenv("CR_LLM_COST_BUDGET", "not-a-number")
+        with pytest.raises(ConfigError, match="Invalid CR_LLM_COST_BUDGET"):
+            RuntimeConfig.from_env()
+
+    def test_merge_with_cli_llm_overrides(self) -> None:
+        """Test merge_with_cli() with LLM overrides."""
+        config = RuntimeConfig.from_defaults()
+        merged = config.merge_with_cli(
+            llm_enabled=True,
+            llm_provider="anthropic",
+            llm_model="claude-3-opus",
+            llm_api_key="sk-ant-test",  # Required for anthropic
+        )
+
+        assert merged.llm_enabled is True
+        assert merged.llm_provider == "anthropic"
+        assert merged.llm_model == "claude-3-opus"
+
+    def test_llm_enabled_without_api_key_raises_error(self) -> None:
+        """Test that enabling LLM with API provider without key raises ConfigError."""
+        with pytest.raises(ConfigError, match="no API key provided"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=False,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_enabled=True,
+                llm_provider="openai",
+                llm_api_key=None,
+            )
+
+    def test_llm_enabled_with_claude_cli_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that enabling LLM with claude-cli without key does not warn."""
+        with caplog.at_level(logging.WARNING):
+            config = RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=False,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_enabled=True,
+                llm_provider="claude-cli",
+                llm_api_key=None,
+            )
+
+        assert config.llm_enabled is True
+        assert "no API key provided" not in caplog.text
+
+    def test_llm_enabled_from_env_without_api_key_raises_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that from_env() with LLM enabled and API provider without key raises ConfigError."""
+        # Clear any existing API key env vars
+        monkeypatch.delenv("CR_LLM_API_KEY", raising=False)
+
+        # Set up environment for LLM with anthropic provider
+        monkeypatch.setenv("CR_LLM_ENABLED", "true")
+        monkeypatch.setenv("CR_LLM_PROVIDER", "anthropic")
+
+        with pytest.raises(ConfigError, match="anthropic.*no API key provided"):
+            RuntimeConfig.from_env()
+
+    def test_from_llm_enabled_preset(self) -> None:
+        """Test from_llm_enabled() returns LLM-enabled configuration."""
+        config = RuntimeConfig.from_llm_enabled()
+
+        # LLM fields
+        assert config.llm_enabled is True
+        assert config.llm_provider == "claude-cli"
+        assert config.llm_model == "claude-sonnet-4-5"
+        assert config.llm_api_key is None
+        assert config.llm_fallback_to_regex is True
+        assert config.llm_cache_enabled is True
+        assert config.llm_max_tokens == 2000
+        assert config.llm_cost_budget is None
+
+        # Other fields should match balanced preset
+        assert config.mode == ApplicationMode.ALL
+        assert config.enable_rollback is True
+        assert config.validate_before_apply is True
+        assert config.parallel_processing is False
+        assert config.max_workers == 4
+        assert config.log_level == "INFO"

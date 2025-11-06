@@ -1,0 +1,46 @@
+[
+  {
+    "description": "High-confidence modification with clear rationale",
+    "file_path": "src/example.py",
+    "start_line": 10,
+    "end_line": 12,
+    "new_content": "def updated_function():\n    \"\"\"Updated function with better implementation.\"\"\"\n    return True",
+    "change_type": "modification",
+    "confidence": 0.95,
+    "rationale": "Replace deprecated API with new recommended approach",
+    "risk_level": "low"
+  },
+  {
+    "description": "Medium-confidence addition with moderate risk",
+    "file_path": "src/handlers/json_handler.py",
+    "start_line": 50,
+    "end_line": 50,
+    "new_content": "    # Add input validation\n    if not isinstance(data, dict):\n        raise ValueError(\"Expected dict input\")",
+    "change_type": "addition",
+    "confidence": 0.75,
+    "rationale": "Add missing input validation for security",
+    "risk_level": "medium"
+  },
+  {
+    "description": "Low-confidence deletion requiring review",
+    "file_path": "tests/test_deprecated.py",
+    "start_line": 100,
+    "end_line": 120,
+    "new_content": "",
+    "change_type": "deletion",
+    "confidence": 0.60,
+    "rationale": "Remove deprecated test cases for old API",
+    "risk_level": "high"
+  },
+  {
+    "description": "Code formatting change with high confidence",
+    "file_path": "src/config/presets.py",
+    "start_line": 25,
+    "end_line": 30,
+    "new_content": "PRESET: ClassVar[dict[str, Any]] = {\n    \"key\": \"value\",\n    \"nested\": {\"data\": 123},\n}",
+    "change_type": "modification",
+    "confidence": 0.98,
+    "rationale": "Reformat for PEP 8 compliance",
+    "risk_level": "low"
+  }
+]

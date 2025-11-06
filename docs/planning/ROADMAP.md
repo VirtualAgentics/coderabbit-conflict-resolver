@@ -68,20 +68,20 @@ Transform the CodeRabbit Conflict Resolver into a production-ready, professional
 
 **Reference**: See `docs/planning/archive/phase-0-complete.md` for full Phase 0 specifications.
 
-### 🚧 In Progress (v0.1.0 - Core Features) - 0%
+### 🚧 In Progress (v2.0 - LLM-First Architecture) - 0%
 
 **GitHub Issues**:
-- Issue #14: Phase 1 - Apply All Suggestions (NOT STARTED)
-- Issue #15: Phase 2 - CLI Enhancements (NOT STARTED)
-- Issue #16: Phase 3 - Documentation (NOT STARTED)
-- Issue #17: Phase 4 - Testing Infrastructure (NOT STARTED)
-- Issue #21: Phase 5 - CI/CD Enhancements (NOT STARTED)
-- Issue #22: Phase 6 - Handler Improvements (NOT STARTED)
-- Issue #23: Phase 7 - Examples & Tutorials (NOT STARTED)
-- Issue #24: Phase 8 - PyPI Publication (NOT STARTED)
-- Issue #18: Phase 44 - Repository Branding (NOT STARTED)
-- Issue #19: Phase 45 - Enhanced Documentation (NOT STARTED)
-- Issue #20: Phase 46 - Community Engagement (NOT STARTED)
+- Issue #114: Phase 0 - LLM Foundation (NOT STARTED)
+- Issue #115: Phase 1 - Basic LLM Parsing (NOT STARTED)
+- Issue #116: Phase 2 - Multi-Provider Support (NOT STARTED)
+- Issue #117: Phase 3 - CLI Integration Polish (NOT STARTED)
+- Issue #118: Phase 4 - Local Model Support (NOT STARTED)
+- Issue #119: Phase 5 - Optimization & Production Readiness (NOT STARTED)
+- Issue #120: Phase 6 - Documentation & Migration (NOT STARTED)
+- Issue #13: Security Configuration, Testing & Scanning (IN PROGRESS - integrated into v2.0)
+- Issue #21: CI/CD Enhancements with Security (IN PROGRESS - integrated into v2.0)
+
+**Note**: Issues #14-16 were closed (already complete). Issues #17, #22, #24 were closed as superseded by v2.0 LLM architecture. Issues #18-20, #23, #94, #112 moved to v2.1 milestone (post-launch enhancements).
 
 **What Currently Works**:
 - GitHub API integration
@@ -123,11 +123,44 @@ Transform the CodeRabbit Conflict Resolver into a production-ready, professional
 
 ---
 
-## Phase 1: Core Functionality - Apply All Suggestions ⭐ CRITICAL
+## Status of Original v0.1.0 Phases
+
+The original Phase 1-8 and Phase 44-46 have been reorganized as part of the v2.0 LLM-first architecture pivot:
+
+**Completed & Closed**:
+- Phase 1 (#14): Apply All Suggestions - ✅ Closed (already implemented)
+- Phase 2 (#15): CLI Enhancements - ✅ Closed (already implemented)
+- Phase 3 (#16): Documentation - ✅ Closed (already implemented)
+
+**Superseded by v2.0 LLM Architecture**:
+- Phase 4 (#17): Testing Infrastructure - ❌ Closed (superseded by #119 - Phase 5: Optimization & Production Readiness)
+- Phase 6 (#22): Handler Improvements - ❌ Closed (LLM handles all formats, no longer needed)
+- Phase 8 (#24): PyPI Publication - ❌ Closed (deferred to post-v2.0 release)
+
+**Integrated into v2.0 Milestone**:
+- Phase 0.5-0.8 (#13): Security Configuration, Testing & Scanning - 🔄 Moved to v2.0 milestone
+- Phase 5 (#21): CI/CD Enhancements with Security Integration - 🔄 Moved to v2.0 milestone
+
+**Moved to v2.1 Milestone (Post-Launch Enhancements)**:
+- Phase 44 (#18): Repository Branding & Metadata
+- Phase 45 (#19): Enhanced Documentation Files
+- Phase 46 (#20): Community Engagement Setup
+- Phase 7 (#23): Examples & Tutorials (will include LLM examples)
+- Additional: #94 (OpenSSF Scorecard improvements), #112 (Dry-run enhancements)
+
+See [LLM Refactor Roadmap](./LLM_REFACTOR_ROADMAP.md) for detailed v2.0 implementation plan and [LLM Architecture](./LLM_ARCHITECTURE.md) for technical specifications.
+
+---
+
+## Version 0.1.0 - Legacy Phase Details (Archived)
+
+The following sections are kept for historical reference but are no longer active in the current roadmap:
+
+### Phase 1: Core Functionality - Apply All Suggestions ⭐ CRITICAL (COMPLETED - #14 CLOSED)
 
 **Estimated**: 12-15 hours
 **Priority**: Must complete first
-**GitHub Issue**: #14
+**GitHub Issue**: #14 (CLOSED)
 **Goal**: Enable system to apply both conflicting (after resolution) AND non-conflicting suggestions
 
 ### 1.1 Add Change Application Infrastructure
@@ -284,11 +317,11 @@ def validate_change(self, path: str, content: str,
 
 ---
 
-## Phase 2: CLI Enhancements - Multiple Modes & Dry-Run ⭐ HIGH
+### Phase 2: CLI Enhancements - Multiple Modes & Dry-Run ⭐ HIGH (COMPLETED - #15 CLOSED)
 
 **Estimated**: 6-8 hours
 **Priority**: Critical for usability
-**GitHub Issue**: #15
+**GitHub Issue**: #15 (CLOSED)
 **Goal**: Professional CLI with multiple operational modes
 
 ### 2.1 Add Configuration System
@@ -384,11 +417,11 @@ CR_LOG_FILE=cr_resolver.log
 
 ---
 
-## Phase 3: Documentation ⭐ HIGH
+### Phase 3: Documentation ⭐ HIGH (COMPLETED - #16 CLOSED)
 
 **Estimated**: 8-10 hours
 **Priority**: Critical for adoption
-**GitHub Issue**: #16
+**GitHub Issue**: #16 (CLOSED)
 **Goal**: Comprehensive, professional documentation
 
 ### 3.1 Getting Started Guide
@@ -440,12 +473,13 @@ CR_LOG_FILE=cr_resolver.log
 
 ---
 
-## Phase 4: Testing Infrastructure ⭐ HIGH
+### Phase 4: Testing Infrastructure ⭐ HIGH (SUPERSEDED - #17 CLOSED)
 
 **Estimated**: 6-8 hours
 **Priority**: Critical for reliability
-**GitHub Issue**: #17
+**GitHub Issue**: #17 (CLOSED - superseded by #119)
 **Goal**: Comprehensive test coverage for all modes
+**Status**: Superseded by Phase 5 (#119) in v2.0 LLM roadmap
 
 ### 4.1 Create Test Fixtures
 
@@ -498,12 +532,13 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
-## Phase 5: CI/CD Enhancements with Security Integration
+### Phase 5: CI/CD Enhancements with Security Integration (MOVED TO v2.0 - #21)
 
 **Estimated**: 6-8 hours
 **Priority**: High
-**GitHub Issue**: #21
+**GitHub Issue**: #21 (moved to v2.0 milestone)
 **Goal**: Production-ready CI/CD pipeline with security gates
+**Status**: Integrated into v2.0 development workflow
 
 ### 5.1 Enhanced Security Scanning
 
@@ -565,12 +600,13 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
-## Phase 6: Handler Improvements
+### Phase 6: Handler Improvements (DEPRIORITIZED - #22 CLOSED)
 
 **Estimated**: 8-10 hours
 **Priority**: Medium
-**GitHub Issue**: #22
+**GitHub Issue**: #22 (CLOSED - deprioritized)
 **Goal**: Robust file-type handling
+**Status**: Deprioritized - LLM-first architecture handles all formats without format-specific handler improvements
 
 ### 6.1 Enhance JSON Handler
 
@@ -599,12 +635,13 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
-## Phase 7: Examples & Guides
+### Phase 7: Examples & Guides (MOVED TO v2.1 - #23)
 
 **Estimated**: 6-8 hours
 **Priority**: Medium
-**GitHub Issue**: #23
+**GitHub Issue**: #23 (moved to v2.1 milestone)
 **Goal**: Help users understand and use the system
+**Status**: Moved to post-v2.0 launch to include LLM examples
 
 ### 7.1 Create Example Scripts
 
@@ -634,12 +671,13 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
-## Phase 8: PyPI Publication Preparation
+### Phase 8: PyPI Publication Preparation (DEFERRED - #24 CLOSED)
 
 **Estimated**: 4-6 hours
 **Priority**: Medium
-**GitHub Issue**: #24
+**GitHub Issue**: #24 (CLOSED - deferred to post-v2.0)
 **Goal**: Ready for public distribution
+**Status**: Deferred to post-v2.0 release (better to publish with 95%+ coverage)
 
 ### 8.1 Validate Package
 
@@ -668,12 +706,13 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
-## Phase 44: Repository Metadata & Branding ⭐ HIGH PRIORITY
+### Phase 44: Repository Metadata & Branding ⭐ HIGH PRIORITY (MOVED TO v2.1 - #18)
 
 **Estimated**: 3-4 hours
 **Priority**: High
-**GitHub Issue**: #18
+**GitHub Issue**: #18 (moved to v2.1 milestone)
 **Goal**: Make repository visually appealing and discoverable
+**Status**: Moved to post-v2.0 launch (more impactful with 95%+ coverage showcase)
 
 ### Tasks
 
@@ -715,12 +754,13 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
-## Phase 45: Enhanced Documentation ⭐ HIGH PRIORITY
+### Phase 45: Enhanced Documentation ⭐ HIGH PRIORITY (MOVED TO v2.1 - #19)
 
 **Estimated**: 4-5 hours
 **Priority**: High
-**GitHub Issue**: #19
+**GitHub Issue**: #19 (moved to v2.1 milestone)
 **Goal**: Professional, comprehensive documentation
+**Status**: Core docs in #120 (Phase 6), additional enhancements post-v2.0
 
 ### Files to Create
 
@@ -760,12 +800,13 @@ def test_dry_run_mode_applies_nothing():
 
 ---
 
-## Phase 46: Community Engagement ⭐ HIGH PRIORITY
+### Phase 46: Community Engagement ⭐ HIGH PRIORITY (MOVED TO v2.1 - #20)
 
 **Estimated**: 2-3 hours
 **Priority**: High
-**GitHub Issue**: #20
+**GitHub Issue**: #20 (moved to v2.1 milestone)
 **Goal**: Foster community participation
+**Status**: More effective post-v2.0 launch with LLM showcase
 
 ### Files to Create
 
@@ -795,6 +836,267 @@ def test_dry_run_mode_applies_nothing():
 - [ ] Funding configuration
 - [ ] Discussion guidelines
 - [ ] GitHub Discussions enabled
+
+---
+
+## LLM-First Architecture Refactor (v2.0.0) 🆕 MAJOR UPDATE
+
+**Estimated**: 188-238 hours (with 25% buffer)
+**Priority**: Critical for format coverage
+**Timeline**: 10-12 weeks
+**Related Documents**:
+- [LLM Refactor Roadmap](./LLM_REFACTOR_ROADMAP.md) (Detailed 15K word specification)
+- [LLM Architecture](./LLM_ARCHITECTURE.md) (8K word technical specification)
+- [Migration Guide](./MIGRATION_GUIDE.md) (v1.x → v2.0 migration path)
+
+**GitHub Issues**: #25-#31
+**Milestone**: v2.0 - LLM-First Architecture
+
+### Why This Refactor?
+
+**Current Problem**: The system only parses **20%** of CodeRabbit comment formats (```suggestion blocks only).
+
+**Evidence**: PR #8 dry-run test showed **1/5 comments** parsed successfully:
+- 3 comments (60%) with diff blocks only → ❌ Not parsed
+- 1 comment (20%) with both diff + suggestion → ⚠️ Partially parsed
+- 1 comment (20%) with natural language → ❌ Not parsed
+
+**Solution**: LLM-first architecture that understands all CodeRabbit formats:
+- ✅ Diff blocks (```diff)
+- ✅ Suggestion blocks (```suggestion)
+- ✅ Natural language prompts
+- ✅ Multi-option suggestions
+- ✅ Multiple diff blocks per comment
+
+**Expected Improvement**: **20% → 95%+** parsing coverage
+
+### Architecture Overview
+
+```
+LLM Parser (Primary)          Regex Parser (Fallback)
+     ↓                                ↓
+Multi-Provider Support:           Legacy Support:
+- OpenAI API (gpt-5-mini)        - ```suggestion blocks
+- Anthropic API (claude-sonnet)  - 100% reliable
+- Claude CLI (subscription)      - Zero cost
+- Codex CLI (subscription)
+- Ollama (local, privacy-first)
+     ↓                                ↓
+         Unified Change Models
+               ↓
+      (Rest of system unchanged)
+```
+
+### LLM Refactor Phases
+
+#### Phase 0: Foundation (20-25 hours) - Issue #25
+
+**Goal**: Prepare data models and infrastructure for LLM integration
+
+**Key Tasks**:
+- Extend `Change` model with LLM metadata fields (confidence, provider, rationale, risk_level)
+- Create `LLMConfig` configuration model
+- Add LLM preset configurations
+- Update CLI with feature flag support (`--llm`, `--llm-provider`)
+- Create test fixtures for LLM validation
+
+**Deliverables**:
+- [ ] Updated `core/models.py` with backward-compatible fields
+- [ ] New `config/llm_config.py` with LLMConfig class
+- [ ] CLI flags for LLM control
+- [ ] Test fixtures for validation
+- [ ] Documentation updates
+
+#### Phase 1: Basic LLM Parsing (35-45 hours) - Issue #26
+
+**Goal**: Implement LLM-based parsing with single provider (OpenAI API)
+
+**Key Tasks**:
+- Create `llm/` module structure
+- Implement abstract `LLMParser` interface
+- Build OpenAI API provider implementation
+- Create prompt templates with few-shot examples
+- Implement structured output parsing (Pydantic)
+- Add fallback mechanism (LLM → regex)
+- Integration with `ConflictResolver`
+
+**Deliverables**:
+- [ ] `llm/base.py` - Abstract parser interface
+- [ ] `llm/providers/openai_api.py` - OpenAI implementation
+- [ ] `llm/prompts/base_prompt.py` - Prompt engineering
+- [ ] `llm/parsers/structured_output.py` - Output validation
+- [ ] Integration tests with real OpenAI API
+- [ ] Fallback tests (LLM failure → regex)
+
+#### Phase 2: Multi-Provider Support (25-30 hours) - Issue #27
+
+**Goal**: Add support for all provider types (CLI, API, local)
+
+**Key Tasks**:
+- Implement Anthropic API provider
+- Implement Claude Code CLI provider
+- Implement Codex CLI provider
+- Implement Ollama local provider
+- Create `LLMParserFactory` for provider selection
+- Add provider validation and health checks
+- Implement prompt caching (50-90% cost reduction)
+
+**Deliverables**:
+- [ ] 5 provider implementations (OpenAI, Anthropic, Claude CLI, Codex CLI, Ollama)
+- [ ] `llm/factory.py` - Provider factory
+- [ ] `llm/cache/prompt_cache.py` - Caching system
+- [ ] Provider comparison tests
+- [ ] Cost tracking and budget limits
+
+#### Phase 3: CLI Integration Polish (15-20 hours) - Issue #28
+
+**Goal**: Professional CLI experience for LLM features
+
+**Key Tasks**:
+- Add `--llm-preset` flag for quick configuration
+- Implement configuration precedence chain (CLI > env > file > defaults)
+- Add cost tracking output
+- Enhanced error messages for provider issues
+- Provider authentication guides
+- Configuration validation
+
+**Deliverables**:
+- [ ] CLI preset support (5 presets)
+- [ ] Configuration loading from YAML/TOML
+- [ ] `.env.example` with LLM variables
+- [ ] User-friendly error messages
+- [ ] Provider setup documentation
+
+#### Phase 4: Local Model Support (15-20 hours) - Issue #29
+
+**Goal**: Privacy-first offline inference with Ollama
+
+**Key Tasks**:
+- Optimize Ollama integration
+- Add model download automation
+- GPU acceleration support
+- Benchmark local vs. API performance
+- Privacy-focused documentation
+- Offline operation validation
+
+**Deliverables**:
+- [ ] Ollama auto-setup script
+- [ ] GPU detection and configuration
+- [ ] Performance benchmarks (local vs. API)
+- [ ] Privacy guide (100% local operation)
+- [ ] Offline integration tests
+
+#### Phase 5: Optimization & Production Readiness (25-30 hours) - Issue #30
+
+**Goal**: Production-ready system with cost optimization and monitoring
+
+**Key Tasks**:
+- Parallel comment parsing (4x faster for large PRs)
+- Advanced prompt caching strategies
+- Retry logic with exponential backoff
+- Circuit breaker for provider failures
+- Comprehensive metrics and monitoring
+- Cost optimization analysis
+- Security audit for LLM integration
+
+**Deliverables**:
+- [ ] Parallel processing implementation
+- [ ] Advanced caching (50-90% cost reduction)
+- [ ] Retry and circuit breaker logic
+- [ ] Metrics dashboard (success rate, latency, cost)
+- [ ] Security review (API key handling, data sanitization)
+- [ ] Performance tuning guide
+
+#### Phase 6: Documentation & Migration (15-20 hours) - Issue #31
+
+**Goal**: Complete documentation for v2.0 launch
+
+**Key Tasks**:
+- Migration guide (v1.x → v2.0)
+- Provider selection guide
+- Cost analysis by provider
+- Troubleshooting guide
+- API reference updates
+- Tutorial videos (optional)
+
+**Deliverables**:
+- [ ] `MIGRATION_GUIDE.md` (v1.x → v2.0)
+- [ ] `LLM_ARCHITECTURE.md` (technical specification)
+- [ ] `LLM_REFACTOR_ROADMAP.md` (implementation plan)
+- [ ] Updated README with LLM features
+- [ ] Provider comparison matrix
+- [ ] Cost optimization guide
+
+### Backward Compatibility Guarantee
+
+**Zero Breaking Changes**: All v1.x code works unchanged in v2.0.
+
+- ✅ LLM parsing **disabled by default** (opt-in via `--llm` flag)
+- ✅ All new data model fields have **default values**
+- ✅ Automatic **fallback to regex** if LLM fails
+- ✅ v1.x CLI commands **work identically**
+- ✅ v1.x Python API **unchanged**
+
+**Migration Path**:
+1. Upgrade to v2.0 (no code changes needed)
+2. Test with `--llm` flag on a single PR
+3. Enable globally via configuration when ready
+4. Optional: Switch to different provider based on needs
+
+### Provider Comparison
+
+| Provider | Cost Model | Best For | Est. Cost (1000 comments) |
+|----------|-----------|----------|---------------------------|
+| **Claude CLI** | Subscription ($20/mo) | Best quality + zero marginal cost | $0 (covered) |
+| **Codex CLI** | Subscription ($20/mo) | Cost-effective, OpenAI quality | $0 (covered) |
+| **Ollama** | Free (local) | Privacy, offline, no API costs | $0 |
+| **OpenAI API** | Pay-per-token | Pay-as-you-go, low volume | $0.07 (with caching) |
+| **Anthropic API** | Pay-per-token | Best quality, willing to pay | $0.22 (with caching) |
+
+### Success Metrics (v2.0)
+
+| Metric | v1.x Baseline | v2.0 Target |
+|--------|--------------|-------------|
+| **Parsing Coverage** | 20% (1/5 comments) | 95%+ (5/5 comments) |
+| **Supported Formats** | 1 (```suggestion) | 4+ (diff, suggestion, natural language, multi-option) |
+| **Providers** | 0 (regex-only) | 5 (OpenAI, Anthropic, Claude CLI, Codex CLI, Ollama) |
+| **Error Rate** | <1% | <1% (with fallback) |
+| **Breaking Changes** | N/A | 0 (100% backward compatible) |
+| **Cost (1000 comments)** | $0 | $0-$0.22 (provider-dependent) |
+
+### Timeline & Milestones
+
+```
+Week 1-2:   Phase 0 (Foundation)
+Week 3-4:   Phase 1 (Basic LLM Parsing)
+Week 5-6:   Phase 2 (Multi-Provider Support)
+Week 7:     Phase 3 (CLI Polish)
+Week 8:     Phase 4 (Local Models)
+Week 9-10:  Phase 5 (Optimization)
+Week 11:    Phase 6 (Documentation)
+Week 12:    Testing, bugfixes, v2.0 release
+```
+
+**Milestone**: v2.0.0 - LLM-First Architecture
+**Estimated Release**: 12 weeks from start
+**Breaking Changes**: None (100% backward compatible)
+
+### Risks & Mitigation
+
+| Risk | Impact | Likelihood | Mitigation |
+|------|--------|-----------|------------|
+| **LLM API costs exceed budget** | High | Medium | Caching (50-90% reduction), budget limits, free provider options |
+| **LLM parsing accuracy <95%** | High | Low | Fallback to regex, prompt engineering, model fine-tuning |
+| **Provider API changes** | Medium | Low | Version pinning, comprehensive tests, multiple provider options |
+| **Performance regression** | Medium | Low | Parallel processing (4x faster), caching, benchmarking |
+| **Security concerns (API keys)** | High | Low | Environment variables, key redaction, secure storage |
+
+### Post-v2.0 Optimization (v2.1)
+
+- Fine-tuned models for CodeRabbit comments (higher accuracy, lower cost)
+- Advanced prompt optimization (reduced token usage)
+- Multi-provider fallback chains (primary → secondary → tertiary)
+- LLM-based conflict resolution (Phase 7: AI-Assisted Resolution)
 
 ---
 
@@ -1035,17 +1337,20 @@ def test_dry_run_mode_applies_nothing():
 ### Immediate Actions
 
 1. ✅ Phase 0 - Security foundation (COMPLETE)
-2. Create GitHub milestones for remaining versions
-3. Update GitHub Projects board with current status
-4. Begin Phase 1 implementation (Issue #14)
+2. ✅ Create GitHub milestones for v2.0 and v2.1 (COMPLETE)
+3. ✅ Reorganize issues to align with v2.0 roadmap (COMPLETE)
+4. Begin Phase 0 implementation (Issue #114 - LLM Foundation)
 
 ### Development Priority
 
-1. **Phase 1**: Core functionality (apply all suggestions)
-2. **Phase 2**: CLI enhancements (modes)
-3. **Phase 3**: Documentation updates
-4. **Phase 4**: Testing infrastructure
-5. **Parallel work**: Phase 44-46 (branding and community)
+1. **Phase 0 (#114)**: LLM Foundation (data models, config)
+2. **Phase 1 (#115)**: Basic LLM Parsing (OpenAI API)
+3. **Phase 2 (#116)**: Multi-Provider Support (5 providers)
+4. **Phase 3 (#117)**: CLI Integration Polish
+5. **Phase 4 (#118)**: Local Model Support (Ollama)
+6. **Phase 5 (#119)**: Optimization & Production Readiness
+7. **Phase 6 (#120)**: Documentation & Migration
+8. **Parallel work**: #13 (Security), #21 (CI/CD)
 
 ### Launch Preparation
 

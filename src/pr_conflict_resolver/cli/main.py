@@ -332,10 +332,27 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
     help="Maximum number of worker threads for parallel processing (default: 4)",
 )
 @click.option(
+    "--llm/--no-llm",
+    default=None,
+    help="Enable/disable LLM-based parsing (default: disabled for backward compatibility)",
+)
+@click.option(
+    "--llm-provider",
+    type=click.Choice(
+        ["claude-cli", "openai", "anthropic", "codex-cli", "ollama"], case_sensitive=False
+    ),
+    help="LLM provider to use (default: claude-cli)",
+)
+@click.option(
+    "--llm-model",
+    type=str,
+    help="LLM model identifier (e.g., claude-sonnet-4-5, gpt-4)",
+)
+@click.option(
     "--config",
     type=str,
     help=(
-        "Configuration preset name (conservative/balanced/aggressive/semantic) "
+        "Configuration preset name (conservative/balanced/aggressive/semantic/llm-enabled) "
         "or path to configuration file (YAML/TOML)"
     ),
 )
@@ -360,6 +377,9 @@ def apply(
     validation: bool | None,
     parallel: bool,
     max_workers: int | None,
+    llm: bool | None,
+    llm_provider: str | None,
+    llm_model: str | None,
     config: str | None,
     log_level: str | None,
     log_file: str | None,
@@ -384,6 +404,9 @@ def apply(
             None uses config/env/defaults.
         parallel: Enable parallel processing of changes.
         max_workers: Maximum number of worker threads (default: 4).
+        llm: Enable (True) or disable (False) LLM-based parsing. None uses config/env/defaults.
+        llm_provider: LLM provider to use (claude-cli, openai, anthropic, codex-cli, ollama).
+        llm_model: LLM model identifier (e.g., claude-sonnet-4-5, gpt-4).
         config: Path to configuration file (YAML or TOML).
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Path to log file for output.
@@ -415,7 +438,18 @@ def apply(
             if config.lower() in PRESET_NAMES:
                 # Load preset configuration
                 preset_name = config.lower()
-                preset_method = getattr(RuntimeConfig, f"from_{preset_name}")
+                # Replace hyphens with underscores for method name
+                method_suffix = preset_name.replace("-", "_")
+                method_name = f"from_{method_suffix}"
+
+                # Check if the preset method exists before calling
+                if not hasattr(RuntimeConfig, method_name):
+                    raise ValueError(
+                        f"Preset method '{method_name}' not found. "
+                        f"Valid presets: {', '.join(PRESET_NAMES)}"
+                    )
+
+                preset_method = getattr(RuntimeConfig, method_name)
                 runtime_config = preset_method()
                 console.print(f"[dim]Loaded preset configuration: {config}[/dim]")
             else:
@@ -441,6 +475,14 @@ def apply(
             "max_workers": "CR_MAX_WORKERS",
             "log_level": "CR_LOG_LEVEL",
             "log_file": "CR_LOG_FILE",
+            "llm_enabled": "CR_LLM_ENABLED",
+            "llm_provider": "CR_LLM_PROVIDER",
+            "llm_model": "CR_LLM_MODEL",
+            "llm_api_key": "CR_LLM_API_KEY",
+            "llm_fallback_to_regex": "CR_LLM_FALLBACK_TO_REGEX",
+            "llm_cache_enabled": "CR_LLM_CACHE_ENABLED",
+            "llm_max_tokens": "CR_LLM_MAX_TOKENS",
+            "llm_cost_budget": "CR_LLM_COST_BUDGET",
         }
         env_overrides = {
             field_name: getattr(env_config, field_name)
@@ -474,6 +516,9 @@ def apply(
             "max_workers": max_workers,
             "log_level": log_level.upper() if log_level else None,
             "log_file": str(log_file) if log_file else None,
+            "llm_enabled": llm,  # None, True, or False
+            "llm_provider": llm_provider,
+            "llm_model": llm_model,
         }
         runtime_config = runtime_config.merge_with_cli(**cli_overrides)
 

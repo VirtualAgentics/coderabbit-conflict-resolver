@@ -48,3 +48,24 @@ class PresetConfig:
         "focus_on_structured_files": True,
         "structure_aware_merging": True,
     }
+
+    LLM_ENABLED: ClassVar[dict[str, Any]] = {
+        "mode": "balanced",
+        "skip_all_conflicts": False,
+        "manual_review_required": False,
+        "semantic_merging": True,
+        "priority_system": True,
+        "priority_rules": {
+            "user_selections": 100,
+            "security_fixes": 90,
+            "syntax_errors": 80,
+            "regular_suggestions": 50,
+            "formatting": 10,
+        },
+        "llm_enabled": True,
+        "llm_provider": "claude-cli",
+        "llm_model": "claude-sonnet-4-5",
+        "llm_fallback_to_regex": True,
+        "llm_cache_enabled": True,
+        "llm_max_tokens": 2000,
+    }

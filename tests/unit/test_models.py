@@ -124,3 +124,97 @@ def test_resolution_and_result_dataclasses() -> None:
     assert result.success_rate == 100.0
     assert result.resolutions[0].success is True
     assert result.resolutions[0].strategy == "priority"
+
+
+def test_change_with_llm_fields() -> None:
+    """Test Change dataclass with new LLM fields (Phase 0)."""
+    # Test with all LLM fields populated
+    change_llm = Change(
+        path="src/example.py",
+        start_line=10,
+        end_line=12,
+        content="def new_function():\n    pass",
+        metadata={"author": "coderabbit", "llm_confidence": 0.95, "parsing_method": "llm"},
+        fingerprint="llm_fp1",
+        file_type=FileType.PYTHON,
+        llm_confidence=0.95,
+        llm_provider="claude-cli",
+        parsing_method="llm",
+        change_rationale="Modernize API usage",
+        risk_level="low",
+    )
+
+    assert change_llm.llm_confidence == 0.95
+    assert change_llm.llm_provider == "claude-cli"
+    assert change_llm.parsing_method == "llm"
+    assert change_llm.change_rationale == "Modernize API usage"
+    assert change_llm.risk_level == "low"
+
+
+def test_change_backward_compatibility_with_defaults() -> None:
+    """Test that Change works without LLM fields (backward compatibility)."""
+    # Old code that doesn't know about LLM fields should still work
+    change_old = Change(
+        path="src/old.py",
+        start_line=1,
+        end_line=3,
+        content="# Old code",
+        metadata={"author": "human"},
+        fingerprint="old_fp",
+        file_type=FileType.PYTHON,
+    )
+
+    # LLM fields should have safe defaults
+    assert change_old.llm_confidence is None
+    assert change_old.llm_provider is None
+    assert change_old.parsing_method == "regex"  # default
+    assert change_old.change_rationale is None
+    assert change_old.risk_level is None
+
+
+def test_change_with_partial_llm_fields() -> None:
+    """Test Change with only some LLM fields specified."""
+    change_partial = Change(
+        path="src/partial.py",
+        start_line=5,
+        end_line=10,
+        content="# Partial LLM data",
+        metadata={"author": "bot"},
+        fingerprint="partial_fp",
+        file_type=FileType.PYTHON,
+        llm_confidence=0.80,
+        parsing_method="llm",
+        # llm_provider, change_rationale, risk_level not specified
+    )
+
+    assert change_partial.llm_confidence == 0.80
+    assert change_partial.parsing_method == "llm"
+    assert change_partial.llm_provider is None
+    assert change_partial.change_rationale is None
+    assert change_partial.risk_level is None
+
+
+def test_change_metadata_with_llm_fields() -> None:
+    """Test ChangeMetadata TypedDict with new LLM fields."""
+    from pr_conflict_resolver.core.models import ChangeMetadata
+
+    # Type-checked metadata with LLM fields
+    metadata: ChangeMetadata = {
+        "author": "coderabbit",
+        "url": "https://github.com/org/repo/pull/123",
+        "llm_confidence": 0.92,
+        "parsing_method": "llm",
+    }
+
+    change = Change(
+        path="src/typed.py",
+        start_line=1,
+        end_line=1,
+        content="# Typed",
+        metadata=metadata,
+        fingerprint="typed_fp",
+        file_type=FileType.PYTHON,
+    )
+
+    assert change.metadata.get("llm_confidence") == 0.92
+    assert change.metadata.get("parsing_method") == "llm"
