@@ -1,5 +1,6 @@
 """Unit tests for RuntimeConfig in pr_conflict_resolver.config.runtime_config."""
 
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -618,6 +619,20 @@ class TestRuntimeConfigLLMFields:
                 llm_cost_budget=-50.0,
             )
 
+    def test_zero_llm_cost_budget_raises_error(self) -> None:
+        """Test that llm_cost_budget=0 raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_cost_budget must be positive"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=False,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_cost_budget=0.0,
+            )
+
     def test_from_env_with_llm_settings(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test from_env() with LLM environment variables."""
         monkeypatch.setenv("CR_LLM_ENABLED", "true")
@@ -634,6 +649,18 @@ class TestRuntimeConfigLLMFields:
         assert config.llm_max_tokens == 4000
         assert config.llm_cost_budget == 25.50
 
+    def test_from_env_invalid_llm_max_tokens_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that invalid CR_LLM_MAX_TOKENS raises ConfigError."""
+        monkeypatch.setenv("CR_LLM_MAX_TOKENS", "invalid")
+        with pytest.raises(ConfigError, match="Invalid CR_LLM_MAX_TOKENS"):
+            RuntimeConfig.from_env()
+
+    def test_from_env_invalid_llm_cost_budget_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that invalid CR_LLM_COST_BUDGET raises ConfigError."""
+        monkeypatch.setenv("CR_LLM_COST_BUDGET", "not-a-number")
+        with pytest.raises(ConfigError, match="Invalid CR_LLM_COST_BUDGET"):
+            RuntimeConfig.from_env()
+
     def test_merge_with_cli_llm_overrides(self) -> None:
         """Test merge_with_cli() with LLM overrides."""
         config = RuntimeConfig.from_defaults()
@@ -647,8 +674,6 @@ class TestRuntimeConfigLLMFields:
 
     def test_llm_enabled_without_api_key_warns(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test that enabling LLM with API provider without key logs warning."""
-        import logging
-
         with caplog.at_level(logging.WARNING):
             config = RuntimeConfig(
                 mode=ApplicationMode.ALL,
@@ -668,8 +693,6 @@ class TestRuntimeConfigLLMFields:
 
     def test_llm_enabled_with_claude_cli_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test that enabling LLM with claude-cli without key does not warn."""
-        import logging
-
         with caplog.at_level(logging.WARNING):
             config = RuntimeConfig(
                 mode=ApplicationMode.ALL,
@@ -691,8 +714,6 @@ class TestRuntimeConfigLLMFields:
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test that from_env() with LLM enabled and API provider without key logs warning."""
-        import logging
-
         # Clear any existing API key env vars
         monkeypatch.delenv("CR_LLM_API_KEY", raising=False)
 
