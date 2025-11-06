@@ -387,7 +387,7 @@ Current system only parses **```suggestion** blocks, missing:
 
 ### The Solution: LLM-First Parsing
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │           LLM Parser (Primary - All Formats)            │
 │  • Diff blocks        • Suggestion blocks              │

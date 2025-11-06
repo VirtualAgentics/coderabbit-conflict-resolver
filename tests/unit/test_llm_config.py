@@ -161,15 +161,16 @@ class TestLLMConfigFromEnv:
 
         assert config.max_tokens == 4000
 
-    def test_from_env_with_invalid_max_tokens_uses_default(
+    def test_from_env_with_invalid_max_tokens_raises_error(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Test from_env() with invalid CR_LLM_MAX_TOKENS uses default."""
+        """Test from_env() with invalid CR_LLM_MAX_TOKENS raises ConfigError."""
+        from pr_conflict_resolver.config.runtime_config import ConfigError
+
         monkeypatch.setenv("CR_LLM_MAX_TOKENS", "invalid")
 
-        config = LLMConfig.from_env()
-
-        assert config.max_tokens == 2000  # default
+        with pytest.raises(ConfigError, match="CR_LLM_MAX_TOKENS must be a valid integer"):
+            LLMConfig.from_env()
 
     def test_from_env_with_cost_budget(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test from_env() with CR_LLM_COST_BUDGET=50.0."""
@@ -179,15 +180,16 @@ class TestLLMConfigFromEnv:
 
         assert config.cost_budget == 50.0
 
-    def test_from_env_with_invalid_cost_budget_uses_none(
+    def test_from_env_with_invalid_cost_budget_raises_error(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Test from_env() with invalid CR_LLM_COST_BUDGET uses None."""
+        """Test from_env() with invalid CR_LLM_COST_BUDGET raises ConfigError."""
+        from pr_conflict_resolver.config.runtime_config import ConfigError
+
         monkeypatch.setenv("CR_LLM_COST_BUDGET", "invalid")
 
-        config = LLMConfig.from_env()
-
-        assert config.cost_budget is None
+        with pytest.raises(ConfigError, match="CR_LLM_COST_BUDGET must be a valid float"):
+            LLMConfig.from_env()
 
     def test_from_env_with_all_settings(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test from_env() with all environment variables set."""

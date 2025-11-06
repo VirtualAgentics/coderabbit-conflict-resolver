@@ -82,7 +82,10 @@ class ChangeMetadata(TypedDict, total=False):
     source: str
     option_label: str
     llm_confidence: float
+    llm_provider: str
     parsing_method: str
+    change_rationale: str
+    risk_level: str
 
 
 # Type aliases for clarity and strict typing

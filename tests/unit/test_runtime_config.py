@@ -630,3 +630,45 @@ class TestRuntimeConfigLLMFields:
         assert merged.llm_enabled is True
         assert merged.llm_provider == "anthropic"
         assert merged.llm_model == "claude-3-opus"
+
+    def test_llm_enabled_without_api_key_warns(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that enabling LLM with API provider without key logs warning."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            config = RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=False,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_enabled=True,
+                llm_provider="openai",
+                llm_api_key=None,
+            )
+
+        assert config.llm_enabled is True
+        assert "no API key provided" in caplog.text
+
+    def test_llm_enabled_with_claude_cli_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that enabling LLM with claude-cli without key does not warn."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            config = RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=False,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_enabled=True,
+                llm_provider="claude-cli",
+                llm_api_key=None,
+            )
+
+        assert config.llm_enabled is True
+        assert "no API key provided" not in caplog.text

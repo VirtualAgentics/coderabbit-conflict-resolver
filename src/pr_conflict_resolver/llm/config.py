@@ -7,6 +7,8 @@ Phase 0: Foundation only - configuration structure without implementation.
 import os
 from dataclasses import dataclass
 
+from pr_conflict_resolver.config.runtime_config import ConfigError
+
 
 @dataclass(frozen=True, slots=True)
 class LLMConfig:
@@ -115,16 +117,20 @@ class LLMConfig:
         max_tokens_str = os.getenv("CR_LLM_MAX_TOKENS", "2000")
         try:
             max_tokens = int(max_tokens_str)
-        except ValueError:
-            max_tokens = 2000
+        except ValueError as e:
+            raise ConfigError(
+                f"CR_LLM_MAX_TOKENS must be a valid integer, got '{max_tokens_str}'"
+            ) from e
 
         cost_budget_str = os.getenv("CR_LLM_COST_BUDGET")
         cost_budget = None
         if cost_budget_str:
             try:
                 cost_budget = float(cost_budget_str)
-            except ValueError:
-                cost_budget = None
+            except ValueError as e:
+                raise ConfigError(
+                    f"CR_LLM_COST_BUDGET must be a valid float, got '{cost_budget_str}'"
+                ) from e
 
         return cls(
             enabled=enabled,
