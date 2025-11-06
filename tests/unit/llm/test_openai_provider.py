@@ -17,7 +17,12 @@ import pytest
 # Skip all tests if openai package is not installed
 pytest.importorskip("openai")
 
-from openai import APIConnectionError, APITimeoutError, OpenAIError, RateLimitError
+from openai import (
+    APIConnectionError,
+    APITimeoutError,
+    AuthenticationError,
+    RateLimitError,
+)
 
 from pr_conflict_resolver.llm.exceptions import (
     LLMAPIError,
@@ -347,7 +352,13 @@ class TestOpenAIProviderRetryLogic:
         mock_client = MagicMock()
         mock_openai_class.return_value = mock_client
 
-        mock_client.chat.completions.create.side_effect = OpenAIError("Invalid API key")
+        # Create a mock response object for the error
+        mock_error_response = MagicMock()
+        mock_error_response.request = MagicMock()
+
+        mock_client.chat.completions.create.side_effect = AuthenticationError(
+            "Invalid API key", response=mock_error_response, body=None
+        )
 
         provider = OpenAIAPIProvider(api_key="sk-test", model="gpt-4")
         with pytest.raises(LLMAuthenticationError, match="authentication failed"):

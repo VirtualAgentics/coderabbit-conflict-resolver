@@ -16,7 +16,14 @@ import logging
 from typing import ClassVar
 
 import tiktoken
-from openai import APIConnectionError, APITimeoutError, OpenAI, OpenAIError, RateLimitError
+from openai import (
+    APIConnectionError,
+    APITimeoutError,
+    AuthenticationError,
+    OpenAI,
+    OpenAIError,
+    RateLimitError,
+)
 from tenacity import (
     Retrying,
     retry_if_exception_type,
@@ -58,6 +65,19 @@ class OpenAIAPIProvider:
         timeout: Request timeout in seconds
         total_input_tokens: Cumulative input tokens across all requests
         total_output_tokens: Cumulative output tokens across all requests
+
+    Maintaining Pricing Data:
+        The MODEL_PRICING dictionary (lines 65-73) contains hardcoded pricing per 1M tokens.
+        When OpenAI updates their pricing:
+
+        1. Check official pricing: https://openai.com/pricing
+        2. Update the "as of [DATE]" comment with the current date
+        3. Update pricing values in MODEL_PRICING dictionary
+        4. Ensure both "input" and "output" prices are specified
+        5. Add any new models with their pricing
+        6. Consider adding a pricing version/date to enable change tracking
+
+        Note: Unknown models return $0.00 cost (see _calculate_cost method).
     """
 
     # Pricing per 1M tokens (as of Nov 2024)
@@ -104,7 +124,12 @@ class OpenAIAPIProvider:
             self.tokenizer = tiktoken.encoding_for_model(model)
         except KeyError:
             # Fallback to cl100k_base for unknown models (GPT-4/3.5 compatible)
-            logger.warning(f"Unknown model {model}, using cl100k_base tokenizer")
+            logger.warning(
+                f"Unknown model '{model}' - using cl100k_base tokenizer fallback. "
+                f"This may affect tokenization accuracy, cost estimates, "
+                f"and context window calculations. "
+                f"Verify the model name or update tiktoken if this is a newly released model."
+            )
             self.tokenizer = tiktoken.get_encoding("cl100k_base")
 
         logger.info(f"Initialized OpenAI provider: model={model}, timeout={timeout}s")
@@ -202,16 +227,17 @@ class OpenAIAPIProvider:
             logger.warning(f"OpenAI transient error (will retry): {type(e).__name__}: {e}")
             raise
 
+        except AuthenticationError as e:
+            # Explicit auth error handling - don't retry
+            logger.error(f"OpenAI authentication error: {e}")
+            raise LLMAuthenticationError(
+                "OpenAI API authentication failed - check API key",
+                details={"model": self.model},
+            ) from e
+
         except OpenAIError as e:
-            # Authentication errors, invalid requests, etc. - don't retry
+            # Other OpenAI errors (invalid requests, etc.) - don't retry
             logger.error(f"OpenAI API error: {e}")
-            # Try to detect authentication errors
-            error_str = str(e).lower()
-            if "auth" in error_str or "api key" in error_str or "unauthorized" in error_str:
-                raise LLMAuthenticationError(
-                    "OpenAI API authentication failed - check API key",
-                    details={"model": self.model},
-                ) from e
             raise LLMAPIError(f"OpenAI API error: {e}", details={"model": self.model}) from e
 
         except Exception as e:
