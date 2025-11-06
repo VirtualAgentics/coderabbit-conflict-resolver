@@ -595,6 +595,9 @@ class TestRuntimeConfigLLMFields:
     )
     def test_all_valid_llm_providers(self, provider: str) -> None:
         """Test that all valid LLM providers are accepted without error."""
+        # API-based providers require an API key when enabled
+        api_key = "test-key" if provider in {"openai", "anthropic"} else None
+
         config = RuntimeConfig(
             mode=ApplicationMode.ALL,
             enable_rollback=False,
@@ -605,6 +608,7 @@ class TestRuntimeConfigLLMFields:
             log_file=None,
             llm_enabled=True,
             llm_provider=provider,
+            llm_api_key=api_key,
         )
 
         assert config.llm_enabled is True
@@ -685,6 +689,7 @@ class TestRuntimeConfigLLMFields:
         monkeypatch.setenv("CR_LLM_ENABLED", "true")
         monkeypatch.setenv("CR_LLM_PROVIDER", "openai")
         monkeypatch.setenv("CR_LLM_MODEL", "gpt-4")
+        monkeypatch.setenv("CR_LLM_API_KEY", "sk-test-key")  # Required for openai
         monkeypatch.setenv("CR_LLM_MAX_TOKENS", "4000")
         monkeypatch.setenv("CR_LLM_COST_BUDGET", "25.50")
 
@@ -693,6 +698,7 @@ class TestRuntimeConfigLLMFields:
         assert config.llm_enabled is True
         assert config.llm_provider == "openai"
         assert config.llm_model == "gpt-4"
+        assert config.llm_api_key == "sk-test-key"
         assert config.llm_max_tokens == 4000
         assert config.llm_cost_budget == 25.50
 
@@ -712,17 +718,20 @@ class TestRuntimeConfigLLMFields:
         """Test merge_with_cli() with LLM overrides."""
         config = RuntimeConfig.from_defaults()
         merged = config.merge_with_cli(
-            llm_enabled=True, llm_provider="anthropic", llm_model="claude-3-opus"
+            llm_enabled=True,
+            llm_provider="anthropic",
+            llm_model="claude-3-opus",
+            llm_api_key="sk-ant-test",  # Required for anthropic
         )
 
         assert merged.llm_enabled is True
         assert merged.llm_provider == "anthropic"
         assert merged.llm_model == "claude-3-opus"
 
-    def test_llm_enabled_without_api_key_warns(self, caplog: pytest.LogCaptureFixture) -> None:
-        """Test that enabling LLM with API provider without key logs warning."""
-        with caplog.at_level(logging.WARNING):
-            config = RuntimeConfig(
+    def test_llm_enabled_without_api_key_raises_error(self) -> None:
+        """Test that enabling LLM with API provider without key raises ConfigError."""
+        with pytest.raises(ConfigError, match="no API key provided"):
+            RuntimeConfig(
                 mode=ApplicationMode.ALL,
                 enable_rollback=False,
                 validate_before_apply=True,
@@ -734,9 +743,6 @@ class TestRuntimeConfigLLMFields:
                 llm_provider="openai",
                 llm_api_key=None,
             )
-
-        assert config.llm_enabled is True
-        assert "no API key provided" in caplog.text
 
     def test_llm_enabled_with_claude_cli_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         """Test that enabling LLM with claude-cli without key does not warn."""
@@ -757,10 +763,10 @@ class TestRuntimeConfigLLMFields:
         assert config.llm_enabled is True
         assert "no API key provided" not in caplog.text
 
-    def test_llm_enabled_from_env_without_api_key_warns(
-        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    def test_llm_enabled_from_env_without_api_key_raises_error(
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Test that from_env() with LLM enabled and API provider without key logs warning."""
+        """Test that from_env() with LLM enabled and API provider without key raises ConfigError."""
         # Clear any existing API key env vars
         monkeypatch.delenv("CR_LLM_API_KEY", raising=False)
 
@@ -768,11 +774,5 @@ class TestRuntimeConfigLLMFields:
         monkeypatch.setenv("CR_LLM_ENABLED", "true")
         monkeypatch.setenv("CR_LLM_PROVIDER", "anthropic")
 
-        with caplog.at_level(logging.WARNING):
-            config = RuntimeConfig.from_env()
-
-        assert config.llm_enabled is True
-        assert config.llm_provider == "anthropic"
-        assert config.llm_api_key is None
-        assert "no API key provided" in caplog.text
-        assert "anthropic" in caplog.text
+        with pytest.raises(ConfigError, match="anthropic.*no API key provided"):
+            RuntimeConfig.from_env()

@@ -131,13 +131,13 @@ class RuntimeConfig:
         if self.llm_cost_budget is not None and self.llm_cost_budget <= 0:
             raise ConfigError(f"llm_cost_budget must be positive, got {self.llm_cost_budget}")
 
-        # Warn if LLM is enabled with API-based providers without API key
+        # Validate that API-based providers have an API key if enabled
         if (
             self.llm_enabled
             and self.llm_provider in {"openai", "anthropic"}
             and not self.llm_api_key
         ):
-            logger.warning(
+            raise ConfigError(
                 f"LLM enabled with provider '{self.llm_provider}' but no API key provided. "
                 f"Set CR_LLM_API_KEY environment variable."
             )
