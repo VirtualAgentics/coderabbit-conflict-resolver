@@ -109,7 +109,7 @@ class OpenAIAPIProvider:
 
         logger.info(f"Initialized OpenAI provider: model={model}, timeout={timeout}s")
 
-    @retry(  # type: ignore[misc]
+    @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((APITimeoutError, RateLimitError, APIConnectionError)),
@@ -132,9 +132,9 @@ class OpenAIAPIProvider:
             Generated text from the model (typically JSON string)
 
         Raises:
-            RuntimeError: If generation fails after all retries
+            LLMAPIError: If generation fails after all retries exhausted
+            LLMAuthenticationError: For authentication errors or invalid requests (no retry)
             ValueError: If prompt is empty or max_tokens is invalid
-            OpenAIError: For authentication errors or invalid requests (no retry)
 
         Note:
             - Retries 3 times with exponential backoff (2s, 4s, 8s)

@@ -63,14 +63,10 @@ class ConflictResolver:
                 string path or any path-like object. If None, defaults to current working
                 directory.
             llm_parser: Optional LLM parser for extracting changes from natural language
-                comments. If provided, enables LLM-powered parsing with automatic fallback
-                to regex parsing. If None, uses regex-only parsing (backward compatible).
-
-        New in Phase 1 (LLM Foundation):
-            The llm_parser parameter enables advanced comment parsing beyond regex patterns,
-            supporting natural language descriptions, diff blocks without markers, and
-            context-based suggestions. When LLM parsing fails, automatically falls back
-            to regex-based extraction for reliability.
+                comments. When provided, enables advanced natural-language parsing that
+                supports freeform descriptions, diff blocks, and context-based suggestions,
+                with automatic fallback to regex extraction when needed. When None (default),
+                uses regex-only parsing for backward compatibility.
         """
         self.config = config or {}
         # Convert input to Path, handling None and PathLike objects
@@ -145,13 +141,13 @@ class ConflictResolver:
     def extract_changes_from_comments(self, comments: list[dict[str, Any]]) -> list[Change]:
         """Extracts suggested code changes from GitHub PR comment bodies.
 
-        Parsing Strategy (Phase 1 - LLM Foundation):
-            1. If LLM parser is configured: Try LLM parsing first for each comment
-            2. If LLM returns no changes or is not configured: Fall back to regex parsing
-            3. This provides both broad coverage (LLM) and reliability (regex fallback)
+        When an LLM parser is configured, attempts LLM-powered parsing first to extract
+        changes from natural language descriptions and complex comment formats. If LLM
+        parsing yields no results or no parser is configured, falls back to regex-based
+        extraction of standard suggestion blocks.
 
-        The method parses each comment using available parsing methods (LLM and/or regex)
-        and constructs Change objects with metadata, fingerprints, and file types.
+        Returns Change objects with complete metadata (author, URL, source), computed
+        fingerprints for deduplication, and detected file types.
 
         Args:
             comments (list[dict[str, Any]]): List of GitHub comment dictionaries. Each
@@ -380,15 +376,10 @@ class ConflictResolver:
                 "url": comment.get("html_url", ""),
                 "author": (comment.get("user") or {}).get("login", ""),
                 "source": "llm_parsed",
-                "llm_confidence": parsed_change.confidence,
-                "llm_provider": llm_provider,
-                "parsing_method": "llm",
-                "change_rationale": parsed_change.rationale,
-                "risk_level": parsed_change.risk_level,
             },
             fingerprint=fingerprint,
             file_type=file_type,
-            # LLM metadata fields (also in metadata dict for backward compatibility)
+            # LLM metadata fields (direct attributes are single source of truth)
             llm_confidence=parsed_change.confidence,
             llm_provider=llm_provider,
             parsing_method="llm",

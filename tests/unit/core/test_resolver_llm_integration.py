@@ -322,10 +322,10 @@ class TestParsedChangeConversion:
         assert change.risk_level == "medium"
         assert change.parsing_method == "llm"
 
-        # Verify metadata dict
+        # Verify metadata dict (LLM metadata stored in direct attributes, not metadata dict)
         assert change.metadata["author"] == "code_reviewer"
         assert change.metadata["url"] == "https://github.com/repo/pr/123#comment-456"
-        assert change.metadata["llm_confidence"] == 0.92
+        assert change.metadata["source"] == "llm_parsed"
 
     def test_conversion_detects_file_type(self, tmp_path: Path) -> None:
         """Test conversion correctly detects file types."""

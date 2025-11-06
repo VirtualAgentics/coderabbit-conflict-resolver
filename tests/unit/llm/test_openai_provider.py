@@ -274,8 +274,11 @@ class TestOpenAIProviderRetryLogic:
         mock_response.choices = [MagicMock(message=MagicMock(content='{"result": "success"}'))]
         mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5)
 
+        # Create mock request for the error
+        mock_request = MagicMock()
+
         mock_client.chat.completions.create.side_effect = [
-            APITimeoutError("Timeout"),
+            APITimeoutError(request=mock_request),
             mock_response,
         ]
 

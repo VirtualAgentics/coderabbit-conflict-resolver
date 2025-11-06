@@ -51,6 +51,7 @@ class UniversalLLMParser(LLMParser):
         provider: LLMProvider,
         fallback_to_regex: bool = True,
         confidence_threshold: float = 0.5,
+        max_tokens: int = 2000,
     ) -> None:
         """Initialize universal LLM parser.
 
@@ -61,6 +62,9 @@ class UniversalLLMParser(LLMParser):
             confidence_threshold: Minimum confidence (0.0-1.0) to accept a change.
                 Lower threshold accepts more changes but with potentially lower quality.
                 Recommended: 0.5 for balanced results, 0.7 for high quality only.
+            max_tokens: Maximum tokens for LLM response generation. Default 2000 is
+                sufficient for most PR comments while keeping costs low. Increase for
+                very long comments with many changes.
 
         Raises:
             ValueError: If confidence_threshold is not in [0.0, 1.0]
@@ -73,10 +77,13 @@ class UniversalLLMParser(LLMParser):
         self.provider = provider
         self.fallback_to_regex = fallback_to_regex
         self.confidence_threshold = confidence_threshold
+        self.max_tokens = max_tokens
 
         logger.info(
-            f"Initialized UniversalLLMParser: "
-            f"fallback={fallback_to_regex}, threshold={confidence_threshold}"
+            "Initialized UniversalLLMParser: fallback=%s, threshold=%s, max_tokens=%s",
+            fallback_to_regex,
+            confidence_threshold,
+            max_tokens,
         )
 
     def parse_comment(
@@ -131,7 +138,7 @@ class UniversalLLMParser(LLMParser):
             )
 
             # Generate response from LLM
-            response = self.provider.generate(prompt, max_tokens=2000)
+            response = self.provider.generate(prompt, max_tokens=self.max_tokens)
 
             logger.debug(f"LLM response length: {len(response)} characters")
 
