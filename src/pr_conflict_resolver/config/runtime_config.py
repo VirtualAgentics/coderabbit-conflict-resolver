@@ -16,7 +16,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # Available configuration presets
-PRESET_NAMES = {"conservative", "balanced", "aggressive", "semantic"}
+PRESET_NAMES = {"conservative", "balanced", "aggressive", "semantic", "llm-enabled"}
 
 
 class ApplicationMode(str, Enum):
@@ -58,6 +58,14 @@ class RuntimeConfig:
         max_workers: Maximum number of worker threads for parallel processing.
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Optional path to log file. If None, logs to stdout only.
+        llm_enabled: Enable LLM-based parsing (default: False for backward compatibility).
+        llm_provider: LLM provider to use ("claude-cli", "openai", "anthropic", "ollama").
+        llm_model: Model identifier (e.g., "claude-sonnet-4-5", "gpt-4").
+        llm_api_key: API key for the provider (if required).
+        llm_fallback_to_regex: Fall back to regex parsing if LLM fails (default: True).
+        llm_cache_enabled: Cache LLM responses to reduce cost (default: True).
+        llm_max_tokens: Maximum tokens per LLM request (default: 2000).
+        llm_cost_budget: Maximum cost per run in USD (None = unlimited).
 
     Example:
         >>> config = RuntimeConfig.from_env()
@@ -73,6 +81,14 @@ class RuntimeConfig:
     max_workers: int
     log_level: str
     log_file: str | None
+    llm_enabled: bool = False
+    llm_provider: str = "claude-cli"
+    llm_model: str = "claude-sonnet-4-5"
+    llm_api_key: str | None = None
+    llm_fallback_to_regex: bool = True
+    llm_cache_enabled: bool = True
+    llm_max_tokens: int = 2000
+    llm_cost_budget: float | None = None
 
     def __post_init__(self) -> None:
         """Validate configuration after initialization.
@@ -97,6 +113,30 @@ class RuntimeConfig:
         # Validate mode is ApplicationMode enum
         if not isinstance(self.mode, ApplicationMode):
             raise ConfigError(f"mode must be ApplicationMode enum, got {type(self.mode).__name__}")
+
+        # Validate LLM configuration
+        valid_providers = {"claude-cli", "openai", "anthropic", "codex-cli", "ollama"}
+        if self.llm_provider not in valid_providers:
+            raise ConfigError(
+                f"llm_provider must be one of {valid_providers}, got '{self.llm_provider}'"
+            )
+
+        if self.llm_max_tokens <= 0:
+            raise ConfigError(f"llm_max_tokens must be positive, got {self.llm_max_tokens}")
+
+        if self.llm_cost_budget is not None and self.llm_cost_budget <= 0:
+            raise ConfigError(f"llm_cost_budget must be positive, got {self.llm_cost_budget}")
+
+        # Warn if LLM is enabled with API-based providers without API key
+        if (
+            self.llm_enabled
+            and self.llm_provider in {"openai", "anthropic"}
+            and not self.llm_api_key
+        ):
+            logger.warning(
+                f"LLM enabled with provider '{self.llm_provider}' but no API key provided. "
+                f"Set CR_LLM_API_KEY environment variable or --llm-api-key CLI flag."
+            )
 
     @classmethod
     def from_defaults(cls) -> "RuntimeConfig":
@@ -226,6 +266,14 @@ class RuntimeConfig:
         - CR_MAX_WORKERS: Max worker threads (default: "4")
         - CR_LOG_LEVEL: Logging level (default: "INFO")
         - CR_LOG_FILE: Log file path (default: None)
+        - CR_LLM_ENABLED: Enable LLM parsing (default: "false")
+        - CR_LLM_PROVIDER: LLM provider (default: "claude-cli")
+        - CR_LLM_MODEL: LLM model (default: "claude-sonnet-4-5")
+        - CR_LLM_API_KEY: API key for provider (default: None)
+        - CR_LLM_FALLBACK_TO_REGEX: Fallback to regex (default: "true")
+        - CR_LLM_CACHE_ENABLED: Enable response caching (default: "true")
+        - CR_LLM_MAX_TOKENS: Max tokens per request (default: "2000")
+        - CR_LLM_COST_BUDGET: Max cost per run in USD (default: None)
 
         Returns:
             RuntimeConfig loaded from environment variables.
@@ -275,6 +323,17 @@ class RuntimeConfig:
             except ValueError as e:
                 raise ConfigError(f"Invalid {env_var}='{value_str}'. Must be an integer") from e
 
+        # Parse optional float for cost budget
+        def parse_float_optional(env_var: str) -> float | None:
+            """Parse optional float environment variable."""
+            value_str = os.getenv(env_var)
+            if not value_str:
+                return None
+            try:
+                return float(value_str)
+            except ValueError as e:
+                raise ConfigError(f"Invalid {env_var}='{value_str}'. Must be a number") from e
+
         # Load all configuration
         return cls(
             mode=mode,
@@ -284,6 +343,16 @@ class RuntimeConfig:
             max_workers=parse_int("CR_MAX_WORKERS", defaults.max_workers, min_value=1),
             log_level=os.getenv("CR_LOG_LEVEL", defaults.log_level).upper(),
             log_file=os.getenv("CR_LOG_FILE") or defaults.log_file,
+            llm_enabled=parse_bool("CR_LLM_ENABLED", defaults.llm_enabled),
+            llm_provider=os.getenv("CR_LLM_PROVIDER", defaults.llm_provider),
+            llm_model=os.getenv("CR_LLM_MODEL", defaults.llm_model),
+            llm_api_key=os.getenv("CR_LLM_API_KEY") or defaults.llm_api_key,
+            llm_fallback_to_regex=parse_bool(
+                "CR_LLM_FALLBACK_TO_REGEX", defaults.llm_fallback_to_regex
+            ),
+            llm_cache_enabled=parse_bool("CR_LLM_CACHE_ENABLED", defaults.llm_cache_enabled),
+            llm_max_tokens=parse_int("CR_LLM_MAX_TOKENS", defaults.llm_max_tokens, min_value=1),
+            llm_cost_budget=parse_float_optional("CR_LLM_COST_BUDGET"),
         )
 
     @classmethod

@@ -1,0 +1,76 @@
+{
+  "valid_parsed_changes": [
+    {
+      "file_path": "src/valid.py",
+      "start_line": 1,
+      "end_line": 5,
+      "new_content": "# Valid change",
+      "change_type": "modification",
+      "confidence": 0.85,
+      "rationale": "Valid test case",
+      "risk_level": "low"
+    }
+  ],
+  "invalid_parsed_changes": [
+    {
+      "description": "Invalid: start_line < 1",
+      "file_path": "src/invalid.py",
+      "start_line": 0,
+      "end_line": 5,
+      "new_content": "# Invalid",
+      "change_type": "modification",
+      "confidence": 0.85,
+      "rationale": "Should fail validation",
+      "risk_level": "low",
+      "expected_error": "start_line must be >= 1"
+    },
+    {
+      "description": "Invalid: end_line < start_line",
+      "file_path": "src/invalid.py",
+      "start_line": 10,
+      "end_line": 5,
+      "new_content": "# Invalid",
+      "change_type": "modification",
+      "confidence": 0.85,
+      "rationale": "Should fail validation",
+      "risk_level": "low",
+      "expected_error": "end_line"
+    },
+    {
+      "description": "Invalid: confidence out of range",
+      "file_path": "src/invalid.py",
+      "start_line": 1,
+      "end_line": 5,
+      "new_content": "# Invalid",
+      "change_type": "modification",
+      "confidence": 1.5,
+      "rationale": "Should fail validation",
+      "risk_level": "low",
+      "expected_error": "confidence must be in [0.0, 1.0]"
+    },
+    {
+      "description": "Invalid: unknown change_type",
+      "file_path": "src/invalid.py",
+      "start_line": 1,
+      "end_line": 5,
+      "new_content": "# Invalid",
+      "change_type": "invalid_type",
+      "confidence": 0.85,
+      "rationale": "Should fail validation",
+      "risk_level": "low",
+      "expected_error": "change_type must be"
+    },
+    {
+      "description": "Invalid: unknown risk_level",
+      "file_path": "src/invalid.py",
+      "start_line": 1,
+      "end_line": 5,
+      "new_content": "# Invalid",
+      "change_type": "modification",
+      "confidence": 0.85,
+      "rationale": "Should fail validation",
+      "risk_level": "critical",
+      "expected_error": "risk_level must be"
+    }
+  ]
+}

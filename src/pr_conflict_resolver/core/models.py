@@ -81,6 +81,8 @@ class ChangeMetadata(TypedDict, total=False):
     author: str
     source: str
     option_label: str
+    llm_confidence: float
+    parsing_method: str
 
 
 # Type aliases for clarity and strict typing
@@ -89,7 +91,17 @@ LineRange: TypeAlias = tuple[int, int]
 
 @dataclass(frozen=True, slots=True)
 class Change:
-    """Represents a single change suggestion."""
+    """Represents a single change suggestion.
+
+    New in Phase 0 (LLM Foundation):
+        - llm_confidence: Confidence score from LLM parser (0.0-1.0)
+        - llm_provider: Provider used for parsing ("claude-cli", "gpt-4", etc.)
+        - parsing_method: How the change was parsed ("regex" or "llm")
+        - change_rationale: Explanation of why this change was suggested
+        - risk_level: Risk assessment ("low", "medium", "high")
+
+    All new fields have default values for backward compatibility.
+    """
 
     path: str
     start_line: int
@@ -98,6 +110,11 @@ class Change:
     metadata: ChangeMetadata | Mapping[str, object]  # Known fields typed; allow arbitrary mapping
     fingerprint: str
     file_type: FileType
+    llm_confidence: float | None = None
+    llm_provider: str | None = None
+    parsing_method: str = "regex"
+    change_rationale: str | None = None
+    risk_level: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

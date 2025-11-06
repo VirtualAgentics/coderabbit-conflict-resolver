@@ -332,10 +332,27 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
     help="Maximum number of worker threads for parallel processing (default: 4)",
 )
 @click.option(
+    "--llm/--no-llm",
+    default=None,
+    help="Enable/disable LLM-based parsing (default: disabled for backward compatibility)",
+)
+@click.option(
+    "--llm-provider",
+    type=click.Choice(
+        ["claude-cli", "openai", "anthropic", "codex-cli", "ollama"], case_sensitive=False
+    ),
+    help="LLM provider to use (default: claude-cli)",
+)
+@click.option(
+    "--llm-model",
+    type=str,
+    help="LLM model identifier (e.g., claude-sonnet-4-5, gpt-4)",
+)
+@click.option(
     "--config",
     type=str,
     help=(
-        "Configuration preset name (conservative/balanced/aggressive/semantic) "
+        "Configuration preset name (conservative/balanced/aggressive/semantic/llm-enabled) "
         "or path to configuration file (YAML/TOML)"
     ),
 )
@@ -360,6 +377,9 @@ def apply(
     validation: bool | None,
     parallel: bool,
     max_workers: int | None,
+    llm: bool | None,
+    llm_provider: str | None,
+    llm_model: str | None,
     config: str | None,
     log_level: str | None,
     log_file: str | None,
@@ -384,6 +404,9 @@ def apply(
             None uses config/env/defaults.
         parallel: Enable parallel processing of changes.
         max_workers: Maximum number of worker threads (default: 4).
+        llm: Enable (True) or disable (False) LLM-based parsing. None uses config/env/defaults.
+        llm_provider: LLM provider to use (claude-cli, openai, anthropic, codex-cli, ollama).
+        llm_model: LLM model identifier (e.g., claude-sonnet-4-5, gpt-4).
         config: Path to configuration file (YAML or TOML).
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Path to log file for output.
@@ -474,6 +497,9 @@ def apply(
             "max_workers": max_workers,
             "log_level": log_level.upper() if log_level else None,
             "log_file": str(log_file) if log_file else None,
+            "llm_enabled": llm,  # None, True, or False
+            "llm_provider": llm_provider,
+            "llm_model": llm_model,
         }
         runtime_config = runtime_config.merge_with_cli(**cli_overrides)
 
