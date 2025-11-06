@@ -59,7 +59,8 @@ class RuntimeConfig:
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Optional path to log file. If None, logs to stdout only.
         llm_enabled: Enable LLM-based parsing (default: False for backward compatibility).
-        llm_provider: LLM provider to use ("claude-cli", "openai", "anthropic", "ollama").
+        llm_provider: LLM provider to use
+            ("claude-cli", "openai", "anthropic", "codex-cli", "ollama").
         llm_model: Model identifier (e.g., "claude-sonnet-4-5", "gpt-4").
         llm_api_key: API key for the provider (if required).
         llm_fallback_to_regex: Fall back to regex parsing if LLM fails (default: True).
@@ -252,6 +253,40 @@ class RuntimeConfig:
             max_workers=8,
             log_level="INFO",
             log_file=None,
+        )
+
+    @classmethod
+    def from_llm_enabled(cls) -> "RuntimeConfig":
+        """Create configuration with LLM features enabled.
+
+        LLM-enabled settings activate AI-powered parsing for higher coverage.
+        Uses balanced settings for other configuration options.
+
+        Returns:
+            RuntimeConfig with LLM enabled and balanced defaults.
+
+        Example:
+            >>> config = RuntimeConfig.from_llm_enabled()
+            >>> assert config.llm_enabled is True
+            >>> assert config.llm_provider == "claude-cli"
+            >>> assert config.enable_rollback is True
+        """
+        return cls(
+            mode=ApplicationMode.ALL,
+            enable_rollback=True,
+            validate_before_apply=True,
+            parallel_processing=False,
+            max_workers=4,
+            log_level="INFO",
+            log_file=None,
+            llm_enabled=True,
+            llm_provider="claude-cli",
+            llm_model="claude-sonnet-4-5",
+            llm_api_key=None,
+            llm_fallback_to_regex=True,
+            llm_cache_enabled=True,
+            llm_max_tokens=2000,
+            llm_cost_budget=None,
         )
 
     @classmethod
@@ -528,6 +563,29 @@ class RuntimeConfig:
             log_level = defaults.log_level
             log_file = defaults.log_file
 
+        # Parse LLM settings
+        llm_config = data.get("llm", {})
+        if isinstance(llm_config, dict):
+            llm_enabled = llm_config.get("enabled", defaults.llm_enabled)
+            llm_provider = llm_config.get("provider", defaults.llm_provider)
+            llm_model = llm_config.get("model", defaults.llm_model)
+            llm_api_key = llm_config.get("api_key", defaults.llm_api_key)
+            llm_fallback_to_regex = llm_config.get(
+                "fallback_to_regex", defaults.llm_fallback_to_regex
+            )
+            llm_cache_enabled = llm_config.get("cache_enabled", defaults.llm_cache_enabled)
+            llm_max_tokens = llm_config.get("max_tokens", defaults.llm_max_tokens)
+            llm_cost_budget = llm_config.get("cost_budget", defaults.llm_cost_budget)
+        else:
+            llm_enabled = defaults.llm_enabled
+            llm_provider = defaults.llm_provider
+            llm_model = defaults.llm_model
+            llm_api_key = defaults.llm_api_key
+            llm_fallback_to_regex = defaults.llm_fallback_to_regex
+            llm_cache_enabled = defaults.llm_cache_enabled
+            llm_max_tokens = defaults.llm_max_tokens
+            llm_cost_budget = defaults.llm_cost_budget
+
         return cls(
             mode=mode,
             enable_rollback=bool(enable_rollback),
@@ -536,6 +594,14 @@ class RuntimeConfig:
             max_workers=int(max_workers),
             log_level=str(log_level).upper(),
             log_file=str(log_file) if log_file else None,
+            llm_enabled=bool(llm_enabled),
+            llm_provider=str(llm_provider),
+            llm_model=str(llm_model),
+            llm_api_key=str(llm_api_key) if llm_api_key else None,
+            llm_fallback_to_regex=bool(llm_fallback_to_regex),
+            llm_cache_enabled=bool(llm_cache_enabled),
+            llm_max_tokens=int(llm_max_tokens),
+            llm_cost_budget=float(llm_cost_budget) if llm_cost_budget else None,
         )
 
     def merge_with_cli(self, **overrides: Any) -> "RuntimeConfig":  # noqa: ANN401

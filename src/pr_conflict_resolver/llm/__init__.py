@@ -9,4 +9,4 @@ Phase 0: Foundation - data structures and configuration only.
 from pr_conflict_resolver.llm.base import ParsedChange
 from pr_conflict_resolver.llm.config import LLMConfig
 
-__all__ = ["LLMConfig", "ParsedChange"]
+__all__: list[str] = ["LLMConfig", "ParsedChange"]

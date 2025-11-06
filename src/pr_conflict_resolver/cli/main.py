@@ -438,7 +438,18 @@ def apply(
             if config.lower() in PRESET_NAMES:
                 # Load preset configuration
                 preset_name = config.lower()
-                preset_method = getattr(RuntimeConfig, f"from_{preset_name}")
+                # Replace hyphens with underscores for method name
+                method_suffix = preset_name.replace("-", "_")
+                method_name = f"from_{method_suffix}"
+
+                # Check if the preset method exists before calling
+                if not hasattr(RuntimeConfig, method_name):
+                    raise ValueError(
+                        f"Preset method '{method_name}' not found. "
+                        f"Valid presets: {', '.join(PRESET_NAMES)}"
+                    )
+
+                preset_method = getattr(RuntimeConfig, method_name)
                 runtime_config = preset_method()
                 console.print(f"[dim]Loaded preset configuration: {config}[/dim]")
             else:
@@ -464,6 +475,14 @@ def apply(
             "max_workers": "CR_MAX_WORKERS",
             "log_level": "CR_LOG_LEVEL",
             "log_file": "CR_LOG_FILE",
+            "llm_enabled": "CR_LLM_ENABLED",
+            "llm_provider": "CR_LLM_PROVIDER",
+            "llm_model": "CR_LLM_MODEL",
+            "llm_api_key": "CR_LLM_API_KEY",
+            "llm_fallback_to_regex": "CR_LLM_FALLBACK_TO_REGEX",
+            "llm_cache_enabled": "CR_LLM_CACHE_ENABLED",
+            "llm_max_tokens": "CR_LLM_MAX_TOKENS",
+            "llm_cost_budget": "CR_LLM_COST_BUDGET",
         }
         env_overrides = {
             field_name: getattr(env_config, field_name)
