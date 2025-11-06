@@ -38,6 +38,10 @@ dependencies = [
     "ruamel.yaml==0.18.16",
     "tomli-w==1.2.0",
     "rich==14.2.0",
+    # LLM provider dependencies (Phase 1)
+    "openai==1.58.1",
+    "tenacity==9.0.0",
+    "tiktoken==0.9.0",
 ]
 
 [project.license]
@@ -176,6 +180,9 @@ module = [
     "rich.*",
     "pydantic.*",
     "hypothesis.*",
+    "openai.*",
+    "tiktoken.*",
+    "tenacity.*",
 ]
 ignore_missing_imports = true
 

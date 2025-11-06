@@ -28,6 +28,7 @@ from pr_conflict_resolver.handlers.json_handler import JsonHandler
 from pr_conflict_resolver.handlers.toml_handler import TomlHandler
 from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
 from pr_conflict_resolver.integrations.github import GitHubCommentExtractor
+from pr_conflict_resolver.llm.base import LLMParser, ParsedChange
 from pr_conflict_resolver.security.input_validator import InputValidator
 from pr_conflict_resolver.strategies.priority_strategy import PriorityStrategy
 from pr_conflict_resolver.utils.path_utils import resolve_file_path
@@ -50,6 +51,7 @@ class ConflictResolver:
         self,
         config: dict[str, Any] | None = None,
         workspace_root: str | PathLike[str] | None = None,
+        llm_parser: LLMParser | None = None,
     ) -> None:
         """Create a ConflictResolver configured with optional settings.
 
@@ -60,6 +62,15 @@ class ConflictResolver:
             workspace_root: Root directory for validating absolute file paths. Accepts a
                 string path or any path-like object. If None, defaults to current working
                 directory.
+            llm_parser: Optional LLM parser for extracting changes from natural language
+                comments. If provided, enables LLM-powered parsing with automatic fallback
+                to regex parsing. If None, uses regex-only parsing (backward compatible).
+
+        New in Phase 1 (LLM Foundation):
+            The llm_parser parameter enables advanced comment parsing beyond regex patterns,
+            supporting natural language descriptions, diff blocks without markers, and
+            context-based suggestions. When LLM parsing fails, automatically falls back
+            to regex-based extraction for reliability.
         """
         self.config = config or {}
         # Convert input to Path, handling None and PathLike objects
@@ -91,6 +102,7 @@ class ConflictResolver:
         }
         self.strategy = PriorityStrategy(self.config)
         self.github_extractor = GitHubCommentExtractor()
+        self.llm_parser = llm_parser  # Optional LLM parser for advanced comment parsing
 
     def detect_file_type(self, path: str) -> FileType:
         """Determine the file type based on the file path's extension.
@@ -133,10 +145,13 @@ class ConflictResolver:
     def extract_changes_from_comments(self, comments: list[dict[str, Any]]) -> list[Change]:
         """Extracts suggested code changes from GitHub PR comment bodies.
 
-        Parses each comment for fenced "suggestion" blocks and constructs Change objects
-        for suggestions that reference a file path and a valid line range. For each
-        suggestion the returned Change includes computed fingerprint, detected file type,
-        and metadata about the comment.
+        Parsing Strategy (Phase 1 - LLM Foundation):
+            1. If LLM parser is configured: Try LLM parsing first for each comment
+            2. If LLM returns no changes or is not configured: Fall back to regex parsing
+            3. This provides both broad coverage (LLM) and reliability (regex fallback)
+
+        The method parses each comment using available parsing methods (LLM and/or regex)
+        and constructs Change objects with metadata, fingerprints, and file types.
 
         Args:
             comments (list[dict[str, Any]]): List of GitHub comment dictionaries. Each
@@ -151,7 +166,8 @@ class ConflictResolver:
         Returns:
             list[Change]: A list of Change objects representing parsed suggestions. Each
             Change contains path, start_line, end_line, content, metadata (url, author,
-            source, option_label), fingerprint, and file_type.
+            source, parsing_method), fingerprint, file_type, and LLM metadata (if parsed
+            via LLM).
         """
         changes = []
 
@@ -160,7 +176,13 @@ class ConflictResolver:
             if not path:
                 continue
 
-            # Extract suggestion blocks
+            # Try LLM parsing first (if configured)
+            llm_changes = self._extract_changes_with_llm(comment)
+            if llm_changes:
+                changes.extend(llm_changes)
+                continue  # Skip regex parsing if LLM succeeded
+
+            # Fall back to regex parsing
             suggestion_blocks = self._parse_comment_suggestions(comment.get("body", ""))
 
             for block in suggestion_blocks:
@@ -190,6 +212,7 @@ class ConflictResolver:
                     },
                     fingerprint=fingerprint,
                     file_type=file_type,
+                    parsing_method="regex",  # Mark as regex-parsed for tracking
                 )
                 changes.append(change)
 
@@ -242,6 +265,136 @@ class ConflictResolver:
             )
 
         return blocks
+
+    def _extract_changes_with_llm(self, comment: dict[str, Any]) -> list[Change]:
+        """Extract changes from comment using LLM parser.
+
+        This method uses the configured LLM parser to extract code changes from
+        any comment format (diff blocks, suggestions, natural language, etc.).
+        Returns empty list if LLM parser is not configured or parsing fails.
+
+        Args:
+            comment: GitHub comment dictionary containing:
+                - "body": comment text to parse
+                - "path": target file path
+                - "start_line" or "original_start_line": optional starting line
+                - "line" or "original_line": ending line number
+                - "html_url": comment URL
+                - "user": dict with "login" for author
+
+        Returns:
+            list[Change]: List of Change objects extracted via LLM, or empty list
+                if LLM parsing is not available or fails.
+
+        Note:
+            This method is designed for use with automatic fallback. If it returns
+            an empty list, the caller should fall back to regex-based extraction.
+        """
+        if not self.llm_parser:
+            return []
+
+        body = comment.get("body", "")
+        if not body:
+            return []
+
+        path = comment.get("path")
+        if not path:
+            return []
+
+        # Extract line context from comment
+        line = comment.get("line") or comment.get("original_line")
+        if not line:
+            return []
+
+        try:
+            # Parse comment with LLM
+            parsed_changes = self.llm_parser.parse_comment(
+                comment_body=body,
+                file_path=path,
+                line_number=line,
+            )
+
+            # Convert ParsedChange objects to Change objects
+            changes = []
+            for parsed_change in parsed_changes:
+                change = self._convert_parsed_change_to_change(
+                    parsed_change=parsed_change,
+                    comment=comment,
+                )
+                changes.append(change)
+
+            if changes:
+                self.logger.info(
+                    f"LLM extracted {len(changes)} change(s) from comment on {path}:{line}"
+                )
+
+            return changes
+
+        except Exception as e:
+            self.logger.warning(f"LLM parsing failed for comment on {path}:{line}: {e}")
+            return []
+
+    def _convert_parsed_change_to_change(
+        self, parsed_change: ParsedChange, comment: dict[str, Any]
+    ) -> Change:
+        """Convert ParsedChange from LLM to Change model.
+
+        This method performs the conversion from the LLM parser's output format
+        (ParsedChange) to the resolver's Change model, adding all necessary
+        metadata and computed fields.
+
+        Args:
+            parsed_change: ParsedChange object from LLM parser containing:
+                - file_path, start_line, end_line, new_content
+                - change_type, confidence, rationale, risk_level
+            comment: Original GitHub comment dict for extracting metadata
+
+        Returns:
+            Change: Fully populated Change object with:
+                - Core fields from ParsedChange
+                - Computed fingerprint and file_type
+                - Comment metadata (url, author)
+                - LLM metadata (confidence, provider, rationale, risk)
+        """
+        file_type = self.detect_file_type(parsed_change.file_path)
+        fingerprint = self.generate_fingerprint(
+            parsed_change.file_path,
+            parsed_change.start_line,
+            parsed_change.end_line,
+            parsed_change.new_content,
+        )
+
+        # Determine LLM provider from parser (if available)
+        llm_provider = None
+        if hasattr(self.llm_parser, "provider"):
+            provider = self.llm_parser.provider  # type: ignore[union-attr]
+            if hasattr(provider, "model"):
+                llm_provider = provider.model
+
+        return Change(
+            path=parsed_change.file_path,
+            start_line=parsed_change.start_line,
+            end_line=parsed_change.end_line,
+            content=parsed_change.new_content,
+            metadata={
+                "url": comment.get("html_url", ""),
+                "author": (comment.get("user") or {}).get("login", ""),
+                "source": "llm_parsed",
+                "llm_confidence": parsed_change.confidence,
+                "llm_provider": llm_provider,
+                "parsing_method": "llm",
+                "change_rationale": parsed_change.rationale,
+                "risk_level": parsed_change.risk_level,
+            },
+            fingerprint=fingerprint,
+            file_type=file_type,
+            # LLM metadata fields (also in metadata dict for backward compatibility)
+            llm_confidence=parsed_change.confidence,
+            llm_provider=llm_provider,
+            parsing_method="llm",
+            change_rationale=parsed_change.rationale,
+            risk_level=parsed_change.risk_level,
+        )
 
     def detect_conflicts(self, changes: list[Change]) -> list[Conflict]:
         """Identify conflicts among the provided list of changes across files.

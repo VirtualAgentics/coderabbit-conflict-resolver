@@ -1,9 +1,14 @@
-"""Base data structures for LLM-based parsing.
+"""Base data structures and interfaces for LLM-based parsing.
 
-This module provides foundational data structures for LLM integration.
-Phase 0: Foundation only - no actual LLM parsing implemented yet.
+This module provides foundational data structures and abstract interfaces for
+LLM integration. It defines:
+- ParsedChange: Intermediate representation of LLM parser output
+- LLMParser: Abstract base class for all parser implementations
+
+Phase 1: Provider and parser implementations build on these foundations.
 """
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 
@@ -72,3 +77,70 @@ class ParsedChange:
             raise ValueError(
                 f"risk_level must be 'low', 'medium', or 'high', got '{self.risk_level}'"
             )
+
+
+class LLMParser(ABC):
+    """Abstract base class for LLM-powered comment parsers.
+
+    This ABC defines the interface that all LLM parser implementations must follow.
+    Parsers are responsible for:
+    - Taking raw GitHub comment text as input
+    - Using an LLM provider to extract code changes
+    - Returning structured ParsedChange objects
+    - Handling errors gracefully with optional fallback
+
+    Subclasses must implement the parse_comment() method. Different parser
+    implementations may use different prompting strategies, providers, or
+    processing logic while maintaining a consistent interface.
+
+    Examples:
+        >>> class MyParser(LLMParser):
+        ...     def parse_comment(self, body, file_path=None, line_number=None):
+        ...         # Implementation here
+        ...         return [ParsedChange(...)]
+        >>> parser = MyParser()
+        >>> changes = parser.parse_comment("Fix the bug at line 10")
+    """
+
+    @abstractmethod
+    def parse_comment(
+        self,
+        comment_body: str,
+        file_path: str | None = None,
+        line_number: int | None = None,
+    ) -> list[ParsedChange]:
+        """Parse a GitHub comment to extract code changes.
+
+        This method processes a raw comment and returns zero or more ParsedChange
+        objects representing the suggested modifications. The parser should handle
+        multiple comment formats:
+
+        - Diff blocks: @@ -1,3 +1,3 @@ format
+        - Suggestion blocks: ```suggestion code here```
+        - Natural language: "change X to Y on line N"
+        - Multi-option suggestions: **Option 1:** ... **Option 2:** ...
+
+        Args:
+            comment_body: Raw comment text from GitHub (markdown format)
+            file_path: Optional file path for context (helps with ambiguous suggestions)
+            line_number: Optional line number where comment was posted
+
+        Returns:
+            List of ParsedChange objects. Empty list if:
+            - No changes detected in comment
+            - Parsing failed and fallback is enabled
+            - Comment contains only discussion/questions
+
+        Raises:
+            RuntimeError: If parsing fails and fallback is disabled
+            ValueError: If comment_body is None or empty
+
+        Note:
+            Implementations should:
+            - Handle LLM provider errors gracefully
+            - Validate ParsedChange objects before returning
+            - Filter low-confidence changes if configured
+            - Log parsing failures for debugging
+            - Support fallback to regex parsing when enabled
+        """
+        ...
