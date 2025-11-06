@@ -248,6 +248,42 @@ level = "WARNING"
             finally:
                 os.unlink(f.name)
 
+    def test_from_file_yaml_with_llm_config(self) -> None:
+        """Test loading YAML with LLM configuration section."""
+        yaml_content = """
+mode: all
+rollback:
+  enabled: true
+llm:
+  enabled: true
+  provider: anthropic
+  model: claude-3-opus
+  api_key: test-key-12345
+  fallback_to_regex: false
+  cache_enabled: true
+  max_tokens: 4000
+  cost_budget: 50.0
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(yaml_content)
+            f.flush()
+            try:
+                config = RuntimeConfig.from_file(Path(f.name))
+                # LLM fields
+                assert config.llm_enabled is True
+                assert config.llm_provider == "anthropic"
+                assert config.llm_model == "claude-3-opus"
+                assert config.llm_api_key == "test-key-12345"
+                assert config.llm_fallback_to_regex is False
+                assert config.llm_cache_enabled is True
+                assert config.llm_max_tokens == 4000
+                assert config.llm_cost_budget == 50.0
+                # Non-LLM fields from YAML
+                assert config.mode == ApplicationMode.ALL
+                assert config.enable_rollback is True
+            finally:
+                os.unlink(f.name)
+
     def test_from_file_yaml_partial_config(self) -> None:
         """Test YAML with only some fields (rest should be defaults)."""
         yaml_content = """
@@ -776,3 +812,25 @@ class TestRuntimeConfigLLMFields:
 
         with pytest.raises(ConfigError, match="anthropic.*no API key provided"):
             RuntimeConfig.from_env()
+
+    def test_from_llm_enabled_preset(self) -> None:
+        """Test from_llm_enabled() returns LLM-enabled configuration."""
+        config = RuntimeConfig.from_llm_enabled()
+
+        # LLM fields
+        assert config.llm_enabled is True
+        assert config.llm_provider == "claude-cli"
+        assert config.llm_model == "claude-sonnet-4-5"
+        assert config.llm_api_key is None
+        assert config.llm_fallback_to_regex is True
+        assert config.llm_cache_enabled is True
+        assert config.llm_max_tokens == 2000
+        assert config.llm_cost_budget is None
+
+        # Other fields should match balanced preset
+        assert config.mode == ApplicationMode.ALL
+        assert config.enable_rollback is True
+        assert config.validate_before_apply is True
+        assert config.parallel_processing is False
+        assert config.max_workers == 4
+        assert config.log_level == "INFO"
