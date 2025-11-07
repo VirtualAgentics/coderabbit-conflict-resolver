@@ -21,6 +21,8 @@ tenacity==9.1.2 \
     --hash=sha256:f77bf36710d8b73a50b2dd155c97b870017ad21afe6ab300326b0371b3b05138
 tiktoken==0.12.0 \
     --hash=sha256:edde1ec917dfd21c1f2f8046b86348b0f54a2c0547f68149d8600859598769ad
+anthropic==0.72.0 \
+    --hash=sha256:0e9f5a7582f038cab8efbb4c959e49ef654a56bfc7ba2da51b5a7b8a84de2e4d
 
 # Transitive dependencies (required by above packages)
 distro==1.9.0 \
@@ -33,6 +35,8 @@ certifi==2025.10.5 \
     --hash=sha256:0f212c2744a9bb6de0c56639a6f68afe01ecd92d91f14ae897c4fe7bbeeef0de
 charset_normalizer==3.4.4 \
     --hash=sha256:11d694519d7f29d6cd09f6ac70028dba10f92f6cdd059096db198c283794ac86
+docstring-parser==0.17.0 \
+    --hash=sha256:cf2569abd23dce8099b300f9b4fa8191e9582dda731fd533daf54c4551658708
 idna==3.11 \
     --hash=sha256:771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea
 markdown-it-py==3.0.0 \
