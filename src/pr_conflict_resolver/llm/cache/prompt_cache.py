@@ -172,6 +172,17 @@ class PromptCache:
 
         # Create cache directory with restricted permissions
         self.cache_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+
+        # Enforce 0700 permissions even if directory already existed
+        current_mode = self.cache_dir.stat().st_mode & 0o777
+        if current_mode != 0o700:
+            try:
+                os.chmod(self.cache_dir, 0o700)
+            except OSError as exc:
+                raise OSError(
+                    f"Failed to enforce 0700 permissions on cache directory {self.cache_dir}"
+                ) from exc
+
         logger.debug(
             f"Initialized cache at {self.cache_dir} "
             f"(TTL={ttl_seconds}s, max={max_size_bytes} bytes)"
@@ -212,9 +223,14 @@ class PromptCache:
         if not model:
             raise ValueError("model cannot be empty")
 
-        # Create deterministic hash of prompt|provider|model
-        content = f"{prompt}|{provider}|{model}"
-        hash_obj = hashlib.sha256(content.encode("utf-8"))
+        # Create deterministic hash using length-prefixing to prevent collisions
+        # Each component is prefixed with its byte length (8 bytes, big-endian)
+        # This ensures distinct inputs always produce distinct hashes
+        hash_obj = hashlib.sha256()
+        for part in (prompt, provider, model):
+            encoded = part.encode("utf-8")
+            hash_obj.update(len(encoded).to_bytes(8, "big", signed=False))
+            hash_obj.update(encoded)
         return hash_obj.hexdigest()
 
     def get(self, key: str) -> str | None:

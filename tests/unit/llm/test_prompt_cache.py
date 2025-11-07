@@ -161,6 +161,81 @@ class TestCacheKeyComputation:
             with pytest.raises(ValueError, match="model cannot be empty"):
                 cache.compute_key("prompt", "anthropic", "")
 
+    def test_compute_key_delimiter_in_prompt(self) -> None:
+        """Test that prompts containing delimiter produce unique keys."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+
+            # Prompts with different delimiters should produce different keys
+            key1 = cache.compute_key("foo|bar", "provider", "model")
+            key2 = cache.compute_key("foo bar", "provider", "model")
+            key3 = cache.compute_key("foobar", "provider", "model")
+
+            assert key1 != key2
+            assert key1 != key3
+            assert key2 != key3
+
+    def test_compute_key_delimiter_in_provider(self) -> None:
+        """Test that providers containing delimiter produce unique keys."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+
+            # Providers with different delimiters should produce different keys
+            key1 = cache.compute_key("prompt", "foo|bar", "model")
+            key2 = cache.compute_key("prompt", "foo bar", "model")
+            key3 = cache.compute_key("prompt", "foobar", "model")
+
+            assert key1 != key2
+            assert key1 != key3
+            assert key2 != key3
+
+    def test_compute_key_delimiter_in_model(self) -> None:
+        """Test that models containing delimiter produce unique keys."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+
+            # Models with different delimiters should produce different keys
+            key1 = cache.compute_key("prompt", "provider", "foo|bar")
+            key2 = cache.compute_key("prompt", "provider", "foo bar")
+            key3 = cache.compute_key("prompt", "provider", "foobar")
+
+            assert key1 != key2
+            assert key1 != key3
+            assert key2 != key3
+
+    def test_compute_key_no_collision_with_delimiters(self) -> None:
+        """Test that delimiter-containing inputs don't cause hash collisions.
+
+        This regression test ensures that the hash function prevents collisions
+        that could occur with naive delimiter-based concatenation.
+
+        Example collision scenario (with old implementation):
+        - Input 1: prompt="foo|bar", provider="baz", model="qux"
+          → "foo|bar|baz|qux"
+        - Input 2: prompt="foo", provider="bar|baz", model="qux"
+          → "foo|bar|baz|qux" (same!)
+
+        With length-prefixing, these produce different hashes.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+
+            # These should produce different keys despite same concatenation
+            key1 = cache.compute_key("foo|bar", "baz", "qux")
+            key2 = cache.compute_key("foo", "bar|baz", "qux")
+
+            # Verify distinct inputs produce distinct keys
+            assert key1 != key2
+
+            # Test with various delimiter positions
+            key4 = cache.compute_key("a|b|c", "d", "e")
+            key5 = cache.compute_key("a", "b|c|d", "e")
+            key6 = cache.compute_key("a", "b", "c|d|e")
+
+            assert key4 != key5
+            assert key4 != key6
+            assert key5 != key6
+
 
 class TestCacheOperations:
     """Test basic cache get/set operations."""
