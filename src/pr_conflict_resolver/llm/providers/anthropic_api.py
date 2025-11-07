@@ -26,6 +26,7 @@ from anthropic import (
 )
 from anthropic.types import TextBlock
 from tenacity import (
+    RetryError,
     Retrying,
     retry_if_exception_type,
     stop_after_attempt,
@@ -181,7 +182,24 @@ class AnthropicAPIProvider:
             wait=wait_exponential(multiplier=1, min=2, max=10),
             retry=retry_if_exception_type((RateLimitError, APIConnectionError, APITimeoutError)),
         )
-        return retryer(self._generate_once, prompt, max_tokens)
+        try:
+            return retryer(self._generate_once, prompt, max_tokens)
+        except RetryError as e:
+            # When retries are exhausted, tenacity wraps the last exception in RetryError
+            # Extract the underlying exception for better error reporting
+            underlying_exception = e.last_attempt.exception()
+            error_type = (
+                type(underlying_exception).__name__ if underlying_exception else "RetryError"
+            )
+            logger.error(
+                f"Anthropic API call failed after 3 retry attempts: {error_type}: "
+                f"{underlying_exception or e}"
+            )
+            raise LLMAPIError(
+                f"Anthropic API call failed after 3 retry attempts: "
+                f"{underlying_exception or e}",
+                details={"model": self.model, "error_type": error_type},
+            ) from e
 
     def _generate_once(self, prompt: str, max_tokens: int = 2000) -> str:
         """Single generation attempt (called by retry logic).

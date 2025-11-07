@@ -501,9 +501,7 @@ class TestAnthropicProviderRetryLogic:
 
     @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
     def test_generate_exhausts_retries(self, mock_anthropic_class: Mock) -> None:
-        """Test that generation fails after 3 retry attempts."""
-        from tenacity import RetryError
-
+        """Test that generation raises LLMAPIError after 3 retry attempts."""
         mock_client = MagicMock()
         mock_anthropic_class.return_value = mock_client
 
@@ -512,9 +510,13 @@ class TestAnthropicProviderRetryLogic:
         mock_client.messages.create.side_effect = rate_limit_error
 
         provider = AnthropicAPIProvider(api_key="sk-ant-test")
-        # After exhausting retries, tenacity wraps the exception in RetryError
-        with pytest.raises(RetryError):
+        # After exhausting retries, should convert to LLMAPIError
+        with pytest.raises(LLMAPIError) as exc_info:
             provider.generate("Test prompt")
+
+        # Verify exception message and chaining
+        assert "failed after 3 retry attempts" in str(exc_info.value)
+        assert exc_info.value.__cause__ is not None  # Should have exception chaining
 
         # Should try 3 times
         assert mock_client.messages.create.call_count == 3
