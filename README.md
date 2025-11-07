@@ -11,7 +11,7 @@
   <a href="https://github.com/VirtualAgentics/review-bot-automator/actions"><img src="https://github.com/VirtualAgentics/review-bot-automator/workflows/CI/badge.svg" alt="CI"></a>
   <a href="https://codecov.io/gh/VirtualAgentics/review-bot-automator"><img src="https://codecov.io/gh/VirtualAgentics/review-bot-automator/branch/main/graph/badge.svg" alt="codecov"></a>
   <a href="https://github.com/VirtualAgentics/review-bot-automator/actions/workflows/security.yml"><img src="https://github.com/VirtualAgentics/review-bot-automator/workflows/Security/badge.svg" alt="Security"></a>
-  <a href="https://virtualagent ics.github.io/review-bot-automator/"><img src="https://github.com/VirtualAgentics/review-bot-automator/workflows/Documentation/badge.svg" alt="Documentation"></a>
+  <a href="https://virtualagentics.github.io/review-bot-automator/"><img src="https://github.com/VirtualAgentics/review-bot-automator/workflows/Documentation/badge.svg" alt="Documentation"></a>
   <br>
   <!-- Code Quality -->
   <a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black"></a>
