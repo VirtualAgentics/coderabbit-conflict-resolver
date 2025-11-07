@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **V2.0 Phase 0**: LLM Foundation - Data Models & Infrastructure (PR #121, Issue #114)
+  - Core LLM data models: `LLMConfig`, `LLMRequest`, `LLMResponse`, `ParsedChange`
+  - Universal `CommentParser` with LLM-powered parsing and regex fallback
+  - LLM provider protocol (`LLMProvider`) for polymorphic provider support
+  - Structured prompt engineering system with examples
+  - Confidence threshold filtering (default: 0.7) for high-quality change extraction
+  - Comprehensive test suite for LLM components (15+ tests)
+  - New LLM package: `pr_conflict_resolver.llm` with modular architecture
+- **V2.0 Phase 1**: LLM-Powered Comment Parsing with OpenAI Provider (PR #122, Issue #115)
+  - `OpenAIAPIProvider` implementation with official OpenAI Python SDK
+  - Automatic retry logic with exponential backoff for transient failures (3 retries: 2s, 4s, 8s)
+  - Token counting using tiktoken for accurate cost estimation
+  - Cost tracking per request and cumulative totals
+  - JSON mode for structured output with temperature=0 for deterministic results
+  - Model pricing table for gpt-4, gpt-4-turbo, gpt-3.5-turbo, gpt-4o, gpt-4o-mini
+  - Comprehensive error handling (authentication, rate limits, timeouts, API errors)
+  - Integration with `ConflictResolver` for LLM-powered comment parsing
+  - 30+ unit tests for OpenAI provider (93% coverage)
+  - New dependencies: `openai==2.7.1`, `tenacity==9.1.2`, `tiktoken==0.12.0`
 - **Phase 1**: Core functionality to apply ALL suggestions (Issue #14)
   - `ConflictResolver.separate_changes_by_conflict_status()` - Separate conflicting vs non-conflicting changes
   - `ConflictResolver.apply_changes()` - Apply changes with validation and batch processing
