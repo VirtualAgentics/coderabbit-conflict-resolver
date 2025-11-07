@@ -47,9 +47,9 @@ def create_mock_anthropic_error(error_class: type, message: str) -> Any:  # noqa
         mock_request = MagicMock()
         return error_class(message=message, request=mock_request)
     elif error_class == APIError:
-        # Uses request parameter (positional message)
+        # Uses request parameter (keyword-only)
         mock_request = MagicMock()
-        return error_class(message, mock_request, body=None)
+        return error_class(message, request=mock_request, body=None)
     else:
         # Fallback for unknown error types
         return error_class(message)

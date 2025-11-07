@@ -20,6 +20,7 @@ from anthropic import (
     APIConnectionError,
     APIError,
     APIStatusError,
+    APITimeoutError,
     AuthenticationError,
     RateLimitError,
 )
@@ -151,8 +152,8 @@ class AnthropicAPIProvider:
         """Generate text completion from prompt with retry logic.
 
         This method sends the prompt to Anthropic's API and returns the generated text.
-        It automatically retries on transient failures (rate limits, connection errors)
-        using exponential backoff.
+        It automatically retries on transient failures (rate limits, connection errors,
+        and timeouts) using exponential backoff.
 
         Temperature is set to 0 for deterministic outputs.
 
@@ -170,6 +171,7 @@ class AnthropicAPIProvider:
 
         Note:
             - Retries 3 times with exponential backoff (2s, 4s, 8s)
+            - Retries on: RateLimitError, APIConnectionError, APITimeoutError
             - Does NOT retry on authentication errors or invalid requests
             - Tracks token usage for cost calculation (including cache metrics)
             - Uses temperature=0 for deterministic output
@@ -177,7 +179,7 @@ class AnthropicAPIProvider:
         retryer = Retrying(
             stop=stop_after_attempt(3),
             wait=wait_exponential(multiplier=1, min=2, max=10),
-            retry=retry_if_exception_type((RateLimitError, APIConnectionError)),
+            retry=retry_if_exception_type((RateLimitError, APIConnectionError, APITimeoutError)),
         )
         return retryer(self._generate_once, prompt, max_tokens)
 
@@ -209,7 +211,18 @@ class AnthropicAPIProvider:
 
             response = self.client.messages.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": prompt,
+                                "cache_control": {"type": "ephemeral"},
+                            }
+                        ],
+                    }
+                ],
                 max_tokens=max_tokens,
                 temperature=0.0,  # Deterministic for consistency
             )
@@ -252,7 +265,7 @@ class AnthropicAPIProvider:
 
             return generated_text
 
-        except (RateLimitError, APIConnectionError) as e:
+        except (RateLimitError, APIConnectionError, APITimeoutError) as e:
             # Let these bubble up for retry - tenacity will handle them
             # Don't wrap them here, or retry won't work
             logger.warning(f"Anthropic transient error (will retry): {type(e).__name__}: {e}")
