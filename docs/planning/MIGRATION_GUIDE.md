@@ -759,7 +759,7 @@ llm:
 
 **A**:
 1. **Disable LLM**: `export CR_LLM_ENABLED=false` (reverts to v1.x behavior)
-2. **Report bug**: https://github.com/VirtualAgentics/coderabbit-conflict-resolver/issues
+2. **Report bug**: https://github.com/VirtualAgentics/review-bot-automator/issues
 3. **Rollback if needed**: `pip install pr-conflict-resolver==1.0.0`
 
 ### Q11: Can I use multiple LLM providers simultaneously?

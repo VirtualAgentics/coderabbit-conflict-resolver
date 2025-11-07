@@ -1,17 +1,23 @@
 [project]
 name = "pr-conflict-resolver"
 version = "0.1.0"
-description = "Intelligent conflict resolution for CodeRabbit and GitHub PR comments"
+description = "Universal AI-powered automation for GitHub code review bots with intelligent conflict resolution"
 authors = [
     { name = "VirtualAgentics", email = "contact@virtualagentics.com" },
 ]
 readme = "README.md"
 requires-python = ">=3.11"
 keywords = [
+    "ai",
+    "llm",
+    "automation",
     "github",
-    "coderabbit",
+    "code-review-bot",
+    "suggestion-applier",
     "conflict-resolution",
     "pr-automation",
+    "coderabbit",
+    "github-copilot",
     "code-review",
 ]
 classifiers = [

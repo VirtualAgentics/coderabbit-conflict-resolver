@@ -1455,7 +1455,7 @@ pytest tests/llm/test_parser.py -v --integration
 
 # End-to-end test with PR #8
 export ANTHROPIC_API_KEY=sk-ant-...
-pr-resolve analyze --owner VirtualAgentics --repo coderabbit-conflict-resolver --pr 8 --llm
+pr-resolve analyze --owner VirtualAgentics --repo review-bot-automator --pr 8 --llm
 
 # Expected: 5 changes parsed (vs 1 with regex)
 ```

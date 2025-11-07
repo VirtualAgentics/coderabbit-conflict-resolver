@@ -192,6 +192,10 @@ git
 .claude/
 claude.md
 
+# MCP configuration
+# Note: .mcp.json (project-level) is tracked for team sharing
+# User-level config (~/.config/claude-code/mcp.json) stays local
+
 # Fuzzing artifacts (ClusterFuzzLite / Atheris)
 fuzz/corpus/
 fuzz/crashes/
@@ -199,3 +203,4 @@ fuzz/testcases/
 out/
 *.profdata
 *.profraw
+.mcp-cache/

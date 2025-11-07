@@ -77,8 +77,8 @@ jobs:
 
             ## Documentation
 
-            - [Getting Started](https://github.com/VirtualAgentics/coderabbit-conflict-resolver/blob/main/docs/)
-            - [API Reference](https://github.com/VirtualAgentics/coderabbit-conflict-resolver/blob/main/docs/api-reference.md)
+            - [Getting Started](https://github.com/VirtualAgentics/review-bot-automator/blob/main/docs/)
+            - [API Reference](https://github.com/VirtualAgentics/review-bot-automator/blob/main/docs/api-reference.md)
           draft: false
           prerelease: false
           files: dist/*

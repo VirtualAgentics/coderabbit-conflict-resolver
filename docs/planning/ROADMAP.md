@@ -739,7 +739,7 @@ def test_dry_run_mode_applies_nothing():
    ![PyPI Version](https://img.shields.io/pypi/v/pr-conflict-resolver)
    ![Python Versions](https://img.shields.io/pypi/pyversions/pr-conflict-resolver)
    ![Documentation](https://readthedocs.org/projects/pr-conflict-resolver/badge/)
-   ![Code Coverage](https://codecov.io/gh/VirtualAgentics/coderabbit-conflict-resolver/branch/main/graph/badge.svg)
+   ![Code Coverage](https://codecov.io/gh/VirtualAgentics/review-bot-automator/branch/main/graph/badge.svg)
    ```
 
 5. **Enable GitHub Features**

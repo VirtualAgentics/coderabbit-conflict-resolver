@@ -22,8 +22,8 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 2. **Clone your fork** locally:
 
    ```bash
-   git clone https://github.com/your-username/coderabbit-conflict-resolver.git
-   cd coderabbit-conflict-resolver
+   git clone https://github.com/your-username/review-bot-automator.git
+   cd review-bot-automator
    ```
 
 3. **Run the automated setup script**:

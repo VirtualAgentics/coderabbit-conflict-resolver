@@ -140,7 +140,7 @@ This document captures the GitHub setup process for the CodeRabbit Conflict Reso
 - **Issues**: All #9-#24 (16 issues)
 
 **Setup Instructions**:
-1. Visit: https://github.com/VirtualAgentics/coderabbit-conflict-resolver/milestones/new
+1. Visit: https://github.com/VirtualAgentics/review-bot-automator/milestones/new
 2. Create milestone with above configuration
 3. Batch assign all issues #9-#24 to v0.1.0
 
@@ -223,9 +223,9 @@ This document captures the GitHub setup process for the CodeRabbit Conflict Reso
 
 ## Quick Links
 
-- **Issues**: https://github.com/VirtualAgentics/coderabbit-conflict-resolver/issues
-- **Milestones**: https://github.com/VirtualAgentics/coderabbit-conflict-resolver/milestones
-- **Repository**: https://github.com/VirtualAgentics/coderabbit-conflict-resolver
+- **Issues**: https://github.com/VirtualAgentics/review-bot-automator/issues
+- **Milestones**: https://github.com/VirtualAgentics/review-bot-automator/milestones
+- **Repository**: https://github.com/VirtualAgentics/review-bot-automator
 - **Active Roadmap**: `docs/planning/ROADMAP.md`
 - **Phase 0 Details**: `docs/planning/archive/phase-0-complete.md`
 

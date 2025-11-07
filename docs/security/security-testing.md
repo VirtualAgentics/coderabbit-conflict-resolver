@@ -381,7 +381,7 @@ trufflehog filesystem . --since-commit <commit-hash>
 
 ```bash
 # Run Scorecard (requires installation)
-scorecard --repo=github.com/VirtualAgentics/coderabbit-conflict-resolver
+scorecard --repo=github.com/VirtualAgentics/review-bot-automator
 
 # View results
 # Results automatically published to GitHub Security tab
@@ -637,7 +637,7 @@ open htmlcov/index.html
    - Scorecard
 3. Review findings and remediation steps
 
-**OpenSSF Scorecard**: https://api.securityscorecards.dev/projects/github.com/VirtualAgentics/coderabbit-conflict-resolver
+**OpenSSF Scorecard**: https://api.securityscorecards.dev/projects/github.com/VirtualAgentics/review-bot-automator
 
 ---
 
