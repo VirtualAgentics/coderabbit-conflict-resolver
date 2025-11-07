@@ -251,12 +251,14 @@ class AnthropicAPIProvider:
                     f"(${cost:.4f})"
                 )
 
-            # Extract generated text
-            generated_text = ""
+            # Extract generated text from all content blocks
+            text_parts = []
             if response.content:
-                first_block = response.content[0]
-                if isinstance(first_block, TextBlock):
-                    generated_text = first_block.text
+                for block in response.content:
+                    if isinstance(block, TextBlock):
+                        text_parts.append(block.text)
+
+            generated_text = "".join(text_parts)
 
             if not generated_text:
                 raise LLMAPIError(
@@ -321,7 +323,7 @@ class AnthropicAPIProvider:
             count_response = self.client.messages.count_tokens(
                 model=self.model, messages=[{"role": "user", "content": text}]
             )
-            return count_response.input_tokens
+            return int(count_response.input_tokens)
         except Exception as e:
             logger.error(f"Error counting tokens: {e}")
             # Fallback to rough estimation (Anthropic uses ~4 chars per token)
