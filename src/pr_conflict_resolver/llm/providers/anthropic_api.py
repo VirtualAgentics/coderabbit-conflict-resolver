@@ -13,7 +13,7 @@ protocol for type safety and polymorphic usage.
 """
 
 import logging
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from anthropic import (
     Anthropic,
@@ -99,6 +99,11 @@ class AnthropicAPIProvider:
             "output": 15.00,
             "cache_write": 3.75,  # 5-minute cache
             "cache_read": 0.30,
+            # Long-context tier (>200K combined tokens)
+            "input_long": 6.00,
+            "output_long": 22.50,
+            "cache_write_long": 7.50,
+            "cache_read_long": 0.60,
         },
         "claude-haiku-4-5": {
             "input": 1.00,
@@ -108,10 +113,10 @@ class AnthropicAPIProvider:
         },
         # Legacy models
         "claude-3-5-haiku-20241022": {
-            "input": 1.00,
-            "output": 5.00,
-            "cache_write": 1.25,  # 5-minute cache
-            "cache_read": 0.10,
+            "input": 0.80,
+            "output": 4.00,
+            "cache_write": 1.00,  # 5-minute cache
+            "cache_read": 0.08,
         },
     }
 
@@ -227,20 +232,47 @@ class AnthropicAPIProvider:
                 f"Sending request to Anthropic: model={self.model}, max_tokens={max_tokens}"
             )
 
+            # Split prompt into cached and uncached blocks for better cache hit rates
+            # The marker "## Context Information" separates stable instructions (cached)
+            # from dynamic per-request data (uncached: file_path, line_number, comment_body)
+            cache_marker = "## Context Information"
+            content_blocks: list[dict[str, Any]] = []
+
+            if cache_marker in prompt:
+                # Split: stable prefix (cached) + dynamic suffix (uncached)
+                split_index = prompt.index(cache_marker)
+                stable_prefix = prompt[:split_index].rstrip()
+                dynamic_suffix = prompt[split_index:]
+
+                # Block 1: Cached stable instructions
+                content_blocks.append(
+                    {
+                        "type": "text",
+                        "text": stable_prefix,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                )
+
+                # Block 2: Uncached dynamic content (no cache_control)
+                content_blocks.append({"type": "text", "text": dynamic_suffix})
+
+                logger.debug(
+                    f"Split prompt: {len(stable_prefix)} chars cached, "
+                    f"{len(dynamic_suffix)} chars uncached"
+                )
+            else:
+                # No split marker found - send entire prompt as cached (backward compatible)
+                content_blocks.append(
+                    {
+                        "type": "text",
+                        "text": prompt,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                )
+
             response = self.client.messages.create(
                 model=self.model,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": prompt,
-                                "cache_control": {"type": "ephemeral"},
-                            }
-                        ],
-                    }
-                ],
+                messages=[{"role": "user", "content": content_blocks}],  # type: ignore[typeddict-item]
                 max_tokens=max_tokens,
                 temperature=0.0,  # Deterministic for consistency
                 extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
@@ -385,16 +417,34 @@ class AnthropicAPIProvider:
 
         Note:
             Returns 0.0 if model pricing is unknown.
+            For claude-sonnet-4-5, automatically detects long-context tier (>200K combined tokens)
+            and applies premium pricing.
         """
         if self.model not in self.MODEL_PRICING:
             logger.warning(f"Unknown model pricing for {self.model}, returning $0.00")
             return 0.0
 
         pricing = self.MODEL_PRICING[self.model]
-        input_cost = (input_tokens / 1_000_000) * pricing["input"]
-        output_cost = (output_tokens / 1_000_000) * pricing["output"]
-        cache_write_cost = (cache_write_tokens / 1_000_000) * pricing["cache_write"]
-        cache_read_cost = (cache_read_tokens / 1_000_000) * pricing["cache_read"]
+
+        # Detect long-context tier for claude-sonnet-4-5
+        # Combined tokens = cache_read + cache_write + input
+        # If > 200K, use long-context pricing (double the standard rates)
+        is_long_context = False
+        if self.model == "claude-sonnet-4-5":
+            combined_tokens = input_tokens + cache_write_tokens + cache_read_tokens
+            is_long_context = combined_tokens > 200_000
+
+        # Select pricing tier based on context length
+        if is_long_context:
+            input_cost = (input_tokens / 1_000_000) * pricing["input_long"]
+            output_cost = (output_tokens / 1_000_000) * pricing["output_long"]
+            cache_write_cost = (cache_write_tokens / 1_000_000) * pricing["cache_write_long"]
+            cache_read_cost = (cache_read_tokens / 1_000_000) * pricing["cache_read_long"]
+        else:
+            input_cost = (input_tokens / 1_000_000) * pricing["input"]
+            output_cost = (output_tokens / 1_000_000) * pricing["output"]
+            cache_write_cost = (cache_write_tokens / 1_000_000) * pricing["cache_write"]
+            cache_read_cost = (cache_read_tokens / 1_000_000) * pricing["cache_read"]
 
         return input_cost + output_cost + cache_write_cost + cache_read_cost
 

@@ -259,6 +259,87 @@ class TestAnthropicProviderCostCalculation:
         )
         assert provider.get_total_cost() == pytest.approx(expected_cost)
 
+    def test_calculate_cost_sonnet_4_5_long_context(self) -> None:
+        """Test that long-context pricing is applied when combined tokens > 200K."""
+        provider = AnthropicAPIProvider(api_key="sk-ant-test", model="claude-sonnet-4-5")
+
+        # Set up token counts that exceed 200K combined (input + cache_write + cache_read)
+        provider.total_input_tokens = 150_000
+        provider.total_cache_write_tokens = 40_000
+        provider.total_cache_read_tokens = 20_000
+        provider.total_output_tokens = 5_000
+
+        # Combined: 150K + 40K + 20K = 210K > 200K threshold
+        # Should use long-context pricing:
+        # Input: $6/1M, Output: $22.50/1M, Cache write: $7.50/1M, Cache read: $0.60/1M
+        expected_cost = (
+            (150_000 / 1_000_000) * 6.00  # input_long
+            + (5_000 / 1_000_000) * 22.50  # output_long
+            + (40_000 / 1_000_000) * 7.50  # cache_write_long
+            + (20_000 / 1_000_000) * 0.60  # cache_read_long
+        )
+        assert provider.get_total_cost() == pytest.approx(expected_cost)
+
+    def test_calculate_cost_sonnet_4_5_standard_context(self) -> None:
+        """Test that standard pricing is used when combined tokens <= 200K."""
+        provider = AnthropicAPIProvider(api_key="sk-ant-test", model="claude-sonnet-4-5")
+
+        # Set up token counts below 200K threshold
+        provider.total_input_tokens = 100_000
+        provider.total_cache_write_tokens = 50_000
+        provider.total_cache_read_tokens = 40_000
+        provider.total_output_tokens = 5_000
+
+        # Combined: 100K + 50K + 40K = 190K <= 200K threshold
+        # Should use standard pricing:
+        # Input: $3/1M, Output: $15/1M, Cache write: $3.75/1M, Cache read: $0.30/1M
+        expected_cost = (
+            (100_000 / 1_000_000) * 3.00  # input
+            + (5_000 / 1_000_000) * 15.00  # output
+            + (50_000 / 1_000_000) * 3.75  # cache_write
+            + (40_000 / 1_000_000) * 0.30  # cache_read
+        )
+        assert provider.get_total_cost() == pytest.approx(expected_cost)
+
+    def test_calculate_cost_sonnet_4_5_exactly_200k(self) -> None:
+        """Test boundary condition: exactly 200K tokens uses standard pricing."""
+        provider = AnthropicAPIProvider(api_key="sk-ant-test", model="claude-sonnet-4-5")
+
+        # Exactly at 200K threshold
+        provider.total_input_tokens = 150_000
+        provider.total_cache_write_tokens = 30_000
+        provider.total_cache_read_tokens = 20_000
+        provider.total_output_tokens = 5_000
+
+        # Combined: 150K + 30K + 20K = 200K (not > 200K)
+        # Should use standard pricing
+        expected_cost = (
+            (150_000 / 1_000_000) * 3.00  # input
+            + (5_000 / 1_000_000) * 15.00  # output
+            + (30_000 / 1_000_000) * 3.75  # cache_write
+            + (20_000 / 1_000_000) * 0.30  # cache_read
+        )
+        assert provider.get_total_cost() == pytest.approx(expected_cost)
+
+    def test_calculate_cost_long_context_only_for_sonnet_4_5(self) -> None:
+        """Test that long-context detection only applies to claude-sonnet-4-5."""
+        # Opus should not trigger long-context pricing even with >200K tokens
+        provider = AnthropicAPIProvider(api_key="sk-ant-test", model="claude-opus-4-1")
+        provider.total_input_tokens = 150_000
+        provider.total_cache_write_tokens = 40_000
+        provider.total_cache_read_tokens = 20_000
+        provider.total_output_tokens = 5_000
+
+        # Combined > 200K but model is not sonnet-4-5, so use standard Opus pricing
+        # Opus-4: $15/1M input, $75/1M output, $18.75/1M cache_write, $1.50/1M cache_read
+        expected_cost = (
+            (150_000 / 1_000_000) * 15.00
+            + (5_000 / 1_000_000) * 75.00
+            + (40_000 / 1_000_000) * 18.75
+            + (20_000 / 1_000_000) * 1.50
+        )
+        assert provider.get_total_cost() == pytest.approx(expected_cost)
+
     def test_calculate_cost_unknown_model_returns_zero(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
@@ -432,6 +513,78 @@ class TestAnthropicProviderGenerate:
         # Verify the prompt caching beta header was sent
         call_args = mock_client.messages.create.call_args
         assert call_args[1]["extra_headers"] == {"anthropic-beta": "prompt-caching-2024-07-31"}
+
+    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    def test_generate_splits_prompt_with_context_marker(self, mock_anthropic_class: Mock) -> None:
+        """Test that prompts with context marker are split into cached + uncached blocks."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_text_block = TextBlock(type="text", text="response")
+        mock_response = MagicMock()
+        mock_response.content = [mock_text_block]
+        mock_response.usage = MagicMock(
+            input_tokens=10,
+            output_tokens=5,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
+        mock_client.messages.create.return_value = mock_response
+
+        provider = AnthropicAPIProvider(api_key="sk-ant-test")
+
+        # Prompt with context marker should be split
+        prompt_with_marker = (
+            "Instructions here\n\n## Context Information\n\nFile: test.py\nLine: 42"
+        )
+        provider.generate(prompt_with_marker)
+
+        # Verify 2 content blocks were sent
+        call_args = mock_client.messages.create.call_args
+        content_blocks = call_args[1]["messages"][0]["content"]
+        assert len(content_blocks) == 2
+
+        # Block 1: Cached prefix (before marker)
+        assert content_blocks[0]["type"] == "text"
+        assert "Instructions here" in content_blocks[0]["text"]
+        assert "## Context Information" not in content_blocks[0]["text"]
+        assert "cache_control" in content_blocks[0]
+        assert content_blocks[0]["cache_control"]["type"] == "ephemeral"
+
+        # Block 2: Uncached dynamic content (marker onward)
+        assert content_blocks[1]["type"] == "text"
+        assert "## Context Information" in content_blocks[1]["text"]
+        assert "File: test.py" in content_blocks[1]["text"]
+        assert "cache_control" not in content_blocks[1]
+
+    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    def test_generate_no_split_without_context_marker(self, mock_anthropic_class: Mock) -> None:
+        """Test that prompts without context marker are sent as single cached block."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_text_block = TextBlock(type="text", text="response")
+        mock_response = MagicMock()
+        mock_response.content = [mock_text_block]
+        mock_response.usage = MagicMock(
+            input_tokens=10,
+            output_tokens=5,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
+        mock_client.messages.create.return_value = mock_response
+
+        provider = AnthropicAPIProvider(api_key="sk-ant-test")
+
+        # Simple prompt without marker
+        provider.generate("Simple prompt without split marker")
+
+        # Verify single content block was sent
+        call_args = mock_client.messages.create.call_args
+        content_blocks = call_args[1]["messages"][0]["content"]
+        assert len(content_blocks) == 1
+        assert content_blocks[0]["type"] == "text"
+        assert "cache_control" in content_blocks[0]
 
 
 class TestAnthropicProviderRetryLogic:
