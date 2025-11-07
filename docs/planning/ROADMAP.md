@@ -1,8 +1,8 @@
 # CodeRabbit Conflict Resolver - Development Roadmap
 
 **Version**: 2.0
-**Last Updated**: 2025-11-03
-**Status**: Phase 0 Complete (100%), Phases 1-8 In Progress (0%)
+**Last Updated**: 2025-11-07
+**Status**: Phases 0-1 Complete (100%), Phases 2-6 In Progress (0%)
 
 ---
 
@@ -68,11 +68,15 @@ Transform the CodeRabbit Conflict Resolver into a production-ready, professional
 
 **Reference**: See `docs/planning/archive/phase-0-complete.md` for full Phase 0 specifications.
 
-### 🚧 In Progress (v2.0 - LLM-First Architecture) - 0%
+### ✅ Completed (v2.0 Phase 0-1) - 29% (2/7 phases)
 
 **GitHub Issues**:
-- Issue #114: Phase 0 - LLM Foundation (NOT STARTED)
-- Issue #115: Phase 1 - Basic LLM Parsing (NOT STARTED)
+- Issue #114: Phase 0 - LLM Foundation (COMPLETED - PR #121 merged 2025-11-06)
+- Issue #115: Phase 1 - Basic LLM Parsing (COMPLETED - PR #122 merged 2025-11-06)
+
+### 🚧 In Progress (v2.0 - LLM-First Architecture) - Phases 2-6
+
+**GitHub Issues**:
 - Issue #116: Phase 2 - Multi-Provider Support (NOT STARTED)
 - Issue #117: Phase 3 - CLI Integration Polish (NOT STARTED)
 - Issue #118: Phase 4 - Local Model Support (NOT STARTED)
