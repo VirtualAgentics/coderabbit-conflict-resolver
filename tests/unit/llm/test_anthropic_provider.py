@@ -586,6 +586,39 @@ class TestAnthropicProviderGenerate:
         assert content_blocks[0]["type"] == "text"
         assert "cache_control" in content_blocks[0]
 
+    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    def test_generate_handles_empty_prefix_gracefully(self, mock_anthropic_class: Mock) -> None:
+        """Test that prompts starting with context marker don't create empty cached blocks."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_text_block = TextBlock(type="text", text="response")
+        mock_response = MagicMock()
+        mock_response.content = [mock_text_block]
+        mock_response.usage = MagicMock(
+            input_tokens=10,
+            output_tokens=5,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
+        mock_client.messages.create.return_value = mock_response
+
+        provider = AnthropicAPIProvider(api_key="sk-ant-test")
+
+        # Prompt starting with marker (empty prefix)
+        prompt_starting_with_marker = "## Context Information\n\nFile: test.py\nLine: 42"
+        provider.generate(prompt_starting_with_marker)
+
+        # Verify only 1 block sent (no empty cached block)
+        call_args = mock_client.messages.create.call_args
+        content_blocks = call_args[1]["messages"][0]["content"]
+        assert len(content_blocks) == 1
+
+        # The single block should be the dynamic content (uncached)
+        assert content_blocks[0]["type"] == "text"
+        assert "## Context Information" in content_blocks[0]["text"]
+        assert "cache_control" not in content_blocks[0]
+
 
 class TestAnthropicProviderRetryLogic:
     """Test retry logic for transient failures."""

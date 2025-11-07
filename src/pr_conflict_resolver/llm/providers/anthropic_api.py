@@ -147,10 +147,10 @@ class AnthropicAPIProvider:
         self.timeout = timeout
 
         # Token usage tracking (4 types for Anthropic)
-        self.total_input_tokens = 0
-        self.total_output_tokens = 0
-        self.total_cache_write_tokens = 0
-        self.total_cache_read_tokens = 0
+        self.total_input_tokens: int = 0
+        self.total_output_tokens: int = 0
+        self.total_cache_write_tokens: int = 0
+        self.total_cache_read_tokens: int = 0
 
         logger.info(f"Initialized Anthropic provider: model={model}, timeout={timeout}s")
 
@@ -244,14 +244,16 @@ class AnthropicAPIProvider:
                 stable_prefix = prompt[:split_index].rstrip()
                 dynamic_suffix = prompt[split_index:]
 
-                # Block 1: Cached stable instructions
-                content_blocks.append(
-                    {
-                        "type": "text",
-                        "text": stable_prefix,
-                        "cache_control": {"type": "ephemeral"},
-                    }
-                )
+                # Block 1: Cached stable instructions (only if non-empty)
+                # Anthropic rejects cache_control on empty text blocks
+                if stable_prefix:
+                    content_blocks.append(
+                        {
+                            "type": "text",
+                            "text": stable_prefix,
+                            "cache_control": {"type": "ephemeral"},
+                        }
+                    )
 
                 # Block 2: Uncached dynamic content (no cache_control)
                 content_blocks.append({"type": "text", "text": dynamic_suffix})
