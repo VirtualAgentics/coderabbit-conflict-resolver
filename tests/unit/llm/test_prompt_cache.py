@@ -1,6 +1,7 @@
 """Comprehensive test suite for prompt caching system."""
 
 import dataclasses
+import hashlib
 import json
 import tempfile
 import threading
@@ -246,7 +247,9 @@ class TestCacheOperations:
             cache = PromptCache(cache_dir=Path(tmpdir))
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response text", {"provider": "anthropic", "model": "model"})
+            cache.set(
+                key, "response text", {"prompt": "test", "provider": "anthropic", "model": "model"}
+            )
 
             result = cache.get(key)
             assert result == "response text"
@@ -265,7 +268,7 @@ class TestCacheOperations:
             cache = PromptCache(cache_dir=Path(tmpdir), ttl_seconds=1)
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             # Wait for expiration
             time.sleep(1.1)
@@ -279,8 +282,8 @@ class TestCacheOperations:
             cache = PromptCache(cache_dir=Path(tmpdir))
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "first response", {})
-            cache.set(key, "second response", {})
+            cache.set(key, "first response", {"prompt": "test"})
+            cache.set(key, "second response", {"prompt": "test"})
 
             result = cache.get(key)
             assert result == "second response"
@@ -291,7 +294,7 @@ class TestCacheOperations:
             cache = PromptCache(cache_dir=Path(tmpdir))
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             # Multiple gets
             for _ in range(5):
@@ -304,7 +307,7 @@ class TestCacheOperations:
             cache = PromptCache(cache_dir=Path(tmpdir))
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             cache_file = Path(tmpdir) / f"{key}.json"
             assert cache_file.exists()
@@ -315,7 +318,11 @@ class TestCacheOperations:
             cache = PromptCache(cache_dir=Path(tmpdir))
 
             key = cache.compute_key("test", "anthropic", "claude-sonnet-4-5")
-            cache.set(key, "response", {"provider": "anthropic", "model": "claude-sonnet-4-5"})
+            cache.set(
+                key,
+                "response",
+                {"prompt": "test", "provider": "anthropic", "model": "claude-sonnet-4-5"},
+            )
 
             # Read file and check metadata
             cache_file = Path(tmpdir) / f"{key}.json"
@@ -332,7 +339,7 @@ class TestCacheOperations:
             cache = PromptCache(cache_dir=Path(tmpdir))
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             cache_file = Path(tmpdir) / f"{key}.json"
             mtime_before = cache_file.stat().st_mtime
@@ -350,7 +357,7 @@ class TestCacheOperations:
 
             key = cache.compute_key("test", "anthropic", "model")
             with pytest.raises(ValueError, match="response cannot be empty"):
-                cache.set(key, "", {})
+                cache.set(key, "", {"prompt": "test"})
 
     def test_set_empty_key_raises(self) -> None:
         """Test that empty key raises ValueError."""
@@ -359,6 +366,48 @@ class TestCacheOperations:
 
             with pytest.raises(ValueError, match="key cannot be empty"):
                 cache.set("", "response", {})
+
+    def test_set_stores_correct_prompt_hash(self) -> None:
+        """Test that prompt_hash stores SHA256 of prompt only, not composite key."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+
+            prompt = "test prompt"
+            provider = "anthropic"
+            model = "claude-sonnet-4-5"
+
+            # Compute key and set entry
+            key = cache.compute_key(prompt, provider, model)
+            cache.set(key, "response", {"prompt": prompt, "provider": provider, "model": model})
+
+            # Read cache file directly to verify prompt_hash
+            cache_file = cache.cache_dir / f"{key}.json"
+            with open(cache_file) as f:
+                data = json.load(f)
+
+            # Verify prompt_hash is SHA256 of prompt only
+            expected_prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+            assert data["prompt_hash"] == expected_prompt_hash
+            # Ensure it's NOT the composite cache key
+            assert data["prompt_hash"] != key
+
+    def test_set_requires_prompt_in_metadata(self) -> None:
+        """Test that set() raises ValueError when prompt missing from metadata."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+
+            key = cache.compute_key("test", "provider", "model")
+
+            with pytest.raises(ValueError, match="metadata must include 'prompt' field"):
+                cache.set(
+                    key,
+                    "response",
+                    {
+                        "provider": "anthropic",
+                        "model": "model",
+                        # Missing "prompt" key
+                    },
+                )
 
     def test_get_corrupted_file_returns_none(self) -> None:
         """Test that corrupted JSON file returns None and is deleted."""
@@ -382,7 +431,7 @@ class TestCacheOperations:
             cache = PromptCache(cache_dir=Path(tmpdir))
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             cache_file = Path(tmpdir) / f"{key}.json"
             # Get file permissions (last 3 digits of octal mode)
@@ -397,8 +446,8 @@ class TestCacheOperations:
             key1 = cache.compute_key("prompt1", "anthropic", "model")
             key2 = cache.compute_key("prompt2", "openai", "model")
 
-            cache.set(key1, "response1", {})
-            cache.set(key2, "response2", {})
+            cache.set(key1, "response1", {"prompt": "prompt1"})
+            cache.set(key2, "response2", {"prompt": "prompt2"})
 
             assert cache.get(key1) == "response1"
             assert cache.get(key2) == "response2"
@@ -427,7 +476,7 @@ class TestTTLManagement:
             cache = PromptCache(cache_dir=Path(tmpdir), ttl_seconds=60)
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             result = cache.get(key)
             assert result == "response"
@@ -438,7 +487,7 @@ class TestTTLManagement:
             cache = PromptCache(cache_dir=Path(tmpdir), ttl_seconds=1)
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             time.sleep(1.1)
 
@@ -451,7 +500,7 @@ class TestTTLManagement:
             cache = PromptCache(cache_dir=Path(tmpdir), ttl_seconds=1)
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
             cache_file = Path(tmpdir) / f"{key}.json"
 
             assert cache_file.exists()
@@ -469,7 +518,7 @@ class TestTTLManagement:
             # Create multiple entries
             for i in range(5):
                 key = cache.compute_key(f"prompt{i}", "anthropic", "model")
-                cache.set(key, f"response{i}", {})
+                cache.set(key, f"response{i}", {"prompt": f"prompt{i}"})
 
             time.sleep(1.1)
 
@@ -482,7 +531,7 @@ class TestTTLManagement:
             cache = PromptCache(cache_dir=Path(tmpdir), ttl_seconds=1)
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             time.sleep(1.1)
 
@@ -509,7 +558,7 @@ class TestTTLManagement:
 
             # Create fresh entry
             key2 = cache.compute_key("fresh", "anthropic", "model")
-            cache.set(key2, "fresh", {})
+            cache.set(key2, "fresh", {"prompt": "fresh"})
 
             cache.evict_expired()
 
@@ -524,7 +573,7 @@ class TestTTLManagement:
             cache = PromptCache(cache_dir=Path(tmpdir), ttl_seconds=1)
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             # Wait slightly less than TTL
             time.sleep(0.9)
@@ -540,7 +589,7 @@ class TestTTLManagement:
             cache = PromptCache(cache_dir=Path(tmpdir), ttl_seconds=2)
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             # Within TTL
             time.sleep(1)
@@ -560,7 +609,7 @@ class TestLRUEviction:
             cache = PromptCache(cache_dir=Path(tmpdir), max_size_bytes=10 * 1024 * 1024)
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "small response", {})
+            cache.set(key, "small response", {"prompt": "test"})
 
             stats = cache.get_stats()
             assert stats.entry_count == 1  # No eviction
@@ -574,7 +623,7 @@ class TestLRUEviction:
             # Add multiple entries to exceed limit
             for i in range(10):
                 key = cache.compute_key(f"prompt{i}", "anthropic", "model")
-                cache.set(key, "x" * 100, {})  # ~100 bytes each
+                cache.set(key, "x" * 100, {"prompt": f"prompt{i}"})  # ~100 bytes each
 
             stats = cache.get_stats()
             # Should have evicted some entries
@@ -589,7 +638,7 @@ class TestLRUEviction:
             keys = []
             for i in range(5):
                 key = cache.compute_key(f"prompt{i}", "anthropic", "model")
-                cache.set(key, "response", {})
+                cache.set(key, "response", {"prompt": "test"})
                 keys.append(key)
                 time.sleep(0.05)  # Ensure different mtimes
 
@@ -614,7 +663,7 @@ class TestLRUEviction:
             # Create entries
             for i in range(10):
                 key = cache.compute_key(f"prompt{i}", "anthropic", "model")
-                cache.set(key, "response" * 10, {})
+                cache.set(key, "response" * 10, {"prompt": f"prompt{i}"})
                 time.sleep(0.01)
 
             # Evict to target
@@ -632,7 +681,7 @@ class TestLRUEviction:
             # Create 5 entries
             for i in range(5):
                 key = cache.compute_key(f"prompt{i}", "anthropic", "model")
-                cache.set(key, "response", {})
+                cache.set(key, "response", {"prompt": "test"})
 
             # Evict to 0
             count = cache.evict_lru(0)
@@ -645,12 +694,12 @@ class TestLRUEviction:
 
             # Create old entry
             key_old = cache.compute_key("old", "anthropic", "model")
-            cache.set(key_old, "old_response", {})
+            cache.set(key_old, "old_response", {"prompt": "old"})
             time.sleep(0.1)
 
             # Create new entry
             key_new = cache.compute_key("new", "anthropic", "model")
-            cache.set(key_new, "new_response", {})
+            cache.set(key_new, "new_response", {"prompt": "new"})
 
             # Evict aggressively
             cache.evict_lru(100)
@@ -666,7 +715,7 @@ class TestLRUEviction:
             # Fill cache
             for i in range(10):
                 key = cache.compute_key(f"prompt{i}", "anthropic", "model")
-                cache.set(key, "x" * 200, {})  # Large responses
+                cache.set(key, "x" * 200, {"prompt": f"prompt{i}"})  # Large responses
 
             # Cache should have auto-evicted
             stats = cache.get_stats()
@@ -683,7 +732,7 @@ class TestLRUEviction:
 
             # Add entry
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             stats = cache.get_stats()
             assert stats.cache_size_bytes > 0
@@ -695,7 +744,7 @@ class TestLRUEviction:
 
             for i in range(5):
                 key = cache.compute_key(f"prompt{i}", "anthropic", "model")
-                cache.set(key, "response", {})
+                cache.set(key, "response", {"prompt": "test"})
 
             cache.evict_lru(0)
 
@@ -710,11 +759,11 @@ class TestLRUEviction:
             # Create small entries
             for i in range(5):
                 key = cache.compute_key(f"small{i}", "anthropic", "model")
-                cache.set(key, "x" * 50, {})
+                cache.set(key, "x" * 50, {"prompt": f"prompt{i}"})
 
             # Add huge entry
             key_large = cache.compute_key("large", "anthropic", "model")
-            cache.set(key_large, "x" * 2000, {})
+            cache.set(key_large, "x" * 2000, {"prompt": "large"})
 
             # Should have triggered eviction
             stats = cache.get_stats()
@@ -730,7 +779,7 @@ class TestThreadSafety:
             cache = PromptCache(cache_dir=Path(tmpdir))
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             def worker() -> None:
                 for _ in range(100):
@@ -751,7 +800,7 @@ class TestThreadSafety:
             def worker(idx: int) -> None:
                 for i in range(50):
                     key = cache.compute_key(f"prompt_{idx}_{i}", "anthropic", "model")
-                    cache.set(key, f"response_{idx}_{i}", {})
+                    cache.set(key, f"response_{idx}_{i}", {"prompt": f"prompt{i}"})
 
             threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
             for t in threads:
@@ -771,7 +820,7 @@ class TestThreadSafety:
             # Pre-populate
             for i in range(10):
                 key = cache.compute_key(f"initial{i}", "anthropic", "model")
-                cache.set(key, f"value{i}", {})
+                cache.set(key, f"value{i}", {"prompt": f"prompt{i}"})
 
             def reader() -> None:
                 for i in range(50):
@@ -781,7 +830,7 @@ class TestThreadSafety:
             def writer() -> None:
                 for i in range(50):
                     key = cache.compute_key(f"new{i}", "anthropic", "model")
-                    cache.set(key, f"newvalue{i}", {})
+                    cache.set(key, f"newvalue{i}", {"prompt": f"prompt{i}"})
 
             readers = [threading.Thread(target=reader) for _ in range(5)]
             writers = [threading.Thread(target=writer) for _ in range(5)]
@@ -799,7 +848,7 @@ class TestThreadSafety:
             # Pre-populate
             for i in range(20):
                 key = cache.compute_key(f"prompt{i}", "anthropic", "model")
-                cache.set(key, f"response{i}", {})
+                cache.set(key, f"response{i}", {"prompt": f"prompt{i}"})
 
             def evictor() -> None:
                 cache.evict_lru(100)
@@ -820,7 +869,7 @@ class TestThreadSafety:
             cache = PromptCache(cache_dir=Path(tmpdir))
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             def worker() -> None:
                 for _ in range(100):
@@ -846,7 +895,7 @@ class TestThreadSafety:
 
             def worker(value: str) -> None:
                 for _ in range(50):
-                    cache.set(key, value, {})
+                    cache.set(key, value, {"prompt": "shared"})
                     result = cache.get(key)
                     # Should get back a valid value (not corrupted)
                     assert result in ["value_a", "value_b"]
@@ -867,7 +916,7 @@ class TestThreadSafety:
 
             # Cause exception in get by corrupting file after creation
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             cache_file = Path(tmpdir) / f"{key}.json"
             cache_file.write_text("corrupted{{{", encoding="utf-8")
@@ -877,7 +926,7 @@ class TestThreadSafety:
             assert result is None
 
             # Lock should be released, so next operation works
-            cache.set(key, "new response", {})
+            cache.set(key, "new response", {"prompt": "test"})
             assert cache.get(key) == "new response"
 
     def test_multiple_instances_share_files(self) -> None:
@@ -887,7 +936,7 @@ class TestThreadSafety:
             cache2 = PromptCache(cache_dir=Path(tmpdir))
 
             key = cache1.compute_key("test", "anthropic", "model")
-            cache1.set(key, "response", {})
+            cache1.set(key, "response", {"prompt": "test"})
 
             # Second instance should see the entry
             result = cache2.get(key)
@@ -903,7 +952,7 @@ class TestStatistics:
             cache = PromptCache(cache_dir=Path(tmpdir))
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             cache.get(key)
             stats = cache.get_stats()
@@ -924,7 +973,7 @@ class TestStatistics:
             cache = PromptCache(cache_dir=Path(tmpdir))
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             # 3 hits, 1 miss
             cache.get(key)  # hit
@@ -947,7 +996,7 @@ class TestStatistics:
             assert stats.cache_size_bytes == 0
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
 
             stats = cache.get_stats()
             assert stats.cache_size_bytes > 0
@@ -959,7 +1008,7 @@ class TestStatistics:
 
             for i in range(10):
                 key = cache.compute_key(f"prompt{i}", "anthropic", "model")
-                cache.set(key, "response", {})
+                cache.set(key, "response", {"prompt": "test"})
 
             stats = cache.get_stats()
             assert stats.entry_count == 10
@@ -971,7 +1020,7 @@ class TestStatistics:
 
             for i in range(10):
                 key = cache.compute_key(f"prompt{i}", "anthropic", "model")
-                cache.set(key, "response", {})
+                cache.set(key, "response", {"prompt": "test"})
 
             cache.evict_lru(100)
 
@@ -984,7 +1033,7 @@ class TestStatistics:
             cache = PromptCache(cache_dir=Path(tmpdir))
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
             cache.get(key)
             cache.get("nonexistent")
 
@@ -1025,7 +1074,7 @@ class TestClearOperation:
 
             for i in range(10):
                 key = cache.compute_key(f"prompt{i}", "anthropic", "model")
-                cache.set(key, f"response{i}", {})
+                cache.set(key, f"response{i}", {"prompt": f"prompt{i}"})
 
             cache.clear()
 
@@ -1038,7 +1087,7 @@ class TestClearOperation:
             cache = PromptCache(cache_dir=Path(tmpdir))
 
             key = cache.compute_key("test", "anthropic", "model")
-            cache.set(key, "response", {})
+            cache.set(key, "response", {"prompt": "test"})
             cache.get(key)
             cache.get("miss")
 

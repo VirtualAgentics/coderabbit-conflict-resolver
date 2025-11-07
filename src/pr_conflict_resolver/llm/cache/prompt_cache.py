@@ -29,7 +29,8 @@ class CacheEntry:
         timestamp: Unix timestamp when entry was created
         provider: LLM provider name (e.g., "anthropic", "openai")
         model: Model name (e.g., "claude-sonnet-4-5", "gpt-4o")
-        prompt_hash: SHA256 hash of the original prompt
+        prompt_hash: SHA256 hash of the original prompt text ONLY
+                     (not the composite cache key which includes provider+model)
 
     Examples:
         >>> entry = CacheEntry(
@@ -320,15 +321,20 @@ class PromptCache:
         Args:
             key: SHA256 cache key from compute_key()
             response: LLM-generated response text to cache
-            metadata: Provider and model information (keys: "provider", "model")
+            metadata: Must include "prompt", "provider", "model"
+                - prompt: Original prompt text (for computing prompt_hash)
+                - provider: LLM provider name
+                - model: Model name
 
         Raises:
-            ValueError: If key or response is empty
+            ValueError: If key, response, or prompt is empty/missing
 
         Examples:
             >>> cache = PromptCache()
-            >>> key = cache.compute_key("prompt", "anthropic", "claude-sonnet-4-5")
+            >>> prompt = "Fix the bug in login.py"
+            >>> key = cache.compute_key(prompt, "anthropic", "claude-sonnet-4-5")
             >>> cache.set(key, "LLM response here", {
+            ...     "prompt": prompt,
             ...     "provider": "anthropic",
             ...     "model": "claude-sonnet-4-5",
             ... })
@@ -352,8 +358,16 @@ class PromptCache:
         Args:
             key: SHA256 cache key
             response: LLM response to cache
-            metadata: Provider and model metadata
+            metadata: Must include prompt, provider, and model
         """
+        # Extract and validate prompt (required for prompt_hash)
+        prompt = metadata.get("prompt")
+        if not prompt:
+            raise ValueError("metadata must include 'prompt' field")
+
+        # Compute prompt_hash from prompt only (not the composite cache key)
+        prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+
         cache_file = self.cache_dir / f"{key}.json"
 
         # Create cache entry
@@ -362,7 +376,7 @@ class PromptCache:
             "timestamp": time.time(),
             "provider": metadata.get("provider", "unknown"),
             "model": metadata.get("model", "unknown"),
-            "prompt_hash": key,
+            "prompt_hash": prompt_hash,
         }
 
         # Write to file with secure permissions
