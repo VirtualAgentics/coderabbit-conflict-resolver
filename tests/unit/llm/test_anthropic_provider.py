@@ -407,6 +407,32 @@ class TestAnthropicProviderGenerate:
         assert provider.total_cache_write_tokens == 100
         assert provider.total_cache_read_tokens == 50
 
+    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    def test_generate_sends_prompt_caching_header(self, mock_anthropic_class: Mock) -> None:
+        """Test that prompt caching beta header is sent with API requests."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        # Create a real TextBlock instance (not patched)
+        mock_text_block = TextBlock(type="text", text="response")
+
+        mock_response = MagicMock()
+        mock_response.content = [mock_text_block]
+        mock_response.usage = MagicMock(
+            input_tokens=10,
+            output_tokens=5,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
+        mock_client.messages.create.return_value = mock_response
+
+        provider = AnthropicAPIProvider(api_key="sk-ant-test")
+        provider.generate("Test prompt")
+
+        # Verify the prompt caching beta header was sent
+        call_args = mock_client.messages.create.call_args
+        assert call_args[1]["extra_headers"] == {"anthropic-beta": "prompt-caching-2024-07-31"}
+
 
 class TestAnthropicProviderRetryLogic:
     """Test retry logic for transient failures."""

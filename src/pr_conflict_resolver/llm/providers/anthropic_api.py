@@ -243,6 +243,7 @@ class AnthropicAPIProvider:
                 ],
                 max_tokens=max_tokens,
                 temperature=0.0,  # Deterministic for consistency
+                extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
             )
 
             # Track token usage (including cache metrics)
