@@ -1,17 +1,17 @@
-# CodeRabbit Conflict Resolver
+# Review Bot Automator
 
 <p align="center">
-  <strong>An intelligent, automated conflict resolution system for GitHub PR comments</strong>
+  <strong>Universal AI-powered automation for GitHub code review bots</strong>
   <br>
-  Specifically designed for <a href="https://coderabbit.ai">CodeRabbit AI</a> but extensible to other code review bots
+  Intelligent suggestion application and conflict resolution for <a href="https://coderabbit.ai">CodeRabbit</a>, <a href="https://github.com/features/copilot">GitHub Copilot</a>, and custom review bots
 </p>
 
 <p align="center">
   <!-- Build & Quality -->
-  <a href="https://github.com/VirtualAgentics/coderabbit-conflict-resolver/actions"><img src="https://github.com/VirtualAgentics/coderabbit-conflict-resolver/workflows/CI/badge.svg" alt="CI"></a>
-  <a href="https://codecov.io/gh/VirtualAgentics/coderabbit-conflict-resolver"><img src="https://codecov.io/gh/VirtualAgentics/coderabbit-conflict-resolver/branch/main/graph/badge.svg" alt="codecov"></a>
-  <a href="https://github.com/VirtualAgentics/coderabbit-conflict-resolver/actions/workflows/security.yml"><img src="https://github.com/VirtualAgentics/coderabbit-conflict-resolver/workflows/Security/badge.svg" alt="Security"></a>
-  <a href="https://virtualagent ics.github.io/coderabbit-conflict-resolver/"><img src="https://github.com/VirtualAgentics/coderabbit-conflict-resolver/workflows/Documentation/badge.svg" alt="Documentation"></a>
+  <a href="https://github.com/VirtualAgentics/review-bot-automator/actions"><img src="https://github.com/VirtualAgentics/review-bot-automator/workflows/CI/badge.svg" alt="CI"></a>
+  <a href="https://codecov.io/gh/VirtualAgentics/review-bot-automator"><img src="https://codecov.io/gh/VirtualAgentics/review-bot-automator/branch/main/graph/badge.svg" alt="codecov"></a>
+  <a href="https://github.com/VirtualAgentics/review-bot-automator/actions/workflows/security.yml"><img src="https://github.com/VirtualAgentics/review-bot-automator/workflows/Security/badge.svg" alt="Security"></a>
+  <a href="https://virtualagent ics.github.io/review-bot-automator/"><img src="https://github.com/VirtualAgentics/review-bot-automator/workflows/Documentation/badge.svg" alt="Documentation"></a>
   <br>
   <!-- Code Quality -->
   <a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black"></a>
@@ -20,8 +20,8 @@
   <a href="https://github.com/pre-commit/pre-commit"><img src="https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit" alt="pre-commit"></a>
   <br>
   <!-- Security & Compliance -->
-  <a href="https://securityscorecards.dev/viewer/?uri=github.com/VirtualAgentics/coderabbit-conflict-resolver"><img src="https://api.securityscorecards.dev/projects/github.com/VirtualAgentics/coderabbit-conflict-resolver/badge" alt="OpenSSF Scorecard"></a>
-  <a href="https://coderabbit.ai"><img src="https://img.shields.io/coderabbit/prs/github/VirtualAgentics/coderabbit-conflict-resolver?utm_source=oss&utm_medium=github&utm_campaign=VirtualAgentics%2Fcoderabbit-conflict-resolver&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews" alt="CodeRabbit Reviews"></a>
+  <a href="https://securityscorecards.dev/viewer/?uri=github.com/VirtualAgentics/review-bot-automator"><img src="https://api.securityscorecards.dev/projects/github.com/VirtualAgentics/review-bot-automator/badge" alt="OpenSSF Scorecard"></a>
+  <a href="https://coderabbit.ai"><img src="https://img.shields.io/coderabbit/prs/github/VirtualAgentics/review-bot-automator?utm_source=oss&utm_medium=github&utm_campaign=VirtualAgentics%2Freview-bot-automator&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews" alt="CodeRabbit Reviews"></a>
   <br>
   <!-- Project Info -->
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python Version"></a>
@@ -54,7 +54,7 @@ When multiple PR review comments suggest overlapping changes to the same file, t
 - Apply changes sequentially without conflict awareness (potentially breaking code)
 - Require tedious manual resolution for every conflict
 
-**CodeRabbit Conflict Resolver** provides intelligent, semantic-aware conflict resolution that:
+**Review Bot Automator** provides intelligent, semantic-aware conflict resolution that:
 
 - ✅ Understands code structure (JSON, YAML, TOML, Python, TypeScript)
 - ✅ Uses priority-based resolution (user selections, security fixes, syntax errors)
@@ -299,8 +299,8 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ### Development Setup
 
 ```bash
-git clone https://github.com/VirtualAgentics/coderabbit-conflict-resolver.git
-cd coderabbit-conflict-resolver
+git clone https://github.com/VirtualAgentics/review-bot-automator.git
+cd review-bot-automator
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
@@ -488,7 +488,7 @@ Comprehensive planning documentation available:
 
 - **Phase 0-6**: 10-12 weeks implementation
 - **Estimated Release**: Q2 2025
-- **GitHub Milestone**: [v2.0 - LLM-First Architecture](https://github.com/VirtualAgentics/coderabbit-conflict-resolver/milestone/2)
+- **GitHub Milestone**: [v2.0 - LLM-First Architecture](https://github.com/VirtualAgentics/review-bot-automator/milestone/2)
 - **GitHub Issues**: #114-#120 (Phases 0-6)
 
 ---

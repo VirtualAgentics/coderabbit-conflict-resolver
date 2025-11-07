@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "analyzer": {
+      "command": "/home/bofh/projects/coderabbit-conflict-resolver/.venv/bin/python",
+      "args": [
+        "-m",
+        "mcp_server_analyzer"
+      ],
+      "description": "MCP Server Analyzer - RUFF linting + VULTURE dead code detection with quality scoring"
+    },
+    "python-lft": {
+      "command": "/home/bofh/projects/coderabbit-conflict-resolver/.venv/bin/python",
+      "args": [
+        "-m",
+        "python_lft"
+      ],
+      "description": "Python Lint, Format, Test (LFT) - Intelligent Python development tools for linting, formatting, and testing"
+    },
+    "sqlite": {
+      "command": "/home/bofh/projects/coderabbit-conflict-resolver/.venv/bin/mcp-server-sqlite",
+      "args": [
+        "--db-path",
+        "/home/bofh/projects/coderabbit-conflict-resolver/.mcp-cache/data.db"
+      ],
+      "description": "SQLite MCP Server - Database operations for caching LLM responses, storing metrics, and conflict resolution history"
+    },
+    "semgrep": {
+      "command": "/home/bofh/projects/coderabbit-conflict-resolver/.venv/bin/semgrep",
+      "args": [
+        "--config=auto"
+      ],
+      "description": "Semgrep Security Scanner - Advanced code analysis and vulnerability detection"
+    }
+  }
+}

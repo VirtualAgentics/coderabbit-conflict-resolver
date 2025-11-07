@@ -376,7 +376,7 @@ Issues #74 and #75 already created in ContextForge Memory repository.
 
 ## Notes
 
-- All work should be done in the coderabbit-conflict-resolver repository
+- All work should be done in the review-bot-automator repository
 - No changes needed in ContextForge Memory until Phase 6
 - Focus on making the package production-ready
 - Prioritize documentation and CI/CD for user adoption

@@ -509,7 +509,7 @@ jobs:
       # EXCEPTION: Excludes PYSEC-2024-48 / GHSA-fj7x-q9j7-g6q6 (known false positive)
       #   - Black 25.9.0 includes fix from March 2024 (commit f000936)
       #   - OSV-Scanner.toml not respected by Scorecard (upstream Issue #4530)
-      #   - Tracked in: https://github.com/VirtualAgentics/coderabbit-conflict-resolver/issues/75
+      #   - Tracked in: https://github.com/VirtualAgentics/review-bot-automator/issues/75
       #
       # NOTE: Custom validation step removed (violates Scorecard API restrictions when publish_results: true)
       # - Scorecard results are automatically uploaded to GitHub Security tab (see above step)

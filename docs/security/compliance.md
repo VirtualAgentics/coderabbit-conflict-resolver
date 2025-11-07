@@ -377,7 +377,7 @@ This document maps the CodeRabbit Conflict Resolver's security controls to indus
 
 ### OpenSSF Scorecard
 
-**Current Score**: Available at https://github.com/VirtualAgentics/coderabbit-conflict-resolver/security
+**Current Score**: Available at https://github.com/VirtualAgentics/review-bot-automator/security
 
 **Scorecard Checks**:
 - ✅ **Branch Protection**: Main branch protected
@@ -464,7 +464,7 @@ This document maps the CodeRabbit Conflict Resolver's security controls to indus
 
 ### Evidence Locations
 
-**Source Code**: https://github.com/VirtualAgentics/coderabbit-conflict-resolver
+**Source Code**: https://github.com/VirtualAgentics/review-bot-automator
 
 **Security Documentation**:
 - Security Policy: `SECURITY.md`
@@ -485,7 +485,7 @@ This document maps the CodeRabbit Conflict Resolver's security controls to indus
 - File handler security tests
 - Handler security tests (JSON, YAML, TOML)
 
-**Scorecard Results**: https://api.securityscorecards.dev/projects/github.com/VirtualAgentics/coderabbit-conflict-resolver
+**Scorecard Results**: https://api.securityscorecards.dev/projects/github.com/VirtualAgentics/review-bot-automator
 
 ---
 

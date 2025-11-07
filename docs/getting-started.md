@@ -13,8 +13,8 @@ pip install pr-conflict-resolver
 ### From Source
 
 ```bash
-git clone https://github.com/VirtualAgentics/coderabbit-conflict-resolver.git
-cd coderabbit-conflict-resolver
+git clone https://github.com/VirtualAgentics/review-bot-automator.git
+cd review-bot-automator
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
@@ -514,6 +514,6 @@ See [Parallel Processing](parallel-processing.md) for detailed tuning guide.
 
 ## Getting Help
 
-- **Issues:** [GitHub Issues](https://github.com/VirtualAgentics/coderabbit-conflict-resolver/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/VirtualAgentics/coderabbit-conflict-resolver/discussions)
+- **Issues:** [GitHub Issues](https://github.com/VirtualAgentics/review-bot-automator/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/VirtualAgentics/review-bot-automator/discussions)
 - **CodeRabbit AI:** [coderabbit.ai](https://coderabbit.ai)

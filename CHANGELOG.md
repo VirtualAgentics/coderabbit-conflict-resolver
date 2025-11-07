@@ -98,7 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Properly drops stash on both commit() and rollback() for cleanup
   - Addresses CodeRabbit review feedback about silent failures when untracked files exist
 - ClusterFuzzLite build script fixes:
-  - Fixed all path references from `/src` to `/src/coderabbit-conflict-resolver` (build.sh:21, 26, 32, 39)
+  - Fixed all path references from `/src` to `/src/review-bot-automator` (build.sh:21, 26, 32, 39)
   - Added mdurl==0.1.2 dependency to requirements-py311.txt (required by markdown-it-py)
   - Documented security rationale for local package installation without --require-hashes (build.sh:25-29)
   - Fixes pr-fuzz (address) and pr-fuzz (undefined) CI failures
@@ -120,5 +120,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI/CD pipeline setup
 - Test infrastructure
 
-[Unreleased]: https://github.com/VirtualAgentics/coderabbit-conflict-resolver/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/VirtualAgentics/coderabbit-conflict-resolver/releases/tag/v0.1.0
+[Unreleased]: https://github.com/VirtualAgentics/review-bot-automator/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/VirtualAgentics/review-bot-automator/releases/tag/v0.1.0
