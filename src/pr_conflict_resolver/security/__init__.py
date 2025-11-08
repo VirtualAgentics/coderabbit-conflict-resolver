@@ -1,4 +1,4 @@
-"""Security module for the CodeRabbit Conflict Resolver.
+"""Security module for the Review Bot Automator.
 
 This module provides security controls including:
 - Input validation and sanitization (InputValidator)

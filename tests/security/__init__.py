@@ -1,1 +1,1 @@
-"""Security tests for the CodeRabbit Conflict Resolver."""
+"""Security tests for the Review Bot Automator."""

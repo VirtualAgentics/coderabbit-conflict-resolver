@@ -1,6 +1,6 @@
 # Configuration Reference
 
-This document explains how to configure the CodeRabbit Conflict Resolver for different use cases and environments.
+This document explains how to configure the Review Bot Automator for different use cases and environments.
 
 ## Overview
 

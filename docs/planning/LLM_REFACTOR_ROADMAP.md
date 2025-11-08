@@ -1,4 +1,4 @@
-# CodeRabbit Conflict Resolver: LLM-First Refactor Roadmap
+# Review Bot Automator: LLM-First Refactor Roadmap
 
 **Version:** 1.0
 **Last Updated:** 2025-11-06
@@ -44,7 +44,7 @@
 
 ### 1.1 The Problem
 
-The CodeRabbit Conflict Resolver currently parses **only 20% of CodeRabbit comment formats** - specifically, fenced ```` ```suggestion`` `` blocks. Analysis of real PR data revealed:
+The Review Bot Automator currently parses **only 20% of CodeRabbit comment formats** - specifically, fenced ```` ```suggestion`` `` blocks. Analysis of real PR data revealed:
 
 - **60%** of CodeRabbit comments use ```` ```diff`` `` blocks
 - **20%** use natural language descriptions
@@ -189,15 +189,6 @@ In the `calculate_total()` function, change the discount from 10% to 15%.
 ```
 
 ### 2.4 Critical Gap Analysis
-
-**Test Case:** PR #8 Analysis (5 CodeRabbit comments)
-
-| Format | Count | % | Currently Parsed? |
-|--------|-------|---|-------------------|
-| Diff blocks only | 3 | 60% | ❌ No |
-| Suggestion + Diff | 1 | 20% | ⚠️ Partial (only suggestion) |
-| Natural language | 1 | 20% | ❌ No |
-| **Total Supported** | **1** | **20%** | ❌ **Failing** |
 
 **Conclusion:** The system is fundamentally limited by its parsing strategy, not its conflict resolution or application logic.
 
@@ -1442,7 +1433,6 @@ def test_fallback_on_llm_failure():
 - ✅ Can parse natural language suggestions
 - ✅ Fallback works when LLM fails
 - ✅ Test coverage > 85% for new code
-- ✅ Integration test with PR #8: Parses 5/5 comments (up from 1/5)
 
 ### 6.4 Testing
 
@@ -1452,10 +1442,6 @@ pytest tests/llm/test_parser.py -v
 
 # Integration test (real API - requires ANTHROPIC_API_KEY)
 pytest tests/llm/test_parser.py -v --integration
-
-# End-to-end test with PR #8
-export ANTHROPIC_API_KEY=sk-ant-...
-pr-resolve analyze --owner VirtualAgentics --repo review-bot-automator --pr 8 --llm
 
 # Expected: 5 changes parsed (vs 1 with regex)
 ```

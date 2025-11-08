@@ -34,7 +34,7 @@
 
 ### 1.1 Architecture Vision
 
-The LLM-First Architecture transforms the CodeRabbit Conflict Resolver from a regex-based suggestion parser to an intelligent, multi-format parsing system powered by Large Language Models. This architecture enables:
+The LLM-First Architecture transforms the Review Bot Automator from a regex-based suggestion parser to an intelligent, multi-format parsing system powered by Large Language Models. This architecture enables:
 
 - **Universal Format Support**: Parse all CodeRabbit comment formats (diff blocks, natural language, suggestions, multi-options)
 - **Provider Flexibility**: Support multiple LLM providers (APIs, CLIs, local models) with user-driven selection
@@ -1224,7 +1224,7 @@ from config.settings import LLMConfig, LLMPresetConfig
 
 @click.group()
 def cli():
-    """CodeRabbit Conflict Resolver CLI."""
+    """Review Bot Automator CLI."""
     pass
 
 

@@ -1,6 +1,6 @@
 # Conflict Types Explained
 
-This document explains all conflict categories detected by the CodeRabbit Conflict Resolver and how they are identified.
+This document explains all conflict categories detected by the Review Bot Automator and how they are identified.
 
 ## Overview
 

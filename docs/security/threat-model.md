@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document provides a comprehensive threat model for the CodeRabbit Conflict Resolver project. It identifies assets, threat actors, attack vectors, and specific threat scenarios with risk ratings and mitigations based on the **STRIDE** methodology (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege).
+This document provides a comprehensive threat model for the Review Bot Automator project. It identifies assets, threat actors, attack vectors, and specific threat scenarios with risk ratings and mitigations based on the **STRIDE** methodology (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege).
 
 **Purpose**: Enable security teams, auditors, and maintainers to understand the security landscape and evaluate risk posture.
 

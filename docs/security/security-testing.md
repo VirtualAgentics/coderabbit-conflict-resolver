@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This guide provides comprehensive instructions for security testing of the CodeRabbit Conflict Resolver. It covers local testing, adding new security tests, CI/CD integration, and security review procedures for contributors.
+This guide provides comprehensive instructions for security testing of the Review Bot Automator. It covers local testing, adding new security tests, CI/CD integration, and security review procedures for contributors.
 
 **Audience**: Developers, security engineers, contributors
 

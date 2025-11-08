@@ -1,6 +1,6 @@
 # API Reference
 
-Complete API reference for CodeRabbit Conflict Resolver.
+Complete API reference for Review Bot Automator.
 
 ## Core Classes
 

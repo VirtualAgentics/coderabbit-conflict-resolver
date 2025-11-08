@@ -1,6 +1,6 @@
-# Getting Started with CodeRabbit Conflict Resolver
+# Getting Started with Review Bot Automator
 
-This guide will help you get started with the CodeRabbit Conflict Resolver, from installation to analyzing your first pull request.
+This guide will help you get started with the Review Bot Automator, from installation to analyzing your first pull request.
 
 ## Installation
 
@@ -39,7 +39,7 @@ You'll need a GitHub personal access token with the following permissions:
 
 1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
 2. Click "Generate new token (classic)"
-3. Name it (e.g., "CodeRabbit Conflict Resolver")
+3. Name it (e.g., "Review Bot Automator")
 4. Select the required scopes
 5. Click "Generate token"
 6. Copy the token immediately (you won't be able to see it again)

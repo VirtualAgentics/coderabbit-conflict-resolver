@@ -1,4 +1,4 @@
-"""Security configuration for the CodeRabbit Conflict Resolver.
+"""Security configuration for the Review Bot Automator.
 
 This module provides centralized security configuration with three preset
 profiles: conservative, balanced, and permissive. All security settings are

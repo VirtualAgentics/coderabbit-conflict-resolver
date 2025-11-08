@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document establishes the security architecture for the CodeRabbit Conflict Resolver project. The system is designed with security-first principles to ensure safe, automated resolution of code review suggestions from AI tools like CodeRabbit.
+This document establishes the security architecture for the Review Bot Automator project. The system is designed with security-first principles to ensure safe, automated resolution of code review suggestions from AI tools like CodeRabbit.
 
 ### Purpose
 
@@ -15,7 +15,7 @@ This document provides:
 
 ### Security-First Approach Rationale
 
-The CodeRabbit Conflict Resolver executes privileged operations on behalf of developers:
+The Review Bot Automator executes privileged operations on behalf of developers:
 - Reads from and writes to local file systems
 - Modifies source code files
 - Interacts with Git repositories
@@ -685,7 +685,7 @@ For comprehensive security information, see:
 
 ## Conclusion
 
-This security architecture established the foundation for secure development of the CodeRabbit Conflict Resolver. All planned phases (0.1-0.8) have been successfully completed, implementing comprehensive security controls including:
+This security architecture established the foundation for secure development of the Review Bot Automator. All planned phases (0.1-0.8) have been successfully completed, implementing comprehensive security controls including:
 
 - **Input validation and sanitization** (path traversal prevention, content validation)
 - **Secure file handling** (atomic operations, permission preservation, rollback)

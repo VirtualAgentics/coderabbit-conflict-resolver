@@ -9,7 +9,7 @@
 
 ## Overview
 
-Phase 0 established a comprehensive security foundation for the CodeRabbit Conflict Resolver, implementing defense-in-depth security controls before any core feature development. This security-first approach ensures the project is built on a solid, secure foundation.
+Phase 0 established a comprehensive security foundation for the Review Bot Automator, implementing defense-in-depth security controls before any core feature development. This security-first approach ensures the project is built on a solid, secure foundation.
 
 **Key Principles Implemented**:
 - Zero-trust execution model

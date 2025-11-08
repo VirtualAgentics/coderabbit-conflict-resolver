@@ -1,6 +1,6 @@
-# Contributing to CodeRabbit Conflict Resolver
+# Contributing to Review Bot Automator
 
-Thank you for your interest in contributing to CodeRabbit Conflict Resolver! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to Review Bot Automator! This document provides guidelines and information for contributors.
 
 ## Code of Conduct
 
@@ -822,4 +822,4 @@ Contributors will be recognized in:
 - **Release notes**: Mentioned in release announcements
 - **GitHub**: Listed as contributors on the repository
 
-Thank you for contributing to CodeRabbit Conflict Resolver! 🎉
+Thank you for contributing to Review Bot Automator! 🎉

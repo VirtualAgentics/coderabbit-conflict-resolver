@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document maps the CodeRabbit Conflict Resolver's security controls to industry standards and regulatory frameworks, demonstrating compliance with GDPR, OWASP Top 10, CWE, SOC2, and OpenSSF Best Practices.
+This document maps the Review Bot Automator's security controls to industry standards and regulatory frameworks, demonstrating compliance with GDPR, OWASP Top 10, CWE, SOC2, and OpenSSF Best Practices.
 
 **Purpose**: Provide compliance evidence for auditors, enterprise users, and security teams.
 

@@ -7,7 +7,7 @@
 
 ## Overview
 
-This document captures the GitHub setup process for the CodeRabbit Conflict Resolver project, including issue creation, milestone planning, and the completion status of Phase 0 (Security Foundation).
+This document captures the GitHub setup process for the Review Bot Automator project, including issue creation, milestone planning, and the completion status of Phase 0 (Security Foundation).
 
 ---
 

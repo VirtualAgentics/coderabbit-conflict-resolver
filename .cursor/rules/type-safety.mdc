@@ -384,3 +384,106 @@ source .venv/bin/activate && mypy src/ --strict
 # Only then commit
 git commit -m "fix: resolve type errors"
 ```
+
+## LLM-Specific Type Patterns
+
+### LLM Provider Protocol Typing
+
+Use Protocol for LLM provider typing:
+
+```python
+from typing import Protocol
+
+class LLMProvider(Protocol):
+    """Protocol for LLM providers."""
+    def generate(self, prompt: str, max_tokens: int = 2000) -> str:
+        """Generate text completion."""
+        ...
+
+    def count_tokens(self, text: str) -> int:
+        """Count tokens in text."""
+        ...
+
+    def get_total_cost(self) -> float:
+        """Get total cost in USD."""
+        ...
+
+def use_provider(provider: LLMProvider) -> str:
+    """Function accepting any LLMProvider implementation."""
+    return provider.generate("test")
+```
+
+### Configuration Dataclass Patterns
+
+Use typed dataclasses for LLM configuration:
+
+```python
+@dataclass(frozen=True, slots=True)
+class LLMConfig:
+    """Type-safe LLM configuration."""
+    enabled: bool
+    provider: str
+    model: str
+    api_key: str | None
+    fallback_to_regex: bool
+    cache_enabled: bool
+    max_tokens: int
+    cost_budget: float | None
+```
+
+### Response Type Validation
+
+Validate LLM response types:
+
+```python
+from typing import TypeGuard
+
+def is_valid_parsed_change(obj: Any) -> TypeGuard[ParsedChange]:
+    """Type guard for ParsedChange validation."""
+    return (
+        isinstance(obj, dict)
+        and "file_path" in obj
+        and "start_line" in obj
+        and "end_line" in obj
+        and isinstance(obj["file_path"], str)
+        and isinstance(obj["start_line"], int)
+        and isinstance(obj["end_line"], int)
+    )
+
+def parse_response(response: str) -> list[ParsedChange]:
+    """Parse LLM response with type validation."""
+    data = json.loads(response)
+    changes = data.get("changes", [])
+
+    validated_changes = [
+        ParsedChange(**change) for change in changes
+        if is_valid_parsed_change(change)
+    ]
+
+    return validated_changes
+```
+
+### Generic Types for Providers
+
+Use generics for provider-specific types:
+
+```python
+from typing import TypeVar, Generic
+
+T = TypeVar("T", bound=LLMProvider)
+
+class LLMParser(Generic[T]):
+    """Parser using a specific provider type."""
+    def __init__(self, provider: T):
+        self.provider = provider
+
+    def parse(self, comment: str) -> list[ParsedChange]:
+        """Parse using typed provider."""
+        response = self.provider.generate(comment)
+        return self._parse_response(response)
+```
+
+## Related Rules
+
+- See `.cursor/rules/llm-integration.mdc` for LLM provider implementation
+- See `.cursor/rules/python-style.mdc` for general type hints

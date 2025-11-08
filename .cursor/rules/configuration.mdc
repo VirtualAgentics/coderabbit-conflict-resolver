@@ -1,0 +1,157 @@
+---
+title: Configuration Management Guidelines
+description: Configuration precedence chain, environment variables, preset patterns, and validation
+globs: ["src/pr_conflict_resolver/config/**/*.py", "src/pr_conflict_resolver/cli/**/*.py"]
+alwaysApply: false
+---
+
+# Configuration Management Guidelines
+
+## Configuration Precedence Chain (REQUIRED)
+
+Configuration must follow this strict precedence order (highest to lowest):
+
+1. **CLI flags** (highest priority)
+2. **Environment variables** (`CR_*` prefix)
+3. **Configuration file** (YAML/TOML)
+4. **Preset configurations** (`PresetConfig.*`)
+5. **Default values** (lowest priority)
+
+### Implementation Pattern
+
+```python
+@dataclass(frozen=True, slots=True)
+class RuntimeConfig:
+    @classmethod
+    def from_sources(
+        cls,
+        config_file: Path | None = None,
+        preset: str | None = None,
+        **cli_overrides: Any,
+    ) -> "RuntimeConfig":
+        # 1. Start with defaults
+        config = cls.from_defaults()
+
+        # 2. Apply preset if specified
+        if preset:
+            preset_config = PresetConfig.get_preset(preset)
+            config = config.merge(preset_config)
+
+        # 3. Load from config file
+        if config_file:
+            file_config = cls.from_file(config_file)
+            config = config.merge(file_config)
+
+        # 4. Apply environment variables
+        env_config = cls.from_env()
+        config = config.merge(env_config)
+
+        # 5. Apply CLI overrides (highest priority)
+        if cli_overrides:
+            config = config.merge(cli_overrides)
+
+        return config
+```
+
+## Environment Variable Naming
+
+### CR_* Prefix (REQUIRED)
+
+All environment variables must use the `CR_*` prefix:
+
+✅ **CORRECT**:
+```bash
+CR_MODE=all
+CR_ENABLE_ROLLBACK=true
+CR_LLM_ENABLED=true
+CR_LLM_PROVIDER=claude-cli
+CR_LLM_API_KEY=sk-...
+```
+
+❌ **WRONG**:
+```bash
+MODE=all  # Missing CR_ prefix
+ENABLE_ROLLBACK=true  # Missing CR_ prefix
+```
+
+### LLM-Specific Variables
+
+LLM configuration uses `CR_LLM_*` prefix:
+
+- `CR_LLM_ENABLED`: Enable LLM parsing ("true"/"false")
+- `CR_LLM_PROVIDER`: Provider name ("claude-cli", "openai", "anthropic", "ollama")
+- `CR_LLM_MODEL`: Model identifier
+- `CR_LLM_API_KEY`: API key (if required)
+- `CR_LLM_FALLBACK_TO_REGEX`: Fallback to regex ("true"/"false")
+- `CR_LLM_CACHE_ENABLED`: Enable caching ("true"/"false")
+- `CR_LLM_MAX_TOKENS`: Maximum tokens per request
+- `CR_LLM_COST_BUDGET`: Maximum cost in USD
+
+### Boolean Environment Variables
+
+Parse boolean values consistently:
+
+```python
+def _parse_bool(value: str | None, default: bool = False) -> bool:
+    if value is None:
+        return default
+    return value.lower() == "true"
+```
+
+## Preset Configuration Patterns
+
+### ClassVar Presets
+
+Use `ClassVar` for preset configurations:
+
+```python
+class PresetConfig:
+    CONSERVATIVE: ClassVar[dict[str, Any]] = {
+        "mode": "conservative",
+        "skip_all_conflicts": True,
+        "manual_review_required": True,
+    }
+
+    BALANCED: ClassVar[dict[str, Any]] = {
+        "mode": "balanced",
+        "skip_all_conflicts": False,
+        "semantic_merging": True,
+        "priority_system": True,
+    }
+```
+
+## Configuration Validation
+
+### Post-Init Validation
+
+Validate configuration in `__post_init__`:
+
+```python
+def __post_init__(self) -> None:
+    if self.mode not in ApplicationMode:
+        raise ConfigError(f"Invalid mode: {self.mode}")
+
+    if self.max_workers < 1:
+        raise ConfigError(f"max_workers must be >= 1, got {self.max_workers}")
+
+    if self.llm_enabled and self.llm_provider in {"openai", "anthropic"}:
+        if not self.llm_api_key:
+            raise ConfigError(f"API key required for provider '{self.llm_provider}'")
+```
+
+### Immutable Configuration
+
+Use frozen dataclasses for immutability:
+
+```python
+@dataclass(frozen=True, slots=True)
+class RuntimeConfig:
+    mode: ApplicationMode
+    enable_rollback: bool
+```
+
+## Related Rules
+
+- See `.cursor/rules/llm-integration.mdc` for LLM-specific configuration
+- See `.cursor/rules/security-config.mdc` for security configuration patterns
+- See `.cursor/rules/python-style.mdc` for dataclass patterns

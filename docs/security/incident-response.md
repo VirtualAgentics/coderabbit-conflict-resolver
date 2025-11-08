@@ -2,11 +2,11 @@
 
 ## Executive Summary
 
-This document establishes the Security Incident Response Plan for the CodeRabbit Conflict Resolver project. It provides procedures for detecting, responding to, and recovering from security incidents, ensuring consistent and effective handling of security events.
+This document establishes the Security Incident Response Plan for the Review Bot Automator project. It provides procedures for detecting, responding to, and recovering from security incidents, ensuring consistent and effective handling of security events.
 
 **Purpose**: Define processes, roles, and procedures for managing security incidents from detection through resolution and lessons learned.
 
-**Scope**: Covers all security incidents affecting the CodeRabbit Conflict Resolver project, including:
+**Scope**: Covers all security incidents affecting the Review Bot Automator project, including:
 - Code vulnerabilities and exploits
 - Dependency compromises
 - Data breaches and leaks
@@ -447,7 +447,7 @@ We will keep you informed of our progress and coordinate with you
 on public disclosure timing.
 
 Best regards,
-CodeRabbit Conflict Resolver Security Team
+Review Bot Automator Security Team
 ```
 
 **Status Update** (Weekly for active investigations):

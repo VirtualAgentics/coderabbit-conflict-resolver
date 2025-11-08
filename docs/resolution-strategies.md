@@ -1,6 +1,6 @@
 # Resolution Strategies
 
-This document explains the different strategies used by CodeRabbit Conflict Resolver to automatically resolve conflicts between PR suggestions.
+This document explains the different strategies used by Review Bot Automator to automatically resolve conflicts between PR suggestions.
 
 ## Overview
 

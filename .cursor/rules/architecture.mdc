@@ -153,3 +153,78 @@ Use preset configurations for different use cases:
 - Use parallel processing for large PRs
 - Implement lazy loading for large files
 - Optimize memory usage with streaming processing
+
+## LLM Module Structure
+
+The project includes an LLM-powered parsing system (v2.0):
+
+```
+src/pr_conflict_resolver/llm/
+├── base.py              # Base parser interface (LLMParser ABC)
+├── parser.py            # Universal parser implementation
+├── config.py            # LLM configuration (LLMConfig)
+├── exceptions.py        # LLM exception hierarchy
+├── constants.py         # Provider constants
+├── providers/           # LLM provider implementations
+│   ├── base.py         # LLMProvider protocol
+│   ├── openai_api.py   # OpenAI API provider
+│   ├── anthropic_api.py # Anthropic API provider
+│   ├── ollama.py        # Ollama local provider
+│   └── claude_cli.py    # Claude CLI provider (planned)
+├── cache/               # Prompt caching
+│   └── prompt_cache.py  # File-based cache with TTL
+└── prompts/             # Prompt templates
+    ├── base_prompt.py   # Base prompt class
+    └── examples.py      # Example prompts
+```
+
+### Provider Factory Pattern
+
+Use factory pattern for provider creation:
+
+```python
+from pr_conflict_resolver.llm.providers.factory import create_provider
+
+provider = create_provider(
+    provider_name="openai",
+    api_key=api_key,
+    model="gpt-4o-mini"
+)
+```
+
+### LLM Parser Pattern
+
+All LLM parsers must implement `LLMParser` ABC:
+
+```python
+from pr_conflict_resolver.llm.base import LLMParser, ParsedChange
+
+class MyLLMParser(LLMParser):
+    def parse_comment(
+        self,
+        comment_body: str,
+        file_path: str | None = None,
+        line_number: int | None = None,
+    ) -> list[ParsedChange]:
+        """Parse comment using LLM."""
+        # Implementation here
+        return [ParsedChange(...)]
+```
+
+## Configuration Precedence Chain
+
+Configuration follows strict precedence (highest to lowest):
+
+1. **CLI flags** (highest priority)
+2. **Environment variables** (`CR_*` prefix)
+3. **Configuration file** (YAML/TOML)
+4. **Preset configurations** (`PresetConfig.*`)
+5. **Default values** (lowest priority)
+
+See `.cursor/rules/configuration.mdc` for details.
+
+## Related Rules
+
+- See `.cursor/rules/llm-integration.mdc` for LLM provider patterns
+- See `.cursor/rules/configuration.mdc` for configuration precedence
+- See `.cursor/rules/error-handling.mdc` for LLM error handling

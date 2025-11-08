@@ -1,0 +1,386 @@
+---
+title: LLM Integration Guidelines
+description: LLM provider implementation, prompt engineering, cost tracking, retry logic, and caching patterns
+globs: ["src/pr_conflict_resolver/llm/**/*.py"]
+alwaysApply: false
+---
+
+# LLM Integration Guidelines
+
+## Provider Protocol Implementation
+
+### LLMProvider Protocol
+
+All LLM providers must implement the `LLMProvider` protocol from `llm/providers/base.py`:
+
+```python
+from pr_conflict_resolver.llm.providers.base import LLMProvider
+
+class MyProvider:
+    def generate(self, prompt: str, max_tokens: int = 2000) -> str:
+        """Generate text completion from prompt."""
+        pass
+
+    def count_tokens(self, text: str) -> int:
+        """Count tokens in text using provider's tokenizer."""
+        pass
+
+    def get_total_cost(self) -> float:
+        """Return total cost in USD for all requests."""
+        pass
+```
+
+### Provider Types
+
+**API Providers** (OpenAI, Anthropic):
+- Require API key authentication
+- Use official SDKs (openai, anthropic)
+- Support exact token counting
+- Track costs per request
+
+**CLI Providers** (Claude CLI, Codex CLI):
+- Use subprocess execution
+- No API key required (authenticated via CLI login)
+- Approximate token counting (chars / 4)
+- Return $0.00 cost (subscription covered)
+
+**Local Providers** (Ollama):
+- Use HTTP API to local service
+- No API key required
+- Approximate token counting
+- Return $0.00 cost (local execution)
+
+## Prompt Engineering Patterns
+
+### Structured Output Prompts
+
+Use JSON mode for structured output:
+
+```python
+prompt = f"""Parse this GitHub comment and extract code changes.
+
+Comment:
+{comment_body}
+
+Return JSON with this structure:
+{{
+    "changes": [
+        {{
+            "file_path": "path/to/file.py",
+            "start_line": 10,
+            "end_line": 12,
+            "new_content": "code here",
+            "change_type": "modification",
+            "confidence": 0.95,
+            "rationale": "Why this change",
+            "risk_level": "low"
+        }}
+    ]
+}}
+"""
+```
+
+### Prompt Caching
+
+Cache prompts to reduce costs (50-90% reduction):
+
+```python
+from pr_conflict_resolver.llm.cache.prompt_cache import PromptCache
+
+cache = PromptCache(cache_dir=Path.home() / ".cache" / "pr-conflict-resolver" / "llm")
+cache_key = cache._compute_cache_key(prompt, provider="openai", model="gpt-4")
+
+if cached_response := cache.get(cache_key):
+    return cached_response
+
+response = provider.generate(prompt)
+cache.set(cache_key, response)
+```
+
+### Confidence Threshold Filtering
+
+Filter low-confidence changes:
+
+```python
+MIN_CONFIDENCE = 0.7  # Configurable threshold
+
+parsed_changes = parser.parse_comment(comment_body)
+filtered_changes = [
+    change for change in parsed_changes
+    if change.confidence >= MIN_CONFIDENCE
+]
+```
+
+## Retry Logic with Exponential Backoff
+
+### Using Tenacity
+
+All API providers must use tenacity for retry logic:
+
+```python
+from tenacity import (
+    Retrying,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
+
+retry_strategy = Retrying(
+    retry=retry_if_exception_type((APITimeoutError, APIConnectionError, RateLimitError)),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=2, min=2, max=60),
+    reraise=True,
+)
+
+for attempt in retry_strategy:
+    with attempt:
+        response = client.chat.completions.create(...)
+```
+
+### Error Handling
+
+Map provider-specific errors to standard exceptions:
+
+```python
+from pr_conflict_resolver.llm.exceptions import (
+    LLMAPIError,
+    LLMAuthenticationError,
+    LLMTimeoutError,
+)
+
+try:
+    response = provider.generate(prompt)
+except AuthenticationError as e:
+    raise LLMAuthenticationError(
+        "OpenAI API authentication failed",
+        details={"provider": "openai", "error": str(e)}
+    ) from e
+except APITimeoutError as e:
+    raise LLMTimeoutError(
+        "OpenAI API request timed out",
+        details={"provider": "openai", "timeout": 60}
+    ) from e
+except OpenAIError as e:
+    raise LLMAPIError(
+        f"OpenAI API error: {e}",
+        details={"provider": "openai", "error_type": type(e).__name__}
+    ) from e
+```
+
+## Cost Tracking
+
+### Token Counting
+
+**API Providers** (exact counting):
+```python
+import tiktoken  # For OpenAI
+
+def count_tokens(self, text: str) -> int:
+    """Count tokens using provider's tokenizer."""
+    encoding = tiktoken.encoding_for_model(self.model)
+    return len(encoding.encode(text))
+```
+
+**CLI/Local Providers** (approximation):
+```python
+def count_tokens(self, text: str) -> int:
+    """Estimate tokens (chars / 4)."""
+    return len(text) // 4
+```
+
+### Cost Calculation
+
+Track costs per request:
+
+```python
+# Pricing per 1M tokens
+MODEL_PRICING: ClassVar[dict[str, dict[str, float]]] = {
+    "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+    "gpt-4": {"input": 30.00, "output": 60.00},
+}
+
+def _calculate_cost(self, input_tokens: int, output_tokens: int) -> float:
+    """Calculate cost for request."""
+    pricing = self.MODEL_PRICING.get(self.model, {"input": 0.0, "output": 0.0})
+    input_cost = (input_tokens / 1_000_000) * pricing["input"]
+    output_cost = (output_tokens / 1_000_000) * pricing["output"]
+    return input_cost + output_cost
+```
+
+### Budget Limits
+
+Enforce cost budgets:
+
+```python
+if self.total_cost >= self.cost_budget:
+    raise LLMConfigurationError(
+        f"Cost budget exceeded: ${self.total_cost:.4f} >= ${self.cost_budget:.4f}",
+        details={"total_cost": self.total_cost, "budget": self.cost_budget}
+    )
+```
+
+## Caching Strategies
+
+### Cache Key Computation
+
+Cache keys must include provider + model + prompt:
+
+```python
+def _compute_cache_key(self, prompt: str, provider: str, model: str) -> str:
+    """Compute cache key from prompt, provider, and model."""
+    content = f"{provider}:{model}:{prompt}"
+    return hashlib.sha256(content.encode()).hexdigest()
+```
+
+### Cache Entry Structure
+
+Use frozen dataclass for cache entries:
+
+```python
+@dataclass(frozen=True)
+class CacheEntry:
+    response: str
+    timestamp: float
+    provider: str
+    model: str
+    prompt_hash: str
+```
+
+### Thread Safety
+
+Cache operations must be thread-safe:
+
+```python
+import threading
+
+class PromptCache:
+    def __init__(self):
+        self._lock = threading.Lock()
+
+    def get(self, cache_key: str) -> str | None:
+        with self._lock:
+            # Thread-safe cache read
+            pass
+```
+
+## Error Handling Patterns
+
+### Exception Hierarchy
+
+Use the standard LLM exception hierarchy:
+
+```python
+from pr_conflict_resolver.llm.exceptions import (
+    LLMError,                    # Base exception
+    LLMProviderError,            # Provider-level failures
+    LLMAPIError,                 # API communication failures
+    LLMAuthenticationError,     # Auth failures
+    LLMRateLimitError,          # Rate limiting
+    LLMTimeoutError,             # Timeouts
+    LLMParsingError,             # Parsing failures
+    LLMInvalidResponseError,     # Malformed responses
+    LLMValidationError,          # Schema validation failures
+    LLMConfigurationError,       # Configuration issues
+)
+```
+
+### Error Context
+
+Always include context in error messages:
+
+```python
+raise LLMAPIError(
+    "Failed to generate response",
+    details={
+        "provider": self.provider,
+        "model": self.model,
+        "prompt_length": len(prompt),
+        "max_tokens": max_tokens,
+        "attempt": attempt_number,
+    }
+)
+```
+
+## Fallback Strategies
+
+### LLM → Regex Fallback
+
+Always support fallback to regex parsing:
+
+```python
+try:
+    changes = llm_parser.parse_comment(comment_body)
+except LLMError as e:
+    logger.warning(f"LLM parsing failed: {e}, falling back to regex")
+    if config.llm_fallback_to_regex:
+        changes = regex_parser.parse_comment(comment_body)
+    else:
+        raise
+```
+
+## Provider Initialization
+
+### Health Checks
+
+Validate provider availability during initialization:
+
+```python
+def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
+    """Initialize and validate provider."""
+    self.client = OpenAI(api_key=api_key)
+    self.model = model
+
+    # Health check: try counting tokens for "test"
+    try:
+        self.count_tokens("test")
+    except Exception as e:
+        raise LLMConfigurationError(
+            f"Provider initialization failed: {e}",
+            details={"provider": "openai", "model": model}
+        ) from e
+```
+
+## Testing Patterns
+
+### Mocking Providers
+
+Mock LLM providers in tests:
+
+```python
+from unittest.mock import MagicMock, patch
+
+@patch("pr_conflict_resolver.llm.providers.openai_api.OpenAIAPIProvider")
+def test_parser_with_mocked_provider(mock_provider_class):
+    mock_provider = MagicMock()
+    mock_provider.generate.return_value = '{"changes": []}'
+    mock_provider.count_tokens.return_value = 10
+    mock_provider.get_total_cost.return_value = 0.001
+    mock_provider_class.return_value = mock_provider
+
+    parser = UniversalLLMParser(provider=mock_provider)
+    changes = parser.parse_comment("test comment")
+```
+
+### Integration Tests
+
+Mark integration tests for real providers:
+
+```python
+@pytest.mark.integration
+def test_openai_provider_integration():
+    """Test OpenAI provider with real API (skip if no key)."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        pytest.skip("OPENAI_API_KEY not set")
+
+    provider = OpenAIAPIProvider(api_key=api_key)
+    response = provider.generate("Say hello", max_tokens=10)
+    assert len(response) > 0
+```
+
+## Related Rules
+
+- See `.cursor/rules/configuration.mdc` for configuration precedence
+- See `.cursor/rules/cost-optimization.mdc` for cost tracking details
+- See `.cursor/rules/error-handling.mdc` for error handling patterns
+- See `.cursor/rules/testing.mdc` for LLM testing patterns

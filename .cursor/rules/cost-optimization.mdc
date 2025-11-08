@@ -1,0 +1,262 @@
+---
+title: Cost Optimization Guidelines
+description: Token counting, cost calculation, caching patterns, and budget management for LLM operations
+globs: ["src/pr_conflict_resolver/llm/**/*.py"]
+alwaysApply: false
+---
+
+# Cost Optimization Guidelines
+
+## Token Counting Patterns
+
+### API Providers (Exact Counting)
+
+Use provider-specific tokenizers for accurate counting:
+
+```python
+import tiktoken  # For OpenAI
+
+def count_tokens(self, text: str) -> int:
+    """Count tokens using provider's tokenizer."""
+    encoding = tiktoken.encoding_for_model(self.model)
+    return len(encoding.encode(text))
+```
+
+### CLI/Local Providers (Approximation)
+
+Estimate tokens when exact counting unavailable:
+
+```python
+def count_tokens(self, text: str) -> int:
+    """Estimate tokens (chars / 4)."""
+    return len(text) // 4
+```
+
+**Rationale**: ~4 characters per token is a reasonable approximation for most models.
+
+## Cost Calculation Per Provider
+
+### Pricing Data Structure
+
+Store pricing per 1M tokens:
+
+```python
+MODEL_PRICING: ClassVar[dict[str, dict[str, float]]] = {
+    "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+    "gpt-4": {"input": 30.00, "output": 60.00},
+    "gpt-4-turbo": {"input": 10.00, "output": 30.00},
+    "gpt-3.5-turbo": {"input": 1.00, "output": 2.00},
+}
+```
+
+### Cost Calculation Method
+
+Calculate cost per request:
+
+```python
+def _calculate_cost(self, input_tokens: int, output_tokens: int) -> float:
+    """Calculate cost for request in USD.
+
+    Args:
+        input_tokens: Number of input tokens
+        output_tokens: Number of output tokens
+
+    Returns:
+        Cost in USD (0.00 for unknown models or CLI providers)
+    """
+    pricing = self.MODEL_PRICING.get(self.model, {"input": 0.0, "output": 0.0})
+    input_cost = (input_tokens / 1_000_000) * pricing["input"]
+    output_cost = (output_tokens / 1_000_000) * pricing["output"]
+    return input_cost + output_cost
+```
+
+### Cost Tracking
+
+Track cumulative costs:
+
+```python
+def __init__(self):
+    self.total_input_tokens: int = 0
+    self.total_output_tokens: int = 0
+    self.total_cost: float = 0.0
+
+def generate(self, prompt: str, max_tokens: int = 2000) -> str:
+    input_tokens = self.count_tokens(prompt)
+    response = self._call_api(prompt, max_tokens)
+    output_tokens = self.count_tokens(response)
+
+    cost = self._calculate_cost(input_tokens, output_tokens)
+    self.total_input_tokens += input_tokens
+    self.total_output_tokens += output_tokens
+    self.total_cost += cost
+
+    return response
+```
+
+## Caching to Reduce Costs
+
+### Cache Hit Rate Target
+
+Target 50-90% cache hit rate for cost reduction:
+
+```python
+cache_stats = cache.get_stats()
+if cache_stats.hit_rate < 0.5:
+    logger.warning(f"Low cache hit rate: {cache_stats.hit_rate:.1%}")
+```
+
+### Cache Key Computation
+
+Include provider + model + prompt in cache key:
+
+```python
+def _compute_cache_key(self, prompt: str, provider: str, model: str) -> str:
+    """Compute cache key from prompt, provider, and model."""
+    content = f"{provider}:{model}:{prompt}"
+    return hashlib.sha256(content.encode()).hexdigest()
+```
+
+### Cache Usage Pattern
+
+Check cache before API call:
+
+```python
+cache_key = cache._compute_cache_key(prompt, provider="openai", model="gpt-4")
+
+if cached_response := cache.get(cache_key):
+    logger.debug(f"Cache hit for prompt (key: {cache_key[:16]}...)")
+    return cached_response
+
+logger.debug(f"Cache miss, calling API (key: {cache_key[:16]}...)")
+response = provider.generate(prompt)
+cache.set(cache_key, response)
+return response
+```
+
+## Cost Tracking in Metrics
+
+### Track Cost Per Operation
+
+Include cost in operation metrics:
+
+```python
+@dataclass
+class ParsingMetrics:
+    total_comments: int
+    llm_parsed: int
+    regex_parsed: int
+    total_cost: float
+    cache_hits: int
+    cache_misses: int
+    cache_hit_rate: float
+```
+
+### Export Cost Metrics
+
+Export cost metrics for analysis:
+
+```python
+def export_metrics(self, output_path: Path) -> None:
+    """Export cost metrics to JSON."""
+    metrics = {
+        "total_cost": self.total_cost,
+        "total_input_tokens": self.total_input_tokens,
+        "total_output_tokens": self.total_output_tokens,
+        "cache_hit_rate": self.cache.get_stats().hit_rate,
+        "cost_per_comment": self.total_cost / self.total_comments,
+    }
+
+    with open(output_path, "w") as f:
+        json.dump(metrics, f, indent=2)
+```
+
+## Budget Limits and Alerts
+
+### Budget Enforcement
+
+Enforce cost budgets before API calls:
+
+```python
+def generate(self, prompt: str, max_tokens: int = 2000) -> str:
+    """Generate with budget checking."""
+    # Estimate cost before making request
+    input_tokens = self.count_tokens(prompt)
+    estimated_cost = self._estimate_cost(input_tokens, max_tokens)
+
+    if self.cost_budget and (self.total_cost + estimated_cost) > self.cost_budget:
+        raise LLMConfigurationError(
+            f"Cost budget would be exceeded: "
+            f"${self.total_cost:.4f} + ${estimated_cost:.4f} > ${self.cost_budget:.4f}",
+            details={
+                "current_cost": self.total_cost,
+                "estimated_cost": estimated_cost,
+                "budget": self.cost_budget,
+            }
+        )
+
+    return self._call_api(prompt, max_tokens)
+```
+
+### Budget Alerts
+
+Log warnings when approaching budget:
+
+```python
+BUDGET_WARNING_THRESHOLD = 0.8  # Warn at 80% of budget
+
+if self.cost_budget:
+    usage_ratio = self.total_cost / self.cost_budget
+    if usage_ratio >= BUDGET_WARNING_THRESHOLD:
+        logger.warning(
+            f"Cost budget {usage_ratio:.1%} used: "
+            f"${self.total_cost:.4f} / ${self.cost_budget:.4f}"
+        )
+```
+
+## Cost Optimization Strategies
+
+### Prompt Optimization
+
+Minimize prompt length to reduce input tokens:
+
+```python
+# ❌ WRONG: Verbose prompt
+prompt = f"""Please parse this GitHub comment very carefully and extract all code changes.
+The comment is: {comment_body}
+Please return JSON with changes.
+"""
+
+# ✅ CORRECT: Concise prompt
+prompt = f"""Parse GitHub comment and extract changes as JSON:
+{comment_body}
+"""
+```
+
+### Batch Processing
+
+Batch similar requests when possible:
+
+```python
+# Process multiple comments in single request
+prompt = f"""Parse these {len(comments)} GitHub comments and extract changes:
+{chr(10).join(comments)}
+"""
+```
+
+### Model Selection
+
+Use cheaper models when appropriate:
+
+```python
+# Use cheaper model for simple tasks
+if is_simple_comment(comment_body):
+    model = "gpt-4o-mini"  # $0.15/$0.60 per 1M tokens
+else:
+    model = "gpt-4"  # $30/$60 per 1M tokens
+```
+
+## Related Rules
+
+- See `.cursor/rules/llm-integration.mdc` for provider implementation
+- See `.cursor/rules/metrics-monitoring.mdc` for metrics collection
+- See `.cursor/rules/configuration.mdc` for cost budget configuration

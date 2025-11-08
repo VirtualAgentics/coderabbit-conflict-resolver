@@ -1,7 +1,135 @@
 ---
+title: CodeRabbit Integration Guidelines
+description: CodeRabbit CLI usage, comment parsing patterns, change extraction, and multi-option selection handling
 alwaysApply: true
 ---
+
 # Running the CodeRabbit CLI
 
-  CodeRabbit is already installed in the terminal. Run it as a way to review your code. Run the command: cr -h for details on comands available. In general, I want you to run coderabbit with the `--prompt-only` flag. To review uncommitted changes (this is what we'll use most of the time) run: `coderrabit --prompt-only -t uncommitted`.
-  keep running coderabbit until it doesn't report anymore fixes.
+CodeRabbit is already installed in the terminal. Run it as a way to review your code. Run the command: `cr -h` for details on commands available. In general, I want you to run coderabbit with the `--prompt-only` flag. To review uncommitted changes (this is what we'll use most of the time) run: `coderabbit --prompt-only -t uncommitted`. Keep running coderabbit until it doesn't report anymore fixes.
+
+## Comment Parsing Patterns
+
+### Diff Block Parsing
+
+Parse diff blocks from CodeRabbit comments:
+
+```python
+def parse_diff_block(comment_body: str) -> list[Change]:
+    """Parse diff blocks from comment body.
+
+    Diff blocks use format:
+    ```diff
+    @@ -start_line,count +start_line,count @@
+    -old line
+    +new line
+    ```
+    """
+    diff_pattern = r"```diff\n@@ -(\d+),(\d+) \+(\d+),(\d+) @@\n(.*?)\n```"
+    matches = re.findall(diff_pattern, comment_body, re.DOTALL)
+    # Parse matches into Change objects
+```
+
+### Suggestion Block Parsing
+
+Parse suggestion blocks:
+
+```python
+def parse_suggestion_block(comment_body: str) -> list[Change]:
+    """Parse suggestion blocks from comment body.
+
+    Suggestion blocks use format:
+    ```suggestion
+    new code here
+    ```
+    """
+    suggestion_pattern = r"```suggestion\n(.*?)\n```"
+    matches = re.findall(suggestion_pattern, comment_body, re.DOTALL)
+    # Parse matches into Change objects
+```
+
+### Multi-Option Selection Handling
+
+Handle multi-option selections:
+
+```python
+def parse_multi_option_comment(comment_body: str) -> list[Change]:
+    """Parse multi-option comment format.
+
+    Format:
+    **Option 1:**
+    ```suggestion
+    code option 1
+    ```
+
+    **Option 2:**
+    ```suggestion
+    code option 2
+    ```
+    """
+    option_pattern = r"\*\*Option (\d+):\*\*\n```suggestion\n(.*?)\n```"
+    matches = re.findall(option_pattern, comment_body, re.DOTALL)
+    # Parse each option as separate Change
+```
+
+## Change Extraction Patterns
+
+### Extract File Path
+
+Extract file path from comment metadata:
+
+```python
+def extract_file_path(comment: dict) -> str:
+    """Extract file path from GitHub comment."""
+    # From diff_hunk or path field
+    return comment.get("path") or comment.get("diff_hunk", "").split("\n")[0]
+```
+
+### Extract Line Numbers
+
+Extract line numbers from diff hunk:
+
+```python
+def extract_line_numbers(diff_hunk: str) -> tuple[int, int]:
+    """Extract start and end line numbers from diff hunk."""
+    # Parse @@ -start,count +start,count @@ format
+    match = re.search(r"@@ -(\d+),(\d+) \+(\d+),(\d+) @@", diff_hunk)
+    if match:
+        old_start, old_count, new_start, new_count = map(int, match.groups())
+        return (new_start, new_start + new_count - 1)
+    return (0, 0)
+```
+
+## Comment Format Normalization
+
+Normalize different comment formats:
+
+```python
+def normalize_comment(comment: dict) -> dict:
+    """Normalize comment to standard format.
+
+    Handles:
+    - Diff blocks
+    - Suggestion blocks
+    - Multi-option selections
+    - Natural language descriptions
+    """
+    normalized = {
+        "body": comment.get("body", ""),
+        "file_path": extract_file_path(comment),
+        "line_number": extract_line_numbers(comment.get("diff_hunk", "")),
+        "suggestions": [],
+    }
+
+    # Extract all suggestion formats
+    normalized["suggestions"].extend(parse_diff_blocks(normalized["body"]))
+    normalized["suggestions"].extend(parse_suggestion_blocks(normalized["body"]))
+    normalized["suggestions"].extend(parse_multi_options(normalized["body"]))
+
+    return normalized
+```
+
+## Related Rules
+
+- See `.cursor/rules/llm-integration.mdc` for LLM-based parsing
+- See `.cursor/rules/python-style.mdc` for regex patterns

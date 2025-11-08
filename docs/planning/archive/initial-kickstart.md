@@ -1,4 +1,4 @@
-# CodeRabbit Conflict Resolver - Kickstart Plan for Future Session
+# Review Bot Automator - Kickstart Plan for Future Session
 
 **⚠️ DEPRECATED**: This document represents early planning before the security-first pivot. It has been superseded by `COMPLETE_IMPLEMENTATION_PLAN.md` (now `docs/planning/ROADMAP.md`) which incorporates Phase 0 (Security Foundation) as the critical first phase.
 
