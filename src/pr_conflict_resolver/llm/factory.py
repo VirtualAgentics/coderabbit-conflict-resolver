@@ -61,7 +61,7 @@ def create_provider(
     provider: str,
     model: str | None = None,
     api_key: str | None = None,
-    timeout: int = 60,
+    timeout: int | None = None,
     **kwargs: Any,  # noqa: ANN401
 ) -> Any:  # noqa: ANN401
     """Create LLM provider instance with validation.
@@ -78,8 +78,8 @@ def create_provider(
         api_key: API key for API-based providers. Required for "openai" and "anthropic",
             not used for CLI and local providers. Set via CR_LLM_API_KEY environment
             variable or pass explicitly.
-        timeout: Request timeout in seconds (default: 60). Used for API calls and
-            CLI command execution.
+        timeout: Request timeout in seconds (optional, uses provider-specific defaults
+            if not specified). Used for API calls and CLI command execution.
         **kwargs: Provider-specific parameters passed through to provider constructor.
             Examples: base_url for Ollama, custom headers for API providers.
 
@@ -139,19 +139,23 @@ def create_provider(
                 details={"provider": provider},
             )
 
-    # Validate timeout
-    if timeout <= 0:
+    # Validate timeout if provided
+    if timeout is not None and timeout <= 0:
         raise ValueError(f"timeout must be positive, got {timeout}")
 
     # Get provider class from registry
     provider_class = PROVIDER_REGISTRY[provider]
 
     # Build provider-specific kwargs
-    provider_kwargs: dict[str, Any] = {"timeout": timeout}
+    provider_kwargs: dict[str, Any] = {}
 
     # Add model if specified
     if model is not None:
         provider_kwargs["model"] = model
+
+    # Add timeout if explicitly specified (otherwise use provider defaults)
+    if timeout is not None:
+        provider_kwargs["timeout"] = timeout
 
     # Add API key for API-based providers
     if provider in _PROVIDERS_REQUIRING_API_KEY:
@@ -161,8 +165,9 @@ def create_provider(
     provider_kwargs.update(kwargs)
 
     # Create and return provider instance
+    timeout_str = f"{timeout}s" if timeout is not None else "provider default"
     logger.info(
-        f"Creating {provider} provider: model={model}, timeout={timeout}s, "
+        f"Creating {provider} provider: model={model}, timeout={timeout_str}, "
         f"kwargs={list(kwargs.keys())}"
     )
 
@@ -271,6 +276,5 @@ def create_provider_from_config(config: LLMConfig) -> Any:  # noqa: ANN401
         provider=config.provider,
         model=config.model,
         api_key=config.api_key,
-        # Use default timeout (60s) as LLMConfig doesn't have a timeout field
-        timeout=60,
+        # Don't specify timeout - let providers use their own defaults
     )

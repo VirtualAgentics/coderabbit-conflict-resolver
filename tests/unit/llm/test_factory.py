@@ -53,7 +53,6 @@ class TestCreateProvider:
         mock_provider_class.assert_called_once_with(
             api_key="test-key",
             model="gpt-4",
-            timeout=60,
         )
         assert result == mock_instance
 
@@ -69,7 +68,6 @@ class TestCreateProvider:
         mock_provider_class.assert_called_once_with(
             api_key="sk-ant-test",
             model="claude-sonnet-4",
-            timeout=60,
         )
         assert result == mock_instance
 
@@ -84,7 +82,6 @@ class TestCreateProvider:
 
         mock_provider_class.assert_called_once_with(
             model="claude-sonnet-4-5",
-            timeout=60,
         )
         assert result == mock_instance
 
@@ -99,7 +96,6 @@ class TestCreateProvider:
 
         mock_provider_class.assert_called_once_with(
             model="codex-latest",
-            timeout=60,
         )
         assert result == mock_instance
 
@@ -114,7 +110,6 @@ class TestCreateProvider:
 
         mock_provider_class.assert_called_once_with(
             model="llama3.3:70b",
-            timeout=60,
         )
         assert result == mock_instance
 
@@ -144,7 +139,6 @@ class TestCreateProvider:
 
         mock_provider_class.assert_called_once_with(
             model="llama3",
-            timeout=60,
             base_url="http://localhost:11434",
         )
         assert result == mock_instance
@@ -158,7 +152,7 @@ class TestCreateProvider:
         with patch.dict(PROVIDER_REGISTRY, {"claude-cli": mock_provider_class}):
             result = create_provider("claude-cli")
 
-        mock_provider_class.assert_called_once_with(timeout=60)
+        mock_provider_class.assert_called_once_with()
         assert result == mock_instance
 
     def test_create_with_explicit_model(self) -> None:
@@ -173,7 +167,6 @@ class TestCreateProvider:
         mock_provider_class.assert_called_once_with(
             api_key="test",
             model="gpt-4-turbo",
-            timeout=60,
         )
         assert result == mock_instance
 
@@ -187,7 +180,6 @@ class TestCreateProvider:
             result = create_provider("ollama", custom_param="value", another_param=123)
 
         mock_provider_class.assert_called_once_with(
-            timeout=60,
             custom_param="value",
             another_param=123,
         )
@@ -362,7 +354,6 @@ class TestCreateProviderFromConfig:
         mock_provider_class.assert_called_once_with(
             api_key="sk-ant-test",
             model="claude-sonnet-4",
-            timeout=60,
         )
         assert result == mock_instance
 
@@ -385,7 +376,6 @@ class TestCreateProviderFromConfig:
         mock_provider_class.assert_called_once_with(
             api_key="sk-test-123",
             model="gpt-4",
-            timeout=60,
         )
         assert result == mock_instance
 
@@ -406,7 +396,6 @@ class TestCreateProviderFromConfig:
 
         mock_provider_class.assert_called_once_with(
             model="claude-sonnet-4-5",
-            timeout=60,
         )
         assert result == mock_instance
 
@@ -427,7 +416,6 @@ class TestCreateProviderFromConfig:
 
         mock_provider_class.assert_called_once_with(
             model="codex-latest",
-            timeout=60,
         )
         assert result == mock_instance
 
@@ -448,7 +436,6 @@ class TestCreateProviderFromConfig:
 
         mock_provider_class.assert_called_once_with(
             model="llama3.3:70b",
-            timeout=60,
         )
         assert result == mock_instance
 
@@ -470,7 +457,6 @@ class TestCreateProviderFromConfig:
 
         mock_provider_class.assert_called_once_with(
             model="custom-model",
-            timeout=60,
         )
         assert result == mock_instance
 
@@ -514,27 +500,6 @@ class TestCreateProviderFromConfig:
         mock_provider_class.assert_called_once()
         call_kwargs = mock_provider_class.call_args[1]
         assert "api_key" not in call_kwargs
-        assert result == mock_instance
-
-    def test_create_from_config_passes_timeout(self) -> None:
-        """Test that default timeout is passed to provider."""
-        mock_provider_class = MagicMock()
-        mock_instance = MagicMock()
-        mock_provider_class.return_value = mock_instance
-
-        config = LLMConfig(
-            enabled=True,
-            provider="anthropic",
-            model="claude-3",
-            api_key="test",
-        )
-
-        with patch.dict(PROVIDER_REGISTRY, {"anthropic": mock_provider_class}):
-            result = create_provider_from_config(config)
-
-        mock_provider_class.assert_called_once()
-        call_kwargs = mock_provider_class.call_args[1]
-        assert call_kwargs["timeout"] == 60
         assert result == mock_instance
 
     def test_create_from_config_error_handling(self) -> None:
