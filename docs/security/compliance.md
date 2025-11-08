@@ -188,15 +188,15 @@ This document maps the Review Bot Automator's security controls to industry stan
 **Risk**: HIGH → **Residual Risk**: LOW
 
 **Mitigations**:
-- ✅ Automated dependency scanning (pip-audit, Trivy, Safety)
+- ✅ Automated dependency scanning (pip-audit + Trivy, surfaced in CodeQL/Scorecard dashboards)
 - ✅ Renovate auto-updates
 - ✅ SBOM generation and tracking
 - ✅ Hash-pinned dependencies
 
 **Tools**:
-- pip-audit: Python vulnerability scanning
-- Trivy: SBOM and CVE detection
-- Safety: PyPI advisory checking
+- pip-audit: Python vulnerability scanning (OSV-backed)
+- Trivy: SBOM and CVE detection for dependencies and containers
+- OpenSSF Scorecard: Repository-level security posture (dependency pinning, CI hardening)
 - Renovate: Automated dependency updates
 
 **Workflows**: `.github/workflows/security.yml`, `.github/workflows/dependency-submission.yml`

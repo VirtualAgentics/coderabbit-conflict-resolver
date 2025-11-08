@@ -176,7 +176,7 @@ This document captures the GitHub setup process for the Review Bot Automator pro
 6. `docs/security/security-testing.md` - Testing guide (647 lines)
 
 **CI/CD Integration**:
-- `.github/workflows/security.yml` - 7+ security tools (CodeQL, Trivy, TruffleHog, Bandit, pip-audit, Safety, OpenSSF Scorecard)
+- `.github/workflows/security.yml` - 7+ security tools (CodeQL, Trivy, TruffleHog, Bandit, pip-audit, OpenSSF Scorecard, dependency submission)
 - ClusterFuzzLite: 3 fuzz targets, continuous fuzzing enabled
 
 **Test Coverage**:

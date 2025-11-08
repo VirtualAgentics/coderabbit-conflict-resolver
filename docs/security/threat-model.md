@@ -517,8 +517,8 @@ if original_mode is not None:
 **Mitigations**:
 - ✅ Dependency pinning (requirements-dev.txt with hashes)
 - ✅ `pip-compile --generate-hashes` for integrity verification
-- ✅ Dependency scanning (pip-audit, Safety)
-- ✅ Trivy SBOM generation and scanning
+- ✅ Dependency scanning (pip-audit + Trivy SBOM scanning)
+- ✅ OpenSSF Scorecard monitoring for dependency hygiene
 - ✅ Automatic Dependency Submission workflow
 
 **Residual Risk**: LOW (multiple layers of dependency protection)
@@ -559,7 +559,7 @@ if original_mode is not None:
 | Safe Parsers | T4 | yaml.safe_load, json.loads | HIGH |
 | Atomic File Operations | T5 | os.replace, tempfile | HIGH |
 | Path Resolution | T3 | path_utils.py | HIGH |
-| Dependency Scanning | T12 | pip-audit, Trivy, Safety | HIGH |
+| Dependency Scanning | T12 | pip-audit, Trivy, OpenSSF Scorecard | HIGH |
 | Fuzzing | T9, T10 | ClusterFuzzLite | MEDIUM |
 | Secret Scanning (CI) | T7 | TruffleHog, Scorecard | HIGH |
 | HTTPS Enforcement | T1 | GitHub API client | HIGH |
