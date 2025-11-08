@@ -10,6 +10,11 @@ from pr_conflict_resolver.llm.base import ParsedChange
 from pr_conflict_resolver.llm.cache import CacheStats, PromptCache
 from pr_conflict_resolver.llm.config import LLMConfig
 from pr_conflict_resolver.llm.constants import VALID_LLM_PROVIDERS
+from pr_conflict_resolver.llm.factory import (
+    create_provider,
+    create_provider_from_config,
+    validate_provider,
+)
 
 __all__: list[str] = [
     "VALID_LLM_PROVIDERS",
@@ -17,4 +22,7 @@ __all__: list[str] = [
     "LLMConfig",
     "ParsedChange",
     "PromptCache",
+    "create_provider",
+    "create_provider_from_config",
+    "validate_provider",
 ]
