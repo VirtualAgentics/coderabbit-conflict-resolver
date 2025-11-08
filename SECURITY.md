@@ -184,7 +184,7 @@ Our security posture is continuously monitored and measured:
 - **Bandit**: Python security issue detection
 
 ### OpenSSF Scorecard
-- **Current Score**: View at https://github.com/VirtualAgentics/review-bot-automator/security
+- **Current Score**: View at <https://github.com/VirtualAgentics/review-bot-automator/security>
 - **Checks**: 15+ security best practice checks
 - **Status**: Monitored continuously in CI/CD
 
