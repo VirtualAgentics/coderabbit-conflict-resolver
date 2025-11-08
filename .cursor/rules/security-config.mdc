@@ -247,3 +247,137 @@ This pattern follows the same approach as:
 - Input validation in `input_validator.py` (ClassVar for constants)
 
 **Consistency**: Security configuration should feel familiar to developers already working with the codebase.
+
+## LLM-Specific Security Patterns
+
+### API Key Handling and Redaction
+
+Never log or expose API keys:
+
+```python
+class LLMProvider:
+    def __init__(self, api_key: str):
+        self._api_key = api_key  # Private attribute
+
+    def __repr__(self) -> str:
+        """Redact API key in string representation."""
+        return f"{self.__class__.__name__}(api_key='***REDACTED***')"
+
+    def _log_request(self, prompt: str) -> None:
+        """Log request without exposing API key."""
+        logger.debug(
+            f"LLM request: provider={self.provider}, model={self.model}, "
+            f"prompt_length={len(prompt)}"
+        )
+        # Never log: self._api_key
+```
+
+### Secret Detection Before LLM Calls
+
+Scan prompts for secrets before sending to LLM:
+
+```python
+from pr_conflict_resolver.security.secret_scanner import SecretScanner
+
+def generate_with_secret_check(self, prompt: str) -> str:
+    """Generate with secret detection."""
+    scanner = SecretScanner()
+    findings = scanner.scan(prompt)
+
+    if findings:
+        raise SecurityError(
+            f"Secrets detected in prompt: {[f.pattern for f in findings]}"
+        )
+
+    return self._call_api(prompt)
+```
+
+### Response Validation (Prevent Injection)
+
+Validate LLM responses before processing:
+
+```python
+def parse_llm_response(self, response: str) -> list[ParsedChange]:
+    """Parse and validate LLM response."""
+    # Validate JSON structure
+    try:
+        data = json.loads(response)
+    except json.JSONDecodeError as e:
+        raise LLMInvalidResponseError(f"Invalid JSON: {e}")
+
+    # Validate against schema
+    if not self._validate_schema(data):
+        raise LLMValidationError("Response doesn't match expected schema")
+
+    # Sanitize file paths
+    for change in data.get("changes", []):
+        change["file_path"] = self._sanitize_path(change["file_path"])
+
+    return [ParsedChange(**change) for change in data["changes"]]
+```
+
+### Secure Storage Patterns
+
+Store API keys securely:
+
+```python
+import os
+from pathlib import Path
+
+def load_api_key(provider: str) -> str:
+    """Load API key from secure source.
+
+    Priority:
+    1. Environment variable (CR_LLM_API_KEY)
+    2. Keyring (if available)
+    3. Config file (with restricted permissions)
+    """
+    # Try environment variable first
+    api_key = os.getenv("CR_LLM_API_KEY")
+    if api_key:
+        return api_key
+
+    # Try keyring
+    try:
+        import keyring
+        api_key = keyring.get_password("pr-conflict-resolver", provider)
+        if api_key:
+            return api_key
+    except ImportError:
+        pass
+
+    # Fallback to config file (with permission check)
+    config_path = Path.home() / ".config" / "pr-conflict-resolver" / "api_keys.json"
+    if config_path.exists():
+        # Check permissions (should be 600)
+        if config_path.stat().st_mode & 0o077 != 0:
+            raise SecurityError(f"Insecure config file permissions: {config_path}")
+
+        with open(config_path) as f:
+            config = json.load(f)
+            return config.get(provider)
+
+    raise LLMConfigurationError(f"API key not found for provider: {provider}")
+```
+
+### LLM-Specific Security Considerations
+
+**Prompt Injection Prevention**:
+- Validate and sanitize user input before including in prompts
+- Use structured prompts with clear delimiters
+- Limit prompt length to prevent injection attacks
+
+**Response Validation**:
+- Validate JSON structure before parsing
+- Check file paths for path traversal attempts
+- Sanitize all extracted content
+
+**Cost Controls**:
+- Enforce cost budgets to prevent abuse
+- Monitor token usage for anomalies
+- Alert on unexpected cost spikes
+
+## Related Rules
+
+- See `.cursor/rules/llm-integration.mdc` for LLM provider patterns
+- See `.cursor/rules/error-handling.mdc` for security error handling

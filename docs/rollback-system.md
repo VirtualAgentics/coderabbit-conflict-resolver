@@ -1,6 +1,6 @@
 # Rollback System
 
-The CodeRabbit Conflict Resolver includes a robust, git-based rollback system that provides automatic recovery when things go wrong. This document explains how the rollback system works, how to use it, and how to troubleshoot issues.
+The Review Bot Automator includes a robust, git-based rollback system that provides automatic recovery when things go wrong. This document explains how the rollback system works, how to use it, and how to troubleshoot issues.
 
 ## Table of Contents
 

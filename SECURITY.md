@@ -11,7 +11,7 @@ We release patches for security vulnerabilities in the following versions:
 
 ## Reporting a Vulnerability
 
-We take security vulnerabilities seriously. Thank you for improving the security of CodeRabbit Conflict Resolver.
+We take security vulnerabilities seriously. Thank you for improving the security of Review Bot Automator.
 
 ### How to Report
 
@@ -66,7 +66,7 @@ We follow responsible disclosure practices:
 
 ## Security Best Practices
 
-When using CodeRabbit Conflict Resolver:
+When using Review Bot Automator:
 
 1. **Keep Dependencies Updated**: Regularly update all dependencies
 2. **Use Virtual Environments**: Always use virtual environments for isolation
@@ -84,7 +84,7 @@ For a comprehensive overview of our security posture, see:
 
 ## Security Controls Reference
 
-CodeRabbit Conflict Resolver implements multiple layers of security controls:
+Review Bot Automator implements multiple layers of security controls:
 
 ### Core Security Components
 
@@ -184,7 +184,7 @@ Our security posture is continuously monitored and measured:
 - **Bandit**: Python security issue detection
 
 ### OpenSSF Scorecard
-- **Current Score**: View at https://github.com/VirtualAgentics/coderabbit-conflict-resolver/security
+- **Current Score**: View at <https://github.com/VirtualAgentics/review-bot-automator/security>
 - **Checks**: 15+ security best practice checks
 - **Status**: Monitored continuously in CI/CD
 
@@ -196,7 +196,7 @@ Our security posture is continuously monitored and measured:
 
 ## Security Features
 
-CodeRabbit Conflict Resolver includes several security features:
+Review Bot Automator includes several security features:
 
 - **Input Validation**: All inputs are validated before processing
 - **Safe File Operations**: Atomic file operations with rollback capabilities

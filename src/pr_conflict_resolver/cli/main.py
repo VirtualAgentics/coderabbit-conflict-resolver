@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 @click.group()
 @click.version_option(version="0.1.0")
 def cli() -> None:
-    """Create the main Click command-line interface for the CodeRabbit conflict resolver.
+    """Create the main Click command-line interface for the Review Bot Automator.
 
     Defines the top-level `cli` command group with a version option and registers the
     `analyze`, `apply`, and `simulate` subcommands; configures the Rich console used

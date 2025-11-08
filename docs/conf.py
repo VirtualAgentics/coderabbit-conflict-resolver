@@ -16,7 +16,7 @@ sys.path.insert(0, str(project_root))
 
 # -- Project information -----------------------------------------------------
 
-project = "CodeRabbit Conflict Resolver"
+project = "Review Bot Automator"
 copyright = "2025, VirtualAgentics"
 author = "VirtualAgentics"
 

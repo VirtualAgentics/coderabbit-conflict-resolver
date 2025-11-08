@@ -1,0 +1,262 @@
+---
+title: Error Handling Guidelines
+description: LLM-specific exceptions, retry logic, circuit breaker pattern, error context, and fallback strategies
+globs: ["src/pr_conflict_resolver/llm/**/*.py", "src/pr_conflict_resolver/**/*.py"]
+alwaysApply: false
+---
+
+# Error Handling Guidelines
+
+## LLM-Specific Exception Hierarchy
+
+### Exception Structure
+
+Use the standard LLM exception hierarchy from `llm/exceptions.py`:
+
+```python
+from pr_conflict_resolver.llm.exceptions import (
+    LLMError,                    # Base exception
+    LLMProviderError,            # Provider-level failures
+    LLMAPIError,                 # API communication failures
+    LLMAuthenticationError,     # Auth failures
+    LLMRateLimitError,          # Rate limiting
+    LLMTimeoutError,             # Timeouts
+    LLMParsingError,             # Parsing failures
+    LLMInvalidResponseError,     # Malformed responses
+    LLMValidationError,          # Schema validation failures
+    LLMConfigurationError,       # Configuration issues
+)
+```
+
+### Exception Usage Patterns
+
+**Configuration Errors**:
+```python
+if not api_key:
+    raise LLMConfigurationError(
+        "API key is required",
+        details={"provider": "openai", "model": self.model}
+    )
+```
+
+**Authentication Errors**:
+```python
+except AuthenticationError as e:
+    raise LLMAuthenticationError(
+        "OpenAI API authentication failed",
+        details={"provider": "openai", "error": str(e)}
+    ) from e
+```
+
+**API Errors**:
+```python
+except OpenAIError as e:
+    raise LLMAPIError(
+        f"OpenAI API error: {e}",
+        details={"provider": "openai", "error_type": type(e).__name__}
+    ) from e
+```
+
+## Retry Logic with Exponential Backoff
+
+### Tenacity Pattern
+
+Use tenacity for retry logic:
+
+```python
+from tenacity import (
+    Retrying,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
+
+retry_strategy = Retrying(
+    retry=retry_if_exception_type((APITimeoutError, APIConnectionError, RateLimitError)),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=2, min=2, max=60),
+    reraise=True,
+)
+
+for attempt in retry_strategy:
+    with attempt:
+        response = client.chat.completions.create(...)
+```
+
+### Retry Configuration
+
+Configure retries per error type:
+
+```python
+# Transient errors: retry with backoff
+TRANSIENT_ERRORS = (APITimeoutError, APIConnectionError, RateLimitError)
+
+# Permanent errors: don't retry
+PERMANENT_ERRORS = (AuthenticationError, ValueError)
+
+if isinstance(error, TRANSIENT_ERRORS):
+    # Retry logic
+    pass
+elif isinstance(error, PERMANENT_ERRORS):
+    # Don't retry, raise immediately
+    raise
+```
+
+## Circuit Breaker Pattern
+
+### Implementation Pattern
+
+Implement circuit breaker to prevent cascading failures:
+
+```python
+from enum import Enum
+
+class CircuitState(Enum):
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"      # Failing, reject requests
+    HALF_OPEN = "half_open"  # Testing if recovered
+
+class CircuitBreaker:
+    def __init__(self, failure_threshold: int = 5, timeout: int = 60):
+        self.failure_threshold = failure_threshold
+        self.timeout = timeout
+        self.failure_count = 0
+        self.last_failure_time: float | None = None
+        self.state = CircuitState.CLOSED
+
+    def call(self, func: Callable, *args, **kwargs):
+        if self.state == CircuitState.OPEN:
+            if time.time() - self.last_failure_time > self.timeout:
+                self.state = CircuitState.HALF_OPEN
+            else:
+                raise LLMAPIError("Circuit breaker is OPEN")
+
+        try:
+            result = func(*args, **kwargs)
+            if self.state == CircuitState.HALF_OPEN:
+                self.state = CircuitState.CLOSED
+                self.failure_count = 0
+            return result
+        except Exception as e:
+            self.failure_count += 1
+            self.last_failure_time = time.time()
+            if self.failure_count >= self.failure_threshold:
+                self.state = CircuitState.OPEN
+            raise
+```
+
+## Error Context and Wrapping
+
+### Include Context
+
+Always include context in error messages:
+
+```python
+raise LLMAPIError(
+    "Failed to generate response",
+    details={
+        "provider": self.provider,
+        "model": self.model,
+        "prompt_length": len(prompt),
+        "max_tokens": max_tokens,
+        "attempt": attempt_number,
+        "error_code": error.response.status_code if hasattr(error, "response") else None,
+    }
+)
+```
+
+### Error Wrapping
+
+Wrap provider-specific errors with context:
+
+```python
+try:
+    response = provider.generate(prompt)
+except OpenAIError as e:
+    raise LLMAPIError(
+        f"OpenAI API error: {e}",
+        details={
+            "provider": "openai",
+            "model": self.model,
+            "original_error": str(e),
+            "error_type": type(e).__name__,
+        }
+    ) from e
+```
+
+## Fallback Strategies
+
+### LLM → Regex Fallback
+
+Always support fallback to regex parsing:
+
+```python
+try:
+    changes = llm_parser.parse_comment(comment_body)
+except LLMError as e:
+    logger.warning(f"LLM parsing failed: {e}, falling back to regex")
+    if config.llm_fallback_to_regex:
+        changes = regex_parser.parse_comment(comment_body)
+    else:
+        raise
+```
+
+### Provider Fallback
+
+Fallback to alternative providers:
+
+```python
+providers = [primary_provider, backup_provider, fallback_provider]
+
+for provider in providers:
+    try:
+        response = provider.generate(prompt)
+        return response
+    except LLMError as e:
+        logger.warning(f"Provider {provider} failed: {e}, trying next")
+        continue
+
+raise LLMAPIError("All providers failed")
+```
+
+## Error Logging
+
+### Structured Logging
+
+Log errors with structured context:
+
+```python
+logger.error(
+    "LLM parsing failed",
+    extra={
+        "provider": self.provider,
+        "model": self.model,
+        "comment_length": len(comment_body),
+        "error_type": type(error).__name__,
+        "error_message": str(error),
+        "attempt": attempt_number,
+    }
+)
+```
+
+### Error Recovery
+
+Log recovery actions:
+
+```python
+try:
+    changes = llm_parser.parse_comment(comment_body)
+except LLMError as e:
+    logger.warning(f"LLM parsing failed: {e}")
+    if config.llm_fallback_to_regex:
+        logger.info("Falling back to regex parser")
+        changes = regex_parser.parse_comment(comment_body)
+    else:
+        logger.error("LLM parsing failed and fallback disabled")
+        raise
+```
+
+## Related Rules
+
+- See `.cursor/rules/llm-integration.mdc` for provider error handling
+- See `.cursor/rules/python-style.mdc` for general error handling patterns

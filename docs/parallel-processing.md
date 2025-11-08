@@ -1,6 +1,6 @@
 # Parallel Processing Guide
 
-The CodeRabbit Conflict Resolver supports parallel processing to significantly speed up change application for large PRs. This guide explains how parallel processing works, when to use it, and how to optimize performance.
+The Review Bot Automator supports parallel processing to significantly speed up change application for large PRs. This guide explains how parallel processing works, when to use it, and how to optimize performance.
 
 ## Table of Contents
 

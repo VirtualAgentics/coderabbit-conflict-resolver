@@ -171,3 +171,66 @@ make lint
 # Only then commit
 git commit -m "fix: resolve quality issues"
 ```
+
+## Error Handling
+
+### LLM-Specific Exceptions
+
+Use specific exception types for LLM errors:
+
+```python
+from pr_conflict_resolver.llm.exceptions import (
+    LLMError,
+    LLMAPIError,
+    LLMAuthenticationError,
+    LLMTimeoutError,
+)
+
+try:
+    response = provider.generate(prompt)
+except LLMAuthenticationError:
+    # Handle auth failure
+    logger.error("LLM authentication failed")
+except LLMTimeoutError:
+    # Handle timeout
+    logger.warning("LLM request timed out, retrying...")
+except LLMError as e:
+    # Handle generic LLM error
+    logger.error(f"LLM error: {e}")
+```
+
+### Error Context
+
+Always include context in error messages:
+
+```python
+raise LLMAPIError(
+    "Failed to generate response",
+    details={
+        "provider": self.provider,
+        "model": self.model,
+        "prompt_length": len(prompt),
+        "max_tokens": max_tokens,
+    }
+)
+```
+
+### Fallback Strategies
+
+Implement fallback for LLM failures:
+
+```python
+try:
+    changes = llm_parser.parse_comment(comment_body)
+except LLMError as e:
+    logger.warning(f"LLM parsing failed: {e}, falling back to regex")
+    if config.llm_fallback_to_regex:
+        changes = regex_parser.parse_comment(comment_body)
+    else:
+        raise
+```
+
+## Related Rules
+
+- See `.cursor/rules/error-handling.mdc` for comprehensive error handling patterns
+- See `.cursor/rules/llm-integration.mdc` for LLM-specific error handling

@@ -1,5 +1,5 @@
-CodeRabbit Conflict Resolver Documentation
-==========================================
+Review Bot Automator Documentation
+===================================
 
 An intelligent, automated conflict resolution system for GitHub PR comments, specifically designed for `CodeRabbit AI <https://coderabbit.ai>`_ but extensible to other code review bots.
 

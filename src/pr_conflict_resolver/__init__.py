@@ -1,4 +1,4 @@
-"""CodeRabbit Conflict Resolver.
+"""Review Bot Automator.
 
 An intelligent, automated conflict resolution system for GitHub PR comments.
 """

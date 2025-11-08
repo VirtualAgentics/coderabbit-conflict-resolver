@@ -428,7 +428,7 @@ class TomlHandler(BaseHandler):
           standard approach for applying changes to TOML files.
 
         - If you need compatibility with the current behavior or have concerns about the timeline,
-          please open an issue at https://github.com/VirtualAgentics/coderabbit-conflict-resolver/issues
+          please open an issue at https://github.com/VirtualAgentics/review-bot-automator/issues
           to discuss your use case.
 
         The suggestion's top-level keys overwrite or add to the original mapping; nested tables

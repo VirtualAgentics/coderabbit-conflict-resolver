@@ -1,0 +1,228 @@
+---
+title: Parallel Processing Guidelines
+description: ThreadPoolExecutor patterns, worker pool configuration, progress tracking, and error handling in parallel contexts
+globs: ["src/pr_conflict_resolver/core/**/*.py"]
+alwaysApply: false
+---
+
+# Parallel Processing Guidelines
+
+## ThreadPoolExecutor Patterns
+
+### Basic Pattern
+
+Use ThreadPoolExecutor for parallel processing:
+
+```python
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+def process_changes_parallel(changes: list[Change], max_workers: int = 4) -> list[bool]:
+    """Process changes in parallel.
+
+    Args:
+        changes: List of changes to process
+        max_workers: Maximum number of worker threads
+
+    Returns:
+        List of success status for each change
+    """
+    results = []
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(process_change, change): change
+            for change in changes
+        }
+
+        for future in as_completed(futures):
+            change = futures[future]
+            try:
+                result = future.result()
+                results.append(result)
+            except Exception as e:
+                logger.error(f"Failed to process {change.path}: {e}")
+                results.append(False)
+
+    return results
+```
+
+### Worker Pool Configuration
+
+Configure worker pool size based on workload:
+
+```python
+def get_optimal_workers(num_tasks: int, max_workers: int = 4) -> int:
+    """Calculate optimal number of workers.
+
+    Args:
+        num_tasks: Number of tasks to process
+        max_workers: Maximum allowed workers
+
+    Returns:
+        Optimal worker count (min of num_tasks and max_workers)
+    """
+    return min(num_tasks, max_workers, os.cpu_count() or 1)
+```
+
+## Progress Tracking
+
+### Track Progress for Parallel Operations
+
+Use progress tracking for long-running parallel operations:
+
+```python
+from rich.progress import Progress, TaskID
+
+def process_with_progress(changes: list[Change], max_workers: int = 4) -> list[bool]:
+    """Process changes with progress tracking."""
+    results = []
+
+    with Progress() as progress:
+        task = progress.add_task("Processing changes...", total=len(changes))
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(process_change, change): change
+                for change in changes
+            }
+
+            for future in as_completed(futures):
+                change = futures[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    logger.error(f"Failed to process {change.path}: {e}")
+                    results.append(False)
+                finally:
+                    progress.update(task, advance=1)
+
+    return results
+```
+
+## Error Handling in Parallel Contexts
+
+### Exception Handling Pattern
+
+Handle exceptions per task without stopping others:
+
+```python
+def process_changes_safe(changes: list[Change]) -> list[tuple[Change, bool, str | None]]:
+    """Process changes with per-task error handling.
+
+    Returns:
+        List of (change, success, error_message) tuples
+    """
+    results = []
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {
+            executor.submit(process_change, change): change
+            for change in changes
+        }
+
+        for future in as_completed(futures):
+            change = futures[future]
+            try:
+                result = future.result()
+                results.append((change, True, None))
+            except Exception as e:
+                error_msg = f"{type(e).__name__}: {e}"
+                results.append((change, False, error_msg))
+
+    return results
+```
+
+### Aggregate Errors
+
+Collect and report all errors:
+
+```python
+def process_changes_with_error_collection(changes: list[Change]) -> dict[str, Any]:
+    """Process changes and collect all errors.
+
+    Returns:
+        Dictionary with results and error summary
+    """
+    successful = []
+    failed = []
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {
+            executor.submit(process_change, change): change
+            for change in changes
+        }
+
+        for future in as_completed(futures):
+            change = futures[future]
+            try:
+                result = future.result()
+                successful.append(change)
+            except Exception as e:
+                failed.append({"change": change, "error": str(e)})
+
+    return {
+        "successful": successful,
+        "failed": failed,
+        "success_count": len(successful),
+        "failure_count": len(failed),
+        "success_rate": len(successful) / len(changes) if changes else 0.0,
+    }
+```
+
+## Resource Limits
+
+### Limit Concurrent Operations
+
+Limit concurrent operations to prevent resource exhaustion:
+
+```python
+MAX_CONCURRENT_OPERATIONS = 8  # Configurable limit
+
+def process_with_limit(changes: list[Change]) -> list[bool]:
+    """Process changes with concurrency limit."""
+    semaphore = threading.Semaphore(MAX_CONCURRENT_OPERATIONS)
+    results = []
+
+    def process_with_semaphore(change: Change) -> bool:
+        with semaphore:
+            return process_change(change)
+
+    with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_OPERATIONS) as executor:
+        futures = [
+            executor.submit(process_with_semaphore, change)
+            for change in changes
+        ]
+
+        for future in as_completed(futures):
+            results.append(future.result())
+
+    return results
+```
+
+### Memory Management
+
+Monitor memory usage for large parallel operations:
+
+```python
+import psutil
+
+def process_with_memory_check(changes: list[Change]) -> list[bool]:
+    """Process changes with memory monitoring."""
+    process = psutil.Process()
+    initial_memory = process.memory_info().rss / 1024 / 1024  # MB
+
+    results = process_changes_parallel(changes)
+
+    final_memory = process.memory_info().rss / 1024 / 1024  # MB
+    memory_delta = final_memory - initial_memory
+
+    if memory_delta > 500:  # 500 MB threshold
+        logger.warning(f"High memory usage: {memory_delta:.1f} MB")
+
+    return results
+```
+
+## Related Rules
+
+- See `.cursor/rules/error-handling.mdc` for error handling in parallel contexts
+- See `.cursor/rules/python-style.mdc` for general Python patterns

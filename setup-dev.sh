@@ -1,9 +1,9 @@
 #!/bin/bash
-# Development setup script for CodeRabbit Conflict Resolver
+# Development setup script for Review Bot Automator
 
 set -e  # Exit on any error
 
-echo "🚀 Setting up CodeRabbit Conflict Resolver development environment..."
+echo "🚀 Setting up Review Bot Automator development environment..."
 
 # Check if Python 3.12 is available
 if ! command -v python3.12 &> /dev/null; then

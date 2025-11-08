@@ -202,3 +202,130 @@ Tests must pass in CI environment:
 - Test on Python 3.12.x
 - Include coverage reporting
 - Fail on coverage below 80%
+
+## LLM Provider Testing Patterns
+
+### Mocking LLM Providers
+
+Mock LLM providers in unit tests:
+
+```python
+from unittest.mock import MagicMock, patch
+
+@patch("pr_conflict_resolver.llm.providers.openai_api.OpenAIAPIProvider")
+def test_parser_with_mocked_provider(mock_provider_class):
+    """Test parser with mocked OpenAI provider."""
+    mock_provider = MagicMock()
+    mock_provider.generate.return_value = '{"changes": []}'
+    mock_provider.count_tokens.return_value = 10
+    mock_provider.get_total_cost.return_value = 0.001
+    mock_provider_class.return_value = mock_provider
+
+    parser = UniversalLLMParser(provider=mock_provider)
+    changes = parser.parse_comment("test comment")
+    assert len(changes) == 0
+```
+
+### Integration Test Markers
+
+Mark integration tests for real LLM providers:
+
+```python
+@pytest.mark.integration
+@pytest.mark.llm
+def test_openai_provider_integration():
+    """Test OpenAI provider with real API (skip if no key)."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        pytest.skip("OPENAI_API_KEY not set")
+
+    provider = OpenAIAPIProvider(api_key=api_key)
+    response = provider.generate("Say hello", max_tokens=10)
+    assert len(response) > 0
+```
+
+### Testing Retry Logic
+
+Test retry behavior:
+
+```python
+from unittest.mock import patch, side_effect
+from pr_conflict_resolver.llm.exceptions import LLMTimeoutError
+
+def test_retry_on_timeout():
+    """Test that provider retries on timeout."""
+    provider = OpenAIAPIProvider(api_key="test-key")
+
+    # First two calls fail, third succeeds
+    with patch.object(provider.client.chat.completions, "create") as mock_create:
+        mock_create.side_effect = [
+            APITimeoutError("Timeout"),
+            APITimeoutError("Timeout"),
+            MagicMock(choices=[MagicMock(message=MagicMock(content="Success"))]),
+        ]
+
+        response = provider.generate("test")
+        assert response == "Success"
+        assert mock_create.call_count == 3
+```
+
+### Testing Cost Tracking
+
+Test cost calculation:
+
+```python
+def test_cost_tracking():
+    """Test that costs are tracked correctly."""
+    provider = OpenAIAPIProvider(api_key="test-key", model="gpt-4o-mini")
+
+    # Mock token counts
+    with patch.object(provider, "count_tokens", return_value=100):
+        provider.generate("test prompt")
+
+    assert provider.total_input_tokens > 0
+    assert provider.total_output_tokens > 0
+    assert provider.total_cost > 0.0
+```
+
+### Testing Cache Behavior
+
+Test prompt caching:
+
+```python
+def test_cache_hit():
+    """Test that cached responses are returned."""
+    cache = PromptCache(cache_dir=temp_dir)
+    cache_key = cache._compute_cache_key("test prompt", "openai", "gpt-4")
+
+    # Set cache entry
+    cache.set(cache_key, "cached response")
+
+    # Should return cached value
+    cached = cache.get(cache_key)
+    assert cached == "cached response"
+```
+
+### Mocking Subprocess Calls (CLI Providers)
+
+Mock subprocess for CLI providers:
+
+```python
+from unittest.mock import patch, MagicMock
+
+@patch("subprocess.run")
+def test_claude_cli_provider(mock_subprocess):
+    """Test Claude CLI provider with mocked subprocess."""
+    mock_result = MagicMock()
+    mock_result.stdout = '{"changes": []}'
+    mock_result.returncode = 0
+    mock_subprocess.return_value = mock_result
+
+    provider = ClaudeCLIProvider()
+    response = provider.generate("test prompt")
+    assert response == '{"changes": []}'
+```
+
+## Related Rules
+
+- See `.cursor/rules/llm-integration.mdc` for LLM provider patterns
+- See `.cursor/rules/cost-optimization.mdc` for cost tracking tests

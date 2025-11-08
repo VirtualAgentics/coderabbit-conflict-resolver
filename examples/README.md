@@ -1,6 +1,6 @@
 # Examples
 
-This directory contains practical examples for using the CodeRabbit Conflict Resolver.
+This directory contains practical examples for using the Review Bot Automator.
 
 ## Directory Structure
 

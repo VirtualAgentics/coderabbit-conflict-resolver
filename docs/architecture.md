@@ -2,7 +2,7 @@
 
 ## System Design
 
-The CodeRabbit Conflict Resolver is designed as a modular, extensible system that can intelligently resolve conflicts in GitHub PR comments. The architecture follows a pipeline pattern with clear separation of concerns.
+The Review Bot Automator is designed as a modular, extensible system that can intelligently resolve conflicts in GitHub PR comments. The architecture follows a pipeline pattern with clear separation of concerns.
 
 ## Core Components
 

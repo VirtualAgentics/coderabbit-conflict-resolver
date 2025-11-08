@@ -82,10 +82,10 @@ ml = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/VirtualAgentics/coderabbit-conflict-resolver"
-Documentation = "https://github.com/VirtualAgentics/coderabbit-conflict-resolver/blob/main/docs/"
-Repository = "https://github.com/VirtualAgentics/coderabbit-conflict-resolver"
-Issues = "https://github.com/VirtualAgentics/coderabbit-conflict-resolver/issues"
+Homepage = "https://github.com/VirtualAgentics/review-bot-automator"
+Documentation = "https://github.com/VirtualAgentics/review-bot-automator/blob/main/docs/"
+Repository = "https://github.com/VirtualAgentics/review-bot-automator"
+Issues = "https://github.com/VirtualAgentics/review-bot-automator/issues"
 
 [project.scripts]
 pr-resolve = "pr_conflict_resolver.cli.main:cli"

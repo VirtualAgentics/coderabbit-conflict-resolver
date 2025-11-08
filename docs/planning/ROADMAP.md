@@ -1,4 +1,4 @@
-# CodeRabbit Conflict Resolver - Development Roadmap
+# Review Bot Automator - Development Roadmap
 
 **Version**: 2.0
 **Last Updated**: 2025-11-07
@@ -31,7 +31,7 @@
 
 ## Project Overview
 
-Transform the CodeRabbit Conflict Resolver into a production-ready, professional system that can:
+Transform the Review Bot Automator into a production-ready, professional system that can:
 
 1. **Apply ALL PR suggestions** (conflicting and non-conflicting)
 2. **Present professionally** with complete documentation and branding
@@ -317,7 +317,6 @@ def validate_change(self, path: str, content: str,
 - [ ] Validation methods in all handlers
 - [ ] Updated `resolve_pr_conflicts()` with modes
 - [ ] Unit tests for new methods
-- [ ] Integration test with PR #8 (single suggestion)
 
 ---
 
@@ -521,8 +520,6 @@ def test_dry_run_mode_applies_nothing():
 **File**: `tests/unit/test_rollback.py` (NEW)
 
 ### 4.4 Update Dry-Run Test
-
-**File**: `tests/dry_run/pr8_analysis.py` (UPDATE)
 
 - Add mode testing
 
@@ -859,11 +856,6 @@ def test_dry_run_mode_applies_nothing():
 ### Why This Refactor?
 
 **Current Problem**: The system only parses **20%** of CodeRabbit comment formats (```suggestion blocks only).
-
-**Evidence**: PR #8 dry-run test showed **1/5 comments** parsed successfully:
-- 3 comments (60%) with diff blocks only → ❌ Not parsed
-- 1 comment (20%) with both diff + suggestion → ⚠️ Partially parsed
-- 1 comment (20%) with natural language → ❌ Not parsed
 
 **Solution**: LLM-first architecture that understands all CodeRabbit formats:
 - ✅ Diff blocks (```diff)
