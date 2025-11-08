@@ -466,6 +466,31 @@ class TestCacheOperations:
             result = cache.get(key)
             assert result is None
 
+    def test_get_invalid_timestamp_deletes_file(self) -> None:
+        """Test that cache file with non-numeric timestamp is deleted on get()."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+
+            key = cache.compute_key("test", "anthropic", "model")
+            cache_file = Path(tmpdir) / f"{key}.json"
+
+            # Write valid JSON with non-numeric timestamp
+            invalid_data = {
+                "response": "test response",
+                "timestamp": "invalid_timestamp",  # String instead of number
+                "prompt_hash": "abc123",
+            }
+            cache_file.write_text(json.dumps(invalid_data), encoding="utf-8")
+
+            # First get() should return None and delete the corrupted file
+            result = cache.get(key)
+            assert result is None
+            assert not cache_file.exists(), "Corrupted file should be deleted"
+
+            # Subsequent get() should not error (file already deleted)
+            result2 = cache.get(key)
+            assert result2 is None
+
 
 class TestTTLManagement:
     """Test TTL (Time To Live) expiration logic."""

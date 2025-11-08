@@ -308,9 +308,10 @@ class PromptCache:
             logger.warning(f"Corrupted cache file {key[:8]}..., deleting: {e}")
             return None
         except Exception as e:
-            # Unexpected error: log and return None
+            # Unexpected error: delete corrupted file and return None
+            cache_file.unlink(missing_ok=True)
             self._misses += 1
-            logger.error(f"Unexpected error reading cache {key[:8]}...: {e}")
+            logger.error(f"Unexpected error reading cache {key[:8]}..., deleting: {e}")
             return None
 
     def set(self, key: str, response: str, metadata: dict[str, str]) -> None:
