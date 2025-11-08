@@ -52,7 +52,7 @@ docstring-parser==0.17.0 \
 idna==3.11 \
     --hash=sha256:771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea
 jiter==0.11.1 \
-    --hash=sha256:eb68e7bf65c990531ad8715e57d50195daf7c8e6f1509e617b4e692af1108939
+    --hash=sha256:0a55a453f8b035eb4f7852a79a065d616b7971a17f5e37a9296b4b38d3b619e4
 markdown-it-py==3.0.0 \
     --hash=sha256:355216845c60bd96232cd8d8c40e8f9765cc86f46880e43a8fd22dc1a1a8cab1
 mdurl==0.1.2 \
