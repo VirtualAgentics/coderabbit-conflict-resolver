@@ -83,3 +83,15 @@ class CodexCLIProvider(CLIProviderBase):
             str: Authentication command "codex auth"
         """
         return "codex auth"
+
+    def _get_cli_command(self) -> list[str]:
+        """Get Codex CLI command for non-interactive execution.
+
+        Returns the full CLI command with the "exec" subcommand for non-interactive
+        mode, which allows the CLI to run without requiring a TTY. This enables
+        the provider to work in CI/CD environments and automated testing.
+
+        Returns:
+            list[str]: ["codex", "exec"] for non-interactive execution
+        """
+        return ["codex", "exec"]

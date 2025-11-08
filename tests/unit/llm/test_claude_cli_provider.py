@@ -277,7 +277,7 @@ class TestClaudeCLIProviderGenerate:
 
         assert result == "Generated response text"
         mock_run.assert_called_once_with(
-            ["claude"],
+            ["claude", "--print"],
             input="test prompt",
             capture_output=True,
             text=True,

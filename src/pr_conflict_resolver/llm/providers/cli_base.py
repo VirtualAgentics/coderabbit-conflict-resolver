@@ -36,6 +36,7 @@ class CLIProviderBase(ABC):
     - _get_provider_id(): Return provider identifier for error details
     - _get_install_url(): Return installation URL for error messages
     - _get_auth_command(): Return authentication command for error messages
+    - _get_cli_command(): Return CLI command with args for non-interactive execution
 
     Examples:
         >>> class MyCLIProvider(CLIProviderBase):
@@ -49,6 +50,8 @@ class CLIProviderBase(ABC):
         ...         return "https://mycli.com/install"
         ...     def _get_auth_command(self) -> str:
         ...         return "mycli auth"
+        ...     def _get_cli_command(self) -> list[str]:
+        ...         return ["mycli", "--non-interactive"]
     """
 
     DEFAULT_TIMEOUT: ClassVar[int] = 60
@@ -83,6 +86,18 @@ class CLIProviderBase(ABC):
 
         Returns:
             str: Authentication command (e.g., "claude auth", "codex auth")
+        """
+
+    @abstractmethod
+    def _get_cli_command(self) -> list[str]:
+        """Get CLI command with arguments for non-interactive execution.
+
+        This method returns the full CLI command as a list of strings, including
+        any flags needed for non-interactive mode (e.g., ["codex", "exec"] or
+        ["claude", "--print"]).
+
+        Returns:
+            list[str]: Command and arguments for non-interactive CLI execution
         """
 
     def __init__(
@@ -166,10 +181,10 @@ class CLIProviderBase(ABC):
         )
 
         try:
-            cli_command = getattr(self.__class__, "CLI_COMMAND", "")
+            cli_command = self._get_cli_command()
             result = (
                 subprocess.run(  # nosec B603, B607  # noqa: S603  # CLI command with validated args
-                    [cli_command],
+                    cli_command,
                     input=prompt,
                     capture_output=True,
                     text=True,

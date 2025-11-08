@@ -83,3 +83,15 @@ class ClaudeCLIProvider(CLIProviderBase):
             str: Authentication command "claude auth"
         """
         return "claude auth"
+
+    def _get_cli_command(self) -> list[str]:
+        """Get Claude CLI command for non-interactive execution.
+
+        Returns the full CLI command with the "--print" flag for non-interactive
+        mode, which allows the CLI to run without requiring a TTY. This enables
+        the provider to work in CI/CD environments and automated testing.
+
+        Returns:
+            list[str]: ["claude", "--print"] for non-interactive execution
+        """
+        return ["claude", "--print"]
