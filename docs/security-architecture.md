@@ -584,10 +584,11 @@ See `SECURITY.md` for detailed process:
 ### Tools and Resources
 
 - **Bandit**: Python security linter
-- **Safety**: Dependency vulnerability scanner
 - **pip-audit**: Python package security scanner
+- **Trivy**: SBOM and container scanner
 - **TruffleHog**: Secret scanning tool
 - **Semgrep**: Static analysis security scanner
+- **OpenSSF Scorecard**: Repository security posture assessment
 
 ---
 

@@ -341,18 +341,20 @@ trivy image gcr.io/oss-fuzz-base/base-builder-python
 
 ---
 
-### 3. Safety (PyPI Advisory Database)
+### 3. Dependency Submission & OpenSSF Scorecard
 
 ```bash
-# Scan installed packages
-safety check
-
-# Scan requirements file
-safety check -r requirements-dev.txt
-
-# Generate full report
-safety check --full-report
+# Generate dependency snapshot for GitHub advisories
+python -m pip install --upgrade pip
+pip install pip-audit
+pip-audit --generate-sbom cyclonedx.json
 ```
+
+- Dependency snapshots flow through `.github/workflows/dependency-submission.yml`
+- OpenSSF Scorecard validates dependency pinning, branch protections, and workflow hardening
+- Findings appear under **Security → Code scanning alerts → Scorecard**
+
+**CI Integration**: `.github/workflows/dependency-submission.yml`, `.github/workflows/security.yml` (scorecard job)
 
 ---
 

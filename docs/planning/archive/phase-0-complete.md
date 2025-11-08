@@ -220,12 +220,12 @@ class SecurityConfig:
 
 **Security Tools Integrated**:
 1. **CodeQL** - Static analysis for Python
-2. **Trivy** - Vulnerability scanner
+2. **Trivy** - Vulnerability scanner / SBOM
 3. **TruffleHog** - Secret detection
 4. **Bandit** - Python SAST tool
 5. **pip-audit** - Python dependency auditing
-6. **Safety** - Dependency vulnerability checking
-7. **OpenSSF Scorecard** - Best practices compliance
+6. **OpenSSF Scorecard** - Best practices compliance
+7. **Dependency Submission** - GitHub advisory tracking
 
 **Scanning Frequency**:
 - On every push to main/develop
