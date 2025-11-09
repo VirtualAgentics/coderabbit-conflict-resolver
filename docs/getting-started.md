@@ -59,6 +59,65 @@ source ~/.bashrc
 
 **Note:** The tool also supports `GITHUB_TOKEN` for backward compatibility, but `GITHUB_PERSONAL_ACCESS_TOKEN` is preferred.
 
+### LLM Provider Setup (Optional)
+
+The resolver supports AI-powered features via multiple LLM providers. This is optional but recommended for advanced conflict resolution.
+
+####  Supported Providers
+
+- **openai**: OpenAI API (GPT-4, GPT-4 Turbo) - Production-ready, reliable
+- **anthropic**: Anthropic API (Claude Sonnet 4.5, Opus 4) - Advanced reasoning, 50-90% cost savings with prompt caching
+- **claude-cli**: Claude CLI - Development/debugging, subscription-based (no API key)
+- **codex-cli**: Codex CLI - Code-specific tasks, GitHub Copilot subscription
+- **ollama**: Local models - Free, private, offline
+
+#### Quick Setup: Anthropic (Recommended)
+
+Anthropic provides the best balance of cost and performance with prompt caching:
+
+```bash
+# 1. Get API key from https://console.anthropic.com/
+# 2. Set environment variables
+export CR_LLM_ENABLED="true"
+export CR_LLM_PROVIDER="anthropic"
+export CR_LLM_API_KEY="sk-ant-..."
+export CR_LLM_MODEL="claude-sonnet-4-5"  # Optional, uses default if not set
+
+# 3. Verify setup
+pr-resolve apply --pr 123 --owner myorg --repo myrepo --mode dry-run
+```
+
+#### Quick Setup: OpenAI
+
+```bash
+# 1. Get API key from https://platform.openai.com/api-keys
+# 2. Set environment variables
+export CR_LLM_ENABLED="true"
+export CR_LLM_PROVIDER="openai"
+export CR_LLM_API_KEY="sk-..."
+export CR_LLM_MODEL="gpt-4"  # Optional
+```
+
+#### Quick Setup: Ollama (Local, Free)
+
+```bash
+# 1. Install Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# 2. Pull a model
+ollama pull llama3.3:70b
+
+# 3. Set environment variables (no API key needed)
+export CR_LLM_ENABLED="true"
+export CR_LLM_PROVIDER="ollama"
+export CR_LLM_MODEL="llama3.3:70b"
+
+# 4. Verify Ollama is running
+curl http://localhost:11434/api/tags
+```
+
+**See [Configuration Guide - LLM Provider Configuration](configuration.md#llm-provider-configuration) for all provider options, cost comparison, and detailed setup instructions.**
+
 ### Configuration
 
 The resolver uses preset configurations. The default is `balanced`:
