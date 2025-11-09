@@ -14,10 +14,12 @@ from pr_conflict_resolver.llm.providers.anthropic_api import AnthropicAPIProvide
 from pr_conflict_resolver.llm.providers.claude_cli import ClaudeCLIProvider
 from pr_conflict_resolver.llm.providers.codex_cli import CodexCLIProvider
 from pr_conflict_resolver.llm.providers.ollama import OllamaProvider
+from pr_conflict_resolver.llm.providers.openai_api import OpenAIAPIProvider
 
 __all__: list[str] = [
     "AnthropicAPIProvider",
     "ClaudeCLIProvider",
     "CodexCLIProvider",
     "OllamaProvider",
+    "OpenAIAPIProvider",
 ]
