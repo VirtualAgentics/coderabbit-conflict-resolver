@@ -265,6 +265,19 @@ class TestCreateProviderValidation:
         assert "anthropic" in error_msg
         assert "CR_LLM_API_KEY" in error_msg
 
+    def test_provider_constructor_exceptions_propagated(self) -> None:
+        """Test that exceptions from provider constructors are propagated."""
+        # Create mock provider class that raises exception
+        mock_provider_class = MagicMock()
+        mock_provider_class.side_effect = LLMConfigurationError("Constructor failed")
+
+        # Patch PROVIDER_REGISTRY to use our mock
+        with patch.dict(PROVIDER_REGISTRY, {"claude-cli": mock_provider_class}):
+            with pytest.raises(LLMConfigurationError) as exc_info:
+                create_provider("claude-cli")
+
+            assert "Constructor failed" in str(exc_info.value)
+
 
 class TestValidateProvider:
     """Test validate_provider() health check function."""

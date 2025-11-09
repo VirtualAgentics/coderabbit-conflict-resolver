@@ -89,8 +89,12 @@ def create_provider(
 
     Raises:
         LLMConfigurationError: If provider name is invalid, API key is missing for
-            API-based providers.
+            API-based providers, or provider constructor detects invalid configuration
+            (e.g., CLI not installed, Ollama service unavailable).
         ValueError: If timeout is invalid (non-positive).
+        Exception: Provider constructor exceptions are propagated. Callers should
+            expect arbitrary exceptions if providers fail during initialization
+            (e.g., network errors, authentication failures, missing dependencies).
 
     Examples:
         Create OpenAI provider:
@@ -208,7 +212,9 @@ def validate_provider(provider: Any) -> bool:  # noqa: ANN401
     try:
         # Use token counting as lightweight health check
         # This validates provider is accessible without consuming API credits
-        # No timeout needed - count_tokens() is a fast, local operation
+        # No timeout needed - count_tokens() is typically fast and local for most
+        # providers, but may invoke an API call for some (e.g., Anthropic). For
+        # true local behavior, use provider-specific token counters or guard checks.
         test_string = "test"
         _ = provider.count_tokens(test_string)
 
