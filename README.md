@@ -95,6 +95,33 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --parallel --ma
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --config config.yaml
 ```
 
+### LLM Provider Setup (Optional)
+
+Enable AI-powered features with your choice of LLM provider:
+
+```bash
+# Option 1: Anthropic (recommended - 50-90% cost savings with caching)
+export CR_LLM_ENABLED="true"
+export CR_LLM_PROVIDER="anthropic"
+export CR_LLM_API_KEY="sk-ant-..."  # Get from https://console.anthropic.com/
+
+# Option 2: OpenAI
+export CR_LLM_ENABLED="true"
+export CR_LLM_PROVIDER="openai"
+export CR_LLM_API_KEY="sk-..."  # Get from https://platform.openai.com/api-keys
+
+# Option 3: Local Ollama (free, private)
+ollama pull llama3.3:70b
+export CR_LLM_ENABLED="true"
+export CR_LLM_PROVIDER="ollama"
+export CR_LLM_MODEL="llama3.3:70b"
+
+# Then use as normal
+pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123
+```
+
+**See [Configuration Guide](docs/configuration.md#llm-provider-configuration) for all 5 provider options and detailed setup.**
+
 ### Python API
 
 ```python
@@ -135,6 +162,14 @@ print(f"Success rate: {results.success_rate}%")
 - **YAML**: Comment preservation, structure-aware merging
 - **TOML**: Section merging, format preservation
 - **Python/TypeScript**: AST-aware analysis (planned)
+
+### Multi-Provider LLM Support
+
+- **5 Provider Types**: OpenAI, Anthropic, Claude CLI, Codex CLI, Ollama
+- **Cost Optimization**: Prompt caching reduces Anthropic costs by 50-90%
+- **Flexible Deployment**: API-based, CLI-based, or local inference
+- **Provider Selection**: Choose based on cost, privacy, or performance needs
+- **Health Checks**: Automatic provider validation before use
 
 ### Learning & Optimization
 

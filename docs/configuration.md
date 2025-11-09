@@ -545,6 +545,340 @@ For backwards compatibility, these environment variables are also supported:
 
 **Note:** New projects should use the `CR_*` prefix for runtime configuration and `GITHUB_PERSONAL_ACCESS_TOKEN` for authentication.
 
+## LLM Provider Configuration
+
+The resolver supports multiple LLM providers for AI-powered conflict resolution and code analysis. Each provider has different characteristics, costs, and setup requirements.
+
+### Supported Providers
+
+| Provider | Type | API Key Required | Cost | Best For |
+|----------|------|------------------|------|----------|
+| `openai` | API | Yes | $$ | Production, high accuracy |
+| `anthropic` | API | Yes | $$ | Advanced reasoning, long context |
+| `claude-cli` | CLI | No (subscription) | Subscription | Development, debugging |
+| `codex-cli` | CLI | No (subscription) | Subscription | Code-specific tasks |
+| `ollama` | Local | No | Free | Privacy, offline use, experimentation |
+
+### Environment Variables
+
+Configure LLM providers using these environment variables:
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `CR_LLM_ENABLED` | boolean | `false` | Enable LLM-powered features |
+| `CR_LLM_PROVIDER` | string | `openai` | Provider name (openai, anthropic, claude-cli, codex-cli, ollama) |
+| `CR_LLM_MODEL` | string | provider-specific | Model identifier (optional, uses provider defaults) |
+| `CR_LLM_API_KEY` | string | (required for API providers) | API key for openai/anthropic |
+| `CR_LLM_TIMEOUT` | integer | provider-specific | Request timeout in seconds |
+
+**Boolean Values:** Accept `true`/`false`, `1`/`0`, `yes`/`no` (case-insensitive)
+
+### Provider-Specific Configuration
+
+#### OpenAI (API Provider)
+
+**Models**: GPT-4, GPT-4 Turbo, GPT-4o
+**Default Model**: `gpt-4`
+
+```bash
+# Set up OpenAI provider
+export CR_LLM_ENABLED="true"
+export CR_LLM_PROVIDER="openai"
+export CR_LLM_MODEL="gpt-4"  # Optional, defaults to gpt-4
+export CR_LLM_API_KEY="sk-..."  # Get from https://platform.openai.com/api-keys
+
+# Run resolver with OpenAI
+pr-resolve apply --pr 123 --owner myorg --repo myrepo
+```
+
+**Cost**: Pay-per-token
+**Latency**: Low (200-500ms)
+**Context**: Up to 128K tokens (GPT-4 Turbo)
+
+#### Anthropic (API Provider)
+
+**Models**: Claude Sonnet 4.5, Claude Opus 4, Claude Haiku 4
+**Default Model**: `claude-sonnet-4`
+
+```bash
+# Set up Anthropic provider
+export CR_LLM_ENABLED="true"
+export CR_LLM_PROVIDER="anthropic"
+export CR_LLM_MODEL="claude-sonnet-4-5"  # Optional
+export CR_LLM_API_KEY="sk-ant-..."  # Get from https://console.anthropic.com/
+
+# Run resolver with Anthropic
+pr-resolve apply --pr 123 --owner myorg --repo myrepo
+```
+
+**Cost**: Pay-per-token with prompt caching (50-90% cost reduction)
+**Latency**: Low (200-500ms)
+**Context**: Up to 200K tokens
+**Features**: Advanced reasoning, strong code understanding
+
+#### Claude CLI (CLI Provider)
+
+**Requirement**: Claude CLI must be installed and authenticated
+**Cost**: Included with Claude subscription
+
+```bash
+# Install Claude CLI (if not already installed)
+# Follow instructions at https://docs.anthropic.com/claude/cli
+
+# Set up Claude CLI provider (no API key needed)
+export CR_LLM_ENABLED="true"
+export CR_LLM_PROVIDER="claude-cli"
+export CR_LLM_MODEL="claude-sonnet-4-5"  # Optional
+
+# Run resolver with Claude CLI
+pr-resolve apply --pr 123 --owner myorg --repo myrepo
+```
+
+**Cost**: $0 (subscription-based)
+**Latency**: Medium (1-3s, includes CLI overhead)
+**Best For**: Development, debugging, learning
+
+#### Codex CLI (CLI Provider)
+
+**Requirement**: GitHub Copilot subscription with Codex CLI access
+**Cost**: Included with Copilot subscription
+
+```bash
+# Set up Codex CLI provider (no API key needed)
+export CR_LLM_ENABLED="true"
+export CR_LLM_PROVIDER="codex-cli"
+export CR_LLM_MODEL="codex"  # Optional
+
+# Run resolver with Codex CLI
+pr-resolve apply --pr 123 --owner myorg --repo myrepo
+```
+
+**Cost**: $0 (subscription-based)
+**Latency**: Medium (1-3s)
+**Best For**: Code-specific tasks, GitHub integration
+
+#### Ollama (Local Provider)
+
+**Requirement**: Ollama must be installed and running
+**Models**: llama3.3:70b, codellama, mistral, and many more
+**Cost**: Free (runs locally)
+
+```bash
+# Install Ollama (if not already installed)
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Pull a model
+ollama pull llama3.3:70b
+
+# Set up Ollama provider
+export CR_LLM_ENABLED="true"
+export CR_LLM_PROVIDER="ollama"
+export CR_LLM_MODEL="llama3.3:70b"  # Required
+
+# Run resolver with Ollama
+pr-resolve apply --pr 123 --owner myorg --repo myrepo
+```
+
+**Cost**: $0 (local inference)
+**Latency**: High (5-30s, depends on hardware)
+**Best For**: Privacy, offline use, experimentation, cost-sensitive environments
+
+**Ollama Configuration:**
+```bash
+# Use custom Ollama base URL (default: http://localhost:11434)
+export OLLAMA_BASE_URL="http://custom-host:11434"
+
+# Or configure in Python
+from pr_conflict_resolver.llm import create_provider
+
+provider = create_provider(
+    "ollama",
+    model="llama3.3:70b",
+    base_url="http://custom-host:11434"
+)
+```
+
+### Cost Comparison
+
+| Provider | Input Cost | Output Cost | Context Size | Caching |
+|----------|-----------|-------------|--------------|---------|
+| OpenAI (GPT-4) | $0.03/1K | $0.06/1K | 8K-128K | No |
+| Anthropic (Sonnet 4.5) | $0.003/1K | $0.015/1K | 200K | Yes (50-90% savings) |
+| Anthropic (Opus 4) | $0.015/1K | $0.075/1K | 200K | Yes |
+| Claude CLI | Subscription | Subscription | 200K | N/A |
+| Codex CLI | Subscription | Subscription | Varies | N/A |
+| Ollama (local) | $0 | $0 | Varies | No |
+
+**Note**: Costs are approximate and may change. Check provider pricing pages for current rates.
+
+### Provider Selection Guide
+
+**Choose OpenAI if:**
+- You need reliable, production-grade performance
+- You're already using OpenAI in your stack
+- You need fast response times
+- Cost is secondary to accuracy
+
+**Choose Anthropic if:**
+- You need the best reasoning capabilities
+- You process large context (>50K tokens)
+- You want significant cost savings via prompt caching
+- You need long-running context retention
+
+**Choose Claude CLI if:**
+- You're developing or debugging locally
+- You have a Claude subscription
+- You don't want to manage API keys
+- You want interactive development experience
+
+**Choose Codex CLI if:**
+- You focus on code-specific tasks
+- You have GitHub Copilot subscription
+- You want tight GitHub integration
+
+**Choose Ollama if:**
+- Privacy is a primary concern
+- You need offline operation
+- You have capable hardware (GPU recommended)
+- You want to experiment without cost
+- You're in a cost-sensitive environment
+
+### Python API Usage
+
+```python
+from pr_conflict_resolver.llm import create_provider, validate_provider
+from pr_conflict_resolver.llm.config import LLMConfig
+
+# Method 1: Create provider directly
+provider = create_provider(
+    provider="anthropic",
+    model="claude-sonnet-4-5",
+    api_key="sk-ant-...",
+    timeout=30
+)
+
+# Method 2: Create from environment variables
+config = LLMConfig.from_env()
+provider = create_provider(
+    provider=config.provider,
+    model=config.model,
+    api_key=config.api_key
+)
+
+# Method 3: Create from config object
+config = LLMConfig(
+    enabled=True,
+    provider="ollama",
+    model="llama3.3:70b",
+    api_key=None  # Not needed for Ollama
+)
+provider = create_provider(
+    provider=config.provider,
+    model=config.model,
+    api_key=config.api_key
+)
+
+# Validate provider before use
+if validate_provider(provider):
+    response = provider.generate("Explain this code conflict")
+    print(f"Response: {response}")
+else:
+    print("Provider validation failed")
+```
+
+### Prompt Caching (Anthropic Only)
+
+Anthropic providers support prompt caching for 50-90% cost reduction on repeated prompts:
+
+```python
+from pr_conflict_resolver.llm.cache import PromptCache
+from pathlib import Path
+
+# Create cache instance
+cache = PromptCache(
+    cache_dir=Path.home() / ".pr-resolver" / "cache",
+    ttl_seconds=7 * 24 * 60 * 60,  # 7 days
+    max_size_bytes=100 * 1024 * 1024  # 100MB
+)
+
+# Cache is automatically used by Anthropic provider
+# Prompts are hashed and cached for TTL duration
+# LRU eviction when max size is reached
+
+# Check cache statistics
+stats = cache.get_stats()
+print(f"Cache hit rate: {stats['hit_rate']}%")
+print(f"Total size: {stats['total_size']} bytes")
+```
+
+### Troubleshooting LLM Providers
+
+#### Provider not available
+
+**Problem:** Provider reports as unavailable during health check
+
+**Solutions:**
+```bash
+# For API providers: verify API key
+echo $CR_LLM_API_KEY | cut -c1-10  # Check first 10 chars
+
+# Test API key manually
+# OpenAI:
+curl https://api.openai.com/v1/models \
+  -H "Authorization: Bearer $CR_LLM_API_KEY"
+
+# Anthropic:
+curl https://api.anthropic.com/v1/messages \
+  -H "x-api-key: $CR_LLM_API_KEY" \
+  -H "anthropic-version: 2023-06-01"
+
+# For CLI providers: verify CLI is installed
+which claude  # Should return path
+which codex   # Should return path
+
+# For Ollama: verify service is running
+curl http://localhost:11434/api/tags
+ollama list  # Should show installed models
+```
+
+#### Slow responses
+
+**Problem:** LLM responses take too long
+
+**Solutions:**
+```bash
+# Increase timeout
+export CR_LLM_TIMEOUT="60"  # 60 seconds
+
+# For Ollama: use smaller/faster model
+export CR_LLM_MODEL="llama3.3:8b"  # Smaller than 70b
+
+# For API providers: use faster model
+export CR_LLM_MODEL="gpt-4-turbo"  # Faster than gpt-4
+export CR_LLM_MODEL="claude-haiku-4"  # Faster than Sonnet/Opus
+```
+
+#### High costs
+
+**Problem:** LLM API costs too high
+
+**Solutions:**
+```bash
+# Switch to Anthropic with prompt caching
+export CR_LLM_PROVIDER="anthropic"
+# Caching provides 50-90% cost reduction
+
+# Use smaller model
+export CR_LLM_MODEL="claude-haiku-4"  # Much cheaper than Opus
+
+# Switch to local Ollama
+export CR_LLM_PROVIDER="ollama"
+export CR_LLM_MODEL="llama3.3:70b"  # Free
+
+# Switch to subscription-based CLI
+export CR_LLM_PROVIDER="claude-cli"  # Fixed cost
+```
+
 ## Configuration Examples
 
 ### Example 1: High-Priority Security Fixes
