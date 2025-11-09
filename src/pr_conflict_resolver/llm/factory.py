@@ -178,7 +178,7 @@ def create_provider(
         raise
 
 
-def validate_provider(provider: Any, timeout: int = 5) -> bool:  # noqa: ANN401
+def validate_provider(provider: Any) -> bool:  # noqa: ANN401
     """Validate provider connectivity with health check.
 
     Performs a lightweight health check by attempting to count tokens on a minimal
@@ -188,8 +188,6 @@ def validate_provider(provider: Any, timeout: int = 5) -> bool:  # noqa: ANN401
     Args:
         provider: Provider instance to validate. Must implement the LLMProvider
             protocol with a count_tokens() method.
-        timeout: Health check timeout in seconds (default: 5). Shorter than normal
-            request timeout to fail fast on connectivity issues.
 
     Returns:
         True if provider is healthy and can process requests. Always returns True
@@ -206,15 +204,11 @@ def validate_provider(provider: Any, timeout: int = 5) -> bool:  # noqa: ANN401
             >>> provider = create_provider("anthropic", api_key="sk-ant-...")
             >>> if validate_provider(provider):
             ...     response = provider.generate("Hello")
-
-        Health check with custom timeout:
-            >>> if validate_provider(provider, timeout=10):
-            ...     # Provider is healthy
-            ...     pass
     """
     try:
         # Use token counting as lightweight health check
         # This validates provider is accessible without consuming API credits
+        # No timeout needed - count_tokens() is a fast, local operation
         test_string = "test"
         _ = provider.count_tokens(test_string)
 

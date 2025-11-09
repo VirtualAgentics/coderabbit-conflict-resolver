@@ -300,17 +300,6 @@ class TestValidateProvider:
         assert "Provider health check failed" in str(exc_info.value)
         assert "Unexpected error" in str(exc_info.value)
 
-    def test_validate_with_custom_timeout(self) -> None:
-        """Test validation with custom timeout parameter."""
-        mock_provider = MagicMock()
-        mock_provider.count_tokens.return_value = 1
-
-        # timeout parameter doesn't affect token counting, but should be accepted
-        result = validate_provider(mock_provider, timeout=10)
-
-        assert result is True
-        mock_provider.count_tokens.assert_called_once()
-
     def test_validate_handles_configuration_error(self) -> None:
         """Test that configuration errors are re-raised as-is."""
         mock_provider = MagicMock()
