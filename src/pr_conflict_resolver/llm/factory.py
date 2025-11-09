@@ -89,8 +89,8 @@ def create_provider(
 
     Raises:
         LLMConfigurationError: If provider name is invalid, API key is missing for
-            API-based providers, or timeout is invalid.
-        ValueError: If required parameters are invalid or missing.
+            API-based providers.
+        ValueError: If timeout is invalid (non-positive).
 
     Examples:
         Create OpenAI provider:
