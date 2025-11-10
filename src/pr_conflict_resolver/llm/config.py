@@ -7,7 +7,7 @@ Phase 0: Foundation only - configuration structure without implementation.
 import os
 from dataclasses import dataclass
 
-from pr_conflict_resolver.config.runtime_config import ConfigError
+from pr_conflict_resolver.config.exceptions import ConfigError
 from pr_conflict_resolver.llm.constants import VALID_LLM_PROVIDERS
 
 

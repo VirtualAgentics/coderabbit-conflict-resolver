@@ -7,10 +7,7 @@ This module provides configuration management through:
 - ConfigError: Exception for configuration errors
 """
 
-from pr_conflict_resolver.config.runtime_config import (
-    ApplicationMode,
-    ConfigError,
-    RuntimeConfig,
-)
+from pr_conflict_resolver.config.exceptions import ConfigError
+from pr_conflict_resolver.config.runtime_config import ApplicationMode, RuntimeConfig
 
 __all__ = ["ApplicationMode", "ConfigError", "RuntimeConfig"]
