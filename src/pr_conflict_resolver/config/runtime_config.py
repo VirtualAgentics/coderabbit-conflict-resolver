@@ -293,6 +293,64 @@ class RuntimeConfig:
         )
 
     @classmethod
+    def from_preset(cls, preset_name: str, api_key: str | None = None) -> "RuntimeConfig":
+        """Create configuration from an LLM preset.
+
+        Loads an LLM preset and merges it with default RuntimeConfig settings.
+        This provides zero-config setup for LLM providers.
+
+        Args:
+            preset_name: Name of the preset (e.g., "codex-cli-free", "ollama-local").
+            api_key: Optional API key override for API-based providers.
+
+        Returns:
+            RuntimeConfig with LLM settings from preset and defaults for other settings.
+
+        Raises:
+            ValueError: If preset name is invalid.
+            ConfigError: If preset configuration is invalid.
+
+        Example:
+            >>> config = RuntimeConfig.from_preset("codex-cli-free")
+            >>> assert config.llm_enabled is True
+            >>> assert config.llm_provider == "codex-cli"
+
+            >>> config = RuntimeConfig.from_preset("openai-api-mini", api_key="sk-...")
+            >>> assert config.llm_enabled is True
+            >>> assert config.llm_api_key == "sk-..."
+        """
+        # Import here to avoid circular imports
+        from pr_conflict_resolver.llm.presets import LLMPresetConfig
+
+        # Load preset config
+        try:
+            llm_config = LLMPresetConfig.load_preset(preset_name, api_key=api_key)
+        except ValueError as e:
+            raise ConfigError(str(e)) from e
+
+        # Start with balanced defaults
+        defaults = cls.from_defaults()
+
+        # Merge LLM config from preset with runtime defaults
+        return cls(
+            mode=defaults.mode,
+            enable_rollback=defaults.enable_rollback,
+            validate_before_apply=defaults.validate_before_apply,
+            parallel_processing=defaults.parallel_processing,
+            max_workers=defaults.max_workers,
+            log_level=defaults.log_level,
+            log_file=defaults.log_file,
+            llm_enabled=llm_config.enabled,
+            llm_provider=llm_config.provider,
+            llm_model=llm_config.model,
+            llm_api_key=llm_config.api_key,
+            llm_fallback_to_regex=llm_config.fallback_to_regex,
+            llm_cache_enabled=llm_config.cache_enabled,
+            llm_max_tokens=llm_config.max_tokens,
+            llm_cost_budget=llm_config.cost_budget,
+        )
+
+    @classmethod
     def from_env(cls) -> "RuntimeConfig":
         """Create configuration from environment variables.
 
@@ -501,6 +559,67 @@ class RuntimeConfig:
 
         return cls._from_dict(data, config_path)
 
+    @staticmethod
+    def _is_env_var_placeholder(value: str) -> bool:
+        """Check if a string value is an environment variable placeholder.
+
+        Args:
+            value: String to check.
+
+        Returns:
+            True if value is a placeholder like ${VAR_NAME}, False otherwise.
+
+        Example:
+            >>> RuntimeConfig._is_env_var_placeholder("${API_KEY}")
+            True
+            >>> RuntimeConfig._is_env_var_placeholder("sk-actual-key-123")
+            False
+        """
+        import re
+
+        # Check if string contains ${VAR} pattern
+        return bool(re.search(r"\$\{[A-Z_][A-Z0-9_]*\}", value))
+
+    @classmethod
+    def _interpolate_env_vars(cls, value: Any) -> Any:  # noqa: ANN401
+        """Interpolate environment variables in configuration values.
+
+        Supports ${VAR_NAME} syntax for environment variable substitution.
+        Non-string values are returned unchanged.
+
+        Args:
+            value: Configuration value (string, dict, list, or primitive).
+
+        Returns:
+            Value with environment variables interpolated.
+
+        Example:
+            >>> os.environ["MY_KEY"] = "secret123"
+            >>> cls._interpolate_env_vars("api_key: ${MY_KEY}")
+            'api_key: secret123'
+        """
+        if isinstance(value, str):
+            # Replace ${VAR} with environment variable value
+            import re
+
+            def replace_env_var(match: re.Match[str]) -> str:
+                var_name = match.group(1)
+                env_value = os.getenv(var_name)
+                if env_value is None:
+                    logger.warning(
+                        f"Environment variable '{var_name}' not found, keeping placeholder"
+                    )
+                    return match.group(0)  # Keep original ${VAR}
+                return env_value
+
+            return re.sub(r"\$\{([A-Z_][A-Z0-9_]*)\}", replace_env_var, value)
+        elif isinstance(value, dict):
+            return {k: cls._interpolate_env_vars(v) for k, v in value.items()}
+        elif isinstance(value, list):
+            return [cls._interpolate_env_vars(item) for item in value]
+        else:
+            return value
+
     @classmethod
     def _from_dict(cls, data: dict[str, Any], source: Path) -> "RuntimeConfig":
         """Create RuntimeConfig from dictionary (internal helper).
@@ -517,6 +636,9 @@ class RuntimeConfig:
         """
         # Start with defaults
         defaults = cls.from_defaults()
+
+        # Interpolate environment variables in all string values
+        data = cls._interpolate_env_vars(data)
 
         # Parse mode
         mode_value = data.get("mode", defaults.mode.value)
@@ -579,6 +701,16 @@ class RuntimeConfig:
             llm_cache_enabled = llm_config.get("cache_enabled", defaults.llm_cache_enabled)
             llm_max_tokens = llm_config.get("max_tokens", defaults.llm_max_tokens)
             llm_cost_budget = llm_config.get("cost_budget", defaults.llm_cost_budget)
+
+            # SECURITY: Reject API keys in configuration files
+            # API keys must only be provided via environment variables or CLI flags
+            if llm_api_key and not cls._is_env_var_placeholder(llm_api_key):
+                provider_upper = llm_provider.upper()
+                raise ConfigError(
+                    f"SECURITY: API keys must NOT be stored in configuration files ({source}). "
+                    f"Use environment variables: CR_LLM_API_KEY or ${{{provider_upper}_API_KEY}}. "
+                    f"Example: api_key: ${{ANTHROPIC_API_KEY}}"
+                )
         else:
             llm_enabled = defaults.llm_enabled
             llm_provider = defaults.llm_provider
