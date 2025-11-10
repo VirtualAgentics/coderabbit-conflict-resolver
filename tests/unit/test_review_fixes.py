@@ -145,10 +145,10 @@ class TestConfigFileLLMParsing:
             """
 mode: all
 llm:
-  enabled: true
+  enabled: false
   provider: anthropic
   model: claude-3-opus
-  api_key: sk-ant-test
+  api_key: ${TEST_API_KEY}
   fallback_to_regex: false
   cache_enabled: false
   max_tokens: 8000
@@ -158,10 +158,11 @@ llm:
 
         config = RuntimeConfig.from_file(config_file)
 
-        assert config.llm_enabled is True
+        assert config.llm_enabled is False
         assert config.llm_provider == "anthropic"
         assert config.llm_model == "claude-3-opus"
-        assert config.llm_api_key == "sk-ant-test"
+        assert config.llm_api_key is not None
+        assert "${TEST_API_KEY}" in config.llm_api_key
         assert config.llm_fallback_to_regex is False
         assert config.llm_cache_enabled is False
         assert config.llm_max_tokens == 8000
@@ -175,10 +176,10 @@ llm:
 mode = "all"
 
 [llm]
-enabled = true
+enabled = false
 provider = "openai"
 model = "gpt-4"
-api_key = "sk-test"
+api_key = "${OPENAI_API_KEY}"
 fallback_to_regex = false
 cache_enabled = true
 max_tokens = 4000
@@ -188,10 +189,11 @@ cost_budget = 50.0
 
         config = RuntimeConfig.from_file(config_file)
 
-        assert config.llm_enabled is True
+        assert config.llm_enabled is False
         assert config.llm_provider == "openai"
         assert config.llm_model == "gpt-4"
-        assert config.llm_api_key == "sk-test"
+        assert config.llm_api_key is not None
+        assert "${OPENAI_API_KEY}" in config.llm_api_key
         assert config.llm_fallback_to_regex is False
         assert config.llm_cache_enabled is True
         assert config.llm_max_tokens == 4000

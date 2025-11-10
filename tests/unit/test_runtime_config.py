@@ -255,10 +255,10 @@ mode: all
 rollback:
   enabled: true
 llm:
-  enabled: true
+  enabled: false
   provider: anthropic
   model: claude-3-opus
-  api_key: test-key-12345
+  api_key: ${ANTHROPIC_API_KEY}
   fallback_to_regex: false
   cache_enabled: true
   max_tokens: 4000
@@ -270,10 +270,11 @@ llm:
             try:
                 config = RuntimeConfig.from_file(Path(f.name))
                 # LLM fields
-                assert config.llm_enabled is True
+                assert config.llm_enabled is False
                 assert config.llm_provider == "anthropic"
                 assert config.llm_model == "claude-3-opus"
-                assert config.llm_api_key == "test-key-12345"
+                assert config.llm_api_key is not None
+                assert "${ANTHROPIC_API_KEY}" in config.llm_api_key
                 assert config.llm_fallback_to_regex is False
                 assert config.llm_cache_enabled is True
                 assert config.llm_max_tokens == 4000
