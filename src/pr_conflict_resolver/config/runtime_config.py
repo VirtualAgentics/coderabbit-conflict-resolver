@@ -13,6 +13,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from pr_conflict_resolver.config.exceptions import ConfigError
+
 logger = logging.getLogger(__name__)
 
 # Available configuration presets
@@ -37,10 +39,6 @@ class ApplicationMode(str, Enum):
     def __str__(self) -> str:
         """Return string representation of mode."""
         return self.value
-
-
-class ConfigError(Exception):
-    """Exception raised for configuration errors."""
 
 
 @dataclass(frozen=True, slots=True)

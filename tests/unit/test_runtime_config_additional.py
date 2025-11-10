@@ -7,11 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from pr_conflict_resolver.config.runtime_config import (
-    ApplicationMode,
-    ConfigError,
-    RuntimeConfig,
-)
+from pr_conflict_resolver.config.exceptions import ConfigError
+from pr_conflict_resolver.config.runtime_config import ApplicationMode, RuntimeConfig
 
 
 class TestPresetFactoryMethods:

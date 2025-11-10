@@ -165,7 +165,7 @@ class TestLLMConfigFromEnv:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test from_env() with invalid CR_LLM_MAX_TOKENS raises ConfigError."""
-        from pr_conflict_resolver.config.runtime_config import ConfigError
+        from pr_conflict_resolver.config.exceptions import ConfigError
 
         monkeypatch.setenv("CR_LLM_MAX_TOKENS", "invalid")
 
@@ -184,7 +184,7 @@ class TestLLMConfigFromEnv:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test from_env() with invalid CR_LLM_COST_BUDGET raises ConfigError."""
-        from pr_conflict_resolver.config.runtime_config import ConfigError
+        from pr_conflict_resolver.config.exceptions import ConfigError
 
         monkeypatch.setenv("CR_LLM_COST_BUDGET", "invalid")
 
