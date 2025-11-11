@@ -297,6 +297,52 @@ make security   # Security checks
 - **Property-based fuzzing**: Automated testing with generated inputs using Hypothesis
 - **Coverage**: Maintain >80% test coverage (strictly enforced in CI)
 - **Fixtures**: Use pytest fixtures for test data
+- **Subtests**: Use pytest 9.0 native subtests for testing multiple variations
+
+#### Writing Tests with Subtests
+
+This project uses **pytest 9.0** with native subtests support. Subtests allow you to run multiple related test cases within a single test method, with each case reported independently.
+
+**When to use subtests:**
+- Testing ≥4 similar variations of the same logic
+- Testing multiple implementations (e.g., all handlers)
+- Dynamic test cases (from files, APIs, etc.)
+- When expensive setup/teardown should be shared
+- When all test cases should run even if one fails
+
+**When NOT to use subtests:**
+- <4 static test cases → use `@pytest.mark.parametrize`
+- Unrelated test logic → use separate test methods
+- Want separate test entries in reports → use `@pytest.mark.parametrize`
+
+**Example:**
+
+```python
+def test_rejects_invalid_paths(self, subtests: pytest.Subtests) -> None:
+    """Test that various invalid paths are rejected using subtests."""
+    invalid_paths = [
+        ("Path traversal", "../../../etc/passwd"),
+        ("Absolute path", "/etc/passwd"),
+        ("Windows path", "C:\\Windows\\System32"),
+        ("Null byte", "file\x00.txt"),
+    ]
+
+    for description, path in invalid_paths:
+        with subtests.test(msg=f"{description}: {path}", path=path):
+            assert not InputValidator.validate_file_path(path)
+```
+
+**Key points:**
+- Inject `subtests: pytest.Subtests` fixture parameter
+- Use `with subtests.test(msg=..., **context)` context manager
+- Provide descriptive `msg` for failure reporting
+- Include context variables for debugging
+- All subtests run even if one fails
+
+**For more details, see:**
+- [Testing Guide](docs/testing/TESTING.md) - Comprehensive testing documentation
+- [Subtests Guide](docs/testing/SUBTESTS_GUIDE.md) - Detailed subtests best practices
+- [pytest 9.0 Migration](docs/testing/PYTEST_9_MIGRATION.md) - Migration overview and benefits
 
 #### Property-Based Fuzzing
 

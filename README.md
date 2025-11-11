@@ -344,6 +344,8 @@ pre-commit install
 
 ### Running Tests
 
+This project uses **pytest 9.0** with native subtests support for comprehensive testing. We maintain **>80% test coverage** with 1318+ tests including unit, integration, security, and property-based fuzzing tests.
+
 ```bash
 # Run standard tests with coverage
 pytest tests/ --cov=src --cov-report=html
@@ -356,6 +358,11 @@ make test-fuzz-extended     # Extended: 1000 examples
 # Run all tests (standard + fuzzing)
 make test-all
 ```
+
+**For more details, see:**
+- [Testing Guide](docs/testing/TESTING.md) - Comprehensive testing documentation
+- [Subtests Guide](docs/testing/SUBTESTS_GUIDE.md) - Writing tests with subtests
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines including testing practices
 
 ## 📜 License
 
