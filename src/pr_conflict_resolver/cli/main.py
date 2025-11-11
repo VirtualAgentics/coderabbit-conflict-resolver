@@ -8,6 +8,7 @@ from pathlib import Path
 
 import click
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 
 from pr_conflict_resolver.config.presets import PresetConfig
@@ -17,6 +18,17 @@ from pr_conflict_resolver.config.runtime_config import (
     RuntimeConfig,
 )
 from pr_conflict_resolver.core.resolver import ConflictResolver
+from pr_conflict_resolver.llm.error_handlers import LLMErrorHandler
+from pr_conflict_resolver.llm.exceptions import (
+    LLMAPIError,
+    LLMAuthenticationError,
+    LLMConfigurationError,
+    LLMError,
+    LLMParsingError,
+    LLMRateLimitError,
+    LLMTimeoutError,
+)
+from pr_conflict_resolver.llm.metrics import LLMMetrics
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -192,6 +204,75 @@ def validate_pr_number(ctx: click.Context, param: click.Parameter, value: int) -
             param=param,
         )
     return value
+
+
+def _display_llm_metrics(metrics: LLMMetrics) -> None:
+    """Display LLM metrics in a formatted panel with table.
+
+    Shows token usage, costs, cache performance, and parsing statistics
+    in a user-friendly format using Rich Panel and Table.
+
+    Args:
+        metrics: LLM metrics to display.
+
+    Example output:
+        ╭─ LLM Metrics (Anthropic claude-haiku-4) ─────────────────╮
+        │ Comments parsed: 20 | Avg confidence: 92.0%             │
+        │ API calls: 7 | Total tokens: 15,420                     │
+        │ Cache hit rate: 65.0% | Total cost: $0.0234             │
+        │ Cost per comment: $0.0012 | Avg tokens/call: 2,203      │
+        ╰───────────────────────────────────────────────────────────╯
+    """
+    # Build metrics table
+    table = Table.grid(padding=(0, 2))
+    table.add_column(style="cyan", justify="left")
+    table.add_column(style="white", justify="left")
+
+    # Row 1: Comments and confidence
+    table.add_row(
+        f"Comments parsed: {metrics.comments_parsed}",
+        f"Avg confidence: {metrics.avg_confidence * 100:.1f}%",
+    )
+
+    # Row 2: API calls and tokens
+    table.add_row(
+        f"API calls: {metrics.api_calls}",
+        f"Total tokens: {metrics.total_tokens:,}",
+    )
+
+    # Row 3: Cache and cost
+    cache_display = f"{metrics.cache_hit_rate * 100:.1f}%"
+    cost_display = f"${metrics.total_cost:.4f}" if metrics.total_cost > 0 else "Free"
+    table.add_row(
+        f"Cache hit rate: {cache_display}",
+        f"Total cost: {cost_display}",
+    )
+
+    # Row 4: Computed metrics
+    cost_per_comment_display = (
+        f"${metrics.cost_per_comment:.4f}" if metrics.cost_per_comment > 0 else "Free"
+    )
+    table.add_row(
+        f"Cost per comment: {cost_per_comment_display}",
+        f"Avg tokens/call: {metrics.avg_tokens_per_call:,.0f}",
+    )
+
+    # Display in panel
+    # Capitalize provider name (OpenAI special case)
+    provider_display = (
+        "OpenAI" if metrics.provider.lower() == "openai" else metrics.provider.capitalize()
+    )
+    title = f"LLM Metrics ({provider_display} {metrics.model})"
+
+    panel = Panel(
+        table,
+        title=title,
+        border_style="green",
+        padding=(1, 2),
+    )
+
+    console.print()
+    console.print(panel)
 
 
 # NOTE: File path validation for CLI options is not yet needed.
@@ -608,6 +689,66 @@ def apply(
 
             if result.conflict_count > 0:
                 console.print("\n[yellow]💡 Some conflicts require manual review[/yellow]")
+
+            # Display LLM metrics if available
+            if result.llm_metrics:
+                _display_llm_metrics(result.llm_metrics)
+
+    except LLMAuthenticationError as e:
+        # Authentication errors - provide setup guidance
+        provider = getattr(runtime_config, "llm_provider", "unknown")
+        error_msg = LLMErrorHandler.format_auth_error(provider)
+        console.print(f"\n[red]{error_msg}[/red]")
+        logger.error("LLM authentication failed: %s", e)
+        raise click.Abort() from e
+
+    except LLMRateLimitError as e:
+        # Rate limit errors - suggest waiting or alternatives
+        provider = getattr(runtime_config, "llm_provider", "unknown")
+        error_msg = LLMErrorHandler.format_provider_error(provider, e)
+        console.print(f"\n[yellow]{error_msg}[/yellow]")
+        logger.warning("LLM rate limit exceeded: %s", e)
+        raise click.Abort() from e
+
+    except LLMTimeoutError as e:
+        # Timeout errors - suggest retry or faster model
+        provider = getattr(runtime_config, "llm_provider", "unknown")
+        error_msg = LLMErrorHandler.format_provider_error(provider, e)
+        console.print(f"\n[yellow]{error_msg}[/yellow]")
+        logger.warning("LLM request timed out: %s", e)
+        raise click.Abort() from e
+
+    except LLMConfigurationError as e:
+        # Configuration errors - provide actionable guidance
+        provider = getattr(runtime_config, "llm_provider", "unknown")
+        error_msg = LLMErrorHandler.format_provider_error(provider, e)
+        console.print(f"\n[red]{error_msg}[/red]")
+        logger.error("LLM configuration error: %s", e)
+        raise click.Abort() from e
+
+    except LLMParsingError as e:
+        # Parsing errors - may fall back to regex
+        provider = getattr(runtime_config, "llm_provider", "unknown")
+        error_msg = LLMErrorHandler.format_provider_error(provider, e)
+        console.print(f"\n[yellow]{error_msg}[/yellow]")
+        logger.warning("LLM parsing error: %s", e)
+        # Don't abort - may have fallen back to regex parsing
+
+    except LLMAPIError as e:
+        # Generic API errors
+        provider = getattr(runtime_config, "llm_provider", "unknown")
+        error_msg = LLMErrorHandler.format_provider_error(provider, e)
+        console.print(f"\n[red]{error_msg}[/red]")
+        logger.error("LLM API error: %s", e)
+        raise click.Abort() from e
+
+    except LLMError as e:
+        # Catch-all for other LLM errors
+        provider = getattr(runtime_config, "llm_provider", "unknown")
+        error_msg = LLMErrorHandler.format_provider_error(provider, e)
+        console.print(f"\n[red]{error_msg}[/red]")
+        logger.error("LLM error: %s", e)
+        raise click.Abort() from e
 
     except Exception as e:
         console.print(f"\n[red]❌ Error applying suggestions: {e}[/red]")

@@ -57,7 +57,10 @@ Validation points:
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeAlias, TypedDict
+from typing import TYPE_CHECKING, TypeAlias, TypedDict
+
+if TYPE_CHECKING:
+    from pr_conflict_resolver.llm.metrics import LLMMetrics
 
 
 class FileType(Enum):
@@ -160,6 +163,9 @@ class ResolutionResult:
             validation failures. Default: 0 for backward compatibility.
         non_conflicting_failed: Number of non-conflicting changes that failed to apply.
             Default: 0 for backward compatibility.
+        llm_metrics: Optional LLM usage metrics (tokens, cost, cache performance).
+            None if LLM parsing was not used. Default: None for backward compatibility.
+            Added in Phase 3 (Issue #152).
     """
 
     applied_count: int
@@ -170,3 +176,4 @@ class ResolutionResult:
     non_conflicting_applied: int = 0
     non_conflicting_skipped: int = 0
     non_conflicting_failed: int = 0
+    llm_metrics: "LLMMetrics | None" = None

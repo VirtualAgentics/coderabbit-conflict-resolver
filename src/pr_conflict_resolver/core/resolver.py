@@ -29,6 +29,7 @@ from pr_conflict_resolver.handlers.toml_handler import TomlHandler
 from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
 from pr_conflict_resolver.integrations.github import GitHubCommentExtractor
 from pr_conflict_resolver.llm.base import LLMParser, ParsedChange
+from pr_conflict_resolver.llm.metrics import LLMMetrics
 from pr_conflict_resolver.security.input_validator import InputValidator
 from pr_conflict_resolver.strategies.priority_strategy import PriorityStrategy
 from pr_conflict_resolver.utils.path_utils import resolve_file_path
@@ -1178,6 +1179,77 @@ class ConflictResolver:
                 f"(owner={owner}, repo={repo}, pr_number={pr_number}): {e}"
             ) from e
 
+    def _aggregate_llm_metrics(
+        self, changes: list[Change], provider_name: str = "", model_name: str = ""
+    ) -> LLMMetrics | None:
+        """Aggregate LLM metrics from parsed changes.
+
+        This method collects metrics when LLM-based parsing was used to extract
+        changes from comments. It aggregates token usage, costs, confidence scores,
+        and cache performance across all LLM API calls.
+
+        Args:
+            changes: List of Change objects, potentially parsed with LLM.
+            provider_name: LLM provider name (e.g., "anthropic", "openai").
+                Empty string if LLM was not used.
+            model_name: Specific model used (e.g., "claude-haiku-4").
+                Empty string if LLM was not used.
+
+        Returns:
+            LLMMetrics object with aggregated statistics if LLM was used,
+            None if no LLM parsing occurred.
+
+        Note:
+            This is infrastructure for Phase 3 (Issue #152). Currently returns None
+            as LLM parsing integration is not yet complete. Will be populated when
+            CommentParser with LLM provider is integrated into extract_changes_from_comments.
+
+        Example:
+            >>> # When LLM parsing is integrated:
+            >>> changes = resolver.extract_changes_from_comments(comments)
+            >>> metrics = resolver._aggregate_llm_metrics(
+            ...     changes, provider_name="anthropic", model_name="claude-haiku-4"
+            ... )
+            >>> if metrics:
+            ...     print(f"Cost: ${metrics.total_cost:.4f}")
+        """
+        # Check if any changes have LLM metadata (indicates LLM was used)
+        llm_changes = [
+            c
+            for c in changes
+            if isinstance(c.metadata.get("llm_provider"), str) and c.metadata.get("llm_provider")
+        ]
+
+        if not llm_changes:
+            # No LLM parsing used
+            return None
+
+        # TODO (Phase 3): Extract actual metrics from provider/parser state
+        # For now, return None as LLM integration is not complete
+        # When integrated, this will:
+        # 1. Aggregate token counts from provider API calls
+        # 2. Calculate total cost based on provider pricing
+        # 3. Compute average confidence from parsed changes
+        # 4. Track cache hit rate from prompt caching system
+        # 5. Count total API calls made
+
+        # Placeholder for future implementation:
+        # total_tokens = sum(c.metadata.get("llm_tokens", 0) for c in llm_changes)
+        # confidences = [c.metadata.get("llm_confidence", 0.0) for c in llm_changes]
+        # avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+        # return LLMMetrics(
+        #     provider=provider_name,
+        #     model=model_name,
+        #     comments_parsed=len(llm_changes),
+        #     avg_confidence=avg_confidence,
+        #     cache_hit_rate=cache_hit_rate,
+        #     total_cost=total_cost,
+        #     api_calls=api_calls,
+        #     total_tokens=total_tokens
+        # )
+
+        return None
+
     def resolve_pr_conflicts(
         self,
         owner: str,
@@ -1227,6 +1299,9 @@ class ConflictResolver:
 
         # Extract changes from comments
         changes = self.extract_changes_from_comments(comments)
+
+        # Aggregate LLM metrics if LLM parsing was used
+        llm_metrics = self._aggregate_llm_metrics(changes)
 
         # Detect conflicts
         conflicts = self.detect_conflicts(changes)
@@ -1300,6 +1375,7 @@ class ConflictResolver:
             non_conflicting_applied=non_conflicting_applied,
             non_conflicting_skipped=non_conflicting_skipped,
             non_conflicting_failed=non_conflicting_failed,
+            llm_metrics=llm_metrics,
         )
 
     def analyze_conflicts(self, owner: str, repo: str, pr_number: int) -> list[Conflict]:
