@@ -22,16 +22,26 @@ class TestFilePathValidation:
         assert InputValidator.validate_file_path("folder/..file.txt")
         assert InputValidator.validate_file_path("test..data.json")
 
-    def test_path_traversal_unix(self) -> None:
-        """Test detection of Unix-style path traversal."""
-        assert not InputValidator.validate_file_path("../../etc/passwd")
-        assert not InputValidator.validate_file_path("../../../root/.ssh/id_rsa")
-        assert not InputValidator.validate_file_path("./../../etc/shadow")
+    def test_path_traversal_unix(self, subtests: pytest.Subtests) -> None:
+        """Test detection of Unix-style path traversal using subtests."""
+        unix_paths = [
+            "../../etc/passwd",
+            "../../../root/.ssh/id_rsa",
+            "./../../etc/shadow",
+        ]
+        for path in unix_paths:
+            with subtests.test(msg=f"Unix path traversal: {path}", path=path):
+                assert not InputValidator.validate_file_path(path)
 
-    def test_path_traversal_windows(self) -> None:
-        """Test detection of Windows-style path traversal."""
-        assert not InputValidator.validate_file_path("..\\..\\windows\\system32")
-        assert not InputValidator.validate_file_path("..\\..\\..\\boot.ini")
+    def test_path_traversal_windows(self, subtests: pytest.Subtests) -> None:
+        """Test detection of Windows-style path traversal using subtests."""
+        windows_paths = [
+            "..\\..\\windows\\system32",
+            "..\\..\\..\\boot.ini",
+        ]
+        for path in windows_paths:
+            with subtests.test(msg=f"Windows path traversal: {path}", path=path):
+                assert not InputValidator.validate_file_path(path)
 
     def test_absolute_path_without_base_dir(self) -> None:
         """Test that absolute paths are rejected without base_dir."""
@@ -85,13 +95,18 @@ class TestFilePathValidation:
             # Should be rejected when allow_absolute=True but no base_dir
             assert not InputValidator.validate_file_path(str(test_file), allow_absolute=True)
 
-    def test_unsafe_characters(self) -> None:
-        """Test rejection of paths with unsafe characters."""
-        assert not InputValidator.validate_file_path("file;rm -rf")
-        assert not InputValidator.validate_file_path("file|cat /etc/passwd")
-        assert not InputValidator.validate_file_path("file&&evil")
-        assert not InputValidator.validate_file_path("file`whoami`")
-        assert not InputValidator.validate_file_path("file$(whoami)")
+    def test_unsafe_characters(self, subtests: pytest.Subtests) -> None:
+        """Test rejection of paths with unsafe characters using subtests."""
+        unsafe_paths = [
+            ("Semicolon command", "file;rm -rf"),
+            ("Pipe command", "file|cat /etc/passwd"),
+            ("Double ampersand", "file&&evil"),
+            ("Backtick execution", "file`whoami`"),
+            ("Command substitution", "file$(whoami)"),
+        ]
+        for char_type, path in unsafe_paths:
+            with subtests.test(msg=f"{char_type}: {path}", unsafe_char=char_type):
+                assert not InputValidator.validate_file_path(path)
 
     def test_null_bytes(self) -> None:
         """Test rejection of paths with null bytes."""
