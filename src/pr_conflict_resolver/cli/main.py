@@ -29,6 +29,7 @@ from pr_conflict_resolver.llm.exceptions import (
     LLMTimeoutError,
 )
 from pr_conflict_resolver.llm.metrics import LLMMetrics
+from pr_conflict_resolver.llm.presets import LLMPresetConfig
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -431,16 +432,7 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
 )
 @click.option(
     "--llm-preset",
-    type=click.Choice(
-        [
-            "codex-cli-free",
-            "ollama-local",
-            "claude-cli-sonnet",
-            "openai-api-mini",
-            "anthropic-api-balanced",
-        ],
-        case_sensitive=False,
-    ),
+    type=click.Choice(LLMPresetConfig.list_presets(), case_sensitive=False),
     help="LLM configuration preset for zero-config setup (e.g., codex-cli-free, ollama-local)",
 )
 @click.option(
@@ -582,9 +574,8 @@ def apply(
             runtime_config = RuntimeConfig.from_preset(llm_preset_name, api_key=llm_api_key)
             console.print(f"[dim]Loaded LLM preset: {llm_preset_name}[/dim]")
         else:
-            # Start with defaults when no config file/preset/llm-preset specified
+            # Use defaults when no config file/preset/llm-preset specified
             runtime_config = RuntimeConfig.from_defaults()
-            preset_name = None  # Using defaults, not a named preset
 
         # Step 2: Apply environment variable overrides
         # Use validated parsing from RuntimeConfig.from_env()

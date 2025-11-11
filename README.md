@@ -128,7 +128,7 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
 
 **Available presets**: `codex-cli-free`, `ollama-local`, `claude-cli-sonnet`, `openai-api-mini`, `anthropic-api-balanced`
 
-**Alternative: Use environment variables**
+### Alternative: Use environment variables
 
 ```bash
 # Anthropic (recommended - 50-90% cost savings with caching)

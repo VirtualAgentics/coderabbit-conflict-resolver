@@ -478,7 +478,17 @@ class TestApplyCommandLLMPreset:
 
     def test_apply_with_codex_cli_preset(self, runner: CliRunner) -> None:
         """Test apply command with --llm-preset codex-cli-free."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with (
+            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("pr_conflict_resolver.cli.main.RuntimeConfig.from_preset") as mock_from_preset,
+        ):
+            # Setup mocks with proper config attributes
+            mock_config = Mock()
+            mock_config.log_file = None
+            mock_config.log_level = "INFO"
+            mock_config.merge_with_cli.return_value = mock_config
+            mock_from_preset.return_value = mock_config
+
             mock_resolver = mock_resolver_class.return_value
             mock_result = Mock(
                 applied_count=5,
@@ -503,13 +513,26 @@ class TestApplyCommandLLMPreset:
                 ],
             )
 
+            # Verify from_preset was called correctly
+            mock_from_preset.assert_called_once_with("codex-cli-free", api_key=None)
+
             # Should display preset loading message
             assert "Loaded LLM preset: codex-cli-free" in result.output
             assert result.exit_code == 0
 
     def test_apply_with_ollama_preset(self, runner: CliRunner) -> None:
         """Test apply command with --llm-preset ollama-local."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with (
+            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("pr_conflict_resolver.cli.main.RuntimeConfig.from_preset") as mock_from_preset,
+        ):
+            # Setup mocks with proper config attributes
+            mock_config = Mock()
+            mock_config.log_file = None
+            mock_config.log_level = "INFO"
+            mock_config.merge_with_cli.return_value = mock_config
+            mock_from_preset.return_value = mock_config
+
             mock_resolver = mock_resolver_class.return_value
             mock_result = Mock(
                 applied_count=3,
@@ -534,13 +557,26 @@ class TestApplyCommandLLMPreset:
                 ],
             )
 
+            # Verify from_preset was called correctly
+            mock_from_preset.assert_called_once_with("ollama-local", api_key=None)
+
             # Should display preset loading message
             assert "Loaded LLM preset: ollama-local" in result.output
             assert result.exit_code == 0
 
     def test_apply_with_claude_cli_preset(self, runner: CliRunner) -> None:
         """Test apply command with --llm-preset claude-cli-sonnet."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with (
+            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("pr_conflict_resolver.cli.main.RuntimeConfig.from_preset") as mock_from_preset,
+        ):
+            # Setup mocks with proper config attributes
+            mock_config = Mock()
+            mock_config.log_file = None
+            mock_config.log_level = "INFO"
+            mock_config.merge_with_cli.return_value = mock_config
+            mock_from_preset.return_value = mock_config
+
             mock_resolver = mock_resolver_class.return_value
             mock_result = Mock(
                 applied_count=10,
@@ -565,13 +601,26 @@ class TestApplyCommandLLMPreset:
                 ],
             )
 
+            # Verify from_preset was called correctly
+            mock_from_preset.assert_called_once_with("claude-cli-sonnet", api_key=None)
+
             # Should display preset loading message
             assert "Loaded LLM preset: claude-cli-sonnet" in result.output
             assert result.exit_code == 0
 
     def test_apply_with_openai_preset_and_api_key(self, runner: CliRunner) -> None:
         """Test apply command with --llm-preset openai-api-mini and --llm-api-key."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with (
+            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("pr_conflict_resolver.cli.main.RuntimeConfig.from_preset") as mock_from_preset,
+        ):
+            # Setup mocks with proper config attributes
+            mock_config = Mock()
+            mock_config.log_file = None
+            mock_config.log_level = "INFO"
+            mock_config.merge_with_cli.return_value = mock_config
+            mock_from_preset.return_value = mock_config
+
             mock_resolver = mock_resolver_class.return_value
             mock_result = Mock(
                 applied_count=7,
@@ -598,13 +647,26 @@ class TestApplyCommandLLMPreset:
                 ],
             )
 
+            # Verify from_preset was called with API key
+            mock_from_preset.assert_called_once_with("openai-api-mini", api_key="sk-test123")
+
             # Should display preset loading message
             assert "Loaded LLM preset: openai-api-mini" in result.output
             assert result.exit_code == 0
 
     def test_apply_with_anthropic_preset_and_api_key(self, runner: CliRunner) -> None:
         """Test apply command with --llm-preset anthropic-api-balanced and --llm-api-key."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with (
+            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("pr_conflict_resolver.cli.main.RuntimeConfig.from_preset") as mock_from_preset,
+        ):
+            # Setup mocks with proper config attributes
+            mock_config = Mock()
+            mock_config.log_file = None
+            mock_config.log_level = "INFO"
+            mock_config.merge_with_cli.return_value = mock_config
+            mock_from_preset.return_value = mock_config
+
             mock_resolver = mock_resolver_class.return_value
             mock_result = Mock(
                 applied_count=8,
@@ -631,13 +693,29 @@ class TestApplyCommandLLMPreset:
                 ],
             )
 
+            # Verify from_preset was called with API key
+            mock_from_preset.assert_called_once_with(
+                "anthropic-api-balanced", api_key="sk-ant-test456"
+            )
+
             # Should display preset loading message
             assert "Loaded LLM preset: anthropic-api-balanced" in result.output
             assert result.exit_code == 0
 
     def test_apply_preset_overridden_by_individual_flags(self, runner: CliRunner) -> None:
         """Test that individual --llm-* flags override preset values."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with (
+            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("pr_conflict_resolver.cli.main.RuntimeConfig.from_preset") as mock_from_preset,
+        ):
+            # Setup mocks - preset config that can be overridden
+            mock_preset_config = Mock()
+            mock_final_config = Mock()
+            mock_final_config.log_file = None
+            mock_final_config.log_level = "INFO"
+            mock_preset_config.merge_with_cli.return_value = mock_final_config
+            mock_from_preset.return_value = mock_preset_config
+
             mock_resolver = mock_resolver_class.return_value
             mock_result = Mock(
                 applied_count=5,
@@ -663,6 +741,13 @@ class TestApplyCommandLLMPreset:
                     "llama3.3:70b",  # Override model
                 ],
             )
+
+            # Verify preset was loaded
+            mock_from_preset.assert_called_once_with("ollama-local", api_key=None)
+
+            # Verify merge_with_cli was called with llm_model override
+            call_kwargs = mock_preset_config.merge_with_cli.call_args[1]
+            assert call_kwargs.get("llm_model") == "llama3.3:70b"
 
             # Should load preset but allow override
             assert "Loaded LLM preset: ollama-local" in result.output
