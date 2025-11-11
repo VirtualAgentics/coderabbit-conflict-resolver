@@ -307,6 +307,39 @@ class TestApplyCommandLLMIntegration:
             assert result.exit_code != 0
             assert "API Error" in result.output or "Service unavailable" in result.output
 
+    def test_apply_handles_error_with_none_llm_provider(self, runner: CliRunner) -> None:
+        """Test error handlers correctly handle llm_provider=None without AttributeError."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            mock_resolver = mock_resolver_class.return_value
+            mock_resolver.resolve_pr_conflicts.side_effect = LLMAuthenticationError(
+                "Authentication failed"
+            )
+
+            # Don't specify --llm-provider, which can result in None value
+            result = runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "123",
+                    "--owner",
+                    "testowner",
+                    "--repo",
+                    "testrepo",
+                    # No --llm-provider flag - may default to None
+                ],
+            )
+
+            # Should display error without crashing with AttributeError
+            assert result.exit_code != 0
+            # Verify no AttributeError (would happen if .lower() called on None)
+            # Key test: it doesn't crash - error message may vary by provider
+            assert (
+                "CLI Error" in result.output
+                or "Authentication" in result.output
+                or "authentication failed" in result.output.lower()
+            )
+
 
 class TestMetricsDisplayEdgeCases:
     """Tests for edge cases in metrics display."""

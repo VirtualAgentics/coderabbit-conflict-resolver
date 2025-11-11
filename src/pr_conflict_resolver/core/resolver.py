@@ -1272,8 +1272,9 @@ class ConflictResolver:
             # Fallback to provider's cumulative cost
             total_cost = provider.get_total_cost()
 
-        # Calculate cache hit rate on a per-comment basis
-        # This measures what percentage of comments had cache hits (0.0-1.0)
+        # Calculate cache hit rate on a per-Change basis
+        # This measures what percentage of Change objects had cache hits (0.0-1.0)
+        # Note: One source comment may produce multiple Change objects
         cache_hits = sum(1 for c in llm_changes if c.metadata.get("llm_cache_hit"))
         cache_hit_rate = cache_hits / len(llm_changes)
 
