@@ -549,15 +549,16 @@ class TestApplyCommandLLMPreset:
         """Test that individual --llm-* flags override preset values."""
         with (
             patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
-            patch("pr_conflict_resolver.cli.main.RuntimeConfig.from_preset") as mock_from_preset,
+            patch(
+                "pr_conflict_resolver.cli.main.RuntimeConfig.from_preset",
+                return_value=mock_preset_config,
+            ) as mock_from_preset,
         ):
-            # Setup mocks - preset config that can be overridden
-            mock_preset_config = Mock()
+            # Setup final config after merge
             mock_final_config = Mock()
             mock_final_config.log_file = None
             mock_final_config.log_level = "INFO"
             mock_preset_config.merge_with_cli.return_value = mock_final_config
-            mock_from_preset.return_value = mock_preset_config
 
             mock_resolver = mock_resolver_class.return_value
             mock_result = Mock(
