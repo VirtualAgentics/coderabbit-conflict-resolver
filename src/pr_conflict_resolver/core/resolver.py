@@ -14,7 +14,7 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from os import PathLike
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pr_conflict_resolver.analysis.conflict_detector import ConflictDetector
 from pr_conflict_resolver.core.models import (
@@ -29,6 +29,7 @@ from pr_conflict_resolver.handlers.toml_handler import TomlHandler
 from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
 from pr_conflict_resolver.integrations.github import GitHubCommentExtractor
 from pr_conflict_resolver.llm.base import LLMParser, ParsedChange
+from pr_conflict_resolver.llm.metrics import LLMMetrics
 from pr_conflict_resolver.security.input_validator import InputValidator
 from pr_conflict_resolver.strategies.priority_strategy import PriorityStrategy
 from pr_conflict_resolver.utils.path_utils import resolve_file_path
@@ -1178,6 +1179,128 @@ class ConflictResolver:
                 f"(owner={owner}, repo={repo}, pr_number={pr_number}): {e}"
             ) from e
 
+    def _aggregate_llm_metrics(self, changes: list[Change]) -> LLMMetrics | None:
+        """Aggregate LLM metrics from parsed changes.
+
+        This method collects metrics when LLM-based parsing was used to extract
+        changes from comments. It aggregates token usage, costs, confidence scores,
+        and cache performance across all LLM API calls.
+
+        Args:
+            changes: List of Change objects, potentially parsed with LLM.
+
+        Returns:
+            LLMMetrics object with aggregated statistics if LLM was used,
+            None if no LLM parsing occurred.
+
+        Note:
+            The returned LLMMetrics object includes:
+            - provider: LLM provider name (extracted from self.llm_parser.provider)
+            - model: Model name (extracted from provider object)
+            - total_tokens: Aggregated token consumption (prompt + completion)
+            - avg_confidence: Average confidence score across parsed changes
+            - cache_hit_rate: Cache hit percentage for cost optimization
+            - total_cost: Total API cost in USD
+            - api_calls: Number of API calls made
+            - changes_parsed: Number of Change objects extracted via LLM parsing
+              (Note: One source comment may produce multiple Change objects)
+
+            Uses hybrid metadata approach: tries Change.metadata.get() first,
+            falls back to direct attributes, then to provider cumulative tracking.
+
+        Example:
+            >>> changes = resolver.extract_changes_from_comments(comments)
+            >>> metrics = resolver._aggregate_llm_metrics(changes)
+            >>> if metrics:
+            ...     print(f"Cost: ${metrics.total_cost:.4f}")
+        """
+        # Check if any changes have LLM metadata (indicates LLM was used)
+        llm_changes = [
+            c
+            for c in changes
+            if c.parsing_method == "llm"
+            or (
+                isinstance(c.metadata.get("parsing_method"), str)
+                and c.metadata.get("parsing_method") == "llm"
+            )
+        ]
+
+        if not llm_changes:
+            # No LLM parsing used
+            return None
+
+        # Verify LLM parser and provider are available
+        if not self.llm_parser or not hasattr(self.llm_parser, "provider"):
+            return None
+
+        provider = self.llm_parser.provider
+
+        # Extract provider and model names from provider object
+        # Try provider_name attribute first (more robust), fallback to class name
+        provider_name_str = getattr(provider, "provider_name", None)
+        if provider_name_str:
+            provider_name_str = provider_name_str.lower()
+        else:
+            # Fallback to class name inference
+            provider_class = type(provider).__name__
+            if "Anthropic" in provider_class:
+                provider_name_str = "anthropic"
+            elif "OpenAI" in provider_class:
+                provider_name_str = "openai"
+            elif "Ollama" in provider_class:
+                provider_name_str = "ollama"
+            else:
+                provider_name_str = provider_class.lower()
+
+        model_name_str = getattr(provider, "model", "unknown")
+
+        # Aggregate total tokens (metadata first, fallback to provider cumulative)
+        total_tokens = sum(cast(int, c.metadata.get("llm_tokens", 0)) for c in llm_changes)
+        if total_tokens == 0 and hasattr(provider, "total_input_tokens"):
+            # Fallback to provider's cumulative tracking
+            total_tokens = provider.total_input_tokens + provider.total_output_tokens
+
+        # Aggregate confidences (metadata first, fallback to direct attribute)
+        confidences: list[float] = []
+        for c in llm_changes:
+            conf = c.metadata.get("llm_confidence")
+            if conf is None:
+                conf = c.llm_confidence  # Fallback to direct attribute
+            if conf is not None:
+                confidences.append(cast(float, conf))
+
+        avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+
+        # Aggregate API calls (metadata with default 1 per change)
+        api_calls = sum(cast(int, c.metadata.get("llm_api_calls", 1)) for c in llm_changes)
+
+        # Aggregate total cost (metadata first, fallback to provider cumulative)
+        total_cost = sum(cast(float, c.metadata.get("llm_cost", 0.0)) for c in llm_changes)
+        if total_cost == 0.0 and hasattr(provider, "get_total_cost"):
+            # Fallback to provider's cumulative cost
+            total_cost = provider.get_total_cost()
+
+        # Calculate cache hit rate on a per-Change basis
+        # This measures what percentage of Change objects had cache hits (0.0-1.0)
+        # Note: One source comment may produce multiple Change objects
+        cache_hits = sum(1 for c in llm_changes if c.metadata.get("llm_cache_hit"))
+        cache_hit_rate = cache_hits / len(llm_changes)
+
+        # Count of Change objects extracted via LLM (not unique source comments)
+        # Note: One source comment may produce multiple Change objects
+        changes_parsed = len(llm_changes)
+
+        return LLMMetrics(
+            provider=provider_name_str,
+            model=model_name_str,
+            changes_parsed=changes_parsed,
+            avg_confidence=avg_confidence,
+            cache_hit_rate=cache_hit_rate,
+            total_cost=total_cost,
+            api_calls=api_calls,
+            total_tokens=total_tokens,
+        )
+
     def resolve_pr_conflicts(
         self,
         owner: str,
@@ -1227,6 +1350,9 @@ class ConflictResolver:
 
         # Extract changes from comments
         changes = self.extract_changes_from_comments(comments)
+
+        # Aggregate LLM metrics if LLM parsing was used
+        llm_metrics = self._aggregate_llm_metrics(changes)
 
         # Detect conflicts
         conflicts = self.detect_conflicts(changes)
@@ -1300,6 +1426,7 @@ class ConflictResolver:
             non_conflicting_applied=non_conflicting_applied,
             non_conflicting_skipped=non_conflicting_skipped,
             non_conflicting_failed=non_conflicting_failed,
+            llm_metrics=llm_metrics,
         )
 
     def analyze_conflicts(self, owner: str, repo: str, pr_number: int) -> list[Conflict]:

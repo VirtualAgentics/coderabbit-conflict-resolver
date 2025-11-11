@@ -57,7 +57,10 @@ Validation points:
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeAlias, TypedDict
+from typing import TYPE_CHECKING, TypeAlias, TypedDict
+
+if TYPE_CHECKING:
+    from pr_conflict_resolver.llm.metrics import LLMMetrics
 
 
 class FileType(Enum):
@@ -104,6 +107,27 @@ class Change:
         - risk_level: Risk assessment ("low", "medium", "high")
 
     All new fields have default values for backward compatibility.
+
+    Metadata Architecture:
+        The metadata field accepts both ChangeMetadata TypedDict and arbitrary Mapping[str, object].
+        This dual approach supports:
+
+        1. Typed access (recommended): Use ChangeMetadata for known fields like url, author, source
+        2. Flexible storage: Store arbitrary data like llm_cache_hit, llm_cost, parsing timestamps
+
+        LLM-related data can be stored in two places:
+        - metadata dict: Used for per-request metadata (llm_cache_hit, llm_cost, llm_tokens)
+        - Direct attributes: Used for per-Change properties (llm_confidence, llm_provider)
+
+        Example::
+
+            >>> # LLM confidence stored as attribute (per-Change property)
+            >>> change = Change(..., llm_confidence=0.92, llm_provider="claude-cli")
+            >>> # Cache hit stored in metadata (per-request data)
+            >>> metadata = {"llm_cache_hit": True, "llm_cost": 0.0001}
+            >>> change = Change(..., metadata=metadata)
+
+        See module-level docstring for complete metadata migration examples.
     """
 
     path: str
@@ -118,6 +142,30 @@ class Change:
     parsing_method: str = "regex"
     change_rationale: str | None = None
     risk_level: str | None = None
+
+    def __post_init__(self) -> None:
+        """Validate Change field values.
+
+        Raises:
+            ValueError: If any field has an invalid value.
+        """
+        # Validate llm_confidence range if provided
+        if self.llm_confidence is not None and not 0.0 <= self.llm_confidence <= 1.0:
+            raise ValueError(
+                f"llm_confidence must be between 0.0 and 1.0, got {self.llm_confidence}"
+            )
+
+        # Validate llm_provider is not empty string if provided
+        if self.llm_provider is not None and self.llm_provider == "":
+            raise ValueError("llm_provider must not be empty string")
+
+        # Validate risk_level is a valid value if provided
+        if self.risk_level is not None:
+            valid_risk_levels = {"low", "medium", "high"}
+            if self.risk_level not in valid_risk_levels:
+                raise ValueError(
+                    f"risk_level must be one of {valid_risk_levels}, got {self.risk_level!r}"
+                )
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,6 +208,9 @@ class ResolutionResult:
             validation failures. Default: 0 for backward compatibility.
         non_conflicting_failed: Number of non-conflicting changes that failed to apply.
             Default: 0 for backward compatibility.
+        llm_metrics: Optional LLM usage metrics (tokens, cost, cache performance).
+            None if LLM parsing was not used. Default: None for backward compatibility.
+            Added in Phase 3 (Issue #152).
     """
 
     applied_count: int
@@ -170,3 +221,4 @@ class ResolutionResult:
     non_conflicting_applied: int = 0
     non_conflicting_skipped: int = 0
     non_conflicting_failed: int = 0
+    llm_metrics: "LLMMetrics | None" = None
