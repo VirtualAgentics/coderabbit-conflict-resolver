@@ -466,3 +466,290 @@ class TestMetricsDisplayEdgeCases:
 
         # Should display with 4 decimal places
         assert "$0.0001" in captured.out
+
+
+class TestApplyCommandLLMPreset:
+    """Tests for apply command with --llm-preset flag."""
+
+    @pytest.fixture
+    def runner(self) -> CliRunner:
+        """Create Click test runner."""
+        return CliRunner()
+
+    def test_apply_with_codex_cli_preset(self, runner: CliRunner) -> None:
+        """Test apply command with --llm-preset codex-cli-free."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            mock_resolver = mock_resolver_class.return_value
+            mock_result = Mock(
+                applied_count=5,
+                conflict_count=0,
+                success_rate=100.0,
+                llm_metrics=None,
+            )
+            mock_resolver.resolve_pr_conflicts.return_value = mock_result
+
+            result = runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "123",
+                    "--owner",
+                    "testowner",
+                    "--repo",
+                    "testrepo",
+                    "--llm-preset",
+                    "codex-cli-free",
+                ],
+            )
+
+            # Should display preset loading message
+            assert "Loaded LLM preset: codex-cli-free" in result.output
+            assert result.exit_code == 0
+
+    def test_apply_with_ollama_preset(self, runner: CliRunner) -> None:
+        """Test apply command with --llm-preset ollama-local."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            mock_resolver = mock_resolver_class.return_value
+            mock_result = Mock(
+                applied_count=3,
+                conflict_count=1,
+                success_rate=75.0,
+                llm_metrics=None,
+            )
+            mock_resolver.resolve_pr_conflicts.return_value = mock_result
+
+            result = runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "456",
+                    "--owner",
+                    "myorg",
+                    "--repo",
+                    "myrepo",
+                    "--llm-preset",
+                    "ollama-local",
+                ],
+            )
+
+            # Should display preset loading message
+            assert "Loaded LLM preset: ollama-local" in result.output
+            assert result.exit_code == 0
+
+    def test_apply_with_claude_cli_preset(self, runner: CliRunner) -> None:
+        """Test apply command with --llm-preset claude-cli-sonnet."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            mock_resolver = mock_resolver_class.return_value
+            mock_result = Mock(
+                applied_count=10,
+                conflict_count=2,
+                success_rate=83.3,
+                llm_metrics=None,
+            )
+            mock_resolver.resolve_pr_conflicts.return_value = mock_result
+
+            result = runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "789",
+                    "--owner",
+                    "acme",
+                    "--repo",
+                    "project",
+                    "--llm-preset",
+                    "claude-cli-sonnet",
+                ],
+            )
+
+            # Should display preset loading message
+            assert "Loaded LLM preset: claude-cli-sonnet" in result.output
+            assert result.exit_code == 0
+
+    def test_apply_with_openai_preset_and_api_key(self, runner: CliRunner) -> None:
+        """Test apply command with --llm-preset openai-api-mini and --llm-api-key."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            mock_resolver = mock_resolver_class.return_value
+            mock_result = Mock(
+                applied_count=7,
+                conflict_count=1,
+                success_rate=87.5,
+                llm_metrics=None,
+            )
+            mock_resolver.resolve_pr_conflicts.return_value = mock_result
+
+            result = runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "100",
+                    "--owner",
+                    "demo",
+                    "--repo",
+                    "test",
+                    "--llm-preset",
+                    "openai-api-mini",
+                    "--llm-api-key",
+                    "sk-test123",
+                ],
+            )
+
+            # Should display preset loading message
+            assert "Loaded LLM preset: openai-api-mini" in result.output
+            assert result.exit_code == 0
+
+    def test_apply_with_anthropic_preset_and_api_key(self, runner: CliRunner) -> None:
+        """Test apply command with --llm-preset anthropic-api-balanced and --llm-api-key."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            mock_resolver = mock_resolver_class.return_value
+            mock_result = Mock(
+                applied_count=8,
+                conflict_count=2,
+                success_rate=80.0,
+                llm_metrics=None,
+            )
+            mock_resolver.resolve_pr_conflicts.return_value = mock_result
+
+            result = runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "200",
+                    "--owner",
+                    "org",
+                    "--repo",
+                    "app",
+                    "--llm-preset",
+                    "anthropic-api-balanced",
+                    "--llm-api-key",
+                    "sk-ant-test456",
+                ],
+            )
+
+            # Should display preset loading message
+            assert "Loaded LLM preset: anthropic-api-balanced" in result.output
+            assert result.exit_code == 0
+
+    def test_apply_preset_overridden_by_individual_flags(self, runner: CliRunner) -> None:
+        """Test that individual --llm-* flags override preset values."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            mock_resolver = mock_resolver_class.return_value
+            mock_result = Mock(
+                applied_count=5,
+                conflict_count=0,
+                success_rate=100.0,
+                llm_metrics=None,
+            )
+            mock_resolver.resolve_pr_conflicts.return_value = mock_result
+
+            result = runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "300",
+                    "--owner",
+                    "test",
+                    "--repo",
+                    "repo",
+                    "--llm-preset",
+                    "ollama-local",  # Default model: qwen2.5-coder:7b
+                    "--llm-model",
+                    "llama3.3:70b",  # Override model
+                ],
+            )
+
+            # Should load preset but allow override
+            assert "Loaded LLM preset: ollama-local" in result.output
+            assert result.exit_code == 0
+
+    def test_apply_config_preset_takes_priority_over_llm_preset(self, runner: CliRunner) -> None:
+        """Test that --config preset takes priority over --llm-preset."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            mock_resolver = mock_resolver_class.return_value
+            mock_result = Mock(
+                applied_count=4,
+                conflict_count=0,
+                success_rate=100.0,
+                llm_metrics=None,
+            )
+            mock_resolver.resolve_pr_conflicts.return_value = mock_result
+
+            result = runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "400",
+                    "--owner",
+                    "user",
+                    "--repo",
+                    "project",
+                    "--config",
+                    "balanced",  # Config preset
+                    "--llm-preset",
+                    "codex-cli-free",  # Should be ignored
+                ],
+            )
+
+            # Should load config preset, not LLM preset
+            assert "Loaded configuration preset: balanced" in result.output
+            assert "Loaded LLM preset" not in result.output
+            assert result.exit_code == 0
+
+    def test_apply_invalid_preset_name(self, runner: CliRunner) -> None:
+        """Test apply command rejects invalid preset name."""
+        result = runner.invoke(
+            cli,
+            [
+                "apply",
+                "--pr",
+                "500",
+                "--owner",
+                "test",
+                "--repo",
+                "repo",
+                "--llm-preset",
+                "invalid-preset",  # Not in the choices list
+            ],
+        )
+
+        # Should fail with invalid choice error
+        assert result.exit_code != 0
+        assert "Invalid value for '--llm-preset'" in result.output
+
+    def test_apply_case_insensitive_preset(self, runner: CliRunner) -> None:
+        """Test apply command accepts preset names case-insensitively."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            mock_resolver = mock_resolver_class.return_value
+            mock_result = Mock(
+                applied_count=5,
+                conflict_count=0,
+                success_rate=100.0,
+                llm_metrics=None,
+            )
+            mock_resolver.resolve_pr_conflicts.return_value = mock_result
+
+            result = runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "600",
+                    "--owner",
+                    "test",
+                    "--repo",
+                    "repo",
+                    "--llm-preset",
+                    "CODEX-CLI-FREE",  # All caps
+                ],
+            )
+
+            # Should accept and normalize to lowercase
+            assert "Loaded LLM preset: codex-cli-free" in result.output
+            assert result.exit_code == 0

@@ -97,30 +97,55 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --config config
 
 ### LLM Provider Setup (Optional)
 
-Enable AI-powered features with your choice of LLM provider:
+Enable AI-powered features with your choice of LLM provider using **zero-config presets**:
 
 ```bash
-# Option 1: Anthropic (recommended - 50-90% cost savings with caching)
+# ✨ NEW: Zero-config presets for instant setup
+
+# Option 1: Codex CLI (free with GitHub Copilot subscription)
+pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
+  --llm-preset codex-cli-free
+
+# Option 2: Local Ollama (free, private, offline)
+ollama pull qwen2.5-coder:7b  # One-time setup
+pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
+  --llm-preset ollama-local
+
+# Option 3: Claude CLI (requires Claude subscription)
+pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
+  --llm-preset claude-cli-sonnet
+
+# Option 4: OpenAI API (pay-per-use, ~$0.01 per PR)
+pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
+  --llm-preset openai-api-mini \
+  --llm-api-key sk-...
+
+# Option 5: Anthropic API (balanced cost/performance)
+pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
+  --llm-preset anthropic-api-balanced \
+  --llm-api-key sk-ant-...
+```
+
+**Available presets**: `codex-cli-free`, `ollama-local`, `claude-cli-sonnet`, `openai-api-mini`, `anthropic-api-balanced`
+
+**Alternative: Use environment variables**
+
+```bash
+# Anthropic (recommended - 50-90% cost savings with caching)
 export CR_LLM_ENABLED="true"
 export CR_LLM_PROVIDER="anthropic"
 export CR_LLM_API_KEY="sk-ant-..."  # Get from https://console.anthropic.com/
 
-# Option 2: OpenAI
+# OpenAI
 export CR_LLM_ENABLED="true"
 export CR_LLM_PROVIDER="openai"
 export CR_LLM_API_KEY="sk-..."  # Get from https://platform.openai.com/api-keys
-
-# Option 3: Local Ollama (free, private)
-ollama pull llama3.3:70b
-export CR_LLM_ENABLED="true"
-export CR_LLM_PROVIDER="ollama"
-export CR_LLM_MODEL="llama3.3:70b"
 
 # Then use as normal
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123
 ```
 
-**See [Configuration Guide](docs/configuration.md#llm-provider-configuration) for all 5 provider options and detailed setup.**
+**See [LLM Configuration Guide](docs/llm-configuration.md) for all provider options and detailed setup.**
 
 ### Python API
 

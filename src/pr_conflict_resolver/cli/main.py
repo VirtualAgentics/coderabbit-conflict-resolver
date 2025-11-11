@@ -430,6 +430,28 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
     help="LLM model identifier (e.g., claude-sonnet-4-5, gpt-4)",
 )
 @click.option(
+    "--llm-preset",
+    type=click.Choice(
+        [
+            "codex-cli-free",
+            "ollama-local",
+            "claude-cli-sonnet",
+            "openai-api-mini",
+            "anthropic-api-balanced",
+        ],
+        case_sensitive=False,
+    ),
+    help="LLM configuration preset for zero-config setup (e.g., codex-cli-free, ollama-local)",
+)
+@click.option(
+    "--llm-api-key",
+    type=str,
+    help=(
+        "LLM API key (for API-based providers like OpenAI/Anthropic). "
+        "Can also be set via CR_LLM_API_KEY env var."
+    ),
+)
+@click.option(
     "--config",
     type=str,
     help=(
@@ -461,6 +483,8 @@ def apply(
     llm: bool | None,
     llm_provider: str | None,
     llm_model: str | None,
+    llm_preset: str | None,
+    llm_api_key: str | None,
     config: str | None,
     log_level: str | None,
     log_file: str | None,
@@ -488,7 +512,11 @@ def apply(
         llm: Enable (True) or disable (False) LLM-based parsing. None uses config/env/defaults.
         llm_provider: LLM provider to use (claude-cli, openai, anthropic, codex-cli, ollama).
         llm_model: LLM model identifier (e.g., claude-sonnet-4-5, gpt-4).
-        config: Path to configuration file (YAML or TOML).
+        llm_preset: LLM configuration preset for zero-config setup
+            (codex-cli-free, ollama-local, claude-cli-sonnet, openai-api-mini,
+            anthropic-api-balanced).
+        llm_api_key: API key for API-based providers (OpenAI, Anthropic).
+        config: Configuration preset name or path to configuration file (YAML or TOML).
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Path to log file for output.
 
@@ -502,6 +530,14 @@ def apply(
         # Dry-run mode to analyze without applying
         $ pr-resolve apply --pr 123 --owner myorg --repo myrepo --mode dry-run
 
+        # Use LLM preset for zero-config setup (free, no API key)
+        $ pr-resolve apply --pr 123 --owner myorg --repo myrepo \\
+            --llm-preset codex-cli-free
+
+        # Use LLM preset with API key for paid providers
+        $ pr-resolve apply --pr 123 --owner myorg --repo myrepo \\
+            --llm-preset openai-api-mini --llm-api-key sk-...
+
         # Apply only conflicting changes with parallel processing
         $ pr-resolve apply --pr 123 --owner myorg --repo myrepo \\
             --mode conflicts-only --parallel --max-workers 8
@@ -512,12 +548,14 @@ def apply(
     """
     # Load runtime configuration with proper precedence
     try:
-        # Step 1: Load base configuration (preset, file, or defaults)
-        preset_name = None  # Track which preset was loaded (if any)
+        # Step 1: Load base configuration (config preset, config file, LLM preset, or defaults)
+        preset_name = None  # Track which config preset was loaded (if any)
+        llm_preset_name = None  # Track which LLM preset was loaded (if any)
+
         if config:
             # Check if config is a preset name or file path
             if config.lower() in PRESET_NAMES:
-                # Load preset configuration
+                # Load configuration preset
                 preset_name = config.lower()
                 # Replace hyphens with underscores for method name
                 method_suffix = preset_name.replace("-", "_")
@@ -532,14 +570,19 @@ def apply(
 
                 preset_method = getattr(RuntimeConfig, method_name)
                 runtime_config = preset_method()
-                console.print(f"[dim]Loaded preset configuration: {config}[/dim]")
+                console.print(f"[dim]Loaded configuration preset: {config}[/dim]")
             else:
                 # Load from configuration file
                 config_path = Path(config)
                 runtime_config = RuntimeConfig.from_file(config_path)
                 console.print(f"[dim]Loaded configuration from: {config}[/dim]")
+        elif llm_preset:
+            # Load from LLM preset (lower priority than config file/preset)
+            llm_preset_name = llm_preset.lower()
+            runtime_config = RuntimeConfig.from_preset(llm_preset_name, api_key=llm_api_key)
+            console.print(f"[dim]Loaded LLM preset: {llm_preset_name}[/dim]")
         else:
-            # Start with defaults when no config file/preset specified
+            # Start with defaults when no config file/preset/llm-preset specified
             runtime_config = RuntimeConfig.from_defaults()
             preset_name = None  # Using defaults, not a named preset
 
@@ -600,6 +643,7 @@ def apply(
             "llm_enabled": llm,  # None, True, or False
             "llm_provider": llm_provider,
             "llm_model": llm_model,
+            "llm_api_key": llm_api_key,  # API key from CLI (highest priority)
         }
         runtime_config = runtime_config.merge_with_cli(**cli_overrides)
 
