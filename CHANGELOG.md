@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+#### Testing Infrastructure
+
+- **pytest 9.0 Migration**: Upgraded to pytest 9.0.0 with native subtests support
+  - Migrated 76 test cases across 14 test methods to use pytest 9.0 native subtests
+  - Modified 6 test files: configuration, CLI validation, input validation, handlers, and security tests
+  - Improved test organization and readability with descriptive subtest messages
+  - Enhanced failure reporting with contextual information for easier debugging
+  - All subtests run independently even if one fails, providing comprehensive test coverage
+  - Maintained 86.92% test coverage (exceeds 80% minimum requirement)
+  - All 1318 tests passing with zero regressions
+  - Strict mode enabled for pytest configuration validation
+  - **Documentation added:**
+    - `docs/testing/TESTING.md` - Comprehensive testing guide
+    - `docs/testing/PYTEST_9_MIGRATION.md` - Migration overview and benefits
+    - `docs/testing/SUBTESTS_GUIDE.md` - Detailed subtests best practices
+    - Updated `CONTRIBUTING.md` with subtests guidelines
+    - Updated `README.md` with pytest 9.0 information
+  - **Migration Timeline:** 6 weeks (Week 1: Security tests, Week 2-3: Config/CLI tests, Week 4-5: Handlers/validation tests, Week 6: Documentation)
+  - **Benefits:** Better test isolation, improved failure reporting, easier test maintenance, reduced boilerplate code
+  - See [pytest 9.0 Migration Guide](docs/testing/PYTEST_9_MIGRATION.md) for complete details
+
 - **V2.0 Phase 0**: LLM Foundation - Data Models & Infrastructure (PR #121, Issue #114)
   - Core LLM data models: `LLMConfig`, `LLMRequest`, `LLMResponse`, `ParsedChange`
   - Universal `CommentParser` with LLM-powered parsing and regex fallback

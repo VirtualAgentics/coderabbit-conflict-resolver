@@ -606,8 +606,8 @@ class TestTomlHandler:
         assert len(conflicts) > 0
         assert conflicts[0].conflict_type == "section_conflict"
 
-    def test_extract_sections_helper(self) -> None:
-        """Test _extract_sections helper method."""
+    def test_extract_sections_helper(self, subtests: pytest.Subtests) -> None:
+        """Test _extract_sections helper method using subtests."""
         handler = TomlHandler()
 
         data = {
@@ -625,7 +625,8 @@ class TestTomlHandler:
             "section2.subsection2.nested",
         ]
         for expected_section in expected:
-            assert expected_section in sections
+            with subtests.test(msg=f"Section: {expected_section}", section=expected_section):
+                assert expected_section in sections
 
 
 @pytest.fixture

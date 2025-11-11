@@ -112,19 +112,25 @@ class TestRuntimeConfigFromEnv:
             config = RuntimeConfig.from_env()
             assert config.enable_rollback is False
 
-    def test_from_env_enable_rollback_true_variants(self) -> None:
-        """Test various true values."""
+    def test_from_env_enable_rollback_true_variants(self, subtests: pytest.Subtests) -> None:
+        """Test various true values using subtests."""
         for value in ["true", "True", "1", "yes", "on"]:
-            with patch.dict(os.environ, {"CR_ENABLE_ROLLBACK": value}):
+            with (
+                subtests.test(msg=f"Boolean true variant: {value}", value=value),
+                patch.dict(os.environ, {"CR_ENABLE_ROLLBACK": value}),
+            ):
                 config = RuntimeConfig.from_env()
-                assert config.enable_rollback is True, f"Failed for value: {value}"
+                assert config.enable_rollback is True
 
-    def test_from_env_enable_rollback_false_variants(self) -> None:
-        """Test various false values."""
+    def test_from_env_enable_rollback_false_variants(self, subtests: pytest.Subtests) -> None:
+        """Test various false values using subtests."""
         for value in ["false", "False", "0", "no", "off"]:
-            with patch.dict(os.environ, {"CR_ENABLE_ROLLBACK": value}):
+            with (
+                subtests.test(msg=f"Boolean false variant: {value}", value=value),
+                patch.dict(os.environ, {"CR_ENABLE_ROLLBACK": value}),
+            ):
                 config = RuntimeConfig.from_env()
-                assert config.enable_rollback is False, f"Failed for value: {value}"
+                assert config.enable_rollback is False
 
     def test_from_env_validate_false(self) -> None:
         with patch.dict(os.environ, {"CR_VALIDATE": "false"}):

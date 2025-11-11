@@ -134,25 +134,26 @@ class TestEnvironmentVariableHandling:
             )
         # If exit_code != 0, that's acceptable (CLI rejected the injection)
 
-    def test_env_var_injection_handled(self) -> None:
-        """Test that environment variable injection is handled safely."""
+    def test_env_var_injection_handled(self, subtests: pytest.Subtests) -> None:
+        """Test that environment variable injection is handled safely using subtests."""
         runner = CliRunner()
 
         # Test with environment variable injection attempts
         injection_attempts = [
-            "$(GITHUB_TOKEN)",
-            "${GITHUB_TOKEN}",
-            "$GITHUB_TOKEN",
-            "`echo $GITHUB_TOKEN`",
+            ("Command substitution $(...)", "$(GITHUB_TOKEN)"),
+            ("Shell variable ${...}", "${GITHUB_TOKEN}"),
+            ("Direct shell variable", "$GITHUB_TOKEN"),
+            ("Backtick execution", "`echo $GITHUB_TOKEN`"),
         ]
 
-        for injection in injection_attempts:
-            result = runner.invoke(
-                cli, ["analyze", "--pr", "1", "--owner", injection, "--repo", "test"]
-            )
+        for injection_type, injection in injection_attempts:
+            with subtests.test(msg=f"{injection_type}: {injection}", injection=injection):
+                result = runner.invoke(
+                    cli, ["analyze", "--pr", "1", "--owner", injection, "--repo", "test"]
+                )
 
-            # Use helper for consistency
-            self._assert_injection_handled(result, injection)
+                # Use helper for consistency
+                self._assert_injection_handled(result, injection)
 
 
 class TestTokenExposurePrevention:

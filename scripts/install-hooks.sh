@@ -38,9 +38,9 @@ run_check() {
 # Run all checks
 run_check "Black formatting" "black --check src/ tests/"
 run_check "Ruff linting" "ruff check src/ tests/"
-run_check "MyPy type checking" "mypy src/ --strict"
+run_check "MyPy type checking" "mypy src/ tests/ --strict"
 run_check "Bandit security" "bandit -r src/ --severity-level medium --confidence-level medium --quiet --exit-zero"
-run_check "Test suite" "pytest tests/ --cov=src --cov-fail-under=50 --quiet"
+run_check "Test suite" "pytest tests/ --cov=src --cov-fail-under=80 --quiet"
 
 # Display summary
 echo ""

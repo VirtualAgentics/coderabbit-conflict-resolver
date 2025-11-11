@@ -71,8 +71,8 @@ class TestCLIPathValidation:
         assert result.exit_code != 0
         assert "identifier must be a single segment (no slashes or spaces)" in result.output
 
-    def test_traversal_paths_rejected(self) -> None:
-        """Test that path traversal attempts are rejected."""
+    def test_traversal_paths_rejected(self, subtests: pytest.Subtests) -> None:
+        """Test that path traversal attempts are rejected using subtests."""
         runner = CliRunner()
         unsafe_paths = [
             "../../../etc/passwd",
@@ -81,14 +81,15 @@ class TestCLIPathValidation:
         ]
 
         for path in unsafe_paths:
-            result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
-            assert result.exit_code != 0, f"Should reject traversal path: {path}"
-            assert (
-                "invalid value for '--repo'" in result.output.lower()
-            ), f"Should show validation error for: {path}"
+            with subtests.test(msg=f"Path traversal: {path}", path=path):
+                result = runner.invoke(
+                    cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path]
+                )
+                assert result.exit_code != 0
+                assert "invalid value for '--repo'" in result.output.lower()
 
-    def test_absolute_unix_paths_rejected(self) -> None:
-        """Test that absolute Unix paths are rejected."""
+    def test_absolute_unix_paths_rejected(self, subtests: pytest.Subtests) -> None:
+        """Test that absolute Unix paths are rejected using subtests."""
         runner = CliRunner()
         unsafe_paths = [
             "/etc/passwd",
@@ -99,14 +100,15 @@ class TestCLIPathValidation:
         ]
 
         for path in unsafe_paths:
-            result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
-            assert result.exit_code != 0, f"Should reject absolute path: {path}"
-            assert (
-                "invalid value for '--repo'" in result.output.lower()
-            ), f"Should show validation error for: {path}"
+            with subtests.test(msg=f"Absolute Unix path: {path}", path=path):
+                result = runner.invoke(
+                    cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path]
+                )
+                assert result.exit_code != 0
+                assert "invalid value for '--repo'" in result.output.lower()
 
-    def test_absolute_windows_paths_rejected(self) -> None:
-        """Test that absolute Windows paths are rejected."""
+    def test_absolute_windows_paths_rejected(self, subtests: pytest.Subtests) -> None:
+        """Test that absolute Windows paths are rejected using subtests."""
         runner = CliRunner()
         unsafe_paths = [
             "C:\\Windows\\System32",
@@ -120,11 +122,12 @@ class TestCLIPathValidation:
         ]
 
         for path in unsafe_paths:
-            result = runner.invoke(cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path])
-            assert result.exit_code != 0, f"Should reject Windows path: {path}"
-            assert (
-                "invalid value for '--repo'" in result.output.lower()
-            ), f"Should show validation error for: {path}"
+            with subtests.test(msg=f"Absolute Windows path: {path}", path=path):
+                result = runner.invoke(
+                    cli, ["analyze", "--pr", "1", "--owner", "test", "--repo", path]
+                )
+                assert result.exit_code != 0
+                assert "invalid value for '--repo'" in result.output.lower()
 
     def test_owner_parameter_also_validated(self) -> None:
         """Test that owner parameter is also validated."""
