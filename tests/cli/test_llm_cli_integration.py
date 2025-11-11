@@ -4,7 +4,7 @@ This module tests the CLI's integration with LLM metrics display and
 error handling functionality, ensuring proper formatting and user experience.
 """
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
@@ -149,24 +149,20 @@ class TestApplyCommandLLMIntegration:
         with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
             # Mock resolver to return result with metrics
             mock_resolver = mock_resolver_class.return_value
-            mock_result = type(
-                "MockResult",
-                (),
-                {
-                    "applied_count": 5,
-                    "conflict_count": 2,
-                    "success_rate": 71.4,
-                    "llm_metrics": LLMMetrics(
-                        provider="anthropic",
-                        model="claude-haiku-4",
-                        changes_parsed=7,
-                        avg_confidence=0.90,
-                        cache_hit_rate=0.5,
-                        total_cost=0.01,
-                        api_calls=4,
-                        total_tokens=5000,
-                    ),
-                },
+            mock_result = Mock(
+                applied_count=5,
+                conflict_count=2,
+                success_rate=71.4,
+                llm_metrics=LLMMetrics(
+                    provider="anthropic",
+                    model="claude-haiku-4",
+                    changes_parsed=7,
+                    avg_confidence=0.90,
+                    cache_hit_rate=0.5,
+                    total_cost=0.01,
+                    api_calls=4,
+                    total_tokens=5000,
+                ),
             )
             mock_resolver.resolve_pr_conflicts.return_value = mock_result
 
