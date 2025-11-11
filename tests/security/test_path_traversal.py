@@ -294,8 +294,8 @@ class TestResolverPathTraversal:
         assert conflicts is not None, "Resolver should handle multiple malicious paths"
         assert isinstance(conflicts, list), "Should return a list"
 
-    def test_resolver_handles_unicode_path_traversal(self) -> None:
-        """Test that resolver handles Unicode path traversal attempts."""
+    def test_resolver_handles_unicode_path_traversal(self, subtests: pytest.Subtests) -> None:
+        """Test that resolver handles Unicode path traversal attempts using subtests."""
         resolver = ConflictResolver()
         json_handler = JsonHandler()
         yaml_handler = YamlHandler()
@@ -317,39 +317,32 @@ class TestResolverPathTraversal:
         ]
 
         for attack_path in attack_paths:
-            change = Change(
-                path=attack_path,
-                start_line=1,
-                end_line=1,
-                content="malicious",
-                metadata={},
-                fingerprint=f"test-{attack_path}",
-                file_type=FileType.JSON,
-            )
+            with subtests.test(msg=f"Unicode path traversal: {attack_path!r}", path=attack_path):
+                change = Change(
+                    path=attack_path,
+                    start_line=1,
+                    end_line=1,
+                    content="malicious",
+                    metadata={},
+                    fingerprint=f"test-{attack_path}",
+                    file_type=FileType.JSON,
+                )
 
-            conflicts = resolver.detect_conflicts([change])
-            assert (
-                conflicts is not None
-            ), f"Resolver should handle Unicode traversal attempt: {attack_path}"
-            assert isinstance(conflicts, list), f"Should return a list for attack: {attack_path}"
+                conflicts = resolver.detect_conflicts([change])
+                assert conflicts is not None
+                assert isinstance(conflicts, list)
 
-            # Handlers must reject Unicode path traversal attempts
-            assert not json_handler.apply_change(
-                attack_path, "malicious", 1, 1
-            ), f"JSON handler must reject Unicode traversal: {attack_path}"
-            assert not yaml_handler.apply_change(
-                attack_path, "malicious", 1, 1
-            ), f"YAML handler must reject Unicode traversal: {attack_path}"
-            assert not toml_handler.apply_change(
-                attack_path, "malicious", 1, 1
-            ), f"TOML handler must reject Unicode traversal: {attack_path}"
+                # Handlers must reject Unicode path traversal attempts
+                assert not json_handler.apply_change(attack_path, "malicious", 1, 1)
+                assert not yaml_handler.apply_change(attack_path, "malicious", 1, 1)
+                assert not toml_handler.apply_change(attack_path, "malicious", 1, 1)
 
 
 class TestCrossPlatformPathTraversal:
     """Cross-platform path traversal tests."""
 
-    def test_unix_and_windows_path_traversal(self) -> None:
-        """Test both Unix and Windows path traversal styles."""
+    def test_unix_and_windows_path_traversal(self, subtests: pytest.Subtests) -> None:
+        """Test both Unix and Windows path traversal styles using subtests."""
         handler = JsonHandler()
 
         unix_traversals = [
@@ -365,25 +358,24 @@ class TestCrossPlatformPathTraversal:
         ]
 
         for path in unix_traversals + windows_traversals:
-            assert not handler.apply_change(
-                path, '{"key": "value"}', 1, 1
-            ), f"Path traversal attempt should be rejected: {path}"
+            platform = "Unix" if "/" in path else "Windows"
+            with subtests.test(msg=f"{platform} path traversal: {path}", path=path):
+                assert not handler.apply_change(path, '{"key": "value"}', 1, 1)
 
-    def test_encoded_path_traversal_variants(self) -> None:
-        """Test various encoding schemes used for path traversal."""
+    def test_encoded_path_traversal_variants(self, subtests: pytest.Subtests) -> None:
+        """Test various encoding schemes used for path traversal using subtests."""
         handler = JsonHandler()
 
         encoded_traversals = [
-            "..%2F..%2Fetc%2Fpasswd",  # URL encoded
-            "..%252F..%252Fetc%252Fpasswd",  # Double URL encoded
-            "%2e%2e%2f%2e%2e%2fetc%2fpasswd",  # URL encoded dots and slashes
-            "..%c0%af..%c0%afetc%c0%afpasswd",  # UTF-8 encoded
+            ("URL encoded", "..%2F..%2Fetc%2Fpasswd"),
+            ("Double URL encoded", "..%252F..%252Fetc%252Fpasswd"),
+            ("URL encoded dots/slashes", "%2e%2e%2f%2e%2e%2fetc%2fpasswd"),
+            ("UTF-8 encoded", "..%c0%af..%c0%afetc%c0%afpasswd"),
         ]
 
-        for path in encoded_traversals:
-            assert not handler.apply_change(
-                path, '{"key": "value"}', 1, 1
-            ), f"Encoded traversal should be rejected: {path}"
+        for encoding_type, path in encoded_traversals:
+            with subtests.test(msg=f"{encoding_type}: {path}", encoding=encoding_type):
+                assert not handler.apply_change(path, '{"key": "value"}', 1, 1)
 
 
 class TestHandlerValidationMethods:
