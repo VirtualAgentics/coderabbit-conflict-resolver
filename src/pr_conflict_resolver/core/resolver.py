@@ -1179,9 +1179,7 @@ class ConflictResolver:
                 f"(owner={owner}, repo={repo}, pr_number={pr_number}): {e}"
             ) from e
 
-    def _aggregate_llm_metrics(
-        self, changes: list[Change], provider_name: str = "", model_name: str = ""
-    ) -> LLMMetrics | None:
+    def _aggregate_llm_metrics(self, changes: list[Change]) -> LLMMetrics | None:
         """Aggregate LLM metrics from parsed changes.
 
         This method collects metrics when LLM-based parsing was used to extract
@@ -1190,10 +1188,6 @@ class ConflictResolver:
 
         Args:
             changes: List of Change objects, potentially parsed with LLM.
-            provider_name: LLM provider name (e.g., "anthropic", "openai").
-                Empty string if LLM was not used.
-            model_name: Specific model used (e.g., "claude-haiku-4").
-                Empty string if LLM was not used.
 
         Returns:
             LLMMetrics object with aggregated statistics if LLM was used,
@@ -1215,9 +1209,7 @@ class ConflictResolver:
 
         Example:
             >>> changes = resolver.extract_changes_from_comments(comments)
-            >>> metrics = resolver._aggregate_llm_metrics(
-            ...     changes, provider_name="anthropic", model_name="claude-haiku-4"
-            ... )
+            >>> metrics = resolver._aggregate_llm_metrics(changes)
             >>> if metrics:
             ...     print(f"Cost: ${metrics.total_cost:.4f}")
         """
@@ -1273,17 +1265,10 @@ class ConflictResolver:
             # Fallback to provider's cumulative cost
             total_cost = provider.get_total_cost()
 
-        # Calculate cache hit rate (metadata first, fallback to provider)
+        # Calculate cache hit rate on a per-comment basis
+        # This measures what percentage of comments had cache hits (0.0-1.0)
         cache_hits = sum(1 for c in llm_changes if c.metadata.get("llm_cache_hit"))
         cache_hit_rate = cache_hits / len(llm_changes) if len(llm_changes) > 0 else 0.0
-
-        # Fallback to provider's cache tracking for Anthropic
-        if cache_hit_rate == 0.0 and hasattr(provider, "total_cache_read_tokens"):
-            cache_read = provider.total_cache_read_tokens
-            cache_write = provider.total_cache_write_tokens
-            total_cache = cache_read + cache_write
-            if total_cache > 0:
-                cache_hit_rate = cache_read / total_cache
 
         comments_parsed = len(llm_changes)
 
