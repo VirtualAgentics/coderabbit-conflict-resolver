@@ -14,7 +14,7 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from os import PathLike
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pr_conflict_resolver.analysis.conflict_detector import ConflictDetector
 from pr_conflict_resolver.core.models import (
@@ -1220,31 +1220,75 @@ class ConflictResolver:
             # No LLM parsing used
             return None
 
-        # TODO (Phase 3): Extract actual metrics from provider/parser state
-        # For now, return None as LLM integration is not complete
-        # When integrated, this will:
-        # 1. Aggregate token counts from provider API calls
-        # 2. Calculate total cost based on provider pricing
-        # 3. Compute average confidence from parsed changes
-        # 4. Track cache hit rate from prompt caching system
-        # 5. Count total API calls made
+        # Verify LLM parser and provider are available
+        if not self.llm_parser or not hasattr(self.llm_parser, "provider"):
+            return None
 
-        # Placeholder for future implementation:
-        # total_tokens = sum(c.metadata.get("llm_tokens", 0) for c in llm_changes)
-        # confidences = [c.metadata.get("llm_confidence", 0.0) for c in llm_changes]
-        # avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
-        # return LLMMetrics(
-        #     provider=provider_name,
-        #     model=model_name,
-        #     comments_parsed=len(llm_changes),
-        #     avg_confidence=avg_confidence,
-        #     cache_hit_rate=cache_hit_rate,
-        #     total_cost=total_cost,
-        #     api_calls=api_calls,
-        #     total_tokens=total_tokens
-        # )
+        provider = self.llm_parser.provider
 
-        return None
+        # Extract provider and model names from provider object
+        provider_class = type(provider).__name__
+        if "Anthropic" in provider_class:
+            provider_name_str = "anthropic"
+        elif "OpenAI" in provider_class:
+            provider_name_str = "openai"
+        elif "Ollama" in provider_class:
+            provider_name_str = "ollama"
+        else:
+            provider_name_str = provider_class.lower()
+
+        model_name_str = getattr(provider, "model", "unknown")
+
+        # Aggregate total tokens (metadata first, fallback to provider cumulative)
+        total_tokens = sum(cast(int, c.metadata.get("llm_tokens", 0)) for c in llm_changes)
+        if total_tokens == 0 and hasattr(provider, "total_input_tokens"):
+            # Fallback to provider's cumulative tracking
+            total_tokens = provider.total_input_tokens + provider.total_output_tokens
+
+        # Aggregate confidences (metadata first, fallback to direct attribute)
+        confidences: list[float] = []
+        for c in llm_changes:
+            conf = c.metadata.get("llm_confidence")
+            if conf is None:
+                conf = c.llm_confidence  # Fallback to direct attribute
+            if conf is not None:
+                confidences.append(cast(float, conf))
+
+        avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+
+        # Aggregate API calls (metadata with default 1 per change)
+        api_calls = sum(cast(int, c.metadata.get("llm_api_calls", 1)) for c in llm_changes)
+
+        # Aggregate total cost (metadata first, fallback to provider cumulative)
+        total_cost = sum(cast(float, c.metadata.get("llm_cost", 0.0)) for c in llm_changes)
+        if total_cost == 0.0 and hasattr(provider, "get_total_cost"):
+            # Fallback to provider's cumulative cost
+            total_cost = provider.get_total_cost()
+
+        # Calculate cache hit rate (metadata first, fallback to provider)
+        cache_hits = sum(1 for c in llm_changes if c.metadata.get("llm_cache_hit"))
+        cache_hit_rate = cache_hits / len(llm_changes) if len(llm_changes) > 0 else 0.0
+
+        # Fallback to provider's cache tracking for Anthropic
+        if cache_hit_rate == 0.0 and hasattr(provider, "total_cache_read_tokens"):
+            cache_read = provider.total_cache_read_tokens
+            cache_write = provider.total_cache_write_tokens
+            total_cache = cache_read + cache_write
+            if total_cache > 0:
+                cache_hit_rate = cache_read / total_cache
+
+        comments_parsed = len(llm_changes)
+
+        return LLMMetrics(
+            provider=provider_name_str,
+            model=model_name_str,
+            comments_parsed=comments_parsed,
+            avg_confidence=avg_confidence,
+            cache_hit_rate=cache_hit_rate,
+            total_cost=total_cost,
+            api_calls=api_calls,
+            total_tokens=total_tokens,
+        )
 
     def resolve_pr_conflicts(
         self,
