@@ -303,9 +303,9 @@ class TestApplyCommandLLMIntegration:
                 ],
             )
 
-            # Should display API error guidance
+            # Should display API error guidance with specific error message
             assert result.exit_code != 0
-            assert "API Error" in result.output or "error" in result.output.lower()
+            assert "API Error" in result.output or "Service unavailable" in result.output
 
 
 class TestMetricsDisplayEdgeCases:
