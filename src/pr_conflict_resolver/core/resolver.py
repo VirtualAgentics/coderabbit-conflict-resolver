@@ -1200,12 +1200,20 @@ class ConflictResolver:
             None if no LLM parsing occurred.
 
         Note:
-            This is infrastructure for Phase 3 (Issue #152). Currently returns None
-            as LLM parsing integration is not yet complete. Will be populated when
-            CommentParser with LLM provider is integrated into extract_changes_from_comments.
+            The returned LLMMetrics object includes:
+            - provider: LLM provider name (extracted from self.llm_parser.provider)
+            - model: Model name (extracted from provider object)
+            - total_tokens: Aggregated token consumption (prompt + completion)
+            - avg_confidence: Average confidence score across parsed changes
+            - cache_hit_rate: Cache hit percentage for cost optimization
+            - total_cost: Total API cost in USD
+            - api_calls: Number of API calls made
+            - comments_parsed: Number of changes processed with LLM
+
+            Uses hybrid metadata approach: tries Change.metadata.get() first,
+            falls back to direct attributes, then to provider cumulative tracking.
 
         Example:
-            >>> # When LLM parsing is integrated:
             >>> changes = resolver.extract_changes_from_comments(comments)
             >>> metrics = resolver._aggregate_llm_metrics(
             ...     changes, provider_name="anthropic", model_name="claude-haiku-4"
