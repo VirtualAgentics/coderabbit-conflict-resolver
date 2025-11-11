@@ -1214,11 +1214,7 @@ class ConflictResolver:
             ...     print(f"Cost: ${metrics.total_cost:.4f}")
         """
         # Check if any changes have LLM metadata (indicates LLM was used)
-        llm_changes = [
-            c
-            for c in changes
-            if isinstance(c.metadata.get("llm_provider"), str) and c.metadata.get("llm_provider")
-        ]
+        llm_changes = [c for c in changes if c.llm_provider]
 
         if not llm_changes:
             # No LLM parsing used

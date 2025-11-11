@@ -696,7 +696,7 @@ def apply(
 
     except LLMAuthenticationError as e:
         # Authentication errors - provide setup guidance
-        provider = getattr(runtime_config, "llm_provider", "unknown")
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
         error_msg = LLMErrorHandler.format_auth_error(provider)
         console.print(f"\n[red]{error_msg}[/red]")
         logger.error("LLM authentication failed: %s", e)
@@ -704,7 +704,7 @@ def apply(
 
     except LLMRateLimitError as e:
         # Rate limit errors - suggest waiting or alternatives
-        provider = getattr(runtime_config, "llm_provider", "unknown")
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
         error_msg = LLMErrorHandler.format_provider_error(provider, e)
         console.print(f"\n[yellow]{error_msg}[/yellow]")
         logger.warning("LLM rate limit exceeded: %s", e)
@@ -712,7 +712,7 @@ def apply(
 
     except LLMTimeoutError as e:
         # Timeout errors - suggest retry or faster model
-        provider = getattr(runtime_config, "llm_provider", "unknown")
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
         error_msg = LLMErrorHandler.format_provider_error(provider, e)
         console.print(f"\n[yellow]{error_msg}[/yellow]")
         logger.warning("LLM request timed out: %s", e)
@@ -720,7 +720,7 @@ def apply(
 
     except LLMConfigurationError as e:
         # Configuration errors - provide actionable guidance
-        provider = getattr(runtime_config, "llm_provider", "unknown")
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
         error_msg = LLMErrorHandler.format_provider_error(provider, e)
         console.print(f"\n[red]{error_msg}[/red]")
         logger.error("LLM configuration error: %s", e)
@@ -728,7 +728,7 @@ def apply(
 
     except LLMParsingError as e:
         # Parsing errors - may fall back to regex
-        provider = getattr(runtime_config, "llm_provider", "unknown")
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
         error_msg = LLMErrorHandler.format_provider_error(provider, e)
         console.print(f"\n[yellow]{error_msg}[/yellow]")
         logger.warning("LLM parsing error: %s", e)
@@ -736,7 +736,7 @@ def apply(
 
     except LLMAPIError as e:
         # Generic API errors
-        provider = getattr(runtime_config, "llm_provider", "unknown")
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
         error_msg = LLMErrorHandler.format_provider_error(provider, e)
         console.print(f"\n[red]{error_msg}[/red]")
         logger.error("LLM API error: %s", e)
@@ -744,7 +744,7 @@ def apply(
 
     except LLMError as e:
         # Catch-all for other LLM errors
-        provider = getattr(runtime_config, "llm_provider", "unknown")
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
         error_msg = LLMErrorHandler.format_provider_error(provider, e)
         console.print(f"\n[red]{error_msg}[/red]")
         logger.error("LLM error: %s", e)
