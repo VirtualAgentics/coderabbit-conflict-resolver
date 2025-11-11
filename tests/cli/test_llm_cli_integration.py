@@ -14,6 +14,7 @@ from pr_conflict_resolver.llm.exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
     LLMConfigurationError,
+    LLMParsingError,
     LLMRateLimitError,
     LLMTimeoutError,
 )
@@ -184,6 +185,42 @@ class TestApplyCommandLLMIntegration:
             assert "Anthropic" in result.output
             assert "claude-haiku-4" in result.output
 
+    def test_apply_handles_none_llm_metrics_gracefully(self, runner: CliRunner) -> None:
+        """Test apply command succeeds when llm_metrics is None (no LLM parsing used)."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            # Mock resolver to return result WITHOUT metrics (regex parsing scenario)
+            mock_resolver = mock_resolver_class.return_value
+            mock_result = Mock(
+                applied_count=5,
+                conflict_count=2,
+                success_rate=71.4,
+                llm_metrics=None,  # No LLM parsing was used
+            )
+            mock_resolver.resolve_pr_conflicts.return_value = mock_result
+
+            result = runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "123",
+                    "--owner",
+                    "testowner",
+                    "--repo",
+                    "testrepo",
+                ],
+            )
+
+            # Should succeed
+            assert result.exit_code == 0
+            # Should NOT display LLM metrics panel
+            assert "LLM Metrics" not in result.output
+            # Should NOT display provider/model names
+            assert "Anthropic" not in result.output
+            assert "OpenAI" not in result.output
+            assert "claude" not in result.output.lower()
+            assert "gpt" not in result.output.lower()
+
     def test_apply_handles_auth_error(self, runner: CliRunner) -> None:
         """Test apply command handles LLM authentication errors."""
         with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
@@ -339,6 +376,33 @@ class TestApplyCommandLLMIntegration:
                 or "Authentication" in result.output
                 or "authentication failed" in result.output.lower()
             )
+
+    def test_apply_handles_parsing_error(self, runner: CliRunner) -> None:
+        """Test apply command handles LLM parsing errors with warning (non-aborting)."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            mock_resolver = mock_resolver_class.return_value
+            mock_resolver.resolve_pr_conflicts.side_effect = LLMParsingError(
+                "Failed to parse LLM response"
+            )
+
+            result = runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "123",
+                    "--owner",
+                    "testowner",
+                    "--repo",
+                    "testrepo",
+                ],
+            )
+
+            # Should display parsing error message
+            assert "LLMParsingError" in result.output or "parsing" in result.output.lower()
+            assert "Failed to parse LLM response" in result.output
+            # LLMParsingError doesn't abort - exits successfully (fallback scenario)
+            assert result.exit_code == 0
 
 
 class TestMetricsDisplayEdgeCases:
