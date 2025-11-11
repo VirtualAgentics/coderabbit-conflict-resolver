@@ -17,7 +17,7 @@ class TestLLMMetrics:
         metrics = LLMMetrics(
             provider="anthropic",
             model="claude-haiku-4-20250514",
-            comments_parsed=20,
+            changes_parsed=20,
             avg_confidence=0.92,
             cache_hit_rate=0.65,
             total_cost=0.0234,
@@ -27,7 +27,7 @@ class TestLLMMetrics:
 
         assert metrics.provider == "anthropic"
         assert metrics.model == "claude-haiku-4-20250514"
-        assert metrics.comments_parsed == 20
+        assert metrics.changes_parsed == 20
         assert metrics.avg_confidence == 0.92
         assert metrics.cache_hit_rate == 0.65
         assert metrics.total_cost == 0.0234
@@ -39,7 +39,7 @@ class TestLLMMetrics:
         metrics = LLMMetrics(
             provider="openai",
             model="gpt-4o-mini",
-            comments_parsed=10,
+            changes_parsed=10,
             avg_confidence=0.85,
             cache_hit_rate=0.5,
             total_cost=0.05,
@@ -50,13 +50,13 @@ class TestLLMMetrics:
         with pytest.raises((AttributeError, TypeError)):
             metrics.provider = "anthropic"  # type: ignore[misc]
 
-    def test_metrics_validation_negative_comments(self) -> None:
-        """Test that negative comments_parsed raises ValueError."""
-        with pytest.raises(ValueError, match="comments_parsed must be >= 0"):
+    def test_metrics_validation_negative_changes(self) -> None:
+        """Test that negative changes_parsed raises ValueError."""
+        with pytest.raises(ValueError, match="changes_parsed must be >= 0"):
             LLMMetrics(
                 provider="anthropic",
                 model="claude-haiku-4",
-                comments_parsed=-1,
+                changes_parsed=-1,
                 avg_confidence=0.9,
                 cache_hit_rate=0.5,
                 total_cost=0.01,
@@ -70,7 +70,7 @@ class TestLLMMetrics:
             LLMMetrics(
                 provider="anthropic",
                 model="claude-haiku-4",
-                comments_parsed=10,
+                changes_parsed=10,
                 avg_confidence=-0.1,
                 cache_hit_rate=0.5,
                 total_cost=0.01,
@@ -84,7 +84,7 @@ class TestLLMMetrics:
             LLMMetrics(
                 provider="anthropic",
                 model="claude-haiku-4",
-                comments_parsed=10,
+                changes_parsed=10,
                 avg_confidence=1.1,
                 cache_hit_rate=0.5,
                 total_cost=0.01,
@@ -98,7 +98,7 @@ class TestLLMMetrics:
             LLMMetrics(
                 provider="anthropic",
                 model="claude-haiku-4",
-                comments_parsed=10,
+                changes_parsed=10,
                 avg_confidence=0.9,
                 cache_hit_rate=-0.1,
                 total_cost=0.01,
@@ -112,7 +112,7 @@ class TestLLMMetrics:
             LLMMetrics(
                 provider="anthropic",
                 model="claude-haiku-4",
-                comments_parsed=10,
+                changes_parsed=10,
                 avg_confidence=0.9,
                 cache_hit_rate=1.1,
                 total_cost=0.01,
@@ -126,7 +126,7 @@ class TestLLMMetrics:
             LLMMetrics(
                 provider="anthropic",
                 model="claude-haiku-4",
-                comments_parsed=10,
+                changes_parsed=10,
                 avg_confidence=0.9,
                 cache_hit_rate=0.5,
                 total_cost=-0.01,
@@ -140,7 +140,7 @@ class TestLLMMetrics:
             LLMMetrics(
                 provider="anthropic",
                 model="claude-haiku-4",
-                comments_parsed=10,
+                changes_parsed=10,
                 avg_confidence=0.9,
                 cache_hit_rate=0.5,
                 total_cost=0.01,
@@ -154,7 +154,7 @@ class TestLLMMetrics:
             LLMMetrics(
                 provider="anthropic",
                 model="claude-haiku-4",
-                comments_parsed=10,
+                changes_parsed=10,
                 avg_confidence=0.9,
                 cache_hit_rate=0.5,
                 total_cost=0.01,
@@ -166,12 +166,12 @@ class TestLLMMetrics:
 class TestLLMMetricsProperties:
     """Tests for LLMMetrics computed properties."""
 
-    def test_cost_per_comment_with_comments(self) -> None:
-        """Test cost_per_comment calculation with parsed comments."""
+    def test_cost_per_change_with_changes(self) -> None:
+        """Test cost_per_change calculation with parsed changes."""
         metrics = LLMMetrics(
             provider="openai",
             model="gpt-4o-mini",
-            comments_parsed=10,
+            changes_parsed=10,
             avg_confidence=0.85,
             cache_hit_rate=0.5,
             total_cost=0.05,
@@ -179,14 +179,14 @@ class TestLLMMetricsProperties:
             total_tokens=5000,
         )
 
-        assert metrics.cost_per_comment == 0.005
+        assert metrics.cost_per_change == 0.005
 
-    def test_cost_per_comment_with_zero_comments(self) -> None:
-        """Test cost_per_comment returns 0.0 when no comments parsed."""
+    def test_cost_per_change_with_zero_changes(self) -> None:
+        """Test cost_per_change returns 0.0 when no changes parsed."""
         metrics = LLMMetrics(
             provider="openai",
             model="gpt-4o-mini",
-            comments_parsed=0,
+            changes_parsed=0,
             avg_confidence=0.0,
             cache_hit_rate=0.0,
             total_cost=0.0,
@@ -194,14 +194,14 @@ class TestLLMMetricsProperties:
             total_tokens=0,
         )
 
-        assert metrics.cost_per_comment == 0.0
+        assert metrics.cost_per_change == 0.0
 
     def test_avg_tokens_per_call_with_calls(self) -> None:
         """Test avg_tokens_per_call calculation with API calls."""
         metrics = LLMMetrics(
             provider="anthropic",
             model="claude-haiku-4",
-            comments_parsed=20,
+            changes_parsed=20,
             avg_confidence=0.92,
             cache_hit_rate=0.65,
             total_cost=0.02,
@@ -217,7 +217,7 @@ class TestLLMMetricsProperties:
         metrics = LLMMetrics(
             provider="anthropic",
             model="claude-haiku-4",
-            comments_parsed=0,
+            changes_parsed=0,
             avg_confidence=0.0,
             cache_hit_rate=0.0,
             total_cost=0.0,
@@ -232,7 +232,7 @@ class TestLLMMetricsProperties:
         metrics = LLMMetrics(
             provider="anthropic",
             model="claude-haiku-4",
-            comments_parsed=20,
+            changes_parsed=20,
             avg_confidence=0.92,
             cache_hit_rate=0.65,
             total_cost=0.0234,
@@ -251,7 +251,7 @@ class TestLLMMetricsProperties:
         metrics = LLMMetrics(
             provider="anthropic",
             model="claude-haiku-4",
-            comments_parsed=20,
+            changes_parsed=20,
             avg_confidence=0.92,
             cache_hit_rate=0.0,  # No cache hits
             total_cost=0.0646,
@@ -269,7 +269,7 @@ class TestLLMMetricsProperties:
         metrics = LLMMetrics(
             provider="anthropic",
             model="claude-haiku-4",
-            comments_parsed=20,
+            changes_parsed=20,
             avg_confidence=0.92,
             cache_hit_rate=0.65,
             total_cost=0.0234,
@@ -285,7 +285,7 @@ class TestLLMMetricsProperties:
         metrics = LLMMetrics(
             provider="anthropic",
             model="claude-haiku-4",
-            comments_parsed=20,
+            changes_parsed=20,
             avg_confidence=0.92,
             cache_hit_rate=0.65,
             total_cost=0.0234,
@@ -306,7 +306,7 @@ class TestLLMMetricsEdgeCases:
         metrics = LLMMetrics(
             provider="anthropic",
             model="claude-opus-4",
-            comments_parsed=5,
+            changes_parsed=5,
             avg_confidence=1.0,
             cache_hit_rate=0.0,
             total_cost=0.10,
@@ -321,7 +321,7 @@ class TestLLMMetricsEdgeCases:
         metrics = LLMMetrics(
             provider="ollama",
             model="llama3.3:70b",
-            comments_parsed=10,
+            changes_parsed=10,
             avg_confidence=0.0,
             cache_hit_rate=0.0,
             total_cost=0.0,  # Free for local models
@@ -336,7 +336,7 @@ class TestLLMMetricsEdgeCases:
         metrics = LLMMetrics(
             provider="anthropic",
             model="claude-haiku-4",
-            comments_parsed=30,
+            changes_parsed=30,
             avg_confidence=0.95,
             cache_hit_rate=1.0,  # All cached
             total_cost=0.001,  # Minimal cost due to full caching
@@ -351,7 +351,7 @@ class TestLLMMetricsEdgeCases:
         metrics = LLMMetrics(
             provider="ollama",
             model="llama3.3:70b",
-            comments_parsed=50,
+            changes_parsed=50,
             avg_confidence=0.88,
             cache_hit_rate=0.0,  # No caching for local
             total_cost=0.0,  # Free
@@ -360,4 +360,4 @@ class TestLLMMetricsEdgeCases:
         )
 
         assert metrics.total_cost == 0.0
-        assert metrics.cost_per_comment == 0.0
+        assert metrics.cost_per_change == 0.0

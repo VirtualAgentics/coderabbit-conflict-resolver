@@ -217,10 +217,10 @@ def _display_llm_metrics(metrics: LLMMetrics) -> None:
 
     Example output:
         ╭─ LLM Metrics (Anthropic claude-haiku-4) ─────────────────╮
-        │ Comments parsed: 20 | Avg confidence: 92.0%             │
+        │ Changes parsed: 20 | Avg confidence: 92.0%              │
         │ API calls: 7 | Total tokens: 15,420                     │
         │ Cache hit rate: 65.0% | Total cost: $0.0234             │
-        │ Cost per comment: $0.0012 | Avg tokens/call: 2,203      │
+        │ Cost per change: $0.0012 | Avg tokens/call: 2,203       │
         ╰───────────────────────────────────────────────────────────╯
     """
     # Build metrics table
@@ -228,9 +228,9 @@ def _display_llm_metrics(metrics: LLMMetrics) -> None:
     table.add_column(style="cyan", justify="left")
     table.add_column(style="white", justify="left")
 
-    # Row 1: Comments and confidence
+    # Row 1: Changes and confidence
     table.add_row(
-        f"Comments parsed: {metrics.comments_parsed}",
+        f"Changes parsed: {metrics.changes_parsed}",
         f"Avg confidence: {metrics.avg_confidence * 100:.1f}%",
     )
 
@@ -249,11 +249,11 @@ def _display_llm_metrics(metrics: LLMMetrics) -> None:
     )
 
     # Row 4: Computed metrics
-    cost_per_comment_display = (
-        f"${metrics.cost_per_comment:.4f}" if metrics.cost_per_comment > 0 else "Free"
+    cost_per_change_display = (
+        f"${metrics.cost_per_change:.4f}" if metrics.cost_per_change > 0 else "Free"
     )
     table.add_row(
-        f"Cost per comment: {cost_per_comment_display}",
+        f"Cost per change: {cost_per_change_display}",
         f"Avg tokens/call: {metrics.avg_tokens_per_call:,.0f}",
     )
 

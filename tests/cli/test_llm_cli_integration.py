@@ -28,7 +28,7 @@ class TestMetricsDisplay:
         metrics = LLMMetrics(
             provider="anthropic",
             model="claude-haiku-4-20250514",
-            comments_parsed=20,
+            changes_parsed=20,
             avg_confidence=0.92,
             cache_hit_rate=0.65,
             total_cost=0.0234,
@@ -44,7 +44,7 @@ class TestMetricsDisplay:
         assert "claude-haiku-4-20250514" in captured.out
 
         # Check all key metrics are displayed
-        assert "Comments parsed: 20" in captured.out
+        assert "Changes parsed: 20" in captured.out
         assert "92.0%" in captured.out  # Confidence as percentage
         assert "API calls: 7" in captured.out
         assert "15,420" in captured.out  # Tokens with comma separator
@@ -58,7 +58,7 @@ class TestMetricsDisplay:
         metrics = LLMMetrics(
             provider="openai",
             model="gpt-4o-mini",
-            comments_parsed=10,
+            changes_parsed=10,
             avg_confidence=0.85,
             cache_hit_rate=0.5,
             total_cost=0.05,
@@ -78,7 +78,7 @@ class TestMetricsDisplay:
         metrics = LLMMetrics(
             provider="ollama",
             model="llama3.3:70b",
-            comments_parsed=50,
+            changes_parsed=50,
             avg_confidence=0.88,
             cache_hit_rate=0.0,
             total_cost=0.0,  # Free
@@ -99,7 +99,7 @@ class TestMetricsDisplay:
         metrics = LLMMetrics(
             provider="anthropic",
             model="claude-opus-4",
-            comments_parsed=100,
+            changes_parsed=100,
             avg_confidence=0.95,
             cache_hit_rate=0.8,
             total_cost=1.2345,
@@ -115,11 +115,11 @@ class TestMetricsDisplay:
         assert "12,346" in captured.out  # Avg tokens per call (1234567/100)
 
     def test_display_metrics_computed_properties(self, capsys: pytest.CaptureFixture[str]) -> None:
-        """Test display includes computed metrics (cost per comment, avg tokens)."""
+        """Test display includes computed metrics (cost per change, avg tokens)."""
         metrics = LLMMetrics(
             provider="openai",
             model="gpt-4o",
-            comments_parsed=25,
+            changes_parsed=25,
             avg_confidence=0.90,
             cache_hit_rate=0.7,
             total_cost=0.125,  # $0.125 total
@@ -130,7 +130,7 @@ class TestMetricsDisplay:
         _display_llm_metrics(metrics)
         captured = capsys.readouterr()
 
-        # Cost per comment: $0.125 / 25 = $0.0050
+        # Cost per change: $0.125 / 25 = $0.0050
         assert "$0.0050" in captured.out
         # Avg tokens per call: 20000 / 10 = 2000
         assert "2,000" in captured.out
@@ -159,7 +159,7 @@ class TestApplyCommandLLMIntegration:
                     "llm_metrics": LLMMetrics(
                         provider="anthropic",
                         model="claude-haiku-4",
-                        comments_parsed=7,
+                        changes_parsed=7,
                         avg_confidence=0.90,
                         cache_hit_rate=0.5,
                         total_cost=0.01,
@@ -320,7 +320,7 @@ class TestMetricsDisplayEdgeCases:
         metrics = LLMMetrics(
             provider="ollama",
             model="test-model",
-            comments_parsed=0,
+            changes_parsed=0,
             avg_confidence=0.0,
             cache_hit_rate=0.0,
             total_cost=0.0,
@@ -332,7 +332,7 @@ class TestMetricsDisplayEdgeCases:
         captured = capsys.readouterr()
 
         # Should display zeros without errors
-        assert "Comments parsed: 0" in captured.out
+        assert "Changes parsed: 0" in captured.out
         assert "0.0%" in captured.out  # Cache hit rate
         assert "Free" in captured.out  # Zero cost shows as Free
 
@@ -341,7 +341,7 @@ class TestMetricsDisplayEdgeCases:
         metrics = LLMMetrics(
             provider="anthropic",
             model="claude-opus-4",
-            comments_parsed=10,
+            changes_parsed=10,
             avg_confidence=1.0,  # Perfect confidence
             cache_hit_rate=1.0,  # Perfect cache hits
             total_cost=0.001,
@@ -360,7 +360,7 @@ class TestMetricsDisplayEdgeCases:
         metrics = LLMMetrics(
             provider="openai",
             model="gpt-4o-mini",
-            comments_parsed=1000,
+            changes_parsed=1000,
             avg_confidence=0.85,
             cache_hit_rate=0.9,
             total_cost=0.000123,  # Very small cost

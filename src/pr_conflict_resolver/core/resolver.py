@@ -1202,7 +1202,7 @@ class ConflictResolver:
             - cache_hit_rate: Cache hit percentage for cost optimization
             - total_cost: Total API cost in USD
             - api_calls: Number of API calls made
-            - comments_parsed: Number of Change objects extracted via LLM parsing
+            - changes_parsed: Number of Change objects extracted via LLM parsing
               (Note: One source comment may produce multiple Change objects)
 
             Uses hybrid metadata approach: tries Change.metadata.get() first,
@@ -1275,16 +1275,16 @@ class ConflictResolver:
         # Calculate cache hit rate on a per-comment basis
         # This measures what percentage of comments had cache hits (0.0-1.0)
         cache_hits = sum(1 for c in llm_changes if c.metadata.get("llm_cache_hit"))
-        cache_hit_rate = cache_hits / len(llm_changes) if len(llm_changes) > 0 else 0.0
+        cache_hit_rate = cache_hits / len(llm_changes)
 
         # Count of Change objects extracted via LLM (not unique source comments)
         # Note: One source comment may produce multiple Change objects
-        comments_parsed = len(llm_changes)
+        changes_parsed = len(llm_changes)
 
         return LLMMetrics(
             provider=provider_name_str,
             model=model_name_str,
-            comments_parsed=comments_parsed,
+            changes_parsed=changes_parsed,
             avg_confidence=avg_confidence,
             cache_hit_rate=cache_hit_rate,
             total_cost=total_cost,

@@ -17,8 +17,8 @@ class LLMMetrics:
     Attributes:
         provider: LLM provider name (e.g., "anthropic", "openai", "ollama").
         model: Specific model used (e.g., "claude-haiku-4", "gpt-4o-mini").
-        comments_parsed: Total number of comments successfully parsed.
-        avg_confidence: Average confidence score across parsed comments (0.0-1.0).
+        changes_parsed: Total number of Change objects extracted via LLM parsing.
+        avg_confidence: Average confidence score across parsed changes (0.0-1.0).
         cache_hit_rate: Percentage of cache hits (0.0-1.0, where 1.0 = 100%).
         total_cost: Total cost in USD for all API calls.
         api_calls: Total number of API calls made.
@@ -28,7 +28,7 @@ class LLMMetrics:
         >>> metrics = LLMMetrics(
         ...     provider="anthropic",
         ...     model="claude-haiku-4-20250514",
-        ...     comments_parsed=20,
+        ...     changes_parsed=20,
         ...     avg_confidence=0.92,
         ...     cache_hit_rate=0.65,
         ...     total_cost=0.0234,
@@ -43,7 +43,7 @@ class LLMMetrics:
 
     provider: str
     model: str
-    comments_parsed: int
+    changes_parsed: int
     avg_confidence: float
     cache_hit_rate: float
     total_cost: float
@@ -52,8 +52,8 @@ class LLMMetrics:
 
     def __post_init__(self) -> None:
         """Validate metrics values."""
-        if self.comments_parsed < 0:
-            raise ValueError(f"comments_parsed must be >= 0, got {self.comments_parsed}")
+        if self.changes_parsed < 0:
+            raise ValueError(f"changes_parsed must be >= 0, got {self.changes_parsed}")
         if not 0.0 <= self.avg_confidence <= 1.0:
             raise ValueError(
                 f"avg_confidence must be between 0.0 and 1.0, got {self.avg_confidence}"
@@ -70,25 +70,25 @@ class LLMMetrics:
             raise ValueError(f"total_tokens must be >= 0, got {self.total_tokens}")
 
     @property
-    def cost_per_comment(self) -> float:
-        """Calculate average cost per parsed comment.
+    def cost_per_change(self) -> float:
+        """Calculate average cost per parsed change.
 
         Returns:
-            Average cost per comment in USD. Returns 0.0 if no comments parsed.
+            Average cost per change in USD. Returns 0.0 if no changes parsed.
 
         Example:
             >>> metrics = LLMMetrics(
             ...     provider="openai", model="gpt-4o-mini",
-            ...     comments_parsed=10, avg_confidence=0.85,
+            ...     changes_parsed=10, avg_confidence=0.85,
             ...     cache_hit_rate=0.5, total_cost=0.05,
             ...     api_calls=5, total_tokens=5000
             ... )
-            >>> f"${metrics.cost_per_comment:.4f}"
+            >>> f"${metrics.cost_per_change:.4f}"
             '$0.0050'
         """
-        if self.comments_parsed == 0:
+        if self.changes_parsed == 0:
             return 0.0
-        return self.total_cost / self.comments_parsed
+        return self.total_cost / self.changes_parsed
 
     @property
     def avg_tokens_per_call(self) -> float:
@@ -100,7 +100,7 @@ class LLMMetrics:
         Example:
             >>> metrics = LLMMetrics(
             ...     provider="anthropic", model="claude-haiku-4",
-            ...     comments_parsed=20, avg_confidence=0.92,
+            ...     changes_parsed=20, avg_confidence=0.92,
             ...     cache_hit_rate=0.65, total_cost=0.02,
             ...     api_calls=7, total_tokens=15420
             ... )
@@ -126,7 +126,7 @@ class LLMMetrics:
         Example:
             >>> metrics = LLMMetrics(
             ...     provider="anthropic", model="claude-haiku-4",
-            ...     comments_parsed=20, avg_confidence=0.92,
+            ...     changes_parsed=20, avg_confidence=0.92,
             ...     cache_hit_rate=0.65, total_cost=0.0234,
             ...     api_calls=7, total_tokens=15420
             ... )
