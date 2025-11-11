@@ -1202,7 +1202,8 @@ class ConflictResolver:
             - cache_hit_rate: Cache hit percentage for cost optimization
             - total_cost: Total API cost in USD
             - api_calls: Number of API calls made
-            - comments_parsed: Number of changes processed with LLM
+            - comments_parsed: Number of Change objects extracted via LLM parsing
+              (Note: One source comment may produce multiple Change objects)
 
             Uses hybrid metadata approach: tries Change.metadata.get() first,
             falls back to direct attributes, then to provider cumulative tracking.
@@ -1227,15 +1228,21 @@ class ConflictResolver:
         provider = self.llm_parser.provider
 
         # Extract provider and model names from provider object
-        provider_class = type(provider).__name__
-        if "Anthropic" in provider_class:
-            provider_name_str = "anthropic"
-        elif "OpenAI" in provider_class:
-            provider_name_str = "openai"
-        elif "Ollama" in provider_class:
-            provider_name_str = "ollama"
+        # Try provider_name attribute first (more robust), fallback to class name
+        provider_name_str = getattr(provider, "provider_name", None)
+        if provider_name_str:
+            provider_name_str = provider_name_str.lower()
         else:
-            provider_name_str = provider_class.lower()
+            # Fallback to class name inference
+            provider_class = type(provider).__name__
+            if "Anthropic" in provider_class:
+                provider_name_str = "anthropic"
+            elif "OpenAI" in provider_class:
+                provider_name_str = "openai"
+            elif "Ollama" in provider_class:
+                provider_name_str = "ollama"
+            else:
+                provider_name_str = provider_class.lower()
 
         model_name_str = getattr(provider, "model", "unknown")
 
@@ -1270,6 +1277,8 @@ class ConflictResolver:
         cache_hits = sum(1 for c in llm_changes if c.metadata.get("llm_cache_hit"))
         cache_hit_rate = cache_hits / len(llm_changes) if len(llm_changes) > 0 else 0.0
 
+        # Count of Change objects extracted via LLM (not unique source comments)
+        # Note: One source comment may produce multiple Change objects
         comments_parsed = len(llm_changes)
 
         return LLMMetrics(
