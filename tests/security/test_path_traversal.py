@@ -121,9 +121,9 @@ class TestHandlerPathTraversal:
         ), "Path traversal should be rejected"
 
     def test_handlers_reject_absolute_paths(
-        self, setup_test_files: tuple[Path, Path, Path, str]
+        self, setup_test_files: tuple[Path, Path, Path, str], subtests: pytest.Subtests
     ) -> None:
-        """Test that handlers reject absolute paths."""
+        """Test that handlers reject absolute paths using subtests."""
         base_path, _, outside_file, _file_type = setup_test_files
         handlers = [
             JsonHandler(workspace_root=str(base_path)),
@@ -132,12 +132,17 @@ class TestHandlerPathTraversal:
         ]
 
         for handler in handlers:
-            assert not handler.apply_change(
-                str(outside_file), "test content", 1, 1
-            ), f"{handler.__class__.__name__} should reject absolute paths"
+            with subtests.test(
+                msg=f"Handler: {handler.__class__.__name__}", handler=handler.__class__.__name__
+            ):
+                assert not handler.apply_change(
+                    str(outside_file), "test content", 1, 1
+                ), f"{handler.__class__.__name__} should reject absolute paths"
 
-    def test_handlers_reject_null_bytes_in_path(self, tmp_path: Path) -> None:
-        """Test that handlers reject paths containing null bytes."""
+    def test_handlers_reject_null_bytes_in_path(
+        self, tmp_path: Path, subtests: pytest.Subtests
+    ) -> None:
+        """Test that handlers reject paths containing null bytes using subtests."""
         handlers = [
             JsonHandler(workspace_root=str(tmp_path)),
             YamlHandler(workspace_root=str(tmp_path)),
@@ -145,12 +150,15 @@ class TestHandlerPathTraversal:
         ]
 
         for handler in handlers:
-            assert not handler.apply_change(
-                "file\x00.txt", "test content", 1, 1
-            ), f"{handler.__class__.__name__} should reject null bytes in path"
+            with subtests.test(
+                msg=f"Handler: {handler.__class__.__name__}", handler=handler.__class__.__name__
+            ):
+                assert not handler.apply_change(
+                    "file\x00.txt", "test content", 1, 1
+                ), f"{handler.__class__.__name__} should reject null bytes in path"
 
-    def test_handlers_reject_symlink_attacks(self) -> None:
-        """Test that handlers handle symlink attacks."""
+    def test_handlers_reject_symlink_attacks(self, subtests: pytest.Subtests) -> None:
+        """Test that handlers handle symlink attacks using subtests."""
         handlers = [
             ("json", "link.json", '{"key": "value"}'),
             ("yaml", "link.yaml", "key: value"),
@@ -163,31 +171,32 @@ class TestHandlerPathTraversal:
 
             try:
                 for kind, filename, content in handlers:
-                    base_path = Path(tmpdir)
-                    # Instantiate handler with workspace_root bound to tmpdir
-                    if kind == "json":
-                        handler: BaseHandler = JsonHandler(workspace_root=str(base_path))
-                    elif kind == "yaml":
-                        handler = YamlHandler(workspace_root=str(base_path))
-                    else:
-                        handler = TomlHandler(workspace_root=str(base_path))
+                    with subtests.test(msg=f"Handler: {kind}", handler=kind):
+                        base_path = Path(tmpdir)
+                        # Instantiate handler with workspace_root bound to tmpdir
+                        if kind == "json":
+                            handler: BaseHandler = JsonHandler(workspace_root=str(base_path))
+                        elif kind == "yaml":
+                            handler = YamlHandler(workspace_root=str(base_path))
+                        else:
+                            handler = TomlHandler(workspace_root=str(base_path))
 
-                    # Create symlink within workspace pointing to external target
-                    handler_symlink = base_path / filename
-                    handler_symlink.unlink(missing_ok=True)
-                    try:
-                        handler_symlink.symlink_to(symlink_target)
-                    except OSError:
-                        pytest.skip("Cannot create symlink (permissions issue)")
+                        # Create symlink within workspace pointing to external target
+                        handler_symlink = base_path / filename
+                        handler_symlink.unlink(missing_ok=True)
+                        try:
+                            handler_symlink.symlink_to(symlink_target)
+                        except OSError:
+                            pytest.skip("Cannot create symlink (permissions issue)")
 
-                    # The handler should validate the path properly and reject
-                    assert not handler.apply_change(
-                        str(handler_symlink), content, 1, 1
-                    ), f"{handler.__class__.__name__} should handle symlinks safely"
+                        # The handler should validate the path properly and reject
+                        assert not handler.apply_change(
+                            str(handler_symlink), content, 1, 1
+                        ), f"{handler.__class__.__name__} should handle symlinks safely"
 
-                    # Clean up symlink for next iteration
-                    if handler_symlink.exists():
-                        handler_symlink.unlink()
+                        # Clean up symlink for next iteration
+                        if handler_symlink.exists():
+                            handler_symlink.unlink()
             finally:
                 pass
 
