@@ -100,6 +100,8 @@ export CR_LLM_MODEL="gpt-4"  # Optional
 
 #### Quick Setup: Ollama (Local, Free)
 
+Ollama can be used directly via its API (no MCP server required):
+
 ```bash
 # 1. Install Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
@@ -111,10 +113,13 @@ ollama pull llama3.3:70b
 export CR_LLM_ENABLED="true"
 export CR_LLM_PROVIDER="ollama"
 export CR_LLM_MODEL="llama3.3:70b"
+export OLLAMA_BASE_URL="http://localhost:11434"  # Optional, uses default if not set
 
 # 4. Verify Ollama is running
 curl http://localhost:11434/api/tags
 ```
+
+**Note**: Ollama is accessed via direct API calls, not through MCP server integration.
 
 **See [Configuration Guide - LLM Provider Configuration](configuration.md#llm-provider-configuration) for all provider options, cost comparison, and detailed setup instructions.**
 

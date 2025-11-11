@@ -177,4 +177,4 @@ To scan additional languages:
 
 - [GitHub CodeQL Documentation](https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/about-code-scanning-with-codeql)
 - [CodeQL Query Suites](https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/built-in-codeql-query-suites)
-- [Issue #43: CodeQL Optimization](https://github.com/VirtualAgentics/coderabbit-conflict-resolver/issues/43)
+- [Issue #43: CodeQL Optimization](https://github.com/VirtualAgentics/review-bot-automator/issues/43)
