@@ -810,7 +810,17 @@ class TestApplyCommandLLMPreset:
 
     def test_apply_case_insensitive_preset(self, runner: CliRunner) -> None:
         """Test apply command accepts preset names case-insensitively."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with (
+            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("pr_conflict_resolver.cli.main.RuntimeConfig.from_preset") as mock_from_preset,
+        ):
+            # Setup mocks with proper config attributes
+            mock_config = Mock()
+            mock_config.log_file = None
+            mock_config.log_level = "INFO"
+            mock_config.merge_with_cli.return_value = mock_config
+            mock_from_preset.return_value = mock_config
+
             mock_resolver = mock_resolver_class.return_value
             mock_result = Mock(
                 applied_count=5,
@@ -834,6 +844,9 @@ class TestApplyCommandLLMPreset:
                     "CODEX-CLI-FREE",  # All caps
                 ],
             )
+
+            # Verify from_preset was called with normalized lowercase name
+            mock_from_preset.assert_called_once_with("codex-cli-free", api_key=None)
 
             # Should accept and normalize to lowercase
             assert "Loaded LLM preset: codex-cli-free" in result.output
