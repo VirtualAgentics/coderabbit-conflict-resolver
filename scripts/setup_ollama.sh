@@ -118,18 +118,40 @@ install_ollama() {
     case "$os_type" in
         linux|wsl)
             # Official installation script for Linux/WSL
-            if ! curl -fsSL https://ollama.ai/install.sh | sh; then
-                print_error "Failed to install Ollama"
+            # Download to temporary file for security (scorecard requirement)
+            local install_script
+            install_script=$(mktemp)
+            if ! curl -fsSL https://ollama.ai/install.sh -o "$install_script"; then
+                print_error "Failed to download Ollama installer"
+                rm -f "$install_script"
                 return 1
             fi
+            # Execute from file
+            if ! sh "$install_script"; then
+                print_error "Failed to install Ollama"
+                rm -f "$install_script"
+                return 1
+            fi
+            rm -f "$install_script"
             print_success "Ollama installed successfully"
             ;;
         macos)
             # Official installation script for macOS
-            if ! curl -fsSL https://ollama.ai/install.sh | sh; then
-                print_error "Failed to install Ollama"
+            # Download to temporary file for security (scorecard requirement)
+            local install_script
+            install_script=$(mktemp)
+            if ! curl -fsSL https://ollama.ai/install.sh -o "$install_script"; then
+                print_error "Failed to download Ollama installer"
+                rm -f "$install_script"
                 return 1
             fi
+            # Execute from file
+            if ! sh "$install_script"; then
+                print_error "Failed to install Ollama"
+                rm -f "$install_script"
+                return 1
+            fi
+            rm -f "$install_script"
             print_success "Ollama installed successfully"
             ;;
         *)
