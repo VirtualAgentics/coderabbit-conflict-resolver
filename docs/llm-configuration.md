@@ -342,11 +342,68 @@ Supported environment variables:
    pr-resolve apply 123 --config config.yaml
    ```
 
+## Ollama Auto-Download Feature
+
+The Ollama provider supports automatic model downloading for streamlined setup.
+
+### Quick Setup with Scripts
+
+Use the automated setup scripts for the easiest Ollama installation:
+
+```bash
+# 1. Install and setup Ollama
+./scripts/setup_ollama.sh
+
+# 2. Download recommended model
+./scripts/download_ollama_models.sh
+
+# 3. Use with pr-resolve
+pr-resolve apply 123 --llm-preset ollama-local
+```
+
+See the [Ollama Setup Guide](ollama-setup.md) for comprehensive documentation.
+
+### Auto-Download via Python API
+
+Enable automatic model downloads in Python code:
+
+```python
+from pr_conflict_resolver.llm.providers.ollama import OllamaProvider
+
+# Auto-download enabled - model will be downloaded if not available
+provider = OllamaProvider(
+    model="qwen2.5-coder:7b",
+    auto_download=True  # Downloads model automatically (may take several minutes)
+)
+
+# Get model recommendations
+models = OllamaProvider.list_recommended_models()
+for model in models:
+    print(f"{model['name']}: {model['description']}")
+```
+
+**Benefits**:
+- No manual `ollama pull` required
+- Automated CI/CD setup
+- Seamless model switching
+
+**Note**: Auto-download is not currently exposed via CLI flags. Use the interactive scripts or manual `ollama pull` for CLI usage.
+
 ## Examples
 
 ### Example 1: Free Local Setup (Ollama)
 
-**Setup**:
+**Quick Setup (Recommended)**:
+```bash
+# Automated setup
+./scripts/setup_ollama.sh
+./scripts/download_ollama_models.sh
+
+# Use preset
+pr-resolve apply 123 --llm-preset ollama-local
+```
+
+**Manual Setup**:
 ```bash
 # Install Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
@@ -372,6 +429,8 @@ llm:
 ```bash
 pr-resolve apply 123 --config config.yaml
 ```
+
+See [Ollama Setup Guide](ollama-setup.md) for detailed installation instructions, model recommendations, and troubleshooting.
 
 ### Example 2: Paid API Setup (OpenAI)
 
@@ -592,6 +651,7 @@ llm:
 
 ## See Also
 
+- [Ollama Setup Guide](ollama-setup.md) - Comprehensive Ollama installation and setup guide
 - [Main Configuration Guide](configuration.md) - Basic LLM setup and provider documentation
 - [Getting Started Guide](getting-started.md) - Quick start with LLM features
 - [API Reference](api-reference.md) - Configuration API documentation

@@ -106,10 +106,12 @@ Enable AI-powered features with your choice of LLM provider using **zero-config 
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
   --llm-preset codex-cli-free
 
-# Option 2: Local Ollama (free, private, offline)
-ollama pull qwen2.5-coder:7b  # One-time setup
+# Option 2: Local Ollama (free, private, offline) - EASIEST SETUP
+./scripts/setup_ollama.sh          # One-time install
+./scripts/download_ollama_models.sh  # Download model
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
   --llm-preset ollama-local
+# See docs/ollama-setup.md for detailed guide
 
 # Option 3: Claude CLI (requires Claude subscription)
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
@@ -241,6 +243,8 @@ See [`.env.example`](.env.example) for available environment variables.
 
 - [Getting Started Guide](docs/getting-started.md) - Installation, setup, and first steps
 - [Configuration Reference](docs/configuration.md) - Complete configuration options
+- [LLM Configuration Guide](docs/llm-configuration.md) - LLM providers, presets, and advanced configuration
+- [Ollama Setup Guide](docs/ollama-setup.md) - Comprehensive Ollama installation and setup
 - [Rollback System](docs/rollback-system.md) - Automatic rollback and recovery
 - [Parallel Processing](docs/parallel-processing.md) - Performance tuning guide
 - [Migration Guide](docs/migration-guide.md) - Upgrading from earlier versions
