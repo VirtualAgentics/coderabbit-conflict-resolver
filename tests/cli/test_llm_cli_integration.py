@@ -22,6 +22,22 @@ from pr_conflict_resolver.llm.exceptions import (
 from pr_conflict_resolver.llm.metrics import LLMMetrics
 
 
+@pytest.fixture
+def cli_runner() -> CliRunner:
+    """Create Click test runner for CLI tests."""
+    return CliRunner()
+
+
+@pytest.fixture
+def mock_preset_config() -> Mock:
+    """Create a mock RuntimeConfig for preset tests."""
+    mock_config = Mock()
+    mock_config.log_file = None
+    mock_config.log_level = "INFO"
+    mock_config.merge_with_cli.return_value = mock_config
+    return mock_config
+
+
 class TestMetricsDisplay:
     """Tests for _display_llm_metrics() function."""
 
@@ -146,7 +162,7 @@ class TestApplyCommandLLMIntegration:
         """Create Click test runner."""
         return CliRunner()
 
-    def test_apply_displays_metrics_on_success(self, runner: CliRunner) -> None:
+    def test_apply_displays_metrics_on_success(self, cli_runner: CliRunner) -> None:
         """Test apply command displays LLM metrics when available."""
         with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
             # Mock resolver to return result with metrics
@@ -168,7 +184,7 @@ class TestApplyCommandLLMIntegration:
             )
             mock_resolver.resolve_pr_conflicts.return_value = mock_result
 
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "apply",
@@ -186,7 +202,7 @@ class TestApplyCommandLLMIntegration:
             assert "Anthropic" in result.output
             assert "claude-haiku-4" in result.output
 
-    def test_apply_handles_none_llm_metrics_gracefully(self, runner: CliRunner) -> None:
+    def test_apply_handles_none_llm_metrics_gracefully(self, cli_runner: CliRunner) -> None:
         """Test apply command succeeds when llm_metrics is None (no LLM parsing used)."""
         with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
             # Mock resolver to return result WITHOUT metrics (regex parsing scenario)
@@ -199,7 +215,7 @@ class TestApplyCommandLLMIntegration:
             )
             mock_resolver.resolve_pr_conflicts.return_value = mock_result
 
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "apply",
@@ -222,7 +238,7 @@ class TestApplyCommandLLMIntegration:
             assert "claude" not in result.output.lower()
             assert "gpt" not in result.output.lower()
 
-    def test_apply_handles_auth_error(self, runner: CliRunner) -> None:
+    def test_apply_handles_auth_error(self, cli_runner: CliRunner) -> None:
         """Test apply command handles LLM authentication errors."""
         with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
@@ -230,7 +246,7 @@ class TestApplyCommandLLMIntegration:
                 "Invalid API key"
             )
 
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "apply",
@@ -247,7 +263,7 @@ class TestApplyCommandLLMIntegration:
             assert result.exit_code != 0
             assert "Authentication Error" in result.output or "API key" in result.output
 
-    def test_apply_handles_rate_limit_error(self, runner: CliRunner) -> None:
+    def test_apply_handles_rate_limit_error(self, cli_runner: CliRunner) -> None:
         """Test apply command handles LLM rate limit errors."""
         with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
@@ -255,7 +271,7 @@ class TestApplyCommandLLMIntegration:
                 "Rate limit exceeded"
             )
 
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "apply",
@@ -272,13 +288,13 @@ class TestApplyCommandLLMIntegration:
             assert result.exit_code != 0
             assert "Rate Limit" in result.output or "rate limit" in result.output.lower()
 
-    def test_apply_handles_timeout_error(self, runner: CliRunner) -> None:
+    def test_apply_handles_timeout_error(self, cli_runner: CliRunner) -> None:
         """Test apply command handles LLM timeout errors."""
         with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
             mock_resolver.resolve_pr_conflicts.side_effect = LLMTimeoutError("Request timed out")
 
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "apply",
@@ -295,7 +311,7 @@ class TestApplyCommandLLMIntegration:
             assert result.exit_code != 0
             assert "Timeout" in result.output or "timeout" in result.output.lower()
 
-    def test_apply_handles_config_error(self, runner: CliRunner) -> None:
+    def test_apply_handles_config_error(self, cli_runner: CliRunner) -> None:
         """Test apply command handles LLM configuration errors."""
         with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
@@ -303,7 +319,7 @@ class TestApplyCommandLLMIntegration:
                 "Invalid model name"
             )
 
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "apply",
@@ -322,13 +338,13 @@ class TestApplyCommandLLMIntegration:
                 "Configuration Error" in result.output or "configuration" in result.output.lower()
             )
 
-    def test_apply_handles_api_error(self, runner: CliRunner) -> None:
+    def test_apply_handles_api_error(self, cli_runner: CliRunner) -> None:
         """Test apply command handles generic LLM API errors."""
         with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
             mock_resolver.resolve_pr_conflicts.side_effect = LLMAPIError("Service unavailable")
 
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "apply",
@@ -345,7 +361,7 @@ class TestApplyCommandLLMIntegration:
             assert result.exit_code != 0
             assert "API Error" in result.output or "Service unavailable" in result.output
 
-    def test_apply_handles_error_with_none_llm_provider(self, runner: CliRunner) -> None:
+    def test_apply_handles_error_with_none_llm_provider(self, cli_runner: CliRunner) -> None:
         """Test error handlers correctly handle llm_provider=None without AttributeError."""
         with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
@@ -354,7 +370,7 @@ class TestApplyCommandLLMIntegration:
             )
 
             # Don't specify --llm-provider, which can result in None value
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "apply",
@@ -378,7 +394,7 @@ class TestApplyCommandLLMIntegration:
                 or "authentication failed" in result.output.lower()
             )
 
-    def test_apply_handles_parsing_error(self, runner: CliRunner) -> None:
+    def test_apply_handles_parsing_error(self, cli_runner: CliRunner) -> None:
         """Test apply command handles LLM parsing errors with warning (non-aborting)."""
         with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
@@ -386,7 +402,7 @@ class TestApplyCommandLLMIntegration:
                 "Failed to parse LLM response"
             )
 
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "apply",
@@ -472,20 +488,6 @@ class TestMetricsDisplayEdgeCases:
 class TestApplyCommandLLMPreset:
     """Tests for apply command with --llm-preset flag."""
 
-    @pytest.fixture
-    def runner(self) -> CliRunner:
-        """Create Click test runner."""
-        return CliRunner()
-
-    @pytest.fixture
-    def mock_preset_config(self) -> Mock:
-        """Create a mock RuntimeConfig for preset tests."""
-        mock_config = Mock()
-        mock_config.log_file = None
-        mock_config.log_level = "INFO"
-        mock_config.merge_with_cli.return_value = mock_config
-        return mock_config
-
     @pytest.mark.parametrize(
         "preset_name,api_key,pr_num,owner,repo",
         [
@@ -498,7 +500,7 @@ class TestApplyCommandLLMPreset:
     )
     def test_apply_with_preset(
         self,
-        runner: CliRunner,
+        cli_runner: CliRunner,
         mock_preset_config: Mock,
         preset_name: str,
         api_key: str | None,
@@ -537,7 +539,7 @@ class TestApplyCommandLLMPreset:
             if api_key:
                 args.extend(["--llm-api-key", api_key])
 
-            result = runner.invoke(cli, args)
+            result = cli_runner.invoke(cli, args)
 
             # Verify from_preset was called correctly
             mock_from_preset.assert_called_once_with(preset_name, api_key=api_key)
@@ -545,7 +547,7 @@ class TestApplyCommandLLMPreset:
             assert result.exit_code == 0
 
     def test_apply_preset_overridden_by_individual_flags(
-        self, runner: CliRunner, mock_preset_config: Mock
+        self, cli_runner: CliRunner, mock_preset_config: Mock
     ) -> None:
         """Test that individual --llm-* flags override preset values."""
         with (
@@ -570,7 +572,7 @@ class TestApplyCommandLLMPreset:
             )
             mock_resolver.resolve_pr_conflicts.return_value = mock_result
 
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "apply",
@@ -598,7 +600,9 @@ class TestApplyCommandLLMPreset:
             assert "Loaded LLM preset: ollama-local" in result.output
             assert result.exit_code == 0
 
-    def test_apply_config_preset_takes_priority_over_llm_preset(self, runner: CliRunner) -> None:
+    def test_apply_config_preset_takes_priority_over_llm_preset(
+        self, cli_runner: CliRunner
+    ) -> None:
         """Test that --config preset takes priority over --llm-preset."""
         with (
             patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
@@ -615,7 +619,7 @@ class TestApplyCommandLLMPreset:
             )
             mock_resolver.resolve_pr_conflicts.return_value = mock_result
 
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "apply",
@@ -640,9 +644,9 @@ class TestApplyCommandLLMPreset:
             assert "Loaded LLM preset" not in result.output
             assert result.exit_code == 0
 
-    def test_apply_invalid_preset_name(self, runner: CliRunner) -> None:
+    def test_apply_invalid_preset_name(self, cli_runner: CliRunner) -> None:
         """Test apply command rejects invalid preset name."""
-        result = runner.invoke(
+        result = cli_runner.invoke(
             cli,
             [
                 "apply",
@@ -662,7 +666,7 @@ class TestApplyCommandLLMPreset:
         assert "Invalid value for '--llm-preset'" in result.output
 
     def test_apply_case_insensitive_preset(
-        self, runner: CliRunner, mock_preset_config: Mock
+        self, cli_runner: CliRunner, mock_preset_config: Mock
     ) -> None:
         """Test apply command accepts preset names case-insensitively."""
         with (
@@ -681,7 +685,7 @@ class TestApplyCommandLLMPreset:
             )
             mock_resolver.resolve_pr_conflicts.return_value = mock_result
 
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "apply",
@@ -703,13 +707,13 @@ class TestApplyCommandLLMPreset:
             assert "Loaded LLM preset: codex-cli-free" in result.output
             assert result.exit_code == 0
 
-    def test_apply_preset_loading_error(self, runner: CliRunner) -> None:
+    def test_apply_preset_loading_error(self, cli_runner: CliRunner) -> None:
         """Test that preset loading errors are handled gracefully."""
         with patch(
             "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
             side_effect=ConfigError("Invalid preset configuration"),
         ):
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "apply",
@@ -732,20 +736,6 @@ class TestApplyCommandLLMPreset:
 class TestAnalyzeCommandLLMPreset:
     """Tests for analyze command with --llm-preset flag."""
 
-    @pytest.fixture
-    def runner(self) -> CliRunner:
-        """Create Click test runner."""
-        return CliRunner()
-
-    @pytest.fixture
-    def mock_preset_config(self) -> Mock:
-        """Create a mock RuntimeConfig for preset tests."""
-        mock_config = Mock()
-        mock_config.log_file = None
-        mock_config.log_level = "INFO"
-        mock_config.merge_with_cli.return_value = mock_config
-        return mock_config
-
     @pytest.mark.parametrize(
         "preset_name,api_key,pr_num,owner,repo",
         [
@@ -758,7 +748,7 @@ class TestAnalyzeCommandLLMPreset:
     )
     def test_analyze_with_preset(
         self,
-        runner: CliRunner,
+        cli_runner: CliRunner,
         mock_preset_config: Mock,
         preset_name: str,
         api_key: str | None,
@@ -791,7 +781,7 @@ class TestAnalyzeCommandLLMPreset:
             if api_key:
                 args.extend(["--llm-api-key", api_key])
 
-            result = runner.invoke(cli, args)
+            result = cli_runner.invoke(cli, args)
 
             # Verify from_preset was called correctly
             mock_from_preset.assert_called_once_with(preset_name, api_key=api_key)
@@ -799,7 +789,7 @@ class TestAnalyzeCommandLLMPreset:
             assert result.exit_code == 0
 
     def test_analyze_preset_overridden_by_individual_flags(
-        self, runner: CliRunner, mock_preset_config: Mock
+        self, cli_runner: CliRunner, mock_preset_config: Mock
     ) -> None:
         """Test that individual --llm-* flags override preset values."""
         with (
@@ -818,7 +808,7 @@ class TestAnalyzeCommandLLMPreset:
             mock_resolver = mock_resolver_class.return_value
             mock_resolver.analyze_conflicts.return_value = []
 
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "analyze",
@@ -846,7 +836,9 @@ class TestAnalyzeCommandLLMPreset:
             assert "Loaded LLM preset: ollama-local" in result.output
             assert result.exit_code == 0
 
-    def test_analyze_config_preset_takes_priority_over_llm_preset(self, runner: CliRunner) -> None:
+    def test_analyze_config_preset_takes_priority_over_llm_preset(
+        self, cli_runner: CliRunner
+    ) -> None:
         """Test that --config preset takes priority over --llm-preset."""
         with (
             patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
@@ -857,7 +849,7 @@ class TestAnalyzeCommandLLMPreset:
             mock_resolver = mock_resolver_class.return_value
             mock_resolver.analyze_conflicts.return_value = []
 
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "analyze",
@@ -882,9 +874,9 @@ class TestAnalyzeCommandLLMPreset:
             assert "Loaded LLM preset" not in result.output
             assert result.exit_code == 0
 
-    def test_analyze_invalid_preset_name(self, runner: CliRunner) -> None:
+    def test_analyze_invalid_preset_name(self, cli_runner: CliRunner) -> None:
         """Test analyze command rejects invalid preset name."""
-        result = runner.invoke(
+        result = cli_runner.invoke(
             cli,
             [
                 "analyze",
@@ -904,7 +896,7 @@ class TestAnalyzeCommandLLMPreset:
         assert "Invalid value for '--llm-preset'" in result.output
 
     def test_analyze_case_insensitive_preset(
-        self, runner: CliRunner, mock_preset_config: Mock
+        self, cli_runner: CliRunner, mock_preset_config: Mock
     ) -> None:
         """Test analyze command accepts preset names case-insensitively."""
         with (
@@ -917,7 +909,7 @@ class TestAnalyzeCommandLLMPreset:
             mock_resolver = mock_resolver_class.return_value
             mock_resolver.analyze_conflicts.return_value = []
 
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "analyze",
@@ -939,13 +931,13 @@ class TestAnalyzeCommandLLMPreset:
             assert "Loaded LLM preset: codex-cli-free" in result.output
             assert result.exit_code == 0
 
-    def test_analyze_preset_loading_error(self, runner: CliRunner) -> None:
+    def test_analyze_preset_loading_error(self, cli_runner: CliRunner) -> None:
         """Test that preset loading errors are handled gracefully."""
         with patch(
             "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
             side_effect=ConfigError("Invalid preset configuration"),
         ):
-            result = runner.invoke(
+            result = cli_runner.invoke(
                 cli,
                 [
                     "analyze",
