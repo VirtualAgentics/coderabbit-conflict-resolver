@@ -292,7 +292,7 @@ class GPUDetector:
         # Try NVIDIA first (most common)
         try:
             result = subprocess.run(
-                [  # noqa: S607
+                [  # noqa: S607  # nosec B607
                     "nvidia-smi",
                     "--query-gpu=name,memory.total",
                     "--format=csv,noheader,nounits",
@@ -321,7 +321,7 @@ class GPUDetector:
         # Try AMD ROCm
         try:
             result = subprocess.run(
-                ["rocm-smi", "--showproductname"],  # noqa: S607
+                ["rocm-smi", "--showproductname"],  # noqa: S607  # nosec B607
                 capture_output=True,
                 text=True,
                 timeout=3,
@@ -344,7 +344,7 @@ class GPUDetector:
         if platform.system() == "Darwin":
             try:
                 result = subprocess.run(
-                    ["sysctl", "-n", "machdep.cpu.brand_string"],  # noqa: S607
+                    ["sysctl", "-n", "machdep.cpu.brand_string"],  # noqa: S607  # nosec B607
                     capture_output=True,
                     text=True,
                     timeout=3,
