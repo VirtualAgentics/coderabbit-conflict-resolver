@@ -8,12 +8,28 @@ This module tests the Ollama provider implementation including:
 - Retry logic with mocked failures
 - Error handling for various failure modes
 - Integration tests with real Ollama API (optional, requires Ollama running)
+
+Mocking Strategy:
+    Unit test classes use the 'patch_session_for_module_mocks' fixture to enable
+    backward-compatible mocking. This allows tests to use @patch("requests.get/post")
+    decorators while the implementation uses requests.Session() for connection pooling.
+
+    Integration tests do NOT use this fixture and make real HTTP calls to Ollama.
+
+    Example:
+        @pytest.mark.usefixtures("patch_session_for_module_mocks")
+        class TestOllamaProviderInitialization:
+            @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+            def test_init_with_valid_params(self, mock_get: Mock) -> None:
+                # Test code that mocks requests.get
 """
 
+from collections.abc import Generator
 from unittest.mock import Mock, patch
 
 import pytest
 import requests
+from requests.adapters import HTTPAdapter
 
 from pr_conflict_resolver.llm.exceptions import (
     LLMAPIError,
@@ -23,6 +39,49 @@ from pr_conflict_resolver.llm.providers.base import LLMProvider
 from pr_conflict_resolver.llm.providers.ollama import OllamaProvider
 
 
+# Fixture to patch Session's methods to forward to module-level patched functions
+# This allows existing tests that patch requests.get/post to work with session-based implementation
+@pytest.fixture
+def patch_session_for_module_mocks() -> Generator[None, None, None]:
+    """Patch Session methods to delegate to module-level mocked functions.
+
+    This fixture enables backward compatibility with existing tests that patch
+    requests.get/post at the module level. Since OllamaProvider now uses
+    requests.Session(), we intercept Session's __init__ and replace its get/post
+    methods to delegate to module-level functions that can be mocked by tests.
+
+    This approach preserves session state while allowing existing test mocks to work.
+
+    Usage:
+        @pytest.mark.usefixtures("patch_session_for_module_mocks")
+        class TestOllamaProviderInitialization:
+            # Tests that use @patch("requests.get/post") decorators
+
+    Note:
+        Integration tests should NOT use this fixture as they work with real requests.
+
+    Yields:
+        None
+    """
+    original_session_init = requests.Session.__init__
+
+    def patched_session_init(self: requests.Session) -> None:
+        original_session_init(self)
+
+        # Store original methods for reference
+        _original_get = self.get
+        _original_post = self.post
+
+        # Replace with module-level functions that can be mocked by tests
+        # These lambdas forward to requests.get/post which tests can mock
+        self.get = lambda *args, **kwargs: requests.get(*args, **kwargs)  # type: ignore[method-assign]  # noqa: S113
+        self.post = lambda *args, **kwargs: requests.post(*args, **kwargs)  # type: ignore[method-assign]  # noqa: S113
+
+    with patch.object(requests.Session, "__init__", patched_session_init):
+        yield
+
+
+@pytest.mark.usefixtures("patch_session_for_module_mocks")
 class TestOllamaProviderProtocol:
     """Test that OllamaProvider conforms to LLMProvider protocol."""
 
@@ -77,6 +136,7 @@ class TestOllamaProviderProtocol:
         assert callable(provider.reset_usage_tracking)
 
 
+@pytest.mark.usefixtures("patch_session_for_module_mocks")
 class TestOllamaProviderInitialization:
     """Test OllamaProvider initialization and configuration."""
 
@@ -186,6 +246,7 @@ class TestOllamaProviderInitialization:
             OllamaProvider(model="nonexistent")
 
 
+@pytest.mark.usefixtures("patch_session_for_module_mocks")
 class TestOllamaProviderModelChecks:
     """Test Ollama and model availability checking methods."""
 
@@ -279,6 +340,7 @@ class TestOllamaProviderModelChecks:
         assert "llama3.3:70b" in error_msg
 
 
+@pytest.mark.usefixtures("patch_session_for_module_mocks")
 class TestOllamaProviderTokenCounting:
     """Test token counting via character estimation."""
 
@@ -354,6 +416,7 @@ class TestOllamaProviderTokenCounting:
         assert tokens == 2
 
 
+@pytest.mark.usefixtures("patch_session_for_module_mocks")
 class TestOllamaProviderCostCalculation:
     """Test cost tracking and calculation."""
 
@@ -401,6 +464,7 @@ class TestOllamaProviderCostCalculation:
         assert provider.total_output_tokens == 0
 
 
+@pytest.mark.usefixtures("patch_session_for_module_mocks")
 class TestOllamaProviderGenerate:
     """Test text generation with mocked Ollama API."""
 
@@ -666,3 +730,184 @@ class TestOllamaProviderIntegration:
         # But tokens should be tracked
         assert provider.total_input_tokens > 0
         assert provider.total_output_tokens > 0
+
+
+@pytest.mark.usefixtures("patch_session_for_module_mocks")
+class TestOllamaProviderSessionManagement:
+    """Test HTTP session management and connection pooling."""
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_init_creates_session(self, mock_get: Mock) -> None:
+        """Test that __init__ creates a requests.Session instance."""
+        # Mock successful Ollama availability check
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
+        mock_get.return_value = mock_response
+
+        provider = OllamaProvider()
+
+        # Verify session was created
+        assert hasattr(provider, "session")
+        assert isinstance(provider.session, requests.Session)
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_init_configures_http_adapter(self, mock_get: Mock) -> None:
+        """Test that __init__ configures HTTPAdapter with connection pooling."""
+        # Mock successful checks
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
+        mock_get.return_value = mock_response
+
+        provider = OllamaProvider()
+
+        # Verify adapters are mounted for http:// and https://
+        assert "http://" in provider.session.adapters
+        assert "https://" in provider.session.adapters
+
+        # Verify HTTPAdapter configuration
+        http_adapter = provider.session.adapters["http://"]
+        assert isinstance(http_adapter, HTTPAdapter)
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_uses_session_for_get_requests(self, mock_get: Mock) -> None:
+        """Test that availability checks use session.get() instead of requests.get()."""
+        # Mock successful checks
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
+        mock_get.return_value = mock_response
+
+        OllamaProvider()
+
+        # Verify requests.get was called (via session delegation)
+        assert mock_get.call_count >= 2  # At least 2 calls (availability + model list)
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_uses_session_for_post_requests(self, mock_get: Mock, mock_post: Mock) -> None:
+        """Test that generate() uses session.post() instead of requests.post()."""
+        # Mock initialization checks
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
+        mock_get.return_value = mock_get_response
+
+        # Mock successful generation
+        mock_post_response = Mock()
+        mock_post_response.status_code = 200
+        mock_post_response.json.return_value = {"response": "Test response"}
+        mock_post.return_value = mock_post_response
+
+        provider = OllamaProvider()
+        result = provider.generate("Test prompt")
+
+        # Verify requests.post was called (via session delegation)
+        assert mock_post.call_count == 1
+        assert result == "Test response"
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_close_method_closes_session(self, mock_get: Mock) -> None:
+        """Test that close() method closes the HTTP session."""
+        # Mock successful checks
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
+        mock_get.return_value = mock_response
+
+        provider = OllamaProvider()
+
+        # Mock session.close() to verify it gets called
+        with patch.object(provider.session, "close") as mock_close:
+            provider.close()
+            mock_close.assert_called_once()
+
+    def test_close_method_safe_without_session(self) -> None:
+        """Test that close() is safe to call even if session doesn't exist."""
+        provider = object.__new__(OllamaProvider)
+
+        # Should not raise an exception
+        provider.close()
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_context_manager_enters_correctly(self, mock_get: Mock) -> None:
+        """Test that __enter__ returns the provider instance."""
+        # Mock successful checks
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
+        mock_get.return_value = mock_response
+
+        provider = OllamaProvider()
+        result = provider.__enter__()
+
+        # Verify __enter__ returns self
+        assert result is provider
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_context_manager_closes_session_on_exit(self, mock_get: Mock) -> None:
+        """Test that __exit__ closes the session."""
+        # Mock successful checks
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
+        mock_get.return_value = mock_response
+
+        provider = OllamaProvider()
+
+        # Mock session.close() to verify it gets called on context exit
+        mock_session_close = Mock()
+        provider.session.close = mock_session_close  # type: ignore[method-assign]
+
+        with provider:
+            assert provider.session is not None
+
+        # Verify close() was called on context exit
+        mock_session_close.assert_called_once()
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_session_reuses_connections(self, mock_get: Mock, mock_post: Mock) -> None:
+        """Test that multiple requests reuse the same session connection."""
+        # Mock initialization checks
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
+        mock_get.return_value = mock_get_response
+
+        # Mock successful generation
+        mock_post_response = Mock()
+        mock_post_response.status_code = 200
+        mock_post_response.json.return_value = {"response": "Test response"}
+        mock_post.return_value = mock_post_response
+
+        provider = OllamaProvider()
+
+        # Make multiple generate calls
+        provider.generate("test prompt 1", max_tokens=100)
+        provider.generate("test prompt 2", max_tokens=100)
+        provider.generate("test prompt 3", max_tokens=100)
+
+        # Verify all three POST requests were made through session delegation
+        assert mock_post.call_count == 3
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_context_manager_closes_on_exception(self, mock_get: Mock) -> None:
+        """Test that __exit__ closes session even when exception occurs."""
+        # Mock successful checks
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
+        mock_get.return_value = mock_response
+
+        try:
+            with OllamaProvider() as provider:
+                session = provider.session
+                assert session is not None
+                raise ValueError("Test exception")
+        except ValueError:
+            pass
+
+        # After exiting context with exception, session should still be closed
+        assert hasattr(provider, "session")

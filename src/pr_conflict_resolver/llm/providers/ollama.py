@@ -2,21 +2,24 @@
 
 This module provides the Ollama HTTP API integration for local LLM inference.
 It includes:
+- HTTP connection pooling for improved performance
 - Ollama availability checking on initialization
 - Model availability validation with helpful error messages
 - Retry logic with exponential backoff for transient failures
 - Token counting via character-based estimation
 - Cost tracking (always $0.00 for local models)
 - Comprehensive error handling
+- Session cleanup via close() or context manager
 
-The provider uses the requests library for HTTP communication and implements
-the LLMProvider protocol for type safety and polymorphic usage.
+The provider uses requests.Session for connection pooling to reduce latency
+and implements the LLMProvider protocol for type safety and polymorphic usage.
 """
 
 import logging
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import requests
+from requests.adapters import HTTPAdapter
 from tenacity import (
     RetryError,
     Retrying,
@@ -38,25 +41,36 @@ class OllamaProvider:
 
     This provider implements the LLMProvider protocol and provides access to
     local Ollama models via HTTP API. It includes:
+    - HTTP connection pooling for efficient request reuse
     - Automatic availability checking for Ollama and requested model
     - Retry logic for transient failures
     - Token counting via character estimation
     - Cost tracking (always $0.00 for local models)
     - Comprehensive error handling with helpful install/startup commands
+    - Session cleanup via close() or context manager
 
     The provider requires Ollama to be running locally and supports all
-    Ollama-compatible models.
+    Ollama-compatible models. Connection pooling significantly reduces latency
+    by reusing HTTP connections across multiple requests.
 
     Examples:
-        >>> provider = OllamaProvider(model="llama3.3:70b")
-        >>> response = provider.generate("Extract changes from this comment", max_tokens=2000)
-        >>> tokens = provider.count_tokens("Some text to tokenize")
-        >>> cost = provider.get_total_cost()  # Always returns 0.0
+        Basic usage:
+            >>> provider = OllamaProvider(model="llama3.3:70b")
+            >>> response = provider.generate("Extract changes from this comment", max_tokens=2000)
+            >>> tokens = provider.count_tokens("Some text to tokenize")
+            >>> cost = provider.get_total_cost()  # Always returns 0.0
+            >>> provider.close()  # Cleanup connection pool
+
+        Context manager (recommended):
+            >>> with OllamaProvider(model="llama3.3:70b") as provider:
+            ...     response = provider.generate("test")
+            # Session automatically closed
 
     Attributes:
         base_url: Ollama API base URL (default: http://localhost:11434)
         model: Model identifier (e.g., "llama3.3:70b", "mistral")
         timeout: Request timeout in seconds (default: 120s for slow local inference)
+        session: HTTP session with connection pooling (pool_connections=10, pool_maxsize=10)
         total_input_tokens: Cumulative input tokens across all requests
         total_output_tokens: Cumulative output tokens across all requests
 
@@ -90,6 +104,18 @@ class OllamaProvider:
         self.model = model
         self.timeout = timeout
 
+        # Initialize HTTP session for connection pooling
+        self.session = requests.Session()
+
+        # Configure connection pool for efficient HTTP reuse
+        adapter = HTTPAdapter(
+            pool_connections=10,  # Number of connection pools to cache
+            pool_maxsize=10,  # Max connections to keep in pool
+            max_retries=0,  # We handle retries with tenacity
+        )
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
+
         # Token usage tracking (estimated via character count)
         self.total_input_tokens = 0
         self.total_output_tokens = 0
@@ -111,7 +137,7 @@ class OllamaProvider:
             LLMAPIError: If Ollama is not reachable with instructions to start it
         """
         try:
-            response = requests.get(f"{self.base_url}/api/tags", timeout=5)
+            response = self.session.get(f"{self.base_url}/api/tags", timeout=5)
             response.raise_for_status()
         except requests.exceptions.ConnectionError as e:
             raise LLMAPIError(
@@ -165,7 +191,7 @@ class OllamaProvider:
             LLMAPIError: If failed to fetch model list
         """
         try:
-            response = requests.get(f"{self.base_url}/api/tags", timeout=10)
+            response = self.session.get(f"{self.base_url}/api/tags", timeout=10)
             response.raise_for_status()
 
             data = response.json()
@@ -266,7 +292,7 @@ class OllamaProvider:
                 },
             }
 
-            response = requests.post(
+            response = self.session.post(
                 f"{self.base_url}/api/generate",
                 json=payload,
                 timeout=self.timeout,
@@ -369,3 +395,48 @@ class OllamaProvider:
         self.total_input_tokens = 0
         self.total_output_tokens = 0
         logger.debug("Reset token usage tracking")
+
+    def close(self) -> None:
+        """Close HTTP session and release connection pool resources.
+
+        Should be called when provider is no longer needed to free up system
+        resources. Can also be used automatically via context manager.
+
+        Example:
+            >>> provider = OllamaProvider()
+            >>> try:
+            ...     result = provider.generate("test")
+            ... finally:
+            ...     provider.close()
+        """
+        if hasattr(self, "session"):
+            self.session.close()
+            logger.debug("Closed Ollama HTTP session and connection pool")
+
+    def __enter__(self) -> "OllamaProvider":
+        """Context manager entry.
+
+        Returns:
+            Self for context manager usage
+
+        Example:
+            >>> with OllamaProvider() as provider:
+            ...     result = provider.generate("test")
+            # Session automatically closed on exit
+        """
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,  # noqa: ANN401
+    ) -> None:
+        """Context manager exit - cleanup session.
+
+        Args:
+            exc_type: Exception type if an exception occurred
+            exc_val: Exception value if an exception occurred
+            exc_tb: Exception traceback if an exception occurred
+        """
+        self.close()
