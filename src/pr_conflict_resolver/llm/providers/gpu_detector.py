@@ -251,7 +251,7 @@ class GPUDetector:
                     vram_available_mb=None,  # Would need separate query
                     compute_capability=None,  # Would need separate query
                 )
-        except (FileNotFoundError, subprocess.CalledProcessError, ValueError):
+        except (FileNotFoundError, subprocess.CalledProcessError, ValueError, IndexError):
             pass  # nvidia-smi not available or failed
 
         # Try AMD ROCm
