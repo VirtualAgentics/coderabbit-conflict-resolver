@@ -27,6 +27,7 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
+from urllib3.exceptions import PoolError
 
 from pr_conflict_resolver.llm.exceptions import (
     LLMAPIError,
@@ -121,11 +122,16 @@ class OllamaProvider:
         self.total_input_tokens = 0
         self.total_output_tokens = 0
 
-        # Verify Ollama is running
-        self._check_ollama_available()
+        try:
+            # Verify Ollama is running
+            self._check_ollama_available()
 
-        # Verify model is available
-        self._check_model_available()
+            # Verify model is available
+            self._check_model_available()
+        except Exception:
+            # Cleanup session if initialization fails
+            self.session.close()
+            raise
 
         logger.info(
             f"Initialized Ollama provider: model={model}, timeout={timeout}s, base_url={base_url}"
@@ -137,9 +143,26 @@ class OllamaProvider:
         Raises:
             LLMAPIError: If Ollama is not reachable with instructions to start it
         """
+        # Check if provider has been closed
+        if self.session is None:
+            raise LLMAPIError(
+                "Provider has been closed",
+                details={"hint": "Create a new provider or use context manager"},
+            )
+
         try:
             response = self.session.get(f"{self.base_url}/api/tags", timeout=5)
             response.raise_for_status()
+        except PoolError as e:
+            # Connection pool exhausted - all connections busy
+            logger.error(
+                f"Ollama connection pool exhausted (all 10 connections busy): {e}",
+                extra={"pool_config": "pool_maxsize=10, pool_block=True"},
+            )
+            raise LLMAPIError(
+                "Connection pool exhausted - too many concurrent requests",
+                details={"pool_maxsize": 10, "error": str(e)},
+            ) from e
         except requests.exceptions.ConnectionError as e:
             raise LLMAPIError(
                 "Ollama is not running or not reachable. Start Ollama with: ollama serve",
@@ -191,6 +214,13 @@ class OllamaProvider:
         Raises:
             LLMAPIError: If failed to fetch model list
         """
+        # Check if provider has been closed
+        if self.session is None:
+            raise LLMAPIError(
+                "Provider has been closed",
+                details={"hint": "Create a new provider or use context manager"},
+            )
+
         try:
             response = self.session.get(f"{self.base_url}/api/tags", timeout=10)
             response.raise_for_status()
@@ -201,6 +231,16 @@ class OllamaProvider:
             # Extract model names (format: "name:tag" or just "name")
             return [model.get("name", "") for model in models if model.get("name")]
 
+        except PoolError as e:
+            # Connection pool exhausted - all connections busy
+            logger.error(
+                f"Ollama connection pool exhausted (all 10 connections busy): {e}",
+                extra={"pool_config": "pool_maxsize=10, pool_block=True"},
+            )
+            raise LLMAPIError(
+                "Connection pool exhausted - too many concurrent requests",
+                details={"pool_maxsize": 10, "error": str(e)},
+            ) from e
         except requests.exceptions.RequestException as e:
             raise LLMAPIError(
                 f"Failed to list Ollama models: {e}",
@@ -279,6 +319,13 @@ class OllamaProvider:
         if max_tokens <= 0:
             raise ValueError(f"max_tokens must be positive, got {max_tokens}")
 
+        # Check if provider has been closed
+        if self.session is None:
+            raise LLMAPIError(
+                "Provider has been closed",
+                details={"hint": "Create a new provider or use context manager"},
+            )
+
         try:
             logger.debug(f"Sending request to Ollama: model={self.model}, max_tokens={max_tokens}")
 
@@ -327,6 +374,17 @@ class OllamaProvider:
             )
 
             return generated_text
+
+        except PoolError as e:
+            # Connection pool exhausted - all connections busy
+            logger.error(
+                f"Ollama connection pool exhausted (all 10 connections busy): {e}",
+                extra={"pool_config": "pool_maxsize=10, pool_block=True"},
+            )
+            raise LLMAPIError(
+                "Connection pool exhausted - too many concurrent requests",
+                details={"pool_maxsize": 10, "error": str(e)},
+            ) from e
 
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
             # Let these bubble up for retry
@@ -413,8 +471,9 @@ class OllamaProvider:
             ... finally:
             ...     provider.close()
         """
-        if hasattr(self, "session"):
+        if hasattr(self, "session") and self.session is not None:
             self.session.close()
+            self.session = None  # type: ignore[assignment]
             logger.debug("Closed Ollama HTTP session and connection pool")
 
     def __enter__(self) -> "OllamaProvider":
