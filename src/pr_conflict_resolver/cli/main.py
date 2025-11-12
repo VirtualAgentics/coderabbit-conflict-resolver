@@ -2,32 +2,21 @@
 
 import hashlib
 import logging
-import os
 import re
-from pathlib import Path
 
 import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from pr_conflict_resolver.cli.config_loader import load_runtime_config
+from pr_conflict_resolver.cli.llm_error_handler import handle_llm_errors
 from pr_conflict_resolver.config.presets import PresetConfig
 from pr_conflict_resolver.config.runtime_config import (
-    PRESET_NAMES,
     ApplicationMode,
-    RuntimeConfig,
 )
 from pr_conflict_resolver.core.resolver import ConflictResolver
-from pr_conflict_resolver.llm.error_handlers import LLMErrorHandler
-from pr_conflict_resolver.llm.exceptions import (
-    LLMAPIError,
-    LLMAuthenticationError,
-    LLMConfigurationError,
-    LLMError,
-    LLMParsingError,
-    LLMRateLimitError,
-    LLMTimeoutError,
-)
+from pr_conflict_resolver.llm.exceptions import LLMError
 from pr_conflict_resolver.llm.metrics import LLMMetrics
 from pr_conflict_resolver.llm.presets import LLMPresetConfig
 
@@ -390,45 +379,6 @@ def analyze(
     """
     # Load runtime configuration with proper precedence
     try:
-        # Step 1: Load base configuration (config preset, config file, LLM preset, or defaults)
-        preset_name = None  # Track which config preset was loaded (if any)
-        llm_preset_name = None  # Track which LLM preset was loaded (if any)
-
-        if config:
-            # Check if config is a preset name or file path
-            if config.lower() in PRESET_NAMES:
-                # Load configuration preset
-                preset_name = config.lower()
-                # Replace hyphens with underscores for method name
-                method_suffix = preset_name.replace("-", "_")
-                method_name = f"from_{method_suffix}"
-
-                # Check if the preset method exists before calling
-                if not hasattr(RuntimeConfig, method_name):
-                    raise ValueError(
-                        f"Preset method '{method_name}' not found. "
-                        f"Valid presets: {', '.join(PRESET_NAMES)}"
-                    )
-
-                preset_method = getattr(RuntimeConfig, method_name)
-                runtime_config = preset_method()
-                console.print(f"[dim]Loaded configuration preset: {config}[/dim]")
-            else:
-                # Load from configuration file
-                config_path = Path(config)
-                runtime_config = RuntimeConfig.from_file(config_path)
-                console.print(f"[dim]Loaded configuration from: {config}[/dim]")
-        elif llm_preset:
-            # Load from LLM preset (lower priority than config file/preset)
-            llm_preset_name = llm_preset.lower()
-            runtime_config = RuntimeConfig.from_preset(llm_preset_name, api_key=llm_api_key)
-            console.print(f"[dim]Loaded LLM preset: {llm_preset_name}[/dim]")
-        else:
-            # Use defaults when no config file/preset/llm-preset specified
-            runtime_config = RuntimeConfig.from_defaults()
-
-        # Step 2: Apply environment variable overrides
-        env_config = RuntimeConfig.from_env()
         env_var_map = {
             "log_level": "CR_LOG_LEVEL",
             "log_file": "CR_LOG_FILE",
@@ -441,19 +391,7 @@ def analyze(
             "llm_max_tokens": "CR_LLM_MAX_TOKENS",
             "llm_cost_budget": "CR_LLM_COST_BUDGET",
         }
-        env_overrides = {
-            field_name: getattr(env_config, field_name)
-            for field_name, env_var in env_var_map.items()
-            if env_var in os.environ
-        }
 
-        if env_overrides:
-            runtime_config = runtime_config.merge_with_cli(**env_overrides)
-            console.print(
-                f"[dim]Applied {len(env_overrides)} environment variable override(s)[/dim]"
-            )
-
-        # Step 3: Apply CLI overrides
         cli_overrides = {
             "log_level": log_level.upper() if log_level else None,
             "log_file": str(log_file) if log_file else None,
@@ -462,9 +400,16 @@ def analyze(
             "llm_model": llm_model,
             "llm_api_key": llm_api_key,  # API key from CLI (highest priority)
         }
-        runtime_config = runtime_config.merge_with_cli(**cli_overrides)
 
-        # Step 4: Configure logging
+        runtime_config, preset_name = load_runtime_config(
+            config=config,
+            llm_preset=llm_preset,
+            llm_api_key=llm_api_key,
+            cli_overrides=cli_overrides,
+            env_var_map=env_var_map,
+        )
+
+        # Configure logging
         log_handler = (
             logging.FileHandler(runtime_config.log_file)
             if runtime_config.log_file
@@ -534,104 +479,52 @@ def analyze(
     # Initialize resolver with LLM parser
     resolver = ConflictResolver(config_preset, llm_parser=llm_parser)
 
-    try:
-        # Analyze conflicts
-        conflicts = resolver.analyze_conflicts(owner, repo, pr)
+    with handle_llm_errors(runtime_config):
+        try:
+            # Analyze conflicts
+            conflicts = resolver.analyze_conflicts(owner, repo, pr)
 
-        if not conflicts:
-            console.print("✅ No conflicts detected")
-            return
+            if not conflicts:
+                console.print("✅ No conflicts detected")
+                return
 
-        # Display results
-        table = Table(title="Conflict Analysis")
-        table.add_column("File", style="cyan")
-        table.add_column("Conflicts", style="red")
-        table.add_column("Type", style="yellow")
-        table.add_column("Severity", style="magenta")
-        table.add_column("Overlap %", style="blue")
+            # Display results
+            table = Table(title="Conflict Analysis")
+            table.add_column("File", style="cyan")
+            table.add_column("Conflicts", style="red")
+            table.add_column("Type", style="yellow")
+            table.add_column("Severity", style="magenta")
+            table.add_column("Overlap %", style="blue")
 
-        for conflict in conflicts:
-            table.add_row(
-                conflict.file_path,
-                str(len(conflict.changes)),
-                conflict.conflict_type,
-                conflict.severity,
-                f"{conflict.overlap_percentage:.1f}%",
-            )
+            for conflict in conflicts:
+                table.add_row(
+                    conflict.file_path,
+                    str(len(conflict.changes)),
+                    conflict.conflict_type,
+                    conflict.severity,
+                    f"{conflict.overlap_percentage:.1f}%",
+                )
 
-        console.print(table)
-        console.print(f"\n📊 Found {len(conflicts)} conflicts")
+            console.print(table)
+            console.print(f"\n📊 Found {len(conflicts)} conflicts")
 
-        # Display LLM metrics if LLM was used
-        if runtime_config.llm_enabled and llm_parser:
-            # Extract all changes to compute metrics
-            comments = resolver._fetch_comments_with_error_context(owner, repo, pr)
-            changes = resolver.extract_changes_from_comments(comments)
-            llm_metrics = resolver._aggregate_llm_metrics(changes)
+            # Display LLM metrics if LLM was used
+            if runtime_config.llm_enabled and llm_parser:
+                # Extract all changes to compute metrics
+                comments = resolver._fetch_comments_with_error_context(owner, repo, pr)
+                changes = resolver.extract_changes_from_comments(comments)
+                llm_metrics = resolver._aggregate_llm_metrics(changes)
 
-            if llm_metrics:
-                _display_llm_metrics(llm_metrics)
+                if llm_metrics:
+                    _display_llm_metrics(llm_metrics)
 
-    except LLMAuthenticationError as e:
-        # Authentication errors - provide setup guidance
-        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
-        error_msg = LLMErrorHandler.format_auth_error(provider)
-        console.print(f"\n[red]{error_msg}[/red]")
-        logger.error("LLM authentication failed: %s", e)
-        raise click.Abort() from e
-
-    except LLMRateLimitError as e:
-        # Rate limit errors - suggest waiting or alternatives
-        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
-        error_msg = LLMErrorHandler.format_provider_error(provider, e)
-        console.print(f"\n[yellow]{error_msg}[/yellow]")
-        logger.warning("LLM rate limit exceeded: %s", e)
-        raise click.Abort() from e
-
-    except LLMTimeoutError as e:
-        # Timeout errors - suggest retry or faster model
-        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
-        error_msg = LLMErrorHandler.format_provider_error(provider, e)
-        console.print(f"\n[yellow]{error_msg}[/yellow]")
-        logger.warning("LLM request timed out: %s", e)
-        raise click.Abort() from e
-
-    except LLMConfigurationError as e:
-        # Configuration errors - provide actionable guidance
-        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
-        error_msg = LLMErrorHandler.format_provider_error(provider, e)
-        console.print(f"\n[red]{error_msg}[/red]")
-        logger.error("LLM configuration error: %s", e)
-        raise click.Abort() from e
-
-    except LLMParsingError as e:
-        # Parsing errors - may fall back to regex
-        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
-        error_msg = LLMErrorHandler.format_provider_error(provider, e)
-        console.print(f"\n[yellow]{error_msg}[/yellow]")
-        logger.warning("LLM parsing error: %s", e)
-        # Don't abort - may have fallen back to regex parsing
-
-    except LLMAPIError as e:
-        # Generic API errors
-        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
-        error_msg = LLMErrorHandler.format_provider_error(provider, e)
-        console.print(f"\n[red]{error_msg}[/red]")
-        logger.error("LLM API error: %s", e)
-        raise click.Abort() from e
-
-    except LLMError as e:
-        # Catch-all for other LLM errors
-        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
-        error_msg = LLMErrorHandler.format_provider_error(provider, e)
-        console.print(f"\n[red]{error_msg}[/red]")
-        logger.error("LLM error: %s", e)
-        raise click.Abort() from e
-
-    except Exception as e:
-        console.print(f"❌ Error analyzing conflicts: {e}")
-        logger.exception("Failed to analyze conflicts")
-        raise click.Abort() from e
+        except LLMError:
+            # LLM errors are handled by the context manager
+            raise
+        except Exception as e:
+            console.print(f"❌ Error analyzing conflicts: {e}")
+            logger.exception("Failed to analyze conflicts")
+            raise click.Abort() from e
 
 
 @cli.command()
@@ -810,48 +703,17 @@ def apply(
     """
     # Load runtime configuration with proper precedence
     try:
-        # Step 1: Load base configuration (config preset, config file, LLM preset, or defaults)
-        preset_name = None  # Track which config preset was loaded (if any)
-        llm_preset_name = None  # Track which LLM preset was loaded (if any)
+        # Handle deprecated --dry-run flag (maps to mode)
+        if dry_run and mode:
+            console.print(
+                "[yellow]Warning: Both --dry-run and --mode specified. Using --mode.[/yellow]"
+            )
+        elif dry_run:
+            mode = "dry-run"
+            console.print(
+                "[yellow]Warning: --dry-run is deprecated. Use --mode=dry-run instead.[/yellow]"
+            )
 
-        if config:
-            # Check if config is a preset name or file path
-            if config.lower() in PRESET_NAMES:
-                # Load configuration preset
-                preset_name = config.lower()
-                # Replace hyphens with underscores for method name
-                method_suffix = preset_name.replace("-", "_")
-                method_name = f"from_{method_suffix}"
-
-                # Check if the preset method exists before calling
-                if not hasattr(RuntimeConfig, method_name):
-                    raise ValueError(
-                        f"Preset method '{method_name}' not found. "
-                        f"Valid presets: {', '.join(PRESET_NAMES)}"
-                    )
-
-                preset_method = getattr(RuntimeConfig, method_name)
-                runtime_config = preset_method()
-                console.print(f"[dim]Loaded configuration preset: {config}[/dim]")
-            else:
-                # Load from configuration file
-                config_path = Path(config)
-                runtime_config = RuntimeConfig.from_file(config_path)
-                console.print(f"[dim]Loaded configuration from: {config}[/dim]")
-        elif llm_preset:
-            # Load from LLM preset (lower priority than config file/preset)
-            llm_preset_name = llm_preset.lower()
-            runtime_config = RuntimeConfig.from_preset(llm_preset_name, api_key=llm_api_key)
-            console.print(f"[dim]Loaded LLM preset: {llm_preset_name}[/dim]")
-        else:
-            # Use defaults when no config file/preset/llm-preset specified
-            runtime_config = RuntimeConfig.from_defaults()
-
-        # Step 2: Apply environment variable overrides
-        # Use validated parsing from RuntimeConfig.from_env()
-        # Check for presence of each CR_* variable (not value equality with defaults)
-        # to respect explicit user overrides even when they match default values
-        env_config = RuntimeConfig.from_env()
         env_var_map = {
             "mode": "CR_MODE",
             "enable_rollback": "CR_ENABLE_ROLLBACK",
@@ -869,29 +731,6 @@ def apply(
             "llm_max_tokens": "CR_LLM_MAX_TOKENS",
             "llm_cost_budget": "CR_LLM_COST_BUDGET",
         }
-        env_overrides = {
-            field_name: getattr(env_config, field_name)
-            for field_name, env_var in env_var_map.items()
-            if env_var in os.environ
-        }
-
-        if env_overrides:
-            runtime_config = runtime_config.merge_with_cli(**env_overrides)
-            console.print(
-                f"[dim]Applied {len(env_overrides)} environment variable override(s)[/dim]"
-            )
-
-        # Step 3: Apply CLI overrides
-        # Handle deprecated --dry-run flag (maps to mode)
-        if dry_run and mode:
-            console.print(
-                "[yellow]Warning: Both --dry-run and --mode specified. Using --mode.[/yellow]"
-            )
-        elif dry_run:
-            mode = "dry-run"
-            console.print(
-                "[yellow]Warning: --dry-run is deprecated. Use --mode=dry-run instead.[/yellow]"
-            )
 
         cli_overrides = {
             "mode": mode,
@@ -906,9 +745,16 @@ def apply(
             "llm_model": llm_model,
             "llm_api_key": llm_api_key,  # API key from CLI (highest priority)
         }
-        runtime_config = runtime_config.merge_with_cli(**cli_overrides)
 
-        # Step 4: Configure logging
+        runtime_config, preset_name = load_runtime_config(
+            config=config,
+            llm_preset=llm_preset,
+            llm_api_key=llm_api_key,
+            cli_overrides=cli_overrides,
+            env_var_map=env_var_map,
+        )
+
+        # Configure logging
         log_handler = (
             logging.FileHandler(runtime_config.log_file)
             if runtime_config.log_file
@@ -962,103 +808,51 @@ def apply(
     # Initialize resolver
     resolver = ConflictResolver(config_preset)
 
-    try:
-        if runtime_config.mode == ApplicationMode.DRY_RUN:
-            # Dry-run mode: Just analyze conflicts
-            console.print(
-                "[yellow]DRY RUN MODE:[/yellow] Analyzing conflicts without applying changes"
-            )
-            conflicts = resolver.analyze_conflicts(owner, repo, pr)
-            console.print(f"📊 Would process {len(conflicts)} conflicts")
-        else:
-            # Apply mode: Resolve conflicts with configured settings
-            console.print("Resolving conflicts...")
-            # Convert ApplicationMode enum to string for resolver
-            mode_str = runtime_config.mode.value  # Use the enum's value directly
-            result = resolver.resolve_pr_conflicts(
-                owner,
-                repo,
-                pr,
-                mode=mode_str,
-                validate=runtime_config.validate_before_apply,
-                parallel=runtime_config.parallel_processing,
-                max_workers=runtime_config.max_workers,
-                enable_rollback=runtime_config.enable_rollback,
-            )
+    with handle_llm_errors(runtime_config):
+        try:
+            if runtime_config.mode == ApplicationMode.DRY_RUN:
+                # Dry-run mode: Just analyze conflicts
+                console.print(
+                    "[yellow]DRY RUN MODE:[/yellow] Analyzing conflicts without applying changes"
+                )
+                conflicts = resolver.analyze_conflicts(owner, repo, pr)
+                console.print(f"📊 Would process {len(conflicts)} conflicts")
+            else:
+                # Apply mode: Resolve conflicts with configured settings
+                console.print("Resolving conflicts...")
+                # Convert ApplicationMode enum to string for resolver
+                mode_str = runtime_config.mode.value  # Use the enum's value directly
+                result = resolver.resolve_pr_conflicts(
+                    owner,
+                    repo,
+                    pr,
+                    mode=mode_str,
+                    validate=runtime_config.validate_before_apply,
+                    parallel=runtime_config.parallel_processing,
+                    max_workers=runtime_config.max_workers,
+                    enable_rollback=runtime_config.enable_rollback,
+                )
 
-            # Display results
-            console.print("\n[bold green]✅ Results:[/bold green]")
-            console.print(f"  Applied: {result.applied_count} suggestions")
-            console.print(f"  Skipped: {result.conflict_count} conflicts")
-            console.print(f"  Success rate: {result.success_rate:.1f}%")
+                # Display results
+                console.print("\n[bold green]✅ Results:[/bold green]")
+                console.print(f"  Applied: {result.applied_count} suggestions")
+                console.print(f"  Skipped: {result.conflict_count} conflicts")
+                console.print(f"  Success rate: {result.success_rate:.1f}%")
 
-            if result.conflict_count > 0:
-                console.print("\n[yellow]💡 Some conflicts require manual review[/yellow]")
+                if result.conflict_count > 0:
+                    console.print("\n[yellow]💡 Some conflicts require manual review[/yellow]")
 
-            # Display LLM metrics if available
-            if result.llm_metrics:
-                _display_llm_metrics(result.llm_metrics)
+                # Display LLM metrics if available
+                if result.llm_metrics:
+                    _display_llm_metrics(result.llm_metrics)
 
-    except LLMAuthenticationError as e:
-        # Authentication errors - provide setup guidance
-        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
-        error_msg = LLMErrorHandler.format_auth_error(provider)
-        console.print(f"\n[red]{error_msg}[/red]")
-        logger.error("LLM authentication failed: %s", e)
-        raise click.Abort() from e
-
-    except LLMRateLimitError as e:
-        # Rate limit errors - suggest waiting or alternatives
-        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
-        error_msg = LLMErrorHandler.format_provider_error(provider, e)
-        console.print(f"\n[yellow]{error_msg}[/yellow]")
-        logger.warning("LLM rate limit exceeded: %s", e)
-        raise click.Abort() from e
-
-    except LLMTimeoutError as e:
-        # Timeout errors - suggest retry or faster model
-        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
-        error_msg = LLMErrorHandler.format_provider_error(provider, e)
-        console.print(f"\n[yellow]{error_msg}[/yellow]")
-        logger.warning("LLM request timed out: %s", e)
-        raise click.Abort() from e
-
-    except LLMConfigurationError as e:
-        # Configuration errors - provide actionable guidance
-        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
-        error_msg = LLMErrorHandler.format_provider_error(provider, e)
-        console.print(f"\n[red]{error_msg}[/red]")
-        logger.error("LLM configuration error: %s", e)
-        raise click.Abort() from e
-
-    except LLMParsingError as e:
-        # Parsing errors - may fall back to regex
-        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
-        error_msg = LLMErrorHandler.format_provider_error(provider, e)
-        console.print(f"\n[yellow]{error_msg}[/yellow]")
-        logger.warning("LLM parsing error: %s", e)
-        # Don't abort - may have fallen back to regex parsing
-
-    except LLMAPIError as e:
-        # Generic API errors
-        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
-        error_msg = LLMErrorHandler.format_provider_error(provider, e)
-        console.print(f"\n[red]{error_msg}[/red]")
-        logger.error("LLM API error: %s", e)
-        raise click.Abort() from e
-
-    except LLMError as e:
-        # Catch-all for other LLM errors
-        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
-        error_msg = LLMErrorHandler.format_provider_error(provider, e)
-        console.print(f"\n[red]{error_msg}[/red]")
-        logger.error("LLM error: %s", e)
-        raise click.Abort() from e
-
-    except Exception as e:
-        console.print(f"\n[red]❌ Error applying suggestions: {e}[/red]")
-        logger.exception("Failed to apply conflict resolution")
-        raise click.Abort() from e
+        except LLMError:
+            # LLM errors are handled by the context manager
+            raise
+        except Exception as e:
+            console.print(f"\n[red]❌ Error applying suggestions: {e}[/red]")
+            logger.exception("Failed to apply conflict resolution")
+            raise click.Abort() from e
 
 
 @cli.command()
