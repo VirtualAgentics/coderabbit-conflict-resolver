@@ -2,6 +2,8 @@
 
 This guide covers advanced LLM configuration features including configuration files, presets, and environment variable interpolation.
 
+> **Note**: LLM features are supported by both `apply` and `analyze` commands with identical configuration options.
+
 > **See Also**: [Main Configuration Guide](configuration.md#llm-provider-configuration) for basic LLM setup and provider-specific documentation.
 
 ## Table of Contents
@@ -42,7 +44,11 @@ llm:
 Use with:
 
 ```bash
+# With apply command
 pr-resolve apply 123 --config config.yaml
+
+# With analyze command
+pr-resolve analyze --pr 123 --owner myorg --repo myrepo --config config.yaml
 ```
 
 ### TOML Configuration
@@ -104,12 +110,15 @@ No API key required:
 ```bash
 # GitHub Codex (requires Copilot subscription)
 pr-resolve apply 123 --llm-preset codex-cli-free
+pr-resolve analyze --pr 123 --owner myorg --repo myrepo --llm-preset codex-cli-free
 
 # Local Ollama (requires ollama installation)
 pr-resolve apply 123 --llm-preset ollama-local
+pr-resolve analyze --pr 123 --owner myorg --repo myrepo --llm-preset ollama-local
 
 # Claude CLI (requires Claude subscription)
 pr-resolve apply 123 --llm-preset claude-cli-sonnet
+pr-resolve analyze --pr 123 --owner myorg --repo myrepo --llm-preset claude-cli-sonnet
 ```
 
 #### API-Based Presets (Paid)
@@ -129,29 +138,36 @@ pr-resolve apply 123 --llm-preset anthropic-api-balanced
 pr-resolve apply 123 --llm-preset openai-api-mini --llm-api-key sk-...
 ```
 
-### List Available Presets
+### Available Presets
 
-```bash
-pr-resolve config show-presets
-```
+The following LLM presets are available:
 
-Output:
+1. **codex-cli-free**: Free Codex CLI - Requires GitHub Copilot subscription
+   - Provider: codex-cli
+   - Model: codex
+   - Requires API key: No
 
-```
-Available LLM Presets:
+2. **ollama-local**: Local Ollama - Free, private, offline (recommended: qwen2.5-coder:7b)
+   - Provider: ollama
+   - Model: qwen2.5-coder:7b
+   - Requires API key: No
 
-codex-cli-free: Free Codex CLI - Requires GitHub Copilot subscription
-  Provider: codex-cli
-  Model: codex
-  Requires API key: No
+3. **claude-cli-sonnet**: Claude CLI with Sonnet 4.5 - Requires Claude subscription
+   - Provider: claude-cli
+   - Model: claude-sonnet-4-5
+   - Requires API key: No
 
-ollama-local: Local Ollama - Free, private, offline
-  Provider: ollama
-  Model: qwen2.5-coder:7b
-  Requires API key: No
+4. **openai-api-mini**: OpenAI GPT-4o-mini - Low-cost API (requires API key)
+   - Provider: openai
+   - Model: gpt-4o-mini
+   - Requires API key: Yes
+   - Cost budget: $5.00
 
-...
-```
+5. **anthropic-api-balanced**: Anthropic Claude Haiku 4 - Balanced cost/performance (requires API key)
+   - Provider: anthropic
+   - Model: claude-haiku-4
+   - Requires API key: Yes
+   - Cost budget: $5.00
 
 ## Environment Variable Interpolation
 
