@@ -10,6 +10,7 @@ import pytest
 from click.testing import CliRunner
 
 from pr_conflict_resolver.cli.main import _display_llm_metrics, cli
+from pr_conflict_resolver.config.exceptions import ConfigError
 from pr_conflict_resolver.llm.exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
@@ -590,7 +591,7 @@ class TestApplyCommandLLMPreset:
             mock_from_preset.assert_called_once_with("ollama-local", api_key=None)
 
             # Verify merge_with_cli was called with llm_model override
-            call_kwargs = mock_preset_config.merge_with_cli.call_args[1]
+            call_kwargs = mock_preset_config.merge_with_cli.call_args.kwargs
             assert call_kwargs.get("llm_model") == "llama3.3:70b"
 
             # Should load preset but allow override
@@ -699,3 +700,28 @@ class TestApplyCommandLLMPreset:
             # Should accept and normalize to lowercase
             assert "Loaded LLM preset: codex-cli-free" in result.output
             assert result.exit_code == 0
+
+    def test_apply_preset_loading_error(self, runner: CliRunner) -> None:
+        """Test that preset loading errors are handled gracefully."""
+        with patch(
+            "pr_conflict_resolver.cli.main.RuntimeConfig.from_preset",
+            side_effect=ConfigError("Invalid preset configuration"),
+        ):
+            result = runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "700",
+                    "--owner",
+                    "test",
+                    "--repo",
+                    "repo",
+                    "--llm-preset",
+                    "codex-cli-free",  # Valid preset name that will trigger error during loading
+                ],
+            )
+
+            # Should exit with error
+            assert result.exit_code != 0
+            assert "Invalid preset configuration" in result.output
