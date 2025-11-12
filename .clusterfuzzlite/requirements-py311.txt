@@ -49,8 +49,9 @@ tenacity==9.1.2 \
 # Transitive dependencies (required by above packages)
 annotated-types==0.7.0 \
     --hash=sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53
-certifi==2025.10.5 \
-    --hash=sha256:0f212c2744a9bb6de0c56639a6f68afe01ecd92d91f14ae897c4fe7bbeeef0de
+certifi==2025.11.12 \
+    --hash=sha256:97de8790030bbd5c2d96b7ec782fc2f7820ef8dba6db909ccf95449f2d062d4b \
+    --hash=sha256:d8ab5478f2ecd78af242878415affce761ca6bc54a22a27e026d7c25357c3316
 charset-normalizer==3.4.4 \
     --hash=sha256:840c25fb618a231545cbab0564a799f101b63b9901f2569faecd6b222ac72381
 distro==1.9.0 \
