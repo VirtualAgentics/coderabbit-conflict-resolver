@@ -805,8 +805,40 @@ def apply(
         # use balanced as default resolver strategy
         config_preset = PresetConfig.BALANCED
 
-    # Initialize resolver
-    resolver = ConflictResolver(config_preset)
+    # Initialize LLM parser if enabled
+    llm_parser = None
+    if runtime_config.llm_enabled:
+        try:
+            from pr_conflict_resolver.llm.factory import create_provider
+            from pr_conflict_resolver.llm.parser import UniversalLLMParser
+
+            # Create provider from RuntimeConfig
+            provider = create_provider(
+                provider=runtime_config.llm_provider,
+                model=runtime_config.llm_model,
+                api_key=runtime_config.llm_api_key,
+            )
+
+            # Create parser with provider
+            llm_parser = UniversalLLMParser(
+                provider=provider,
+                fallback_to_regex=runtime_config.llm_fallback_to_regex,
+                confidence_threshold=0.5,  # Default confidence threshold
+                max_tokens=runtime_config.llm_max_tokens,
+            )
+
+            console.print(
+                f"[dim]✓ LLM parser initialized: {runtime_config.llm_provider} "
+                f"({runtime_config.llm_model})[/dim]"
+            )
+
+        except Exception as e:
+            console.print(f"[yellow]⚠ Warning: Failed to initialize LLM parser: {e}[/yellow]")
+            console.print("[dim]Falling back to regex-only parsing[/dim]")
+            llm_parser = None
+
+    # Initialize resolver with LLM parser
+    resolver = ConflictResolver(config_preset, llm_parser=llm_parser)
 
     with handle_llm_errors(runtime_config):
         try:

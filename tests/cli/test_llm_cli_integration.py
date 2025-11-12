@@ -727,3 +727,251 @@ class TestApplyCommandLLMPreset:
             # Should exit with error
             assert result.exit_code != 0
             assert "Invalid preset configuration" in result.output
+
+
+class TestAnalyzeCommandLLMPreset:
+    """Tests for analyze command with --llm-preset flag."""
+
+    @pytest.fixture
+    def runner(self) -> CliRunner:
+        """Create Click test runner."""
+        return CliRunner()
+
+    @pytest.fixture
+    def mock_preset_config(self) -> Mock:
+        """Create a mock RuntimeConfig for preset tests."""
+        mock_config = Mock()
+        mock_config.log_file = None
+        mock_config.log_level = "INFO"
+        mock_config.llm_enabled = True
+        mock_config.llm_provider = "codex-cli"
+        mock_config.llm_model = "codex"
+        mock_config.llm_api_key = None
+        mock_config.llm_fallback_to_regex = True
+        mock_config.llm_max_tokens = 2000
+        mock_config.merge_with_cli.return_value = mock_config
+        return mock_config
+
+    @pytest.mark.parametrize(
+        "preset_name,api_key,pr_num,owner,repo",
+        [
+            ("codex-cli-free", None, "123", "testowner", "testrepo"),
+            ("ollama-local", None, "456", "myorg", "myrepo"),
+            ("claude-cli-sonnet", None, "789", "acme", "project"),
+            ("openai-api-mini", "sk-test123", "100", "demo", "test"),
+            ("anthropic-api-balanced", "sk-ant-test456", "200", "org", "app"),
+        ],
+    )
+    def test_analyze_with_preset(
+        self,
+        runner: CliRunner,
+        mock_preset_config: Mock,
+        preset_name: str,
+        api_key: str | None,
+        pr_num: str,
+        owner: str,
+        repo: str,
+    ) -> None:
+        """Test analyze command with various --llm-preset options."""
+        with (
+            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch(
+                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
+                return_value=mock_preset_config,
+            ) as mock_from_preset,
+        ):
+            mock_resolver = mock_resolver_class.return_value
+            mock_resolver.analyze_conflicts.return_value = []
+
+            args = [
+                "analyze",
+                "--pr",
+                pr_num,
+                "--owner",
+                owner,
+                "--repo",
+                repo,
+                "--llm-preset",
+                preset_name,
+            ]
+            if api_key:
+                args.extend(["--llm-api-key", api_key])
+
+            result = runner.invoke(cli, args)
+
+            # Verify from_preset was called correctly
+            mock_from_preset.assert_called_once_with(preset_name, api_key=api_key)
+            assert f"Loaded LLM preset: {preset_name}" in result.output
+            assert result.exit_code == 0
+
+    def test_analyze_preset_overridden_by_individual_flags(
+        self, runner: CliRunner, mock_preset_config: Mock
+    ) -> None:
+        """Test that individual --llm-* flags override preset values."""
+        with (
+            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch(
+                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
+                return_value=mock_preset_config,
+            ) as mock_from_preset,
+        ):
+            # Setup final config after merge
+            mock_final_config = Mock()
+            mock_final_config.log_file = None
+            mock_final_config.log_level = "INFO"
+            mock_final_config.llm_enabled = True
+            mock_final_config.llm_provider = "ollama"
+            mock_final_config.llm_model = "llama3.3:70b"
+            mock_final_config.llm_api_key = None
+            mock_final_config.llm_fallback_to_regex = True
+            mock_final_config.llm_max_tokens = 2000
+            mock_preset_config.merge_with_cli.return_value = mock_final_config
+
+            mock_resolver = mock_resolver_class.return_value
+            mock_resolver.analyze_conflicts.return_value = []
+
+            result = runner.invoke(
+                cli,
+                [
+                    "analyze",
+                    "--pr",
+                    "300",
+                    "--owner",
+                    "test",
+                    "--repo",
+                    "repo",
+                    "--llm-preset",
+                    "ollama-local",  # Default model: qwen2.5-coder:7b
+                    "--llm-model",
+                    "llama3.3:70b",  # Override model
+                ],
+            )
+
+            # Verify preset was loaded
+            mock_from_preset.assert_called_once_with("ollama-local", api_key=None)
+
+            # Verify merge_with_cli was called with llm_model override
+            call_kwargs = mock_preset_config.merge_with_cli.call_args.kwargs
+            assert call_kwargs.get("llm_model") == "llama3.3:70b"
+
+            # Should load preset but allow override
+            assert "Loaded LLM preset: ollama-local" in result.output
+            assert result.exit_code == 0
+
+    def test_analyze_config_preset_takes_priority_over_llm_preset(self, runner: CliRunner) -> None:
+        """Test that --config preset takes priority over --llm-preset."""
+        with (
+            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch(
+                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset"
+            ) as mock_from_preset,
+        ):
+            mock_resolver = mock_resolver_class.return_value
+            mock_resolver.analyze_conflicts.return_value = []
+
+            result = runner.invoke(
+                cli,
+                [
+                    "analyze",
+                    "--pr",
+                    "400",
+                    "--owner",
+                    "user",
+                    "--repo",
+                    "project",
+                    "--config",
+                    "balanced",  # Config preset
+                    "--llm-preset",
+                    "codex-cli-free",  # Should be ignored
+                ],
+            )
+
+            # Verify from_preset was NOT called (config preset takes priority)
+            mock_from_preset.assert_not_called()
+
+            # Should load config preset, not LLM preset
+            assert "Loaded configuration preset: balanced" in result.output
+            assert "Loaded LLM preset" not in result.output
+            assert result.exit_code == 0
+
+    def test_analyze_invalid_preset_name(self, runner: CliRunner) -> None:
+        """Test analyze command rejects invalid preset name."""
+        result = runner.invoke(
+            cli,
+            [
+                "analyze",
+                "--pr",
+                "500",
+                "--owner",
+                "test",
+                "--repo",
+                "repo",
+                "--llm-preset",
+                "invalid-preset",  # Not in the choices list
+            ],
+        )
+
+        # Should fail with invalid choice error
+        assert result.exit_code != 0
+        assert "Invalid value for '--llm-preset'" in result.output
+
+    def test_analyze_case_insensitive_preset(
+        self, runner: CliRunner, mock_preset_config: Mock
+    ) -> None:
+        """Test analyze command accepts preset names case-insensitively."""
+        with (
+            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch(
+                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
+                return_value=mock_preset_config,
+            ) as mock_from_preset,
+        ):
+            mock_resolver = mock_resolver_class.return_value
+            mock_resolver.analyze_conflicts.return_value = []
+
+            result = runner.invoke(
+                cli,
+                [
+                    "analyze",
+                    "--pr",
+                    "600",
+                    "--owner",
+                    "test",
+                    "--repo",
+                    "repo",
+                    "--llm-preset",
+                    "CODEX-CLI-FREE",  # All caps
+                ],
+            )
+
+            # Verify from_preset was called with normalized lowercase name
+            mock_from_preset.assert_called_once_with("codex-cli-free", api_key=None)
+
+            # Should accept and normalize to lowercase
+            assert "Loaded LLM preset: codex-cli-free" in result.output
+            assert result.exit_code == 0
+
+    def test_analyze_preset_loading_error(self, runner: CliRunner) -> None:
+        """Test that preset loading errors are handled gracefully."""
+        with patch(
+            "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
+            side_effect=ConfigError("Invalid preset configuration"),
+        ):
+            result = runner.invoke(
+                cli,
+                [
+                    "analyze",
+                    "--pr",
+                    "700",
+                    "--owner",
+                    "test",
+                    "--repo",
+                    "repo",
+                    "--llm-preset",
+                    "codex-cli-free",  # Valid preset name that will trigger error during loading
+                ],
+            )
+
+            # Should exit with error
+            assert result.exit_code != 0
+            assert "Invalid preset configuration" in result.output
