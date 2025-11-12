@@ -68,14 +68,17 @@ def patch_session_for_module_mocks() -> Generator[None, None, None]:
     def patched_session_init(self: requests.Session) -> None:
         original_session_init(self)
 
-        # Store original methods for reference
-        _original_get = self.get
-        _original_post = self.post
-
         # Replace with module-level functions that can be mocked by tests
-        # These lambdas forward to requests.get/post which tests can mock
-        self.get = lambda *args, **kwargs: requests.get(*args, **kwargs)  # type: ignore[method-assign]  # noqa: S113
-        self.post = lambda *args, **kwargs: requests.post(*args, **kwargs)  # type: ignore[method-assign]  # noqa: S113
+        # These delegate to requests.get/post which tests can mock
+        # Using assignments instead of lambda to avoid suppression warnings
+        def session_get(*args: object, **kwargs: object) -> object:
+            return requests.get(*args, **kwargs)  # type: ignore[arg-type]  # noqa: S113
+
+        def session_post(*args: object, **kwargs: object) -> object:
+            return requests.post(*args, **kwargs)  # type: ignore[arg-type]  # noqa: S113
+
+        self.get = session_get  # type: ignore[method-assign,assignment]
+        self.post = session_post  # type: ignore[method-assign,assignment]
 
     with patch.object(requests.Session, "__init__", patched_session_init):
         yield
@@ -901,13 +904,304 @@ class TestOllamaProviderSessionManagement:
         mock_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
         mock_get.return_value = mock_response
 
+        provider = OllamaProvider()
+
+        # Mock session.close() to verify it gets called on exception exit
+        mock_session_close = Mock()
+        provider.session.close = mock_session_close  # type: ignore[method-assign]
+
         try:
-            with OllamaProvider() as provider:
-                session = provider.session
-                assert session is not None
+            with provider:
+                assert provider.session is not None
                 raise ValueError("Test exception")
         except ValueError:
             pass
 
-        # After exiting context with exception, session should still be closed
-        assert hasattr(provider, "session")
+        # Verify close() was called on context exit even with exception
+        mock_session_close.assert_called_once()
+
+
+@pytest.mark.usefixtures("patch_session_for_module_mocks")
+class TestOllamaProviderAutoDownload:
+    """Test auto-download functionality for models."""
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_auto_download_enabled_downloads_missing_model(
+        self, mock_get: Mock, mock_post: Mock
+    ) -> None:
+        """Test that auto_download=True downloads missing models and verifies availability."""
+        # Mock Ollama is available and model checks
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+
+        # Mock three GET calls:
+        # 1. Ollama availability check (returns empty models - Ollama is up)
+        # 2. Model availability check (returns empty models - model not available)
+        # 3. Post-download verification (returns model in list - now available)
+        mock_get_response.json.side_effect = [
+            {"models": []},  # Ollama availability check
+            {"models": []},  # Model not available initially
+            {"models": [{"name": "qwen2.5-coder:7b"}]},  # Model available after download
+        ]
+        mock_get.return_value = mock_get_response
+
+        # Mock successful download
+        mock_post_response = Mock()
+        mock_post_response.status_code = 200
+        mock_post_response.iter_lines.return_value = iter(
+            [b'{"status":"pulling"}', b'{"status":"success"}']
+        )
+        mock_post.return_value = mock_post_response
+
+        # Initialize with auto_download=True
+        _provider = OllamaProvider(model="qwen2.5-coder:7b", auto_download=True)
+
+        # Verify download was attempted
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        assert "api/pull" in call_args[0][0]
+        assert call_args[1]["json"] == {"name": "qwen2.5-coder:7b"}
+
+        # Verify we made 3 GET calls (availability, initial check, post-download verification)
+        assert mock_get.call_count == 3
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_auto_download_disabled_raises_error_for_missing_model(self, mock_get: Mock) -> None:
+        """Test that auto_download=False raises error for missing models."""
+        # Mock Ollama is available but model is not
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "other-model:7b"}]}
+        mock_get.return_value = mock_get_response
+
+        # Initialize with auto_download=False (default)
+        with pytest.raises(LLMConfigurationError) as exc_info:
+            OllamaProvider(model="qwen2.5-coder:7b", auto_download=False)
+
+        assert "qwen2.5-coder:7b" in str(exc_info.value)
+        assert "ollama pull" in str(exc_info.value)
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_download_model_streams_response(self, mock_get: Mock, mock_post: Mock) -> None:
+        """Test that _download_model consumes streaming response."""
+        # Mock Ollama is available
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "qwen2.5-coder:7b"}]}
+        mock_get.return_value = mock_get_response
+
+        provider = OllamaProvider(model="qwen2.5-coder:7b")
+
+        # Mock streaming download
+        mock_post_response = Mock()
+        mock_post_response.status_code = 200
+        stream_lines = [
+            b'{"status":"pulling manifest"}',
+            b'{"status":"downloading","completed":50,"total":100}',
+            b'{"status":"downloading","completed":100,"total":100}',
+            b'{"status":"success"}',
+        ]
+        mock_post_response.iter_lines.return_value = iter(stream_lines)
+        mock_post.return_value = mock_post_response
+
+        # Download model
+        result = provider._download_model("test-model:7b")
+
+        assert result is True
+        mock_post.assert_called_once()
+        assert mock_post_response.iter_lines.called
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_download_model_handles_failure(self, mock_get: Mock, mock_post: Mock) -> None:
+        """Test that _download_model handles download failures."""
+        # Mock Ollama is available
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "qwen2.5-coder:7b"}]}
+        mock_get.return_value = mock_get_response
+
+        provider = OllamaProvider(model="qwen2.5-coder:7b")
+
+        # Mock failed download
+        mock_post_response = Mock()
+        mock_post_response.status_code = 404
+        mock_post_response.text = "Model not found"
+        mock_post.return_value = mock_post_response
+
+        # Download should raise error
+        with pytest.raises(LLMAPIError) as exc_info:
+            provider._download_model("nonexistent-model:7b")
+
+        assert "nonexistent-model:7b" in str(exc_info.value)
+        assert "404" in str(exc_info.value)
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_download_model_timeout_error(self, mock_get: Mock, mock_post: Mock) -> None:
+        """Test that _download_model handles timeout errors."""
+        # Mock Ollama is available
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "qwen2.5-coder:7b"}]}
+        mock_get.return_value = mock_get_response
+
+        provider = OllamaProvider(model="qwen2.5-coder:7b")
+
+        # Mock timeout during download
+        mock_post.side_effect = requests.exceptions.Timeout("Request timed out")
+
+        # Download should raise error with helpful message
+        with pytest.raises(LLMAPIError) as exc_info:
+            provider._download_model("large-model:70b")
+
+        assert "timed out" in str(exc_info.value).lower()
+        assert "large-model:70b" in str(exc_info.value)
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_auto_download_failure_raises_configuration_error(
+        self, mock_get: Mock, mock_post: Mock
+    ) -> None:
+        """Test that auto-download failure raises LLMConfigurationError with helpful message."""
+        # Mock Ollama is available
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": []}  # Model not available
+        mock_get.return_value = mock_get_response
+
+        # Mock failed download
+        mock_post_response = Mock()
+        mock_post_response.status_code = 404
+        mock_post_response.text = "Model not found in registry"
+        mock_post.return_value = mock_post_response
+
+        # Initialize with auto_download=True - should fail and provide manual instructions
+        with pytest.raises(LLMConfigurationError) as exc_info:
+            OllamaProvider(model="invalid-model:7b", auto_download=True)
+
+        error_msg = str(exc_info.value)
+        assert "invalid-model:7b" in error_msg
+        assert "auto-download failed" in error_msg.lower()
+        assert "ollama pull" in error_msg
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_auto_download_parameter_default_is_false(self, mock_get: Mock) -> None:
+        """Test that auto_download defaults to False."""
+        # Mock Ollama is available with model
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "test-model:7b"}]}
+        mock_get.return_value = mock_get_response
+
+        provider = OllamaProvider(model="test-model:7b")
+
+        assert provider.auto_download is False
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_get_model_info_returns_model_details(self, mock_get: Mock, mock_post: Mock) -> None:
+        """Test that _get_model_info returns model information."""
+        # Mock Ollama is available
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "test-model:7b"}]}
+        mock_get.return_value = mock_get_response
+
+        provider = OllamaProvider(model="test-model:7b")
+
+        # Mock model info response
+        mock_post_response = Mock()
+        mock_post_response.status_code = 200
+        model_info = {
+            "modelfile": "FROM llama3.3:70b",
+            "parameters": "num_ctx 2048",
+            "template": "...",
+        }
+        mock_post_response.json.return_value = model_info
+        mock_post.return_value = mock_post_response
+
+        # Get model info
+        info = provider._get_model_info("test-model:7b")
+
+        assert info == model_info
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        assert "api/show" in call_args[0][0]
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_get_model_info_returns_none_for_nonexistent_model(
+        self, mock_get: Mock, mock_post: Mock
+    ) -> None:
+        """Test that _get_model_info returns None for non-existent models."""
+        # Mock Ollama is available
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "test-model:7b"}]}
+        mock_get.return_value = mock_get_response
+
+        provider = OllamaProvider(model="test-model:7b")
+
+        # Mock 404 response for non-existent model
+        mock_post_response = Mock()
+        mock_post_response.status_code = 404
+        mock_post.return_value = mock_post_response
+
+        # Get model info should return None
+        info = provider._get_model_info("nonexistent-model:7b")
+
+        assert info is None
+
+    def test_list_recommended_models_returns_list(self) -> None:
+        """Test that list_recommended_models returns a list of recommendations."""
+        recommendations = OllamaProvider.list_recommended_models()
+
+        assert isinstance(recommendations, list)
+        assert len(recommendations) > 0
+
+        # Verify structure of each recommendation
+        for model in recommendations:
+            assert "name" in model
+            assert "size" in model
+            assert "speed" in model
+            assert "quality" in model
+            assert "description" in model
+
+    def test_list_recommended_models_includes_default_model(self) -> None:
+        """Test that list_recommended_models includes the default preset model."""
+        recommendations = OllamaProvider.list_recommended_models()
+
+        # qwen2.5-coder:7b should be in recommendations
+        model_names = [m["name"] for m in recommendations]
+        assert "qwen2.5-coder:7b" in model_names
+
+        # Find the qwen2.5-coder:7b entry
+        qwen_model = next(m for m in recommendations if m["name"] == "qwen2.5-coder:7b")
+        assert (
+            "default" in qwen_model["description"].lower()
+            or "best balance" in qwen_model["description"].lower()
+        )
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_auto_download_with_closed_provider_raises_error(
+        self, mock_get: Mock, mock_post: Mock
+    ) -> None:
+        """Test that auto-download with closed provider raises error."""
+        # Mock Ollama is available
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "test-model:7b"}]}
+        mock_get.return_value = mock_get_response
+
+        provider = OllamaProvider(model="test-model:7b")
+        provider.close()
+
+        # Attempt to download model with closed provider
+        with pytest.raises(LLMAPIError) as exc_info:
+            provider._download_model("another-model:7b")
+
+        assert "closed" in str(exc_info.value).lower()

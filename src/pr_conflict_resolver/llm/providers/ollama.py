@@ -67,10 +67,20 @@ class OllamaProvider:
             ...     response = provider.generate("test")
             # Session automatically closed
 
+        Auto-download models:
+            >>> provider = OllamaProvider(model="qwen2.5-coder:7b", auto_download=True)
+            # Model will be downloaded automatically if not available locally
+
+        Get model recommendations:
+            >>> models = OllamaProvider.list_recommended_models()
+            >>> for model in models:
+            ...     print(f"{model['name']}: {model['description']}")
+
     Attributes:
         base_url: Ollama API base URL (default: http://localhost:11434)
         model: Model identifier (e.g., "llama3.3:70b", "mistral")
         timeout: Request timeout in seconds (default: 120s for slow local inference)
+        auto_download: Automatically download model if not available (default: False)
         session: HTTP session with connection pooling (pool_connections=10, pool_maxsize=10)
         total_input_tokens: Cumulative input tokens across all requests
         total_output_tokens: Cumulative output tokens across all requests
@@ -89,6 +99,7 @@ class OllamaProvider:
         model: str = DEFAULT_MODEL,
         timeout: int = DEFAULT_TIMEOUT,
         base_url: str = DEFAULT_BASE_URL,
+        auto_download: bool = False,
     ) -> None:
         """Initialize Ollama API provider.
 
@@ -96,14 +107,16 @@ class OllamaProvider:
             model: Model identifier (default: llama3.3:70b for quality/speed balance)
             timeout: Request timeout in seconds (default: 120s for local inference)
             base_url: Ollama API base URL (default: http://localhost:11434)
+            auto_download: Automatically download model if not available (default: False)
 
         Raises:
             LLMAPIError: If Ollama is not running or not reachable
-            LLMConfigurationError: If requested model is not available
+            LLMConfigurationError: If requested model is not available and auto_download=False
         """
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
+        self.auto_download = auto_download
 
         # Initialize HTTP session for connection pooling
         self.session = requests.Session()
@@ -182,20 +195,63 @@ class OllamaProvider:
     def _check_model_available(self) -> None:
         """Check if requested model is available locally.
 
+        If auto_download is enabled and the model is not found, attempts to
+        download it automatically.
+
         Raises:
-            LLMConfigurationError: If model is not found with instructions to pull it
+            LLMConfigurationError: If model is not found and auto_download is False
+            LLMAPIError: If auto-download fails
         """
         try:
             available_models = self._list_available_models()
 
             if self.model not in available_models:
-                models_list = "\n".join(f"  - {m}" for m in available_models[:10])
-                raise LLMConfigurationError(
-                    f"Model '{self.model}' not found in Ollama. "
-                    f"Install it with: ollama pull {self.model}\n\n"
-                    f"Available models:\n{models_list}",
-                    details={"model": self.model, "available_models": available_models},
-                )
+                if self.auto_download:
+                    # Attempt automatic download
+                    logger.info(
+                        f"Model '{self.model}' not found locally. "
+                        f"Attempting automatic download (auto_download=True)..."
+                    )
+                    try:
+                        if self._download_model(self.model):
+                            logger.info(f"Successfully downloaded model: {self.model}")
+
+                            # Re-verify model is now available after download
+                            updated_models = self._list_available_models()
+                            if self.model in updated_models:
+                                logger.info(f"Verified model '{self.model}' is now available")
+                                return
+                            else:
+                                # Model downloaded but not showing up yet
+                                # May need time to register
+                                logger.warning(
+                                    f"Model '{self.model}' downloaded but not yet "
+                                    f"visible in model list. It may need a moment to register."
+                                )
+                                return
+                    except Exception as download_error:
+                        # Download failed - provide helpful error message
+                        logger.error(f"Auto-download failed for '{self.model}': {download_error}")
+                        raise LLMConfigurationError(
+                            f"Model '{self.model}' not found and auto-download failed. "
+                            f"Install it manually with: ollama pull {self.model}\n\n"
+                            f"Error: {download_error}",
+                            details={
+                                "model": self.model,
+                                "auto_download": True,
+                                "download_error": str(download_error),
+                            },
+                        ) from download_error
+                else:
+                    # auto_download disabled - provide manual instructions
+                    models_list = "\n".join(f"  - {m}" for m in available_models[:10])
+                    raise LLMConfigurationError(
+                        f"Model '{self.model}' not found in Ollama. "
+                        f"Install it with: ollama pull {self.model}\n\n"
+                        f"Available models:\n{models_list}\n\n"
+                        f"Or enable automatic download: auto_download=True",
+                        details={"model": self.model, "available_models": available_models},
+                    )
 
         except LLMConfigurationError:
             raise
@@ -246,6 +302,216 @@ class OllamaProvider:
                 f"Failed to list Ollama models: {e}",
                 details={"base_url": self.base_url, "error": str(e)},
             ) from e
+
+    def _download_model(self, model_name: str) -> bool:
+        """Download a model from Ollama registry.
+
+        This method triggers a model download via the Ollama API. The download
+        is synchronous and may take several minutes depending on model size.
+
+        Args:
+            model_name: Name of the model to download (e.g., "qwen2.5-coder:7b")
+
+        Returns:
+            True if download successful, False otherwise
+
+        Raises:
+            LLMAPIError: If Ollama API is not available or download fails
+
+        Note:
+            This method uses the /api/pull endpoint which streams the download
+            progress. The stream is consumed but not displayed to avoid cluttering
+            logs. For interactive downloads, use scripts/download_ollama_models.sh.
+        """
+        # Check if provider has been closed
+        if self.session is None:
+            raise LLMAPIError(
+                "Provider has been closed",
+                details={"hint": "Create a new provider or use context manager"},
+            )
+
+        logger.info(f"Downloading Ollama model: {model_name} (this may take several minutes)...")
+
+        try:
+            # Ollama pull API uses streaming response
+            response = self.session.post(
+                f"{self.base_url}/api/pull",
+                json={"name": model_name},
+                timeout=600,  # 10 minutes timeout for large models
+                stream=True,  # Stream the response to handle progress updates
+            )
+
+            if response.status_code != 200:
+                error_detail = response.text
+                logger.error(f"Ollama model download failed: {error_detail}")
+                raise LLMAPIError(
+                    f"Failed to download model '{model_name}': {error_detail}",
+                    details={"model": model_name, "status_code": response.status_code},
+                )
+
+            # Consume the streaming response
+            # Ollama sends JSON progress updates, but we don't need to parse them
+            # Just consume the stream to ensure download completes
+            for _ in response.iter_lines():
+                pass  # Stream progress (each line is a JSON status update)
+
+            logger.info(f"Successfully downloaded model: {model_name}")
+            return True
+
+        except PoolError as e:
+            # Connection pool exhausted - all connections busy
+            logger.error(
+                f"Ollama connection pool exhausted (all 10 connections busy): {e}",
+                extra={"pool_config": "pool_maxsize=10, pool_block=True"},
+            )
+            raise LLMAPIError(
+                "Connection pool exhausted - too many concurrent requests",
+                details={"pool_maxsize": 10, "error": str(e)},
+            ) from e
+        except requests.exceptions.Timeout as e:
+            logger.error(f"Model download timed out after 10 minutes: {e}")
+            raise LLMAPIError(
+                f"Model download timed out for '{model_name}'. "
+                f"Try again or use: ollama pull {model_name}",
+                details={"model": model_name, "error": str(e)},
+            ) from e
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Model download failed: {e}")
+            raise LLMAPIError(
+                f"Failed to download model '{model_name}': {e}",
+                details={"model": model_name, "error": str(e)},
+            ) from e
+        except Exception as e:
+            logger.error(f"Unexpected error during model download: {e}")
+            raise LLMAPIError(
+                f"Unexpected error downloading model '{model_name}': {e}",
+                details={"model": model_name},
+            ) from e
+
+    def _get_model_info(self, model_name: str) -> dict[str, Any] | None:
+        """Get detailed information about a specific model.
+
+        Args:
+            model_name: Name of the model to get information for
+
+        Returns:
+            Dictionary with model information or None if model not found
+
+        Raises:
+            LLMAPIError: If API request fails
+
+        Note:
+            Uses the /api/show endpoint to retrieve model metadata including
+            size, parameters, quantization, and other details.
+        """
+        # Check if provider has been closed
+        if self.session is None:
+            raise LLMAPIError(
+                "Provider has been closed",
+                details={"hint": "Create a new provider or use context manager"},
+            )
+
+        try:
+            response = self.session.post(
+                f"{self.base_url}/api/show",
+                json={"name": model_name},
+                timeout=10,
+            )
+
+            if response.status_code == 404:
+                return None  # Model not found
+
+            response.raise_for_status()
+            result: dict[str, Any] = response.json()
+            return result
+
+        except PoolError as e:
+            logger.error(
+                f"Ollama connection pool exhausted (all 10 connections busy): {e}",
+                extra={"pool_config": "pool_maxsize=10, pool_block=True"},
+            )
+            raise LLMAPIError(
+                "Connection pool exhausted - too many concurrent requests",
+                details={"pool_maxsize": 10, "error": str(e)},
+            ) from e
+        except requests.exceptions.RequestException as e:
+            raise LLMAPIError(
+                f"Failed to get model info for '{model_name}': {e}",
+                details={"model": model_name, "error": str(e)},
+            ) from e
+
+    @classmethod
+    def list_recommended_models(cls) -> list[dict[str, str]]:
+        """Get list of recommended Ollama models for code conflict resolution.
+
+        Returns:
+            List of dictionaries with model recommendations, each containing:
+            - name: Model name (e.g., "qwen2.5-coder:7b")
+            - size: Approximate download size
+            - speed: Relative speed (Fast/Medium/Slow)
+            - quality: Relative quality (Good/Better/Best)
+            - description: Brief description
+
+        Note:
+            This is a static list of recommended models. It does not check
+            which models are actually available in the Ollama registry.
+
+        Example:
+            >>> recommendations = OllamaProvider.list_recommended_models()
+            >>> for model in recommendations:
+            ...     print(f"{model['name']}: {model['description']}")
+        """
+        return [
+            {
+                "name": "qwen2.5-coder:7b",
+                "size": "~4GB",
+                "speed": "Fast",
+                "quality": "Good",
+                "description": "Best balance for code tasks (default preset)",
+            },
+            {
+                "name": "qwen2.5-coder:14b",
+                "size": "~8GB",
+                "speed": "Medium",
+                "quality": "Better",
+                "description": "Higher quality code understanding",
+            },
+            {
+                "name": "qwen2.5-coder:32b",
+                "size": "~18GB",
+                "speed": "Slow",
+                "quality": "Best",
+                "description": "Maximum quality for complex conflicts",
+            },
+            {
+                "name": "codellama:7b",
+                "size": "~4GB",
+                "speed": "Fast",
+                "quality": "Good",
+                "description": "Alternative code-focused model",
+            },
+            {
+                "name": "codellama:13b",
+                "size": "~7GB",
+                "speed": "Medium",
+                "quality": "Better",
+                "description": "Larger CodeLlama variant",
+            },
+            {
+                "name": "deepseek-coder:6.7b",
+                "size": "~4GB",
+                "speed": "Fast",
+                "quality": "Good",
+                "description": "Specialized for code tasks",
+            },
+            {
+                "name": "mistral:7b",
+                "size": "~4GB",
+                "speed": "Fast",
+                "quality": "Good",
+                "description": "General-purpose model",
+            },
+        ]
 
     def generate(self, prompt: str, max_tokens: int = 2000) -> str:
         """Generate text completion from prompt with retry logic.
