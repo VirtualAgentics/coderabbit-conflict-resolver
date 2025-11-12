@@ -1,10 +1,16 @@
 """LLM metrics tracking for cost and performance monitoring.
 
 This module provides data structures for tracking LLM usage metrics including
-token consumption, API call counts, costs, and cache performance.
+token consumption, API call counts, costs, cache performance, and GPU acceleration status.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pr_conflict_resolver.llm.providers.gpu_detector import GPUInfo
 
 
 @dataclass(frozen=True, slots=True)
@@ -12,7 +18,7 @@ class LLMMetrics:
     """Metrics for LLM usage tracking and cost optimization.
 
     Tracks comprehensive metrics for LLM operations including token usage,
-    cost, cache performance, and parsing success rates.
+    cost, cache performance, parsing success rates, and GPU acceleration status.
 
     Attributes:
         provider: LLM provider name (e.g., "anthropic", "openai", "ollama").
@@ -23,6 +29,7 @@ class LLMMetrics:
         total_cost: Total cost in USD for all API calls.
         api_calls: Total number of API calls made.
         total_tokens: Total tokens consumed (prompt + completion).
+        gpu_info: GPU hardware information (Ollama only). None for other providers.
 
     Example:
         >>> metrics = LLMMetrics(
@@ -39,6 +46,19 @@ class LLMMetrics:
         0.65
         >>> f"${metrics.total_cost:.4f}"
         '$0.0234'
+
+        With GPU info (Ollama):
+        >>> from pr_conflict_resolver.llm.providers.gpu_detector import GPUInfo
+        >>> gpu = GPUInfo(available=True, gpu_type="NVIDIA", model_name="RTX 4090",
+        ...               vram_total_mb=24576, vram_available_mb=20480, compute_capability="8.9")
+        >>> metrics = LLMMetrics(
+        ...     provider="ollama", model="llama3.3:70b",
+        ...     changes_parsed=15, avg_confidence=0.88,
+        ...     cache_hit_rate=0.0, total_cost=0.0,
+        ...     api_calls=5, total_tokens=12000, gpu_info=gpu
+        ... )
+        >>> metrics.gpu_info.model_name
+        'RTX 4090'
     """
 
     provider: str
@@ -49,6 +69,7 @@ class LLMMetrics:
     total_cost: float
     api_calls: int
     total_tokens: int
+    gpu_info: GPUInfo | None = None
 
     def __post_init__(self) -> None:
         """Validate metrics values."""
