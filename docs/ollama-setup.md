@@ -555,32 +555,280 @@ launchctl start com.ollama.ollama
 
 ### GPU Acceleration
 
-**NVIDIA GPU** (CUDA):
+GPU acceleration provides 10-60x speedup compared to CPU-only inference. The pr-resolve tool automatically detects and displays GPU information when using Ollama.
 
-Ollama automatically detects and uses NVIDIA GPUs. Verify:
+#### Automatic GPU Detection
+
+Starting with version 0.3.0, pr-resolve automatically detects GPU availability when initializing Ollama:
 
 ```bash
-# Check GPU detection
-ollama ps
+# Run conflict resolution
+pr-resolve apply 123 --llm-preset ollama-local
 
-# Should show GPU info
-# If not detected, ensure NVIDIA drivers and CUDA are installed
+# GPU info displayed in metrics (if detected):
+# ╭─ LLM Metrics ─────────────────────────╮
+# │ Provider: ollama (qwen2.5-coder:7b)   │
+# │ Hardware: NVIDIA RTX 4090 (24GB)      │
+# │ Changes Parsed: 5                     │
+# │ ...                                   │
+# ╰───────────────────────────────────────╯
+```
+
+Detection supports multiple platforms:
+- **NVIDIA GPUs**: CUDA 11.0+ (automatically detected via nvidia-smi)
+- **AMD GPUs**: ROCm 5.0+ (automatically detected via rocm-smi)
+- **Apple Silicon**: M1/M2/M3/M4 with Metal (automatically detected on macOS)
+- **CPU Fallback**: Gracefully falls back if no GPU detected
+
+#### NVIDIA GPU Setup (CUDA)
+
+**Prerequisites**:
+```bash
+# 1. Verify NVIDIA driver
+nvidia-smi
+
+# Should show driver version and GPU info
+# Recommended: Driver 525+ (CUDA 12+)
+```
+
+**Installation** (if nvidia-smi not found):
+
+**Ubuntu/Debian**:
+```bash
+# Install NVIDIA drivers
+sudo ubuntu-drivers autoinstall
+
+# Reboot required
+sudo reboot
+
+# Verify
 nvidia-smi
 ```
 
-**AMD GPU** (ROCm):
-
+**Fedora/RHEL**:
 ```bash
-# Install ROCm support
-# Follow: https://github.com/ollama/ollama/blob/main/docs/gpu.md
+# Install NVIDIA drivers
+sudo dnf install akmod-nvidia
 
-# Verify GPU
-ollama ps
+# Reboot required
+sudo reboot
+
+# Verify
+nvidia-smi
 ```
 
-**Apple Silicon** (Metal):
+**Verification**:
+```bash
+# Check Ollama GPU detection
+ollama ps
 
-Ollama automatically uses Metal acceleration on M1/M2/M3 Macs.
+# Should show:
+# NAME                   ID              SIZE     PROCESSOR
+# qwen2.5-coder:7b      abc123...       4.7 GB   100% GPU
+
+# Test with pr-resolve
+pr-resolve apply 123 --llm-preset ollama-local
+
+# Check metrics output for GPU info
+```
+
+**Performance Expectations**:
+- **RTX 3060 (12GB)**: ~50-70 tokens/sec with 7B models
+- **RTX 3090 (24GB)**: ~70-100 tokens/sec with 7B models, ~40-60 tokens/sec with 14B
+- **RTX 4090 (24GB)**: ~100-150 tokens/sec with 7B models, ~60-90 tokens/sec with 14B
+
+#### AMD GPU Setup (ROCm)
+
+**Prerequisites**:
+- AMD GPU with ROCm support (RX 6000/7000 series, MI series)
+- ROCm 5.0 or newer
+
+**Installation**:
+```bash
+# Follow AMD ROCm installation guide
+# https://github.com/ollama/ollama/blob/main/docs/gpu.md
+
+# Verify
+rocm-smi --showproductname
+
+# Should display AMD GPU info
+```
+
+**Verification**:
+```bash
+# Check Ollama GPU detection
+ollama ps
+
+# Test with pr-resolve
+pr-resolve apply 123 --llm-preset ollama-local
+```
+
+#### Apple Silicon Setup (Metal)
+
+**Automatic Detection**: No setup required - Ollama automatically uses Metal acceleration on Apple Silicon Macs.
+
+**Supported Chips**:
+- M1, M1 Pro, M1 Max, M1 Ultra
+- M2, M2 Pro, M2 Max, M2 Ultra
+- M3, M3 Pro, M3 Max
+- M4, M4 Pro, M4 Max
+
+**Verification**:
+```bash
+# Check chip
+sysctl -n machdep.cpu.brand_string
+
+# Should show "Apple M1/M2/M3/M4"
+
+# Test with pr-resolve
+pr-resolve apply 123 --llm-preset ollama-local
+
+# Metrics will show:
+# Hardware: Apple M3 Max (Metal)
+```
+
+**Performance Notes**:
+- M1/M2 8GB: Good for 7B models
+- M1/M2 Pro/Max 16GB+: Excellent for 7B-14B models
+- M1/M2 Ultra 64GB+: Handles 32B models well
+- Unified memory shared between CPU and GPU
+
+#### Troubleshooting GPU Detection
+
+**GPU Not Detected** (Shows "Hardware: CPU"):
+
+1. **Verify GPU is available**:
+   ```bash
+   # NVIDIA
+   nvidia-smi
+
+   # AMD
+   rocm-smi --showproductname
+
+   # Apple Silicon
+   sysctl -n machdep.cpu.brand_string
+   ```
+
+2. **Check Ollama GPU usage**:
+   ```bash
+   ollama ps
+
+   # PROCESSOR column should show "GPU" not "CPU"
+   # If shows CPU, Ollama isn't using GPU
+   ```
+
+3. **Restart Ollama** to detect GPU:
+   ```bash
+   # Stop Ollama
+   killall ollama
+
+   # Start Ollama (GPU detection happens on startup)
+   ollama serve
+
+   # Reload model to use GPU
+   ollama pull qwen2.5-coder:7b --force
+   ```
+
+4. **Check CUDA/ROCm installation**:
+   ```bash
+   # NVIDIA: Check CUDA
+   nvcc --version
+
+   # AMD: Check ROCm
+   rocminfo
+   ```
+
+**GPU Detected but Slow Performance**:
+
+1. **Check GPU memory**:
+   ```bash
+   # NVIDIA
+   nvidia-smi
+
+   # Look for "Memory-Usage" - should have enough free VRAM
+   # 7B models need ~6GB, 14B need ~12GB
+   ```
+
+2. **Close competing GPU processes**:
+   ```bash
+   # NVIDIA: List GPU processes
+   nvidia-smi
+
+   # AMD: List processes
+   rocm-smi --showpids
+   ```
+
+3. **Use smaller model** if out of VRAM:
+   ```bash
+   # 7B instead of 14B
+   pr-resolve apply 123 \
+     --llm-preset ollama-local \
+     --llm-model qwen2.5-coder:7b
+   ```
+
+**Mixed CPU/GPU Usage**:
+
+If model is too large for GPU VRAM, Ollama may split between GPU and CPU (slower):
+
+```bash
+# Check split in ollama ps
+ollama ps
+
+# May show: "50% GPU" instead of "100% GPU"
+# Solution: Use smaller model
+```
+
+#### GPU Performance Monitoring
+
+**During Resolution**:
+```bash
+# Terminal 1: Run pr-resolve
+pr-resolve apply 123 --llm-preset ollama-local
+
+# Terminal 2: Monitor GPU
+watch -n 1 nvidia-smi  # NVIDIA
+# OR
+watch -n 1 rocm-smi    # AMD
+```
+
+**Check pr-resolve Metrics**:
+```bash
+# After resolution completes
+# Look for metrics panel in output:
+╭─ LLM Metrics ─────────────────────────╮
+│ Provider: ollama (qwen2.5-coder:7b)   │
+│ Hardware: NVIDIA RTX 4090 (24GB)      │  ← GPU detected
+│ Changes Parsed: 5                     │
+│ Avg Confidence: 0.92                  │
+│ Cache Hit Rate: 0%                    │
+│ Total Cost: $0.00                     │
+│ API Calls: 5                          │
+│ Total Tokens: 12,450                  │
+╰───────────────────────────────────────╯
+```
+
+**No GPU Info Displayed**:
+- If GPU info is not shown in metrics, it means:
+  - No GPU detected (CPU-only system)
+  - GPU detection failed (non-fatal, falls back to CPU)
+  - Using cloud LLM provider (GPU info only for Ollama)
+
+#### GPU Acceleration Benefits
+
+**Performance Comparison** (qwen2.5-coder:7b):
+
+| Hardware | Tokens/sec | Time for 1000 tokens |
+|----------|------------|---------------------|
+| CPU (i7-12700K) | 1-3 | 5-15 minutes |
+| RTX 3060 (12GB) | 50-70 | 15-20 seconds |
+| RTX 4090 (24GB) | 100-150 | 7-10 seconds |
+| M2 Max (96GB) | 40-60 | 15-25 seconds |
+
+**Cost Savings**:
+- GPU: Free (local hardware)
+- API (Claude/GPT-4): ~$0.01-0.05 per resolution
+
+**Recommendation**: For frequent usage, a $300-500 GPU pays for itself in API savings within months.
 
 ### Performance Tuning
 
