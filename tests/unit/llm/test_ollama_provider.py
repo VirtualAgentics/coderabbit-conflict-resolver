@@ -206,9 +206,14 @@ class TestOllamaProviderInitialization:
         # Should not raise
         OllamaProvider()
 
-        # Verify GET request was made to /api/tags
+        # Verify GET requests were made to both /api/ps (GPU detection) and /api/tags (model check)
         assert mock_get.called
-        assert "/api/tags" in mock_get.call_args[0][0]
+        assert mock_get.call_count >= 2
+        call_urls = [call[0][0] for call in mock_get.call_args_list]
+        assert any("/api/ps" in url for url in call_urls), "GPU detection call to /api/ps expected"
+        assert any(
+            "/api/tags" in url for url in call_urls
+        ), "Model check call to /api/tags expected"
 
     @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
     def test_init_checks_model_availability(self, mock_get: Mock) -> None:
@@ -963,8 +968,9 @@ class TestOllamaProviderAutoDownload:
         assert "api/pull" in call_args[0][0]
         assert call_args[1]["json"] == {"name": "qwen2.5-coder:7b"}
 
-        # Verify we made 3 GET calls (availability, initial check, post-download verification)
-        assert mock_get.call_count == 3
+        # Verify we made 4 GET calls:
+        # GPU detection, availability, initial check, post-download verification
+        assert mock_get.call_count == 4
 
     @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
     def test_auto_download_disabled_raises_error_for_missing_model(self, mock_get: Mock) -> None:
