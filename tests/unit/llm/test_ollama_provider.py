@@ -936,13 +936,13 @@ class TestOllamaProviderAutoDownload:
         mock_get_response.status_code = 200
 
         # Mock three GET calls:
-        # 1. Ollama availability check (returns empty models - Ollama is up)
-        # 2. Model availability check (returns empty models - model not available)
-        # 3. Post-download verification (returns model in list - now available)
+        # 1. Ollama availability check (doesn't call .json(), just checks status)
+        # 2. Model availability check (calls .json(), returns empty - model not available)
+        # 3. Post-download verification (calls .json(), returns model - now available)
         mock_get_response.json.side_effect = [
-            {"models": []},  # Ollama availability check
-            {"models": []},  # Model not available initially
-            {"models": [{"name": "qwen2.5-coder:7b"}]},  # Model available after download
+            {"models": []},  # Model not available initially (.json() call #1)
+            # Model available after download (.json() call #2)
+            {"models": [{"name": "qwen2.5-coder:7b"}]},
         ]
         mock_get.return_value = mock_get_response
 

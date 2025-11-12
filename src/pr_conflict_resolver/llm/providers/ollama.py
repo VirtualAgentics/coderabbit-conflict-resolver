@@ -15,6 +15,7 @@ The provider uses requests.Session for connection pooling to reduce latency
 and implements the LLMProvider protocol for type safety and polymorphic usage.
 """
 
+import json
 import logging
 from typing import Any, ClassVar
 
@@ -222,13 +223,20 @@ class OllamaProvider:
                                 logger.info(f"Verified model '{self.model}' is now available")
                                 return
                             else:
-                                # Model downloaded but not showing up yet
-                                # May need time to register
-                                logger.warning(
-                                    f"Model '{self.model}' downloaded but not yet "
-                                    f"visible in model list. It may need a moment to register."
+                                # Model downloaded but not showing up - configuration error
+                                logger.error(
+                                    f"Model '{self.model}' downloaded successfully but not "
+                                    f"visible in model list"
                                 )
-                                return
+                                raise LLMConfigurationError(
+                                    f"Model '{self.model}' downloaded but not available. "
+                                    f"Try manually: ollama pull {self.model}",
+                                    details={
+                                        "model": self.model,
+                                        "auto_download": True,
+                                        "available_models": updated_models,
+                                    },
+                                )
                     except Exception as download_error:
                         # Download failed - provide helpful error message
                         logger.error(f"Auto-download failed for '{self.model}': {download_error}")
@@ -349,11 +357,41 @@ class OllamaProvider:
                     details={"model": model_name, "status_code": response.status_code},
                 )
 
-            # Consume the streaming response
-            # Ollama sends JSON progress updates, but we don't need to parse them
-            # Just consume the stream to ensure download completes
-            for _ in response.iter_lines():
-                pass  # Stream progress (each line is a JSON status update)
+            # Parse streaming response and check for errors
+            # Ollama sends JSON progress updates, including error events
+            pull_error: str | None = None
+            pull_complete = False
+
+            for raw_line in response.iter_lines():
+                if not raw_line:
+                    continue
+                try:
+                    event = json.loads(raw_line)
+                except json.JSONDecodeError:
+                    logger.debug(f"Ignoring malformed Ollama pull event: {raw_line}")
+                    continue
+
+                # Check for error in event
+                if event.get("error"):
+                    pull_error = str(event["error"])
+                    break
+
+                # Check for success status
+                if event.get("status") == "success":
+                    pull_complete = True
+
+            # Verify pull completed successfully
+            if pull_error:
+                raise LLMAPIError(
+                    f"Failed to download model '{model_name}': {pull_error}",
+                    details={"model": model_name, "error": pull_error},
+                )
+
+            if not pull_complete:
+                raise LLMAPIError(
+                    f"Ollama did not report success while downloading '{model_name}'",
+                    details={"model": model_name},
+                )
 
             logger.info(f"Successfully downloaded model: {model_name}")
             return True
