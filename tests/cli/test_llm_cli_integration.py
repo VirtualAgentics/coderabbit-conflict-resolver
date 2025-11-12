@@ -510,7 +510,7 @@ class TestApplyCommandLLMPreset:
         with (
             patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
             patch(
-                "pr_conflict_resolver.cli.main.RuntimeConfig.from_preset",
+                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
                 return_value=mock_preset_config,
             ) as mock_from_preset,
         ):
@@ -551,7 +551,7 @@ class TestApplyCommandLLMPreset:
         with (
             patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
             patch(
-                "pr_conflict_resolver.cli.main.RuntimeConfig.from_preset",
+                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
                 return_value=mock_preset_config,
             ) as mock_from_preset,
         ):
@@ -602,7 +602,9 @@ class TestApplyCommandLLMPreset:
         """Test that --config preset takes priority over --llm-preset."""
         with (
             patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
-            patch("pr_conflict_resolver.cli.main.RuntimeConfig.from_preset") as mock_from_preset,
+            patch(
+                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset"
+            ) as mock_from_preset,
         ):
             mock_resolver = mock_resolver_class.return_value
             mock_result = Mock(
@@ -666,7 +668,7 @@ class TestApplyCommandLLMPreset:
         with (
             patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
             patch(
-                "pr_conflict_resolver.cli.main.RuntimeConfig.from_preset",
+                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
                 return_value=mock_preset_config,
             ) as mock_from_preset,
         ):
@@ -704,7 +706,7 @@ class TestApplyCommandLLMPreset:
     def test_apply_preset_loading_error(self, runner: CliRunner) -> None:
         """Test that preset loading errors are handled gracefully."""
         with patch(
-            "pr_conflict_resolver.cli.main.RuntimeConfig.from_preset",
+            "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
             side_effect=ConfigError("Invalid preset configuration"),
         ):
             result = runner.invoke(
