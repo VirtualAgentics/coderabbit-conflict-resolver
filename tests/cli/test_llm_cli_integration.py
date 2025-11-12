@@ -743,12 +743,6 @@ class TestAnalyzeCommandLLMPreset:
         mock_config = Mock()
         mock_config.log_file = None
         mock_config.log_level = "INFO"
-        mock_config.llm_enabled = True
-        mock_config.llm_provider = "codex-cli"
-        mock_config.llm_model = "codex"
-        mock_config.llm_api_key = None
-        mock_config.llm_fallback_to_regex = True
-        mock_config.llm_max_tokens = 2000
         mock_config.merge_with_cli.return_value = mock_config
         return mock_config
 
@@ -819,12 +813,6 @@ class TestAnalyzeCommandLLMPreset:
             mock_final_config = Mock()
             mock_final_config.log_file = None
             mock_final_config.log_level = "INFO"
-            mock_final_config.llm_enabled = True
-            mock_final_config.llm_provider = "ollama"
-            mock_final_config.llm_model = "llama3.3:70b"
-            mock_final_config.llm_api_key = None
-            mock_final_config.llm_fallback_to_regex = True
-            mock_final_config.llm_max_tokens = 2000
             mock_preset_config.merge_with_cli.return_value = mock_final_config
 
             mock_resolver = mock_resolver_class.return_value
