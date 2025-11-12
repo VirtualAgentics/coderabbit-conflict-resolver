@@ -2,6 +2,8 @@
 
 This guide covers advanced LLM configuration features including configuration files, presets, and environment variable interpolation.
 
+> **Note**: LLM features are supported by both `apply` and `analyze` commands with identical configuration options.
+
 > **See Also**: [Main Configuration Guide](configuration.md#llm-provider-configuration) for basic LLM setup and provider-specific documentation.
 
 ## Table of Contents
@@ -42,7 +44,11 @@ llm:
 Use with:
 
 ```bash
+# With apply command
 pr-resolve apply 123 --config config.yaml
+
+# With analyze command
+pr-resolve analyze --pr 123 --owner myorg --repo myrepo --config config.yaml
 ```
 
 ### TOML Configuration
@@ -104,12 +110,15 @@ No API key required:
 ```bash
 # GitHub Codex (requires Copilot subscription)
 pr-resolve apply 123 --llm-preset codex-cli-free
+pr-resolve analyze --pr 123 --owner myorg --repo myrepo --llm-preset codex-cli-free
 
 # Local Ollama (requires ollama installation)
 pr-resolve apply 123 --llm-preset ollama-local
+pr-resolve analyze --pr 123 --owner myorg --repo myrepo --llm-preset ollama-local
 
 # Claude CLI (requires Claude subscription)
 pr-resolve apply 123 --llm-preset claude-cli-sonnet
+pr-resolve analyze --pr 123 --owner myorg --repo myrepo --llm-preset claude-cli-sonnet
 ```
 
 #### API-Based Presets (Paid)

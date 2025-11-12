@@ -305,31 +305,234 @@ def _display_llm_metrics(metrics: LLMMetrics) -> None:
     callback=validate_github_repo,
     help="Repository name",
 )
-@click.option("--config", default="balanced", help="Configuration preset")
-def analyze(pr: int, owner: str, repo: str, config: str) -> None:
+@click.option(
+    "--config",
+    type=str,
+    help=(
+        "Configuration preset name (conservative/balanced/aggressive/semantic/llm-enabled) "
+        "or path to configuration file (YAML/TOML)"
+    ),
+)
+@click.option(
+    "--llm/--no-llm",
+    default=None,
+    help="Enable/disable LLM-based parsing (default: disabled for backward compatibility)",
+)
+@click.option(
+    "--llm-provider",
+    type=click.Choice(
+        ["claude-cli", "openai", "anthropic", "codex-cli", "ollama"], case_sensitive=False
+    ),
+    help="LLM provider to use (default: claude-cli)",
+)
+@click.option(
+    "--llm-model",
+    type=str,
+    help="LLM model identifier (e.g., claude-sonnet-4-5, gpt-4)",
+)
+@click.option(
+    "--llm-preset",
+    type=click.Choice(LLMPresetConfig.list_presets(), case_sensitive=False),
+    help="LLM configuration preset for zero-config setup (e.g., codex-cli-free, ollama-local)",
+)
+@click.option(
+    "--llm-api-key",
+    type=str,
+    help=(
+        "LLM API key (for API-based providers like OpenAI/Anthropic). "
+        "Can also be set via CR_LLM_API_KEY env var."
+    ),
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
+    help="Logging level (default: INFO)",
+)
+@click.option(
+    "--log-file",
+    type=click.Path(dir_okay=False),
+    help="Path to log file (default: stdout only)",
+)
+def analyze(
+    pr: int,
+    owner: str,
+    repo: str,
+    config: str | None,
+    llm: bool | None,
+    llm_provider: str | None,
+    llm_model: str | None,
+    llm_preset: str | None,
+    llm_api_key: str | None,
+    log_level: str | None,
+    log_file: str | None,
+) -> None:
     """Analyze conflicts in a pull request and print a summary to the console.
 
+    Supports LLM-based parsing with configuration from files/env vars/CLI flags.
+
+    Configuration precedence: CLI flags > environment variables > config file > defaults
+
     Args:
-        pr (int): Pull request number.
-        owner (str): Repository owner or organization.
-        repo (str): Repository name.
-        config (str): Configuration preset (e.g., "balanced"); falls back to default if unknown.
+        pr: Pull request number.
+        owner: Repository owner or organization.
+        repo: Repository name.
+        config: Configuration preset name or path to configuration file (YAML/TOML).
+        llm: Enable (True) or disable (False) LLM-based parsing. None uses config/env/defaults.
+        llm_provider: LLM provider to use (claude-cli, openai, anthropic, codex-cli, ollama).
+        llm_model: LLM model identifier (e.g., claude-sonnet-4-5, gpt-4).
+        llm_preset: LLM configuration preset for zero-config setup.
+        llm_api_key: API key for API-based providers (OpenAI, Anthropic).
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+        log_file: Path to log file for output.
 
     Raises:
         click.Abort: If an error occurs while analyzing conflicts.
     """
-    safe_config = sanitize_for_output(config)
+    # Load runtime configuration with proper precedence
+    try:
+        # Step 1: Load base configuration (config preset, config file, LLM preset, or defaults)
+        preset_name = None  # Track which config preset was loaded (if any)
+        llm_preset_name = None  # Track which LLM preset was loaded (if any)
 
+        if config:
+            # Check if config is a preset name or file path
+            if config.lower() in PRESET_NAMES:
+                # Load configuration preset
+                preset_name = config.lower()
+                # Replace hyphens with underscores for method name
+                method_suffix = preset_name.replace("-", "_")
+                method_name = f"from_{method_suffix}"
+
+                # Check if the preset method exists before calling
+                if not hasattr(RuntimeConfig, method_name):
+                    raise ValueError(
+                        f"Preset method '{method_name}' not found. "
+                        f"Valid presets: {', '.join(PRESET_NAMES)}"
+                    )
+
+                preset_method = getattr(RuntimeConfig, method_name)
+                runtime_config = preset_method()
+                console.print(f"[dim]Loaded configuration preset: {config}[/dim]")
+            else:
+                # Load from configuration file
+                config_path = Path(config)
+                runtime_config = RuntimeConfig.from_file(config_path)
+                console.print(f"[dim]Loaded configuration from: {config}[/dim]")
+        elif llm_preset:
+            # Load from LLM preset (lower priority than config file/preset)
+            llm_preset_name = llm_preset.lower()
+            runtime_config = RuntimeConfig.from_preset(llm_preset_name, api_key=llm_api_key)
+            console.print(f"[dim]Loaded LLM preset: {llm_preset_name}[/dim]")
+        else:
+            # Use defaults when no config file/preset/llm-preset specified
+            runtime_config = RuntimeConfig.from_defaults()
+
+        # Step 2: Apply environment variable overrides
+        env_config = RuntimeConfig.from_env()
+        env_var_map = {
+            "log_level": "CR_LOG_LEVEL",
+            "log_file": "CR_LOG_FILE",
+            "llm_enabled": "CR_LLM_ENABLED",
+            "llm_provider": "CR_LLM_PROVIDER",
+            "llm_model": "CR_LLM_MODEL",
+            "llm_api_key": "CR_LLM_API_KEY",
+            "llm_fallback_to_regex": "CR_LLM_FALLBACK_TO_REGEX",
+            "llm_cache_enabled": "CR_LLM_CACHE_ENABLED",
+            "llm_max_tokens": "CR_LLM_MAX_TOKENS",
+            "llm_cost_budget": "CR_LLM_COST_BUDGET",
+        }
+        env_overrides = {
+            field_name: getattr(env_config, field_name)
+            for field_name, env_var in env_var_map.items()
+            if env_var in os.environ
+        }
+
+        if env_overrides:
+            runtime_config = runtime_config.merge_with_cli(**env_overrides)
+            console.print(
+                f"[dim]Applied {len(env_overrides)} environment variable override(s)[/dim]"
+            )
+
+        # Step 3: Apply CLI overrides
+        cli_overrides = {
+            "log_level": log_level.upper() if log_level else None,
+            "log_file": str(log_file) if log_file else None,
+            "llm_enabled": llm,  # None, True, or False
+            "llm_provider": llm_provider,
+            "llm_model": llm_model,
+            "llm_api_key": llm_api_key,  # API key from CLI (highest priority)
+        }
+        runtime_config = runtime_config.merge_with_cli(**cli_overrides)
+
+        # Step 4: Configure logging
+        log_handler = (
+            logging.FileHandler(runtime_config.log_file)
+            if runtime_config.log_file
+            else logging.StreamHandler()
+        )
+        logging.basicConfig(
+            level=getattr(logging, runtime_config.log_level),
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=[log_handler],
+            force=True,
+        )
+
+    except Exception as e:
+        console.print(f"[red]❌ Configuration error: {e}[/red]")
+        raise click.Abort() from e
+
+    # Display configuration summary
     safe_owner = sanitize_for_output(owner)
     safe_repo = sanitize_for_output(repo)
     console.print(f"Analyzing conflicts in PR #{pr} for {safe_owner}/{safe_repo}")
-    console.print(f"Using configuration: {safe_config}")
 
-    # Get configuration preset
-    config_preset = getattr(PresetConfig, config.upper(), PresetConfig.BALANCED)
+    if runtime_config.llm_enabled:
+        console.print(
+            f"[dim]LLM parsing: {runtime_config.llm_provider} ({runtime_config.llm_model})[/dim]"
+        )
 
-    # Initialize resolver
-    resolver = ConflictResolver(config_preset)
+    # Map RuntimeConfig preset name to PresetConfig dict
+    if preset_name:
+        config_preset = getattr(PresetConfig, preset_name.upper(), PresetConfig.BALANCED)
+    else:
+        # No preset specified (using defaults or loaded from file),
+        # use balanced as default resolver strategy
+        config_preset = PresetConfig.BALANCED
+
+    # Initialize LLM parser if enabled
+    llm_parser = None
+    if runtime_config.llm_enabled:
+        try:
+            from pr_conflict_resolver.llm.factory import create_provider
+            from pr_conflict_resolver.llm.parser import UniversalLLMParser
+
+            # Create provider from RuntimeConfig
+            provider = create_provider(
+                provider=runtime_config.llm_provider,
+                model=runtime_config.llm_model,
+                api_key=runtime_config.llm_api_key,
+            )
+
+            # Create parser with provider
+            llm_parser = UniversalLLMParser(
+                provider=provider,
+                fallback_to_regex=runtime_config.llm_fallback_to_regex,
+                confidence_threshold=0.5,  # Default confidence threshold
+                max_tokens=runtime_config.llm_max_tokens,
+            )
+
+            console.print(
+                f"[dim]✓ LLM parser initialized: {runtime_config.llm_provider} "
+                f"({runtime_config.llm_model})[/dim]"
+            )
+
+        except Exception as e:
+            console.print(f"[yellow]⚠ Warning: Failed to initialize LLM parser: {e}[/yellow]")
+            console.print("[dim]Falling back to regex-only parsing[/dim]")
+            llm_parser = None
+
+    # Initialize resolver with LLM parser
+    resolver = ConflictResolver(config_preset, llm_parser=llm_parser)
 
     try:
         # Analyze conflicts
@@ -359,8 +562,75 @@ def analyze(pr: int, owner: str, repo: str, config: str) -> None:
         console.print(table)
         console.print(f"\n📊 Found {len(conflicts)} conflicts")
 
+        # Display LLM metrics if LLM was used
+        if runtime_config.llm_enabled and llm_parser:
+            # Extract all changes to compute metrics
+            comments = resolver._fetch_comments_with_error_context(owner, repo, pr)
+            changes = resolver.extract_changes_from_comments(comments)
+            llm_metrics = resolver._aggregate_llm_metrics(changes)
+
+            if llm_metrics:
+                _display_llm_metrics(llm_metrics)
+
+    except LLMAuthenticationError as e:
+        # Authentication errors - provide setup guidance
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
+        error_msg = LLMErrorHandler.format_auth_error(provider)
+        console.print(f"\n[red]{error_msg}[/red]")
+        logger.error("LLM authentication failed: %s", e)
+        raise click.Abort() from e
+
+    except LLMRateLimitError as e:
+        # Rate limit errors - suggest waiting or alternatives
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
+        error_msg = LLMErrorHandler.format_provider_error(provider, e)
+        console.print(f"\n[yellow]{error_msg}[/yellow]")
+        logger.warning("LLM rate limit exceeded: %s", e)
+        raise click.Abort() from e
+
+    except LLMTimeoutError as e:
+        # Timeout errors - suggest retry or faster model
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
+        error_msg = LLMErrorHandler.format_provider_error(provider, e)
+        console.print(f"\n[yellow]{error_msg}[/yellow]")
+        logger.warning("LLM request timed out: %s", e)
+        raise click.Abort() from e
+
+    except LLMConfigurationError as e:
+        # Configuration errors - provide actionable guidance
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
+        error_msg = LLMErrorHandler.format_provider_error(provider, e)
+        console.print(f"\n[red]{error_msg}[/red]")
+        logger.error("LLM configuration error: %s", e)
+        raise click.Abort() from e
+
+    except LLMParsingError as e:
+        # Parsing errors - may fall back to regex
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
+        error_msg = LLMErrorHandler.format_provider_error(provider, e)
+        console.print(f"\n[yellow]{error_msg}[/yellow]")
+        logger.warning("LLM parsing error: %s", e)
+        # Don't abort - may have fallen back to regex parsing
+
+    except LLMAPIError as e:
+        # Generic API errors
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
+        error_msg = LLMErrorHandler.format_provider_error(provider, e)
+        console.print(f"\n[red]{error_msg}[/red]")
+        logger.error("LLM API error: %s", e)
+        raise click.Abort() from e
+
+    except LLMError as e:
+        # Catch-all for other LLM errors
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
+        error_msg = LLMErrorHandler.format_provider_error(provider, e)
+        console.print(f"\n[red]{error_msg}[/red]")
+        logger.error("LLM error: %s", e)
+        raise click.Abort() from e
+
     except Exception as e:
         console.print(f"❌ Error analyzing conflicts: {e}")
+        logger.exception("Failed to analyze conflicts")
         raise click.Abort() from e
 
 
