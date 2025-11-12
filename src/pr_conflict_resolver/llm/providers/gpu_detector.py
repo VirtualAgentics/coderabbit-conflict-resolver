@@ -14,7 +14,10 @@ Example:
     ...     print("Using CPU inference")
 """
 
+from __future__ import annotations
+
 import logging
+import re
 from dataclasses import dataclass
 
 import requests
@@ -59,8 +62,20 @@ class GPUInfo:
 
     def __post_init__(self) -> None:
         """Validate GPU info fields."""
+        # Validate gpu_type against allowed values
+        allowed_gpu_types = {"NVIDIA", "AMD", "Apple", "Intel", "CPU", None}
+        if self.gpu_type not in allowed_gpu_types:
+            raise ValueError(f"gpu_type must be one of {allowed_gpu_types}, got {self.gpu_type!r}")
+
+        # When GPU is available, gpu_type must be set
         if self.available and self.gpu_type is None:
             raise ValueError("gpu_type cannot be None when GPU is available")
+
+        # When GPU is not available, gpu_type must be None or "CPU"
+        if not self.available and self.gpu_type not in {None, "CPU"}:
+            raise ValueError(
+                f"gpu_type must be None or 'CPU' when GPU is not available, got {self.gpu_type!r}"
+            )
 
         if self.vram_total_mb is not None and self.vram_total_mb < 0:
             raise ValueError(f"vram_total_mb must be >= 0, got {self.vram_total_mb}")
@@ -91,6 +106,51 @@ class GPUDetector:
     The detection is non-blocking and never fails - it always returns
     a valid GPUInfo object (potentially with available=False).
     """
+
+    @staticmethod
+    def _normalize_vram(value: int | float | str | None) -> int | None:
+        """Normalize VRAM value from various formats to int or None.
+
+        Args:
+            value: VRAM value (int, float, string representation, or None)
+
+        Returns:
+            Normalized VRAM in MB as int, or None if invalid/missing
+
+        Note:
+            - Negative values are treated as invalid (returns None)
+            - Floats are converted to int
+            - Strings are parsed to int
+            - Invalid strings or types return None
+        """
+        if value is None:
+            return None
+
+        try:
+            # Handle numeric types
+            if isinstance(value, (int, float)):
+                vram_int = int(value)
+                if vram_int < 0:
+                    logger.debug(f"Negative VRAM value {vram_int} treated as invalid")
+                    return None
+                return vram_int
+
+            # Handle string representations
+            if isinstance(value, str):
+                vram_int = int(float(value))  # Parse via float to handle "123.0"
+                logger.debug(f"Normalized VRAM string '{value}' to {vram_int}MB")
+                if vram_int < 0:
+                    logger.debug(f"Negative VRAM value {vram_int} treated as invalid")
+                    return None
+                return vram_int
+
+            # This should never be reached given the type signature, but handle defensively
+            logger.debug(f"Unexpected VRAM type {type(value).__name__}, returning None")  # type: ignore[unreachable]
+            return None  # pragma: no cover
+
+        except (ValueError, TypeError) as e:
+            logger.debug(f"Failed to parse VRAM value '{value}': {e}")
+            return None
 
     @staticmethod
     def detect_gpu(base_url: str, timeout: int = 5) -> GPUInfo:
@@ -134,7 +194,7 @@ class GPUDetector:
             logger.debug(f"System-level GPU detection failed: {e}")
 
         # Strategy 3: CPU fallback (always succeeds)
-        logger.debug("No GPU detected, using CPU inference")
+        logger.info("No GPU detected, falling back to CPU inference")
         return GPUInfo(
             available=False,
             gpu_type="CPU",
@@ -177,13 +237,17 @@ class GPUDetector:
         model = models[0]
         processor = model.get("processor", "")
 
+        # Normalize VRAM values (handle int/float/string/None)
+        vram_total = GPUDetector._normalize_vram(model.get("vram_total"))
+        vram_available = GPUDetector._normalize_vram(model.get("vram_available"))
+
         if "nvidia" in processor.lower() or "cuda" in processor.lower():
             return GPUInfo(
                 available=True,
                 gpu_type="NVIDIA",
                 model_name=processor,
-                vram_total_mb=model.get("vram_total"),
-                vram_available_mb=model.get("vram_available"),
+                vram_total_mb=vram_total,
+                vram_available_mb=vram_available,
                 compute_capability=None,
             )
         elif "amd" in processor.lower() or "rocm" in processor.lower():
@@ -191,8 +255,8 @@ class GPUDetector:
                 available=True,
                 gpu_type="AMD",
                 model_name=processor,
-                vram_total_mb=model.get("vram_total"),
-                vram_available_mb=model.get("vram_available"),
+                vram_total_mb=vram_total,
+                vram_available_mb=vram_available,
                 compute_capability=None,
             )
         elif "metal" in processor.lower() or "apple" in processor.lower():
@@ -200,8 +264,8 @@ class GPUDetector:
                 available=True,
                 gpu_type="Apple",
                 model_name=processor,
-                vram_total_mb=model.get("vram_total"),
-                vram_available_mb=model.get("vram_available"),
+                vram_total_mb=vram_total,
+                vram_available_mb=vram_available,
                 compute_capability=None,
             )
 
@@ -287,8 +351,8 @@ class GPUDetector:
                     check=True,
                 )
                 cpu_brand = result.stdout.strip()
-                # Check for Apple Silicon (M1/M2/M3)
-                if any(chip in cpu_brand for chip in ["M1", "M2", "M3", "M4"]):
+                # Check for Apple Silicon (M-series chips: M1, M2, M3, M4, M5, ...)
+                if re.search(r"\bM\d+\b", cpu_brand):
                     return GPUInfo(
                         available=True,
                         gpu_type="Apple",
