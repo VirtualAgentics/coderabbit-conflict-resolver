@@ -112,6 +112,7 @@ class OllamaProvider:
             pool_connections=10,  # Number of connection pools to cache
             pool_maxsize=10,  # Max connections to keep in pool
             max_retries=0,  # We handle retries with tenacity
+            pool_block=True,  # Block and surface exhaustion instead of spawning extra sockets
         )
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
@@ -402,6 +403,9 @@ class OllamaProvider:
         Should be called when provider is no longer needed to free up system
         resources. Can also be used automatically via context manager.
 
+        Returns:
+            None
+
         Example:
             >>> provider = OllamaProvider()
             >>> try:
@@ -438,5 +442,8 @@ class OllamaProvider:
             exc_type: Exception type if an exception occurred
             exc_val: Exception value if an exception occurred
             exc_tb: Exception traceback if an exception occurred
+
+        Returns:
+            None
         """
         self.close()
