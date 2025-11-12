@@ -287,12 +287,12 @@ class GPUDetector:
             Exception: If no GPU detected or system commands fail
         """
         import platform
-        import subprocess
+        import subprocess  # nosec B404
 
         # Try NVIDIA first (most common)
         try:
-            result = subprocess.run(
-                [  # noqa: S607  # nosec B607
+            result = subprocess.run(  # nosec B603 B607
+                [  # noqa: S607
                     "nvidia-smi",
                     "--query-gpu=name,memory.total",
                     "--format=csv,noheader,nounits",
@@ -320,8 +320,8 @@ class GPUDetector:
 
         # Try AMD ROCm
         try:
-            result = subprocess.run(
-                ["rocm-smi", "--showproductname"],  # noqa: S607  # nosec B607
+            result = subprocess.run(  # nosec B603 B607
+                ["rocm-smi", "--showproductname"],  # noqa: S607
                 capture_output=True,
                 text=True,
                 timeout=3,
@@ -343,8 +343,8 @@ class GPUDetector:
         # Try Apple Metal (macOS only)
         if platform.system() == "Darwin":
             try:
-                result = subprocess.run(
-                    ["sysctl", "-n", "machdep.cpu.brand_string"],  # noqa: S607  # nosec B607
+                result = subprocess.run(  # nosec B603 B607
+                    ["sysctl", "-n", "machdep.cpu.brand_string"],  # noqa: S607
                     capture_output=True,
                     text=True,
                     timeout=3,
