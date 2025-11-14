@@ -352,16 +352,19 @@ class GPUDetector:
                 )
                 cpu_brand = result.stdout.strip()
                 # Check for Apple Silicon (M-series chips: M1, M2, M3, M4, M5, ...)
-                if re.search(r"\bM\d+\b", cpu_brand):
+                # Extract chip designation (e.g., "M3 Max", "M1 Pro", "M2")
+                chip_match = re.search(r"M\d+(?:\s+(?:Pro|Max|Ultra))?", cpu_brand)
+                if chip_match:
+                    chip_name = chip_match.group(0)
                     return GPUInfo(
                         available=True,
                         gpu_type="Apple",
-                        model_name=f"Apple {cpu_brand.split()[1]} (Metal)",
+                        model_name=f"Apple {chip_name} (Metal)",
                         vram_total_mb=None,  # Unified memory, hard to determine
                         vram_available_mb=None,
                         compute_capability=None,
                     )
-            except (FileNotFoundError, subprocess.CalledProcessError, IndexError):
+            except (FileNotFoundError, subprocess.CalledProcessError):
                 pass  # System query failed
 
         raise ValueError("No GPU detected via system queries")
