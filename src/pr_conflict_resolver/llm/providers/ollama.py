@@ -34,6 +34,7 @@ from pr_conflict_resolver.llm.exceptions import (
     LLMAPIError,
     LLMConfigurationError,
 )
+from pr_conflict_resolver.llm.providers.gpu_detector import GPUDetector, GPUInfo
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +147,35 @@ class OllamaProvider:
             # Cleanup session if initialization fails
             self.session.close()
             raise
+
+        # Detect GPU (non-blocking, best-effort)
+        # Detection failure is non-fatal and logged at DEBUG level
+        self.gpu_info: GPUInfo | None = None
+        try:
+            self.gpu_info = GPUDetector.detect_gpu(self.base_url, timeout=5)
+            if self.gpu_info.available:
+                vram_display = (
+                    f" ({self.gpu_info.vram_total_mb // 1024}GB VRAM)"
+                    if self.gpu_info.vram_total_mb
+                    else ""
+                )
+                logger.info(
+                    f"GPU detected: {self.gpu_info.gpu_type} "
+                    f"{self.gpu_info.model_name}{vram_display}"
+                )
+            else:
+                logger.info("GPU not detected, using CPU inference")
+        except Exception as e:
+            logger.debug(f"GPU detection failed (non-fatal): {e}")
+            # Ensure we always have a GPUInfo object (CPU fallback)
+            self.gpu_info = GPUInfo(
+                available=False,
+                gpu_type="CPU",
+                model_name=None,
+                vram_total_mb=None,
+                vram_available_mb=None,
+                compute_capability=None,
+            )
 
         logger.info(
             f"Initialized Ollama provider: model={model}, timeout={timeout}s, base_url={base_url}"

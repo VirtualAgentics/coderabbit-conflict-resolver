@@ -247,6 +247,18 @@ def _display_llm_metrics(metrics: LLMMetrics) -> None:
         f"Avg tokens/call: {metrics.avg_tokens_per_call:,.0f}",
     )
 
+    # Row 5: GPU info (Ollama only)
+    if metrics.gpu_info is not None:
+        if metrics.gpu_info.available:
+            gpu_model = f"{metrics.gpu_info.gpu_type}"
+            if metrics.gpu_info.model_name:
+                gpu_model += f" {metrics.gpu_info.model_name}"
+            if metrics.gpu_info.vram_total_mb:
+                gpu_model += f" ({metrics.gpu_info.vram_total_mb // 1024}GB)"
+            table.add_row(f"Hardware: {gpu_model}", "")
+        else:
+            table.add_row("Hardware: CPU (No GPU detected)", "")
+
     # Display in panel
     # Capitalize provider name (OpenAI special case)
     provider_display = (
