@@ -38,7 +38,7 @@ classifiers = [
 # - docs/requirements.txt (documentation dependencies with hashes)
 # - .github/requirements-bootstrap.txt (CI bootstrap with hashes)
 dependencies = [
-    "click==8.3.0",
+    "click==8.3.1",
     "requests==2.32.5",
     "pydantic==2.12.4",
     "ruamel.yaml==0.18.16",
