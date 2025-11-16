@@ -482,7 +482,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🚀 LLM Features (v2.0 Architecture)
 
-> **✅ Core v2.0 LLM features are production-ready!** Phases 0-3 complete (57% of v2.0 milestone). All 5 LLM providers fully functional. See [Roadmap](#-roadmap) for current status.
+> **✅ Core v2.0 LLM features are production-ready!** Phases 0-3 complete (57% of v2.0 milestone). All 5 LLM providers fully functional. See [Roadmap](#-project-status) for current status.
 
 **Vision**: Major architecture upgrade to parse **95%+** of CodeRabbit comments (up from 20%)
 
