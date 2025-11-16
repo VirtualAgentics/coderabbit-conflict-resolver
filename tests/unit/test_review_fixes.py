@@ -168,8 +168,13 @@ llm:
         assert config.llm_max_tokens == 8000
         assert config.llm_cost_budget == 100.0
 
-    def test_toml_config_with_llm_section(self, tmp_path: Path) -> None:
+    def test_toml_config_with_llm_section(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test TOML config file with llm section is parsed correctly."""
+        # Unset OPENAI_API_KEY to ensure placeholder is preserved
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
         config_file = tmp_path / "config.toml"
         config_file.write_text(
             """

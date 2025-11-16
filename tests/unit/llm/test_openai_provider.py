@@ -406,7 +406,7 @@ class TestOpenAIProviderIntegration:
         assert api_key, "OPENAI_API_KEY must be set for integration tests"
 
         provider = OpenAIAPIProvider(api_key=api_key, model="gpt-4o-mini")
-        provider.generate('Return: {"test": "data"}', max_tokens=50)
+        provider.generate('Return a JSON response with: {"test": "data"}', max_tokens=50)
 
         cost = provider.get_total_cost()
         assert cost > 0.0

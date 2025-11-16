@@ -59,17 +59,17 @@ source ~/.bashrc
 
 **Note:** The tool also supports `GITHUB_TOKEN` for backward compatibility, but `GITHUB_PERSONAL_ACCESS_TOKEN` is preferred.
 
-### LLM Provider Setup (Optional)
+### LLM Provider Setup (Optional - ✅ ALL 5 PROVIDERS PRODUCTION-READY)
 
-The resolver supports AI-powered features via multiple LLM providers. This is optional but recommended for advanced conflict resolution.
+The resolver supports AI-powered features via multiple LLM providers. All 5 providers are production-ready with full feature support (Phase 2 Complete - Nov 9, 2025).
 
-####  Supported Providers
+####  ✅ Supported Providers (Production Status)
 
-- **openai**: OpenAI API (GPT-4, GPT-4 Turbo) - Production-ready, reliable
-- **anthropic**: Anthropic API (Claude Sonnet 4.5, Opus 4) - Advanced reasoning, 50-90% cost savings with prompt caching
-- **claude-cli**: Claude CLI - Development/debugging, subscription-based (no API key)
-- **codex-cli**: Codex CLI - Code-specific tasks, GitHub Copilot subscription
-- **ollama**: Local models - Free, private, offline
+- **openai**: OpenAI API (GPT-4o-mini, GPT-4) - ✅ Production-ready with retry logic & cost tracking
+- **anthropic**: Anthropic API (Claude Sonnet 4.5, Haiku 4) - ✅ Production-ready, 50-90% cost savings with prompt caching
+- **claude-cli**: Claude CLI - ✅ Production-ready, subscription-based (no API key needed)
+- **codex-cli**: Codex CLI - ✅ Production-ready, GitHub Copilot subscription
+- **ollama**: Local models - ✅ Production-ready with GPU acceleration (NVIDIA/AMD/Apple Silicon), auto-download, HTTP pooling
 
 #### Quick Setup: Anthropic (Recommended)
 

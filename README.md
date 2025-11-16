@@ -190,10 +190,14 @@ print(f"Success rate: {results.success_rate}%")
 - **TOML**: Section merging, format preservation
 - **Python/TypeScript**: AST-aware analysis (planned)
 
-### Multi-Provider LLM Support
+### Multi-Provider LLM Support ✅ (Phase 2 Complete - All 5 Providers Production-Ready)
 
-- **5 Provider Types**: OpenAI, Anthropic, Claude CLI, Codex CLI, Ollama
+- **5 Provider Types**: OpenAI API, Anthropic API, Claude CLI, Codex CLI, Ollama (all production-ready)
+- **GPU Acceleration**: Ollama supports NVIDIA CUDA, AMD ROCm, Apple Metal with automatic detection
+- **HTTP Connection Pooling**: Optimized for concurrent requests (10 connections per provider)
+- **Auto-Download**: Ollama can automatically download models when not available
 - **Cost Optimization**: Prompt caching reduces Anthropic costs by 50-90%
+- **Retry Logic**: Exponential backoff for transient failures (all providers)
 - **Flexible Deployment**: API-based, CLI-based, or local inference
 - **Provider Selection**: Choose based on cost, privacy, or performance needs
 - **Health Checks**: Automatic provider validation before use
@@ -373,7 +377,7 @@ pre-commit install
 
 ### Running Tests
 
-This project uses **pytest 9.0** with native subtests support for comprehensive testing. We maintain **>80% test coverage** with 1318+ tests including unit, integration, security, and property-based fuzzing tests.
+This project uses **pytest 9.0** with native subtests support for comprehensive testing. We maintain **>80% test coverage** with 1,394 tests including unit, integration, security, and property-based fuzzing tests.
 
 ```bash
 # Run standard tests with coverage
@@ -444,11 +448,30 @@ MIT License - see [LICENSE](LICENSE) for details.
   - ✅ Token counting and cost tracking
   - ✅ Comprehensive error handling
   - ✅ Integration with ConflictResolver
-- 🔄 **V2.0 Phase 2-6 (IN PROGRESS)** - 29% complete
-  - 📅 Multi-provider support (Anthropic, Claude CLI, Codex, Ollama)
-  - 📅 CLI integration polish and preset system
-  - 📅 Production hardening (retry logic, cost controls)
-  - 📅 Comprehensive documentation and migration guides
+- ✅ **V2.0 Phase 2: Multi-Provider Support (COMPLETE)** - Closed Nov 9, 2025
+  - ✅ All 5 LLM providers implemented: OpenAI API, Anthropic API, Claude CLI, Codex CLI, Ollama
+  - ✅ Provider factory pattern with automatic selection
+  - ✅ HTTP connection pooling and retry logic
+  - ✅ Provider health checks and validation
+  - ✅ Cost tracking across all API-based providers
+- ✅ **V2.0 Phase 3: CLI Integration Polish (COMPLETE)** - Closed Nov 11, 2025
+  - ✅ Zero-config presets for instant LLM setup (5 presets available)
+  - ✅ Configuration precedence chain: CLI > Environment > File > Defaults
+  - ✅ Enhanced error messages with actionable resolution steps
+  - ✅ Support for YAML/TOML configuration files
+  - ✅ Security: API keys must use ${VAR} syntax in config files
+- 🔄 **V2.0 Phase 4: Local Model Support (IN PROGRESS)** - 50% complete (3/6 sub-issues)
+  - ✅ Ollama provider with GPU acceleration (NVIDIA, AMD ROCm, Apple Metal)
+  - ✅ Automatic GPU detection and hardware info display
+  - ✅ HTTP connection pooling for concurrent requests
+  - ✅ Model auto-download feature
+  - 📅 Performance benchmarking (local vs API models) - Issue #170
+  - 📅 Privacy documentation (100% local operation guide) - Issue #171
+  - 📅 Offline integration tests & network isolation - Issue #172
+- 📅 **V2.0 Phase 5: Optimization & Production Readiness** - Not started
+- 📅 **V2.0 Phase 6: Documentation & Migration** - 50% complete
+
+**V2.0 Milestone Progress**: 57% complete (Phases 0-3 closed, Phase 4 at 50%)
 
 ### Security Highlights
 - **ClusterFuzzLite**: Continuous fuzzing (3 fuzz targets, ASan + UBSan)
@@ -457,9 +480,11 @@ MIT License - see [LICENSE](LICENSE) for details.
 - **Secret Detection**: 14+ pattern types (GitHub tokens, AWS keys, API keys, etc.)
 - **Documentation**: Comprehensive security documentation (threat model, incident response, compliance)
 
-## 🚀 Upcoming Features (v2.0 - LLM-First Architecture)
+## 🚀 LLM Features (v2.0 Architecture)
 
-**Coming Soon**: Major architecture upgrade to parse **95%+** of CodeRabbit comments (up from 20%)
+> **✅ Core v2.0 LLM features are production-ready!** Phases 0-3 complete (57% of v2.0 milestone). All 5 LLM providers fully functional. See [Roadmap](#-project-status) for current status.
+
+**Vision**: Major architecture upgrade to parse **95%+** of CodeRabbit comments (up from 20%)
 
 ### The Problem We're Solving
 

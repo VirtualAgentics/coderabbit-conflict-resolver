@@ -86,7 +86,7 @@ In Claude Code CLI:
 - `llm-evaluation` - Benchmarking, quality metrics
 
 **Value for this project:**
-- Critical for v2.0 LLM refactor (currently 29% complete)
+- Critical for v2.0 LLM refactor (currently 57% complete - Phases 0-3 done, Phase 4 in progress)
 - Optimize prompts for CodeRabbit comment parsing
 - Evaluate Anthropic vs OpenAI vs Ollama quality
 - Reduce API costs (better prompts)

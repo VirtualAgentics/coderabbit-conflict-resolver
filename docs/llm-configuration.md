@@ -1,5 +1,11 @@
 # LLM Configuration Guide
 
+> **✅ Production Status**: All 5 LLM providers are production-ready (Phase 2 Complete - Nov 9, 2025)
+> - OpenAI API, Anthropic API, Claude CLI, Codex CLI, Ollama
+> - All providers support retry logic, cost tracking, and health checks
+> - GPU acceleration available for Ollama (NVIDIA, AMD, Apple Silicon)
+> - HTTP connection pooling and model auto-download features included
+
 This guide covers advanced LLM configuration features including configuration files, presets, and environment variable interpolation.
 
 > **Note**: LLM features are supported by both `apply` and `analyze` commands with identical configuration options.
@@ -93,13 +99,13 @@ Presets provide zero-config LLM setup with sensible defaults for common use case
 
 ### Available Presets
 
-| Preset | Provider | Model | Cost | Requires |
-|--------|----------|-------|------|----------|
-| `codex-cli-free` | Codex CLI | `codex` | Free | GitHub Copilot subscription |
-| `ollama-local` | Ollama | `qwen2.5-coder:7b` | Free | Local Ollama installation |
-| `claude-cli-sonnet` | Claude CLI | `claude-sonnet-4-5` | Free | Claude subscription |
-| `openai-api-mini` | OpenAI API | `gpt-4o-mini` | ~$0.15/1M tokens | API key ($5 budget) |
-| `anthropic-api-balanced` | Anthropic API | `claude-haiku-4` | ~$0.25/1M tokens | API key ($5 budget) |
+| Preset | Provider | Model | Status | Cost | Requires |
+|--------|----------|-------|--------|------|----------|
+| `codex-cli-free` | Codex CLI | `codex` | ✅ Production | Free | GitHub Copilot subscription |
+| `ollama-local` | Ollama | `qwen2.5-coder:7b` | ✅ Production + GPU | Free | Local Ollama + GPU (optional) |
+| `claude-cli-sonnet` | Claude CLI | `claude-sonnet-4-5` | ✅ Production | Free | Claude subscription |
+| `openai-api-mini` | OpenAI API | `gpt-4o-mini` | ✅ Production | ~$0.15/1M tokens | API key ($5 budget) |
+| `anthropic-api-balanced` | Anthropic API | `claude-haiku-4` | ✅ Production | ~$0.25/1M tokens | API key ($5 budget) |
 
 ### Using Presets
 

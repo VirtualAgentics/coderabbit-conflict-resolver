@@ -49,6 +49,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integration with `ConflictResolver` for LLM-powered comment parsing
   - 30+ unit tests for OpenAI provider (93% coverage)
   - New dependencies: `openai==2.7.1`, `tenacity==9.1.2`, `tiktoken==0.12.0`
+- **V2.0 Phase 2**: Multi-Provider Support ✅ COMPLETE (Issue #116, Closed Nov 9, 2025)
+  - **All 5 LLM Providers Implemented:**
+    - OpenAI API (`openai_api.py`) - Production-ready with retry logic
+    - Anthropic API (`anthropic_api.py`) - With 50-90% cost reduction via prompt caching
+    - Claude CLI (`claude_cli.py`) - Subscription-based, zero marginal cost
+    - Codex CLI (`codex_cli.py`) - GitHub Copilot integration
+    - Ollama (`ollama.py`) - Local, privacy-first, offline-capable
+  - **Provider Infrastructure:**
+    - `LLMProviderFactory` for automatic provider selection based on configuration
+    - HTTP connection pooling (10 connections per pool) for improved performance (PR #173, Issue #167)
+    - Retry logic with exponential backoff for all providers
+    - Provider health checks and validation before use
+    - Cost tracking across all API-based providers
+  - **GPU Acceleration Support:**
+    - Multi-platform GPU detection (NVIDIA CUDA, AMD ROCm, Apple Metal)
+    - Automatic GPU configuration for Ollama (PR #176, Issue #169)
+    - Hardware metrics display in output (GPU model, VRAM, driver version)
+    - `GPUDetector` class for cross-platform GPU discovery
+  - **Model Management:**
+    - Ollama model auto-download functionality (PR #175, Issue #168)
+    - Model availability checking before inference
+    - Interactive setup scripts: `setup_ollama.sh`, `download_ollama_models.sh`
+  - **Testing & Quality:**
+    - Comprehensive test coverage for all providers (93%+ per provider)
+    - Integration tests with actual provider APIs
+    - Mock testing for CI/CD environments
+  - **New Dependencies:** `anthropic==0.73.0`, improved Ollama integration
+- **V2.0 Phase 3**: CLI Integration Polish ✅ COMPLETE (Issue #117, Closed Nov 11, 2025)
+  - **Zero-Config Presets:** 5 instant-setup presets via `--llm-preset` flag (PR #166)
+    - `codex-cli-free` - GitHub Copilot subscription (free)
+    - `ollama-local` - Local Ollama with GPU support (free, private)
+    - `claude-cli-sonnet` - Claude subscription (free)
+    - `openai-api-mini` - GPT-4o-mini pay-per-use (~$0.15/1M tokens)
+    - `anthropic-api-balanced` - Claude Haiku balanced cost/performance (~$0.25/1M tokens)
+  - **Configuration System:** (PR #158, Sub-Issue #117.2)
+    - Configuration precedence chain: CLI flags > Environment variables > Config file > Presets > Defaults
+    - Support for YAML and TOML configuration files
+    - Environment variable interpolation with `${VAR}` syntax
+    - Security: Direct API keys in config files rejected, must use `${VAR}` references
+    - Configuration validation with helpful error messages
+  - **Enhanced CLI Experience:** (PR #160, Issue #152)
+    - Provider-specific error messages with actionable resolution steps
+    - Cost tracking and metrics display after each run
+    - Configuration summary display before execution
+    - Provider authentication setup guides in documentation
+  - **LLM Preset System:** (PR #156, Issue #150)
+    - Preset configurations with sensible defaults per use case
+    - Easy switching between providers via single flag
+    - Automatic provider validation and health checks
+  - **Documentation:**
+    - `.env.example` updated with all LLM-related environment variables
+    - Comprehensive preset documentation in `docs/llm-configuration.md`
+    - Provider setup guides for each LLM provider
+- **V2.0 Phase 4**: Local Model Support 🔄 IN PROGRESS (Issue #118, 50% Complete)
+  - **Completed (3/6 sub-issues):**
+    - ✅ HTTP connection pooling and optimization (PR #173, Sub-Issue #167, Nov 12, 2025)
+      - `requests.Session()` for connection reuse and keep-alive
+      - 10 connections per pool for concurrent requests
+      - Enhanced error handling and timeout configuration
+    - ✅ Ollama model auto-download automation (PR #175, Sub-Issue #168, Nov 12, 2025)
+      - Automatic model availability checking
+      - Python API integration for model downloads
+      - Setup scripts with interactive prompts
+      - 350+ lines of comprehensive Ollama documentation
+    - ✅ GPU acceleration support and detection (PR #176, Sub-Issue #169, Nov 14, 2025)
+      - Multi-tier GPU detection (NVIDIA, AMD, Apple Silicon)
+      - Automatic hardware capability discovery
+      - GPU metrics integrated into output display
+      - Cross-platform compatibility (Linux, macOS, Windows)
+  - **Remaining (3/6 sub-issues):**
+    - 📅 Performance benchmarking - local vs API models (Sub-Issue #170)
+    - 📅 Privacy documentation - 100% local operation guide (Sub-Issue #171)
+    - 📅 Offline integration tests & network isolation validation (Sub-Issue #172)
 - **Phase 1**: Core functionality to apply ALL suggestions (Issue #14)
   - `ConflictResolver.separate_changes_by_conflict_status()` - Separate conflicting vs non-conflicting changes
   - `ConflictResolver.apply_changes()` - Apply changes with validation and batch processing

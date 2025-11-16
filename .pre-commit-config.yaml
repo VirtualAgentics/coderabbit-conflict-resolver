@@ -36,7 +36,7 @@ repos:
       - id: mypy
         language_version: python3.12
         additional_dependencies:
-          - click==8.3.0
+          - click==8.3.1
           - types-requests==2.32.4.20250913
           - types-PyYAML==6.0.12.20250915
           - pytest==9.0.1
@@ -44,7 +44,7 @@ repos:
           - ruamel.yaml==0.18.16
           - tomli-w==1.2.0
           - pydantic==2.12.4
-          - hypothesis==6.148.0
+          - hypothesis==6.148.1
           - tenacity==9.1.2
           - openai==2.8.0
           - tiktoken==0.12.0
