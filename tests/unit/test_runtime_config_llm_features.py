@@ -240,8 +240,11 @@ model = "gpt-4"
         finally:
             config_path.unlink()
 
-    def test_config_file_accepts_env_var_placeholder(self) -> None:
+    def test_config_file_accepts_env_var_placeholder(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that config file accepts ${VAR} placeholders."""
+        # Unset ANTHROPIC_API_KEY to ensure placeholder is preserved
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
         yaml_content = """
 llm:
   enabled: false

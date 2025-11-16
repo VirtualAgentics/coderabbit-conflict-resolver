@@ -251,8 +251,11 @@ level = "WARNING"
             finally:
                 os.unlink(f.name)
 
-    def test_from_file_yaml_with_llm_config(self) -> None:
+    def test_from_file_yaml_with_llm_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test loading YAML with LLM configuration section."""
+        # Unset ANTHROPIC_API_KEY to ensure placeholder is preserved
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
         yaml_content = """
 mode: all
 rollback:
