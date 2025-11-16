@@ -11,6 +11,7 @@ from click.testing import CliRunner
 
 from pr_conflict_resolver.cli.main import _display_llm_metrics, cli
 from pr_conflict_resolver.config.exceptions import ConfigError
+from pr_conflict_resolver.config.runtime_config import ApplicationMode
 from pr_conflict_resolver.llm.exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
@@ -22,6 +23,39 @@ from pr_conflict_resolver.llm.exceptions import (
 from pr_conflict_resolver.llm.metrics import LLMMetrics
 
 
+def _populate_runtime_config_mock(cfg: Mock) -> Mock:
+    """Populate a Mock object with RuntimeConfig attributes.
+
+    Helper function to DRY up repeated mock RuntimeConfig setup across tests.
+
+    Args:
+        cfg: Mock object to populate with RuntimeConfig attributes.
+
+    Returns:
+        The populated Mock object.
+    """
+    # Required attributes (no defaults)
+    cfg.mode = ApplicationMode.ALL
+    cfg.enable_rollback = True
+    cfg.validate_before_apply = True
+    cfg.parallel_processing = False
+    cfg.max_workers = 1
+    cfg.log_file = None
+    cfg.log_level = "INFO"
+    # LLM attributes (with defaults)
+    cfg.llm_enabled = False
+    cfg.llm_provider = "claude-cli"
+    cfg.llm_model = "claude-sonnet-4-5"
+    cfg.llm_api_key = None
+    cfg.llm_fallback_to_regex = True
+    cfg.llm_cache_enabled = True
+    cfg.llm_max_tokens = 2000
+    cfg.llm_cost_budget = None
+    # merge_with_cli can be called multiple times, so it should return itself
+    cfg.merge_with_cli.return_value = cfg
+    return cfg
+
+
 @pytest.fixture
 def cli_runner() -> CliRunner:
     """Create Click test runner for CLI tests."""
@@ -31,29 +65,7 @@ def cli_runner() -> CliRunner:
 @pytest.fixture
 def mock_preset_config() -> Mock:
     """Create a mock RuntimeConfig for preset tests."""
-    from pr_conflict_resolver.config.runtime_config import ApplicationMode
-
-    mock_config = Mock()
-    # Required attributes (no defaults)
-    mock_config.mode = ApplicationMode.ALL
-    mock_config.enable_rollback = True
-    mock_config.validate_before_apply = True
-    mock_config.parallel_processing = False
-    mock_config.max_workers = 1
-    mock_config.log_file = None
-    mock_config.log_level = "INFO"
-    # LLM attributes (with defaults)
-    mock_config.llm_enabled = False
-    mock_config.llm_provider = "claude-cli"
-    mock_config.llm_model = "claude-sonnet-4-5"
-    mock_config.llm_api_key = None
-    mock_config.llm_fallback_to_regex = True
-    mock_config.llm_cache_enabled = True
-    mock_config.llm_max_tokens = 2000
-    mock_config.llm_cost_budget = None
-    # merge_with_cli can be called multiple times, so it should return itself
-    mock_config.merge_with_cli.return_value = mock_config
-    return mock_config
+    return _populate_runtime_config_mock(Mock())
 
 
 class TestMetricsDisplay:
@@ -568,8 +580,6 @@ class TestApplyCommandLLMPreset:
         self, cli_runner: CliRunner, mock_preset_config: Mock
     ) -> None:
         """Test that individual --llm-* flags override preset values."""
-        from pr_conflict_resolver.config.runtime_config import ApplicationMode
-
         with (
             patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
             patch(
@@ -578,26 +588,7 @@ class TestApplyCommandLLMPreset:
             ) as mock_from_preset,
         ):
             # Setup final config after merge
-            mock_final_config = Mock()
-            # Required attributes (no defaults)
-            mock_final_config.mode = ApplicationMode.ALL
-            mock_final_config.enable_rollback = True
-            mock_final_config.validate_before_apply = True
-            mock_final_config.parallel_processing = False
-            mock_final_config.max_workers = 1
-            mock_final_config.log_file = None
-            mock_final_config.log_level = "INFO"
-            # LLM attributes (with defaults)
-            mock_final_config.llm_enabled = False
-            mock_final_config.llm_provider = "claude-cli"
-            mock_final_config.llm_model = "claude-sonnet-4-5"
-            mock_final_config.llm_api_key = None
-            mock_final_config.llm_fallback_to_regex = True
-            mock_final_config.llm_cache_enabled = True
-            mock_final_config.llm_max_tokens = 2000
-            mock_final_config.llm_cost_budget = None
-            # merge_with_cli can be called multiple times, so it should return itself
-            mock_final_config.merge_with_cli.return_value = mock_final_config
+            mock_final_config = _populate_runtime_config_mock(Mock())
             mock_preset_config.merge_with_cli.return_value = mock_final_config
 
             mock_resolver = mock_resolver_class.return_value
@@ -829,8 +820,6 @@ class TestAnalyzeCommandLLMPreset:
         self, cli_runner: CliRunner, mock_preset_config: Mock
     ) -> None:
         """Test that individual --llm-* flags override preset values."""
-        from pr_conflict_resolver.config.runtime_config import ApplicationMode
-
         with (
             patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
             patch(
@@ -839,26 +828,7 @@ class TestAnalyzeCommandLLMPreset:
             ) as mock_from_preset,
         ):
             # Setup final config after merge
-            mock_final_config = Mock()
-            # Required attributes (no defaults)
-            mock_final_config.mode = ApplicationMode.ALL
-            mock_final_config.enable_rollback = True
-            mock_final_config.validate_before_apply = True
-            mock_final_config.parallel_processing = False
-            mock_final_config.max_workers = 1
-            mock_final_config.log_file = None
-            mock_final_config.log_level = "INFO"
-            # LLM attributes (with defaults)
-            mock_final_config.llm_enabled = False
-            mock_final_config.llm_provider = "claude-cli"
-            mock_final_config.llm_model = "claude-sonnet-4-5"
-            mock_final_config.llm_api_key = None
-            mock_final_config.llm_fallback_to_regex = True
-            mock_final_config.llm_cache_enabled = True
-            mock_final_config.llm_max_tokens = 2000
-            mock_final_config.llm_cost_budget = None
-            # merge_with_cli can be called multiple times, so it should return itself
-            mock_final_config.merge_with_cli.return_value = mock_final_config
+            mock_final_config = _populate_runtime_config_mock(Mock())
             mock_preset_config.merge_with_cli.return_value = mock_final_config
 
             mock_resolver = mock_resolver_class.return_value

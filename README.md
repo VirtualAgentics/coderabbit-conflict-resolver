@@ -377,7 +377,7 @@ pre-commit install
 
 ### Running Tests
 
-This project uses **pytest 9.0** with native subtests support for comprehensive testing. We maintain **>80% test coverage** with 1318+ tests including unit, integration, security, and property-based fuzzing tests.
+This project uses **pytest 9.0** with native subtests support for comprehensive testing. We maintain **>80% test coverage** with 1,394 tests including unit, integration, security, and property-based fuzzing tests.
 
 ```bash
 # Run standard tests with coverage
@@ -480,9 +480,11 @@ MIT License - see [LICENSE](LICENSE) for details.
 - **Secret Detection**: 14+ pattern types (GitHub tokens, AWS keys, API keys, etc.)
 - **Documentation**: Comprehensive security documentation (threat model, incident response, compliance)
 
-## 🚀 Upcoming Features (v2.0 - LLM-First Architecture)
+## 🚀 LLM Features (v2.0 Architecture)
 
-**Coming Soon**: Major architecture upgrade to parse **95%+** of CodeRabbit comments (up from 20%)
+> **✅ Core v2.0 LLM features are production-ready!** Phases 0-3 complete (57% of v2.0 milestone). All 5 LLM providers fully functional. See [Roadmap](#-roadmap) for current status.
+
+**Vision**: Major architecture upgrade to parse **95%+** of CodeRabbit comments (up from 20%)
 
 ### The Problem We're Solving
 
