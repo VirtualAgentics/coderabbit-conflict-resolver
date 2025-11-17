@@ -106,12 +106,15 @@ Enable AI-powered features with your choice of LLM provider using **zero-config 
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
   --llm-preset codex-cli-free
 
-# Option 2: Local Ollama (free, private, offline) - EASIEST SETUP
+# Option 2: Local Ollama 🔒 (free, private) - REDUCED THIRD-PARTY EXPOSURE
 ./scripts/setup_ollama.sh          # One-time install
 ./scripts/download_ollama_models.sh  # Download model
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
   --llm-preset ollama-local
-# See docs/ollama-setup.md for detailed guide
+# 🔒 Eliminates LLM vendor exposure (OpenAI/Anthropic never see comments)
+# ✅ Simpler compliance (one fewer data processor for GDPR, HIPAA, SOC2)
+# ⚠️ Note: GitHub/CodeRabbit still have access (required for PR workflow)
+# See docs/ollama-setup.md for setup | docs/privacy-architecture.md for privacy details
 
 # Option 3: Claude CLI (requires Claude subscription)
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
@@ -128,7 +131,9 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
   --llm-api-key sk-ant-...
 ```
 
-**Available presets**: `codex-cli-free`, `ollama-local`, `claude-cli-sonnet`, `openai-api-mini`, `anthropic-api-balanced`
+**Available presets**: `codex-cli-free`, `ollama-local` 🔒, `claude-cli-sonnet`, `openai-api-mini`, `anthropic-api-balanced`
+
+**Privacy Note**: Ollama (`ollama-local`) eliminates LLM vendor exposure by processing review comments locally. OpenAI/Anthropic never see your code, simplifying compliance. Note: GitHub and CodeRabbit still have access (required for PR workflow). See [Privacy Architecture](docs/privacy-architecture.md) for details.
 
 ### Alternative: Use environment variables
 
@@ -147,7 +152,11 @@ export CR_LLM_API_KEY="sk-..."  # Get from https://platform.openai.com/api-keys
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123
 ```
 
-**See [LLM Configuration Guide](docs/llm-configuration.md) for all provider options and detailed setup.**
+**Documentation**:
+- [LLM Configuration Guide](docs/llm-configuration.md) - All provider options and setup
+- [Privacy Architecture](docs/privacy-architecture.md) - Privacy comparison and compliance
+- [Local LLM Operation Guide](docs/local-llm-operation-guide.md) - Local LLM setup with Ollama
+- [Privacy FAQ](docs/privacy-faq.md) - Common privacy questions
 
 ### Python API
 
@@ -467,8 +476,8 @@ MIT License - see [LICENSE](LICENSE) for details.
   - ✅ HTTP connection pooling for concurrent requests
   - ✅ Model auto-download feature
   - 📅 Performance benchmarking (local vs API models) - Issue #170
-  - 📅 Privacy documentation (100% local operation guide) - Issue #171
-  - 📅 Offline integration tests & network isolation - Issue #172
+  - ✅ Privacy documentation (local LLM operation guide) - Issue #171
+  - 📅 Integration tests with privacy verification - Issue #172
 - 📅 **V2.0 Phase 5: Optimization & Production Readiness** - Not started
 - 📅 **V2.0 Phase 6: Documentation & Migration** - 50% complete
 

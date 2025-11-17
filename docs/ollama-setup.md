@@ -2,7 +2,11 @@
 
 This guide provides comprehensive instructions for setting up Ollama for local LLM inference with pr-resolve.
 
-> **See Also**: [LLM Configuration Guide](llm-configuration.md) for advanced configuration options and presets.
+> **See Also**:
+> - [LLM Configuration Guide](llm-configuration.md) for advanced configuration options and presets
+> - [Privacy Architecture](privacy-architecture.md) for privacy benefits and compliance
+> - [Local LLM Operation Guide](local-llm-operation-guide.md) for local LLM setup
+> - [Privacy FAQ](privacy-faq.md) for common privacy questions
 
 ## Table of Contents
 
@@ -19,22 +23,41 @@ This guide provides comprehensive instructions for setting up Ollama for local L
 
 Ollama provides several advantages for local LLM inference:
 
-- **Free**: No API costs - runs entirely on your hardware
-- **Private**: Data never leaves your machine
-- **Offline**: Works without internet connection (after initial model download)
-- **Fast**: Local inference with GPU acceleration (if available)
-- **Simple**: Easy installation and model management
+### Privacy & Local LLM Processing 🔒
 
-**Recommended for**:
-- Privacy-sensitive codebases
-- Offline development environments
-- Cost-conscious usage
-- Development and testing
+- **🔒 Reduced Exposure**: Eliminates LLM vendor (OpenAI/Anthropic) from access chain
+- **🌐 GitHub API Required**: Internet needed to fetch PR data (not offline/air-gapped)
+- **✅ Simpler Compliance**: One fewer data processor for GDPR, HIPAA, SOC2
+- **⚠️ Reality Check**: Code is on GitHub, CodeRabbit has access (required)
+- **🔍 Verifiable**: Localhost-only LLM operation can be proven with network monitoring
 
-**Trade-offs**:
-- Requires local compute resources (RAM, disk space)
-- Slower than cloud APIs on CPU-only systems
-- Model quality varies (generally lower than GPT-4 or Claude)
+### Performance & Cost
+
+- **💰 Free**: No API costs - runs entirely on your hardware (zero ongoing fees)
+- **⚡ Fast**: Local inference with GPU acceleration (NVIDIA, AMD, Apple Silicon)
+- **📦 Simple**: Easy installation and model management
+
+### Recommended For
+
+- **Reducing third-party LLM vendor exposure** (eliminate OpenAI/Anthropic)
+- **Regulated industries** (simpler compliance with one fewer data processor)
+- **Organizations with policies against cloud LLM services**
+- **Cost-conscious usage** (no per-request LLM fees)
+- **Development and testing**
+
+### Trade-offs
+
+- Requires local compute resources (8-16GB RAM, 10-20GB disk)
+- Slower than cloud APIs on CPU-only systems (fast with GPU)
+- Model quality varies (improving rapidly, generally lower than GPT-4/Claude)
+
+### Learn More About Privacy
+
+For detailed information about Ollama's privacy benefits:
+- [Privacy Architecture](privacy-architecture.md) - Comprehensive privacy analysis
+- [Local LLM Operation Guide](local-llm-operation-guide.md) - Local LLM setup procedures
+- [Privacy FAQ](privacy-faq.md) - Common questions about privacy and local LLM operation
+- [Privacy Verification](local-llm-operation-guide.md#privacy-verification) - Verify localhost-only LLM operation
 
 ## Quick Start
 

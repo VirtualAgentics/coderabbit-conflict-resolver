@@ -175,6 +175,105 @@ The following LLM presets are available:
    - Requires API key: Yes
    - Cost budget: $5.00
 
+## Privacy Considerations
+
+Different LLM providers have significantly different privacy characteristics. Understanding these differences is crucial for choosing the right provider for your use case.
+
+### Privacy Comparison
+
+| Provider | LLM Vendor Exposure | GitHub API Required | Best For |
+|----------|---------------------|---------------------|----------|
+| **Ollama** | ✅ **None** (localhost) | ⚠️ Yes | Reducing third-party exposure, compliance |
+| **OpenAI** | ❌ OpenAI (US) | ⚠️ Yes | Cost-effective, production |
+| **Anthropic** | ❌ Anthropic (US) | ⚠️ Yes | Quality, caching benefits |
+| **Claude CLI** | ❌ Anthropic (US) | ⚠️ Yes | Interactive, convenience |
+| **Codex CLI** | ❌ GitHub/OpenAI | ⚠️ Yes | GitHub integration |
+
+**Note**: All options require GitHub API access (internet required). The privacy difference is whether an LLM vendor also sees your review comments.
+
+### Ollama: Reduced Third-Party Exposure 🔒
+
+**When using Ollama** (`ollama-local` preset):
+- ✅ **Local LLM processing** - Review comments processed locally (no LLM vendor)
+- ✅ **No LLM vendor exposure** - OpenAI/Anthropic never see your comments
+- ✅ **Simpler compliance** - One fewer data processor (no LLM vendor BAA/DPA)
+- ✅ **Zero LLM costs** - Free after hardware investment
+- ✅ **No LLM API keys required** - No credential management
+- ⚠️ **GitHub API required** - Internet needed to fetch PR data (not offline/air-gapped)
+
+**Reality Check**:
+- ⚠️ Code is on GitHub (required for PR workflow)
+- ⚠️ CodeRabbit has access (required for reviews)
+- ✅ LLM vendor does NOT have access (eliminated)
+
+**Recommended for**:
+- Reducing third-party LLM vendor exposure
+- Regulated industries wanting simpler compliance chain (GDPR, HIPAA, SOC2)
+- Organizations with policies against cloud LLM services
+- Cost-conscious usage (no per-request LLM fees)
+
+**Learn more**:
+- [Privacy Architecture](privacy-architecture.md) - Detailed privacy analysis
+- [Local LLM Operation Guide](local-llm-operation-guide.md) - Setup instructions
+- [Privacy FAQ](privacy-faq.md) - Common privacy questions
+
+### API Providers: Convenience vs. Privacy Trade-off
+
+**When using API providers** (OpenAI, Anthropic, etc.):
+- ⚠️ **Data transmitted to cloud** - Review comments and code sent via HTTPS
+- ⚠️ **Third-party data policies** - Subject to provider's retention and usage policies
+- ⚠️ **Internet required** - No offline operation
+- ⚠️ **Costs per request** - Ongoing usage fees
+- ⚠️ **Compliance complexity** - May require Data Processing Agreements (DPA), Business Associate Agreements (BAA)
+
+**Acceptable for**:
+- Open source / public code repositories
+- Organizations with enterprise LLM agreements
+- Use cases where privacy trade-off is acceptable
+- When highest model quality is required (GPT-4, Claude Opus)
+
+**Privacy safeguards**:
+- ✅ Data encrypted in transit (HTTPS/TLS)
+- ✅ API keys never logged by pr-resolve
+- ✅ Anthropic: No training on API data by default
+- ✅ OpenAI: Can opt out of training data usage
+
+### Privacy Verification
+
+Verify Ollama's local-only operation:
+
+```bash
+# Run privacy verification script
+./scripts/verify_privacy.sh
+
+# Expected output:
+# ✅ Privacy Verification: PASSED
+# ✅ No external network connections detected
+# ✅ All Ollama traffic is localhost-only
+```
+
+The script monitors network traffic during Ollama inference and confirms no external LLM vendor connections are made.
+
+**Note**: GitHub API connections will still appear (required for PR workflow).
+
+**See**: [Local LLM Operation Guide - Privacy Verification](local-llm-operation-guide.md#privacy-verification) for details.
+
+### Making the Right Choice
+
+**Choose Ollama if you need**:
+- ✅ Reduced third-party exposure (eliminate LLM vendor)
+- ✅ Simpler compliance chain (one fewer data processor)
+- ✅ Zero ongoing LLM costs
+- ⚠️ **NOT for**: Offline/air-gapped operation (requires GitHub API)
+
+**Choose API providers if**:
+- ✅ Privacy trade-off is acceptable (public/open-source code)
+- ✅ Enterprise agreements are in place (DPA, BAA)
+- ✅ Highest model quality is priority
+- ✅ Budget is available for per-request fees
+
+For detailed privacy analysis and compliance considerations, see the [Privacy Architecture](privacy-architecture.md) documentation.
+
 ## Environment Variable Interpolation
 
 Configuration files support `${VAR_NAME}` syntax for injecting environment variables at runtime.
@@ -671,8 +770,9 @@ Different LLM providers have different characteristics in terms of latency, cost
 - Anthropic with prompt caching can reduce costs by 50-90%
 
 **For Privacy-First Requirements:**
-- Ollama provides 100% local inference with no data sent externally
-- Ideal for HIPAA, GDPR, or confidential code bases
+- Ollama eliminates LLM vendor exposure (no OpenAI/Anthropic)
+- Simplifies compliance for HIPAA, GDPR (one fewer data processor)
+- Note: GitHub/CodeRabbit still have access (required)
 - Trade-off: Higher latency, especially on CPU-only systems
 
 **For High-Volume Production:**
