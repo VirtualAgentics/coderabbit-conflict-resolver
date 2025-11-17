@@ -139,7 +139,7 @@ def load_test_dataset(path: Path) -> dict[str, list[dict[str, Any]]]:
     if not path.exists():
         raise FileNotFoundError(f"Dataset not found: {path}")
 
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         dataset: dict[str, list[dict[str, Any]]] = json.load(f)
 
     # Validate structure

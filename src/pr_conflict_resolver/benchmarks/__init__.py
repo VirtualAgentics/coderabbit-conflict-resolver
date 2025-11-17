@@ -11,14 +11,16 @@ of different LLM providers across multiple metrics:
 
 Main Components:
     BenchmarkResult: Dataclass for storing benchmark results
-    benchmark_provider: Run benchmarks on a single provider
     calculate_percentile: Statistical percentile calculation
     load_test_dataset: Load test comments from JSON
+
+Note:
+    For running actual benchmarks, use the CLI tool scripts/benchmark_llm.py
+    which provides the complete benchmarking infrastructure.
 
 Usage:
     from pr_conflict_resolver.benchmarks import (
         BenchmarkResult,
-        benchmark_provider,
         calculate_percentile,
         load_test_dataset,
     )
@@ -26,17 +28,32 @@ Usage:
     # Load test dataset
     dataset = load_test_dataset(Path("tests/benchmarks/sample_comments.json"))
 
-    # Run benchmark
-    result = benchmark_provider(
-        provider_name="anthropic",
-        model="claude-3-5-sonnet-20241022",
-        test_comments=dataset["simple"],
-        iterations=100,
-    )
+    # Calculate percentiles from latency data
+    latencies = [1.2, 1.5, 2.0, 1.8, 2.2]
+    p95 = calculate_percentile(latencies, 95)
+    print(f"P95 latency: {p95:.2f}s")
 
-    # Analyze results
+    # Work with benchmark results
+    result = BenchmarkResult(
+        provider="anthropic",
+        model="claude-3-5-sonnet",
+        iterations=100,
+        latencies=latencies,
+        mean_latency=1.74,
+        median_latency=1.8,
+        p95_latency=p95,
+        p99_latency=2.2,
+        throughput=0.57,
+        success_rate=0.98,
+        avg_confidence=0.85,
+        total_cost=0.50,
+        cost_per_request=0.005,
+        total_tokens=1000,
+        avg_tokens_per_request=10.0,
+        gpu_info=None,
+        errors=2,
+    )
     print(f"Mean latency: {result.mean_latency:.2f}s")
-    print(f"P95 latency: {result.p95_latency:.2f}s")
     print(f"Success rate: {result.success_rate:.1%}")
 
 See Also:
