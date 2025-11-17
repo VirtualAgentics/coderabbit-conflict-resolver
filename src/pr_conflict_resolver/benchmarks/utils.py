@@ -54,6 +54,69 @@ class BenchmarkResult:
     gpu_info: dict[str, Any] | None
     errors: int
 
+    def __post_init__(self) -> None:
+        """Validate field constraints after initialization.
+
+        Raises:
+            ValueError: If any field violates its documented constraints
+        """
+        # Validate positive integer constraints first
+        if self.iterations < 1:
+            raise ValueError(f"iterations must be >= 1, got {self.iterations}")
+
+        # Validate latencies list
+        if not self.latencies:
+            raise ValueError("latencies must not be empty")
+
+        if len(self.latencies) != self.iterations:
+            raise ValueError(
+                f"latencies length ({len(self.latencies)}) must equal "
+                f"iterations ({self.iterations})"
+            )
+
+        # Validate range constraints (0.0-1.0)
+        if not 0.0 <= self.success_rate <= 1.0:
+            raise ValueError(f"success_rate must be between 0.0 and 1.0, got {self.success_rate}")
+
+        if not 0.0 <= self.avg_confidence <= 1.0:
+            raise ValueError(
+                f"avg_confidence must be between 0.0 and 1.0, got {self.avg_confidence}"
+            )
+
+        # Validate non-negative constraints
+        if self.errors < 0:
+            raise ValueError(f"errors must be >= 0, got {self.errors}")
+
+        if self.total_cost < 0.0:
+            raise ValueError(f"total_cost must be >= 0.0, got {self.total_cost}")
+
+        if self.cost_per_request < 0.0:
+            raise ValueError(f"cost_per_request must be >= 0.0, got {self.cost_per_request}")
+
+        if self.total_tokens < 0:
+            raise ValueError(f"total_tokens must be >= 0, got {self.total_tokens}")
+
+        if self.avg_tokens_per_request < 0.0:
+            raise ValueError(
+                f"avg_tokens_per_request must be >= 0.0, got {self.avg_tokens_per_request}"
+            )
+
+        # Validate latency metrics are non-negative
+        if self.mean_latency < 0.0:
+            raise ValueError(f"mean_latency must be >= 0.0, got {self.mean_latency}")
+
+        if self.median_latency < 0.0:
+            raise ValueError(f"median_latency must be >= 0.0, got {self.median_latency}")
+
+        if self.p95_latency < 0.0:
+            raise ValueError(f"p95_latency must be >= 0.0, got {self.p95_latency}")
+
+        if self.p99_latency < 0.0:
+            raise ValueError(f"p99_latency must be >= 0.0, got {self.p99_latency}")
+
+        if self.throughput < 0.0:
+            raise ValueError(f"throughput must be >= 0.0, got {self.throughput}")
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)

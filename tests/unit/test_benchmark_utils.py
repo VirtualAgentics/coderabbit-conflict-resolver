@@ -221,7 +221,7 @@ class TestBenchmarkResult:
             provider="openai",
             model="gpt-4o-mini",
             iterations=100,
-            latencies=[1.0, 1.5, 2.0],
+            latencies=[1.0, 1.5, 2.0] + [1.5] * 97,
             mean_latency=1.5,
             median_latency=1.5,
             p95_latency=2.0,
@@ -240,7 +240,7 @@ class TestBenchmarkResult:
         assert result.provider == "openai"
         assert result.model == "gpt-4o-mini"
         assert result.iterations == 100
-        assert len(result.latencies) == 3
+        assert len(result.latencies) == 100
         assert result.success_rate == 1.0
 
     def test_benchmark_result_to_dict(self) -> None:
@@ -249,7 +249,7 @@ class TestBenchmarkResult:
             provider="anthropic",
             model="claude-haiku-4",
             iterations=50,
-            latencies=[2.0, 2.5, 3.0],
+            latencies=[2.0, 2.5, 3.0] + [2.5] * 47,
             mean_latency=2.5,
             median_latency=2.5,
             p95_latency=3.0,
@@ -287,7 +287,7 @@ class TestBenchmarkResult:
             provider="ollama",
             model="qwen2.5-coder:7b",
             iterations=100,
-            latencies=[0.5, 0.6, 0.7],
+            latencies=[0.5, 0.6, 0.7] + [0.6] * 97,
             mean_latency=0.6,
             median_latency=0.6,
             p95_latency=0.7,
@@ -313,7 +313,7 @@ class TestBenchmarkResult:
             provider="test",
             model="test-model",
             iterations=10,
-            latencies=[1.0, 2.0, 3.0],
+            latencies=[1.0, 2.0, 3.0] + [2.0] * 7,
             mean_latency=2.0,
             median_latency=2.0,
             p95_latency=3.0,
@@ -337,6 +337,526 @@ class TestBenchmarkResult:
         decoded = json.loads(json_str)
         assert decoded["provider"] == "test"
         assert decoded["model"] == "test-model"
+
+
+class TestBenchmarkResultValidation:
+    """Test BenchmarkResult field validation in __post_init__."""
+
+    def test_success_rate_below_zero_raises(self) -> None:
+        """Test that success_rate < 0.0 raises ValueError."""
+        with pytest.raises(ValueError, match="success_rate must be between 0.0 and 1.0"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0] * 10,
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=-0.1,  # Invalid: negative
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_success_rate_above_one_raises(self) -> None:
+        """Test that success_rate > 1.0 raises ValueError."""
+        with pytest.raises(ValueError, match="success_rate must be between 0.0 and 1.0"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0] * 10,
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.5,  # Invalid: > 1.0
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_avg_confidence_below_zero_raises(self) -> None:
+        """Test that avg_confidence < 0.0 raises ValueError."""
+        with pytest.raises(ValueError, match="avg_confidence must be between 0.0 and 1.0"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0] * 10,
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=-0.5,  # Invalid: negative
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_avg_confidence_above_one_raises(self) -> None:
+        """Test that avg_confidence > 1.0 raises ValueError."""
+        with pytest.raises(ValueError, match="avg_confidence must be between 0.0 and 1.0"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0] * 10,
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=2.0,  # Invalid: > 1.0
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_iterations_zero_raises(self) -> None:
+        """Test that iterations = 0 raises ValueError."""
+        with pytest.raises(ValueError, match="iterations must be >= 1"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=0,  # Invalid: must be >= 1
+                latencies=[1.0],
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_iterations_negative_raises(self) -> None:
+        """Test that iterations < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="iterations must be >= 1"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=-5,  # Invalid: negative
+                latencies=[1.0],
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_errors_negative_raises(self) -> None:
+        """Test that errors < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="errors must be >= 0"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0] * 10,
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=-1,  # Invalid: negative
+            )
+
+    def test_total_cost_negative_raises(self) -> None:
+        """Test that total_cost < 0.0 raises ValueError."""
+        with pytest.raises(ValueError, match="total_cost must be >= 0.0"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0] * 10,
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=0.8,
+                total_cost=-5.0,  # Invalid: negative
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_cost_per_request_negative_raises(self) -> None:
+        """Test that cost_per_request < 0.0 raises ValueError."""
+        with pytest.raises(ValueError, match="cost_per_request must be >= 0.0"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0] * 10,
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=-0.01,  # Invalid: negative
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_total_tokens_negative_raises(self) -> None:
+        """Test that total_tokens < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="total_tokens must be >= 0"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0] * 10,
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=-100,  # Invalid: negative
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_avg_tokens_per_request_negative_raises(self) -> None:
+        """Test that avg_tokens_per_request < 0.0 raises ValueError."""
+        with pytest.raises(ValueError, match="avg_tokens_per_request must be >= 0.0"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0] * 10,
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=-10.0,  # Invalid: negative
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_mean_latency_negative_raises(self) -> None:
+        """Test that mean_latency < 0.0 raises ValueError."""
+        with pytest.raises(ValueError, match="mean_latency must be >= 0.0"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0] * 10,
+                mean_latency=-1.0,  # Invalid: negative
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_median_latency_negative_raises(self) -> None:
+        """Test that median_latency < 0.0 raises ValueError."""
+        with pytest.raises(ValueError, match="median_latency must be >= 0.0"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0] * 10,
+                mean_latency=1.0,
+                median_latency=-1.0,  # Invalid: negative
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_p95_latency_negative_raises(self) -> None:
+        """Test that p95_latency < 0.0 raises ValueError."""
+        with pytest.raises(ValueError, match="p95_latency must be >= 0.0"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0] * 10,
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=-1.0,  # Invalid: negative
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_p99_latency_negative_raises(self) -> None:
+        """Test that p99_latency < 0.0 raises ValueError."""
+        with pytest.raises(ValueError, match="p99_latency must be >= 0.0"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0] * 10,
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=-1.0,  # Invalid: negative
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_throughput_negative_raises(self) -> None:
+        """Test that throughput < 0.0 raises ValueError."""
+        with pytest.raises(ValueError, match="throughput must be >= 0.0"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0] * 10,
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=-1.0,  # Invalid: negative
+                success_rate=1.0,
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_latencies_empty_raises(self) -> None:
+        """Test that empty latencies list raises ValueError."""
+        with pytest.raises(ValueError, match="latencies must not be empty"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[],  # Invalid: empty list
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_latencies_length_mismatch_raises(self) -> None:
+        """Test that latencies length mismatch raises ValueError."""
+        with pytest.raises(ValueError, match="latencies length .* must equal iterations"):
+            BenchmarkResult(
+                provider="test",
+                model="test-model",
+                iterations=10,
+                latencies=[1.0, 2.0, 3.0],  # Invalid: length != iterations
+                mean_latency=1.0,
+                median_latency=1.0,
+                p95_latency=1.0,
+                p99_latency=1.0,
+                throughput=1.0,
+                success_rate=1.0,
+                avg_confidence=0.8,
+                total_cost=0.0,
+                cost_per_request=0.0,
+                total_tokens=100,
+                avg_tokens_per_request=10.0,
+                gpu_info=None,
+                errors=0,
+            )
+
+    def test_latencies_matching_length_accepted(self) -> None:
+        """Test that latencies with matching iterations length is accepted."""
+        result = BenchmarkResult(
+            provider="test",
+            model="test-model",
+            iterations=3,
+            latencies=[1.0, 2.0, 3.0],  # Valid: length == iterations
+            mean_latency=2.0,
+            median_latency=2.0,
+            p95_latency=3.0,
+            p99_latency=3.0,
+            throughput=0.5,
+            success_rate=1.0,
+            avg_confidence=0.8,
+            total_cost=0.0,
+            cost_per_request=0.0,
+            total_tokens=100,
+            avg_tokens_per_request=33.3,
+            gpu_info=None,
+            errors=0,
+        )
+        assert result.latencies == [1.0, 2.0, 3.0]
+        assert result.iterations == 3
+
+    def test_valid_edge_cases_accepted(self) -> None:
+        """Test that valid edge case values are accepted."""
+        # Test success_rate and avg_confidence at boundaries
+        result = BenchmarkResult(
+            provider="test",
+            model="test-model",
+            iterations=1,  # Minimum valid iterations
+            latencies=[1.0],
+            mean_latency=0.0,  # Edge: zero latency
+            median_latency=0.0,
+            p95_latency=0.0,
+            p99_latency=0.0,
+            throughput=0.0,  # Edge: zero throughput
+            success_rate=0.0,  # Edge: 0% success
+            avg_confidence=0.0,  # Edge: 0% confidence
+            total_cost=0.0,  # Edge: free (Ollama)
+            cost_per_request=0.0,
+            total_tokens=0,  # Edge: no tokens
+            avg_tokens_per_request=0.0,
+            gpu_info=None,
+            errors=0,
+        )
+        assert result.success_rate == 0.0
+        assert result.avg_confidence == 0.0
+        assert result.iterations == 1
+
+    def test_valid_maximum_edge_cases_accepted(self) -> None:
+        """Test that maximum valid edge case values are accepted."""
+        result = BenchmarkResult(
+            provider="test",
+            model="test-model",
+            iterations=1000,
+            latencies=[1.0] * 1000,
+            mean_latency=1.0,
+            median_latency=1.0,
+            p95_latency=1.0,
+            p99_latency=1.0,
+            throughput=1.0,
+            success_rate=1.0,  # Edge: 100% success
+            avg_confidence=1.0,  # Edge: 100% confidence
+            total_cost=1000.0,
+            cost_per_request=1.0,
+            total_tokens=100000,
+            avg_tokens_per_request=100.0,
+            gpu_info=None,
+            errors=0,
+        )
+        assert result.success_rate == 1.0
+        assert result.avg_confidence == 1.0
+        assert result.iterations == 1000
+
+    def test_valid_typical_values_accepted(self) -> None:
+        """Test that typical valid values are accepted."""
+        result = BenchmarkResult(
+            provider="openai",
+            model="gpt-4o-mini",
+            iterations=100,
+            latencies=[1.2] * 100,
+            mean_latency=1.3,
+            median_latency=1.3,
+            p95_latency=1.5,
+            p99_latency=1.5,
+            throughput=0.77,
+            success_rate=0.98,  # 98% success rate
+            avg_confidence=0.85,  # 85% confidence
+            total_cost=0.50,
+            cost_per_request=0.005,
+            total_tokens=1000,
+            avg_tokens_per_request=10.0,
+            gpu_info=None,
+            errors=2,
+        )
+        assert result.provider == "openai"
+        assert 0.0 <= result.success_rate <= 1.0
+        assert 0.0 <= result.avg_confidence <= 1.0
+        assert result.iterations >= 1
+        assert result.errors >= 0
 
 
 class TestIntegration:
