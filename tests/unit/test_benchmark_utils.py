@@ -5,16 +5,11 @@ Tests statistical calculations, data loading, and benchmark result structures.
 
 import json
 import statistics
-
-# Import from benchmark script
-import sys
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
-
-from benchmark_llm import (  # type: ignore[import-not-found]
+from pr_conflict_resolver.benchmarks import (
     BenchmarkResult,
     calculate_percentile,
     load_test_dataset,
@@ -177,9 +172,22 @@ class TestLoadTestDataset:
         assert len(result["complex"]) == 0
 
     def test_load_actual_benchmark_dataset(self) -> None:
-        """Test loading the actual benchmark dataset."""
+        """Test loading the actual benchmark dataset.
+
+        This test validates the structure and content of the real benchmark
+        dataset (tests/benchmarks/sample_comments.json) if it exists. The test
+        is skipped during early development or in environments where the
+        dataset hasn't been created yet.
+
+        The test ensures:
+        - All three complexity categories (simple, medium, complex) are present
+        - Each category contains at least 10 test comments
+        - All comments have required fields (body, path, line, ground_truth)
+        """
         dataset_path = Path(__file__).parent.parent / "benchmarks" / "sample_comments.json"
 
+        # Skip if the benchmark dataset hasn't been created yet
+        # This allows the test suite to pass during development before the dataset exists
         if not dataset_path.exists():
             pytest.skip("Benchmark dataset not yet created")
 
