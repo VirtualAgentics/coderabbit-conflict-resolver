@@ -259,6 +259,7 @@ See [`.env.example`](.env.example) for available environment variables.
 - [API Reference](docs/api-reference.md) - Python API documentation
 - [Conflict Types Explained](docs/conflict-types.md) - Understanding conflict categories
 - [Resolution Strategies](docs/resolution-strategies.md) - Strategy selection guide
+- [Performance Benchmarks](docs/performance-benchmarks.md) - LLM provider performance comparison
 
 ### Architecture & Development
 
