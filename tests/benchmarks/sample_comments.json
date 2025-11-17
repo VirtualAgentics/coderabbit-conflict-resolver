@@ -1,0 +1,371 @@
+{
+  "simple": [
+    {
+      "body": "```suggestion\ndef calculate_total(items):\n    return sum(item.price for item in items)\n```",
+      "path": "src/cart.py",
+      "line": 45,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 45,
+        "end_line": 46,
+        "change_type": "modification",
+        "confidence_threshold": 0.8
+      }
+    },
+    {
+      "body": "```suggestion\ntimeout = 60\n```",
+      "path": "config/settings.py",
+      "line": 12,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 12,
+        "end_line": 12,
+        "change_type": "modification",
+        "confidence_threshold": 0.9
+      }
+    },
+    {
+      "body": "```suggestion\n- import json\n+ import orjson as json\n```",
+      "path": "src/utils.py",
+      "line": 3,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 3,
+        "end_line": 3,
+        "change_type": "modification",
+        "confidence_threshold": 0.85
+      }
+    },
+    {
+      "body": "```suggestion\nlogger.info(\"Processing request: %s\", request_id)\n```",
+      "path": "src/api/handler.py",
+      "line": 78,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 78,
+        "end_line": 78,
+        "change_type": "modification",
+        "confidence_threshold": 0.8
+      }
+    },
+    {
+      "body": "```suggestion\nmax_retries = 3\n```",
+      "path": "src/client.py",
+      "line": 25,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 25,
+        "end_line": 25,
+        "change_type": "modification",
+        "confidence_threshold": 0.9
+      }
+    },
+    {
+      "body": "```suggestion\nreturn {\"status\": \"success\", \"data\": result}\n```",
+      "path": "src/api/views.py",
+      "line": 142,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 142,
+        "end_line": 142,
+        "change_type": "modification",
+        "confidence_threshold": 0.85
+      }
+    },
+    {
+      "body": "```suggestion\nif not user.is_authenticated:\n    return redirect(\"/login\")\n```",
+      "path": "src/middleware/auth.py",
+      "line": 33,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 33,
+        "end_line": 34,
+        "change_type": "modification",
+        "confidence_threshold": 0.8
+      }
+    },
+    {
+      "body": "```suggestion\nassert response.status_code == 200\n```",
+      "path": "tests/test_api.py",
+      "line": 56,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 56,
+        "end_line": 56,
+        "change_type": "modification",
+        "confidence_threshold": 0.9
+      }
+    },
+    {
+      "body": "```suggestion\nDEBUG = False\n```",
+      "path": "config/production.py",
+      "line": 8,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 8,
+        "end_line": 8,
+        "change_type": "modification",
+        "confidence_threshold": 0.95
+      }
+    },
+    {
+      "body": "```suggestion\n__version__ = \"2.0.1\"\n```",
+      "path": "src/__init__.py",
+      "line": 1,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 1,
+        "end_line": 1,
+        "change_type": "modification",
+        "confidence_threshold": 0.9
+      }
+    }
+  ],
+  "medium": [
+    {
+      "body": "Apply this diff to fix the timeout issue:\n\n```diff\n@@ -10,3 +10,3 @@\n- timeout = 30\n+ timeout = 60\n# Increased timeout for slow networks\n```",
+      "path": "src/config.py",
+      "line": 10,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 10,
+        "end_line": 12,
+        "change_type": "modification",
+        "confidence_threshold": 0.7
+      }
+    },
+    {
+      "body": "The function should use async/await:\n\n```suggestion\nasync def fetch_data(url: str) -> dict:\n    async with aiohttp.ClientSession() as session:\n        async with session.get(url) as response:\n            return await response.json()\n```",
+      "path": "src/api/client.py",
+      "line": 45,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 45,
+        "end_line": 48,
+        "change_type": "modification",
+        "confidence_threshold": 0.75
+      }
+    },
+    {
+      "body": "```diff\n@@ -25,5 +25,8 @@ def process_request(data):\n     try:\n         result = parse_data(data)\n-        return result\n+        if result is None:\n+            raise ValueError(\"Invalid data\")\n+        return result\n     except Exception as e:\n         logger.error(f\"Processing failed: {e}\")\n```",
+      "path": "src/processor.py",
+      "line": 25,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 27,
+        "end_line": 29,
+        "change_type": "modification",
+        "confidence_threshold": 0.7
+      }
+    },
+    {
+      "body": "Consider using a context manager for better resource cleanup:\n\n```suggestion\nwith open(filename, 'r') as f:\n    data = json.load(f)\n    process_data(data)\n```\n\nThis ensures the file is properly closed even if an exception occurs.",
+      "path": "src/utils/io.py",
+      "line": 67,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 67,
+        "end_line": 69,
+        "change_type": "modification",
+        "confidence_threshold": 0.75
+      }
+    },
+    {
+      "body": "```diff\n@@ -15,3 +15,5 @@ class UserManager:\n     def authenticate(self, username, password):\n-        user = self.db.get_user(username)\n+        if not username or not password:\n+            return None\n+        user = self.db.get_user(username)\n         if user and user.check_password(password):\n```",
+      "path": "src/auth/manager.py",
+      "line": 16,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 16,
+        "end_line": 18,
+        "change_type": "addition",
+        "confidence_threshold": 0.7
+      }
+    },
+    {
+      "body": "Update the error handling to be more specific:\n\n```suggestion\nexcept requests.exceptions.Timeout:\n    logger.error(\"Request timed out\")\n    return None\nexcept requests.exceptions.ConnectionError:\n    logger.error(\"Connection failed\")\n    return None\n```",
+      "path": "src/api/client.py",
+      "line": 92,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 92,
+        "end_line": 97,
+        "change_type": "modification",
+        "confidence_threshold": 0.7
+      }
+    },
+    {
+      "body": "```diff\n@@ -33,4 +33,6 @@ def calculate_metrics(data):\n     metrics = {\n         'count': len(data),\n-        'average': sum(data) / len(data)\n+        'average': sum(data) / len(data) if data else 0,\n+        'min': min(data) if data else None,\n+        'max': max(data) if data else None\n     }\n```",
+      "path": "src/analytics/calculator.py",
+      "line": 35,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 35,
+        "end_line": 37,
+        "change_type": "modification",
+        "confidence_threshold": 0.7
+      }
+    },
+    {
+      "body": "Add type hints for better code clarity:\n\n```suggestion\ndef process_items(items: list[dict[str, Any]]) -> list[ProcessedItem]:\n    return [ProcessedItem.from_dict(item) for item in items]\n```",
+      "path": "src/processing/handler.py",
+      "line": 56,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 56,
+        "end_line": 57,
+        "change_type": "modification",
+        "confidence_threshold": 0.75
+      }
+    },
+    {
+      "body": "```diff\n@@ -100,6 +100,9 @@ class Cache:\n     def get(self, key):\n+        if key not in self._cache:\n+            return None\n         entry = self._cache[key]\n-        return entry['value']\n+        if self._is_expired(entry):\n+            del self._cache[key]\n+            return None\n+        return entry['value']\n```",
+      "path": "src/cache/manager.py",
+      "line": 101,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 101,
+        "end_line": 107,
+        "change_type": "modification",
+        "confidence_threshold": 0.65
+      }
+    },
+    {
+      "body": "Refactor to use list comprehension for better performance:\n\n```suggestion\nactive_users = [user for user in users if user.is_active and user.last_login > cutoff_date]\n```\n\nThis is more Pythonic and faster than using filter().",
+      "path": "src/models/user.py",
+      "line": 123,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 123,
+        "end_line": 123,
+        "change_type": "modification",
+        "confidence_threshold": 0.75
+      }
+    }
+  ],
+  "complex": [
+    {
+      "body": "**Option 1**: Use async/await pattern (recommended for I/O-bound operations)\n```suggestion\nasync def process_batch(items):\n    tasks = [process_item(item) for item in items]\n    return await asyncio.gather(*tasks)\n```\n\n**Option 2**: Use threading for CPU-bound operations\n```suggestion\ndef process_batch(items):\n    with ThreadPoolExecutor(max_workers=4) as executor:\n        return list(executor.map(process_item, items))\n```\n\n**Option 3**: Keep synchronous (simplest, but slower)\n```suggestion\ndef process_batch(items):\n    return [process_item(item) for item in items]\n```",
+      "path": "src/batch/processor.py",
+      "line": 78,
+      "ground_truth": {
+        "changes": 3,
+        "start_line": 78,
+        "end_line": 80,
+        "change_type": "modification",
+        "multi_option": true,
+        "confidence_threshold": 0.6
+      }
+    },
+    {
+      "body": "⚠️ **Security Issue**: SQL injection vulnerability detected\n\nThe current code is vulnerable to SQL injection:\n```python\nquery = f\"SELECT * FROM users WHERE username = '{username}'\"\n```\n\n**Fix**: Use parameterized queries:\n```suggestion\nquery = \"SELECT * FROM users WHERE username = %s\"\ncursor.execute(query, (username,))\n```\n\n**Additional recommendations**:\n1. Enable query logging for auditing\n2. Add input validation before database calls\n3. Use an ORM like SQLAlchemy for better security\n\nSee OWASP guidelines: https://owasp.org/www-community/attacks/SQL_Injection",
+      "path": "src/db/queries.py",
+      "line": 145,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 145,
+        "end_line": 146,
+        "change_type": "modification",
+        "security_issue": true,
+        "confidence_threshold": 0.7
+      }
+    },
+    {
+      "body": "This function has multiple code smells that should be addressed:\n\n1. **Too many responsibilities** - violates Single Responsibility Principle\n2. **High cyclomatic complexity** - difficult to test and maintain\n3. **No error handling** - will crash on invalid input\n\n**Suggested refactoring**:\n\n```suggestion\ndef validate_and_process_user(user_data: dict) -> ProcessedUser:\n    \"\"\"Validate user data and create ProcessedUser instance.\n    \n    Args:\n        user_data: Raw user data dictionary\n        \n    Returns:\n        ProcessedUser instance\n        \n    Raises:\n        ValueError: If validation fails\n    \"\"\"\n    _validate_user_data(user_data)\n    normalized = _normalize_user_data(user_data)\n    return ProcessedUser.from_dict(normalized)\n\n\ndef _validate_user_data(data: dict) -> None:\n    \"\"\"Validate required fields and data types.\"\"\"\n    required_fields = ['email', 'username', 'password']\n    for field in required_fields:\n        if field not in data:\n            raise ValueError(f\"Missing required field: {field}\")\n            \n\ndef _normalize_user_data(data: dict) -> dict:\n    \"\"\"Normalize user data format.\"\"\"\n    return {\n        'email': data['email'].lower().strip(),\n        'username': data['username'].strip(),\n        'password': hash_password(data['password'])\n    }\n```\n\nThis separates concerns and makes each function testable in isolation.",
+      "path": "src/users/processor.py",
+      "line": 234,
+      "ground_truth": {
+        "changes": 3,
+        "start_line": 234,
+        "end_line": 260,
+        "change_type": "refactoring",
+        "confidence_threshold": 0.55
+      }
+    },
+    {
+      "body": "**Performance Optimization Needed**\n\nCurrent implementation has O(n²) complexity:\n```python\nfor item in items:\n    for other in items:\n        if item != other and is_duplicate(item, other):\n            duplicates.append(item)\n```\n\n**Optimized approach** using hash set (O(n)):\n```suggestion\ndef find_duplicates(items: list[Item]) -> list[Item]:\n    seen = set()\n    duplicates = []\n    \n    for item in items:\n        item_hash = hash(item)\n        if item_hash in seen:\n            duplicates.append(item)\n        else:\n            seen.add(item_hash)\n    \n    return duplicates\n```\n\n**Benchmark results**:\n- 1,000 items: 50ms → 5ms (10x faster)\n- 10,000 items: 5s → 50ms (100x faster)\n- 100,000 items: timeout → 500ms (1000x+ faster)",
+      "path": "src/utils/dedup.py",
+      "line": 45,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 45,
+        "end_line": 53,
+        "change_type": "optimization",
+        "confidence_threshold": 0.65
+      }
+    },
+    {
+      "body": "**Type Safety Issue**: Missing type annotations and runtime validation\n\nCurrent code allows invalid types to pass through:\n```python\ndef calculate_discount(price, discount_percent):\n    return price * (1 - discount_percent / 100)\n```\n\nThis will fail silently if strings are passed instead of numbers.\n\n**Recommended fix**:\n```suggestion\nfrom typing import Union\nfrom decimal import Decimal\n\ndef calculate_discount(\n    price: Union[int, float, Decimal],\n    discount_percent: Union[int, float]\n) -> Decimal:\n    \"\"\"Calculate discounted price.\n    \n    Args:\n        price: Original price (positive number)\n        discount_percent: Discount percentage (0-100)\n        \n    Returns:\n        Discounted price as Decimal\n        \n    Raises:\n        ValueError: If price is negative or discount is out of range\n        TypeError: If arguments are not numeric\n    \"\"\"\n    if not isinstance(price, (int, float, Decimal)):\n        raise TypeError(f\"price must be numeric, got {type(price)}\")\n    if not isinstance(discount_percent, (int, float)):\n        raise TypeError(f\"discount_percent must be numeric, got {type(discount_percent)}\")\n        \n    price_decimal = Decimal(str(price))\n    \n    if price_decimal < 0:\n        raise ValueError(\"price must be non-negative\")\n    if not 0 <= discount_percent <= 100:\n        raise ValueError(\"discount_percent must be between 0 and 100\")\n        \n    discount_multiplier = Decimal(str(1 - discount_percent / 100))\n    return price_decimal * discount_multiplier\n```\n\n**Additional benefits**:\n1. Prevents floating-point precision issues\n2. Clear error messages for debugging\n3. Type hints enable IDE autocomplete and static analysis",
+      "path": "src/pricing/calculator.py",
+      "line": 89,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 89,
+        "end_line": 120,
+        "change_type": "type_safety",
+        "confidence_threshold": 0.5
+      }
+    },
+    {
+      "body": "**Outside diff range**: This issue affects code not shown in the diff.\n\nThe `UserService` class at line 15 is missing dependency injection, making it difficult to test.\n\n**Current implementation**:\n```python\nclass UserService:\n    def __init__(self):\n        self.db = Database()  # Hard-coded dependency\n        self.cache = RedisCache()  # Hard-coded dependency\n```\n\n**Recommended approach**:\n```suggestion\nfrom typing import Protocol\n\nclass DatabaseProtocol(Protocol):\n    def get_user(self, user_id: int) -> User | None: ...\n    def save_user(self, user: User) -> None: ...\n\nclass CacheProtocol(Protocol):\n    def get(self, key: str) -> Any | None: ...\n    def set(self, key: str, value: Any, ttl: int) -> None: ...\n\nclass UserService:\n    def __init__(\n        self,\n        database: DatabaseProtocol,\n        cache: CacheProtocol\n    ) -> None:\n        self.db = database\n        self.cache = cache\n```\n\n**Benefits**:\n1. Easy to mock for unit tests\n2. Follows SOLID principles (Dependency Inversion)\n3. Runtime type checking with protocols\n4. Clear interface contracts",
+      "path": "src/services/user.py",
+      "line": 15,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 15,
+        "end_line": 37,
+        "change_type": "refactoring",
+        "outside_diff": true,
+        "confidence_threshold": 0.55
+      }
+    },
+    {
+      "body": "**Design Pattern Recommendation**: Replace conditional logic with Strategy pattern\n\nCurrent code has a long if/elif chain that will grow with each new payment method:\n\n```python\nif payment_type == 'credit_card':\n    processor = CreditCardProcessor()\nelif payment_type == 'paypal':\n    processor = PayPalProcessor()\nelif payment_type == 'crypto':\n    processor = CryptoProcessor()\nelse:\n    raise ValueError(f\"Unknown payment type: {payment_type}\")\n```\n\n**Refactored with Strategy pattern**:\n\n```suggestion\nfrom typing import Protocol\n\nclass PaymentProcessor(Protocol):\n    \"\"\"Payment processing strategy.\"\"\"\n    def process(self, amount: Decimal) -> PaymentResult: ...\n\nclass PaymentFactory:\n    _processors: dict[str, type[PaymentProcessor]] = {\n        'credit_card': CreditCardProcessor,\n        'paypal': PayPalProcessor,\n        'crypto': CryptoProcessor,\n    }\n    \n    @classmethod\n    def get_processor(cls, payment_type: str) -> PaymentProcessor:\n        processor_class = cls._processors.get(payment_type)\n        if processor_class is None:\n            raise ValueError(f\"Unknown payment type: {payment_type}\")\n        return processor_class()\n    \n    @classmethod\n    def register(cls, payment_type: str, processor: type[PaymentProcessor]) -> None:\n        \"\"\"Register new payment processor (for plugins).\"\"\"\n        cls._processors[payment_type] = processor\n\n# Usage:\nprocessor = PaymentFactory.get_processor(payment_type)\nresult = processor.process(amount)\n```\n\n**Advantages**:\n1. Open/Closed Principle - add new processors without modifying existing code\n2. Plugin system - third-party payment methods can register themselves\n3. Testability - easy to mock any processor\n4. Type safety - Protocol ensures all processors have correct interface",
+      "path": "src/payments/handler.py",
+      "line": 156,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 156,
+        "end_line": 185,
+        "change_type": "design_pattern",
+        "confidence_threshold": 0.5
+      }
+    },
+    {
+      "body": "**Memory Leak Warning**: File handles not properly closed\n\nThe current implementation opens multiple files but doesn't guarantee they'll be closed:\n\n```python\nfiles = [open(path, 'r') for path in file_paths]\nfor f in files:\n    process_file(f)\n# Files never explicitly closed!\n```\n\nIf `process_file()` raises an exception, the files remain open until garbage collection.\n\n**Safe implementation**:\n\n```suggestion\nfrom contextlib import ExitStack\n\ndef process_multiple_files(file_paths: list[Path]) -> None:\n    \"\"\"Process multiple files safely with automatic cleanup.\n    \n    Args:\n        file_paths: List of file paths to process\n        \n    Raises:\n        IOError: If any file cannot be opened or processed\n    \"\"\"\n    with ExitStack() as stack:\n        # Open all files and register them for cleanup\n        files = [\n            stack.enter_context(open(path, 'r'))\n            for path in file_paths\n        ]\n        \n        # Process files\n        for file in files:\n            try:\n                process_file(file)\n            except Exception as e:\n                logger.error(f\"Error processing {file.name}: {e}\")\n                raise\n        \n        # All files automatically closed when exiting context,\n        # even if an exception occurs\n```\n\n**Additional considerations**:\n1. Add file size validation before opening\n2. Process files in batches if dealing with thousands of files\n3. Consider using `mmap` for large files",
+      "path": "src/io/batch_processor.py",
+      "line": 67,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 67,
+        "end_line": 88,
+        "change_type": "bug_fix",
+        "confidence_threshold": 0.6
+      }
+    },
+    {
+      "body": "**Concurrency Issue**: Race condition in cache update\n\nThe current implementation has a race condition:\n```python\nif key not in cache:\n    cache[key] = expensive_computation()\nreturn cache[key]\n```\n\nTwo threads can both see `key not in cache` as True and both perform the expensive computation.\n\n**Thread-safe implementation**:\n\n```suggestion\nimport threading\nfrom typing import Any, Callable\n\nclass ThreadSafeCache:\n    def __init__(self) -> None:\n        self._cache: dict[str, Any] = {}\n        self._locks: dict[str, threading.Lock] = {}\n        self._main_lock = threading.Lock()\n    \n    def get_or_compute(\n        self,\n        key: str,\n        compute_fn: Callable[[], Any]\n    ) -> Any:\n        \"\"\"Get value from cache or compute it (thread-safe).\n        \n        Args:\n            key: Cache key\n            compute_fn: Function to compute value if not in cache\n            \n        Returns:\n            Cached or computed value\n        \"\"\"\n        # Fast path: check cache without locking\n        if key in self._cache:\n            return self._cache[key]\n        \n        # Get key-specific lock\n        with self._main_lock:\n            if key not in self._locks:\n                self._locks[key] = threading.Lock()\n            lock = self._locks[key]\n        \n        # Compute with key-specific lock\n        with lock:\n            # Double-check after acquiring lock\n            if key in self._cache:\n                return self._cache[key]\n            \n            # Compute and cache\n            value = compute_fn()\n            self._cache[key] = value\n            return value\n```\n\n**Benefits**:\n1. No duplicate computation for same key\n2. Different keys can be computed in parallel\n3. Double-checked locking for performance",
+      "path": "src/cache/concurrent.py",
+      "line": 123,
+      "ground_truth": {
+        "changes": 1,
+        "start_line": 123,
+        "end_line": 160,
+        "change_type": "concurrency_fix",
+        "confidence_threshold": 0.55
+      }
+    },
+    {
+      "body": "**Architectural Concern**: This module has too many responsibilities\n\nThe `DataManager` class violates Single Responsibility Principle by handling:\n1. Database operations\n2. Caching logic\n3. Data validation\n4. Business logic\n5. API serialization\n\n**Suggested architecture** (Domain-Driven Design):\n\n```suggestion\n# src/domain/entities/user.py\nfrom dataclasses import dataclass\n\n@dataclass(frozen=True)\nclass User:\n    \"\"\"Domain entity representing a user.\"\"\"\n    id: int\n    email: str\n    username: str\n    \n# src/domain/repositories/user_repository.py\nfrom typing import Protocol\n\nclass UserRepository(Protocol):\n    \"\"\"Repository interface for user persistence.\"\"\"\n    def get_by_id(self, user_id: int) -> User | None: ...\n    def save(self, user: User) -> None: ...\n    def delete(self, user_id: int) -> None: ...\n\n# src/infrastructure/repositories/postgres_user_repository.py\nclass PostgresUserRepository:\n    \"\"\"PostgreSQL implementation of UserRepository.\"\"\"\n    def __init__(self, connection_pool: Pool) -> None:\n        self._pool = connection_pool\n    \n    def get_by_id(self, user_id: int) -> User | None:\n        # Database query implementation\n        pass\n    \n    def save(self, user: User) -> None:\n        # Database save implementation\n        pass\n\n# src/infrastructure/cache/cached_user_repository.py\nclass CachedUserRepository:\n    \"\"\"Cached wrapper for any UserRepository.\"\"\"\n    def __init__(\n        self,\n        repository: UserRepository,\n        cache: CacheProtocol\n    ) -> None:\n        self._repository = repository\n        self._cache = cache\n    \n    def get_by_id(self, user_id: int) -> User | None:\n        # Check cache first\n        cached = self._cache.get(f\"user:{user_id}\")\n        if cached:\n            return User(**cached)\n        \n        # Fall back to repository\n        user = self._repository.get_by_id(user_id)\n        if user:\n            self._cache.set(f\"user:{user_id}\", asdict(user))\n        return user\n\n# src/application/services/user_service.py\nclass UserService:\n    \"\"\"Application service for user business logic.\"\"\"\n    def __init__(self, repository: UserRepository) -> None:\n        self._repository = repository\n    \n    def get_user(self, user_id: int) -> User | None:\n        return self._repository.get_by_id(user_id)\n    \n    def create_user(self, email: str, username: str) -> User:\n        # Validation and business logic\n        user = User(id=0, email=email, username=username)\n        self._repository.save(user)\n        return user\n\n# src/api/controllers/user_controller.py\nclass UserController:\n    \"\"\"API controller for user endpoints.\"\"\"\n    def __init__(self, user_service: UserService) -> None:\n        self._service = user_service\n    \n    def get_user_endpoint(self, user_id: int) -> dict:\n        user = self._service.get_user(user_id)\n        if not user:\n            raise HTTPException(404, \"User not found\")\n        return {\"id\": user.id, \"email\": user.email, \"username\": user.username}\n```\n\n**This layered architecture provides**:\n1. **Domain Layer**: Pure business logic, no dependencies\n2. **Application Layer**: Use cases and workflows\n3. **Infrastructure Layer**: Implementation details (DB, cache, API)\n4. **Dependency Inversion**: High-level code doesn't depend on low-level details\n5. **Testability**: Each layer can be tested in isolation\n6. **Flexibility**: Easy to swap implementations (e.g., Postgres → MongoDB)",
+      "path": "src/managers/data_manager.py",
+      "line": 1,
+      "ground_truth": {
+        "changes": 7,
+        "start_line": 1,
+        "end_line": 95,
+        "change_type": "architecture",
+        "confidence_threshold": 0.45
+      }
+    }
+  ]
+}

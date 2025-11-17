@@ -655,8 +655,57 @@ llm:
   max_tokens: 1000   # Reduce tokens per request
 ```
 
+## Performance Considerations
+
+### Choosing the Right Provider
+
+Different LLM providers have different characteristics in terms of latency, cost, accuracy, and privacy. Consider these factors when choosing a provider:
+
+**For Speed-Critical Applications:**
+- OpenAI and Anthropic APIs typically offer the lowest latency (1-3s mean)
+- Best for real-time workflows and interactive use cases
+
+**For Cost-Sensitive Deployments:**
+- Ollama (local) has zero per-request cost but requires hardware
+- OpenAI's gpt-4o-mini offers good balance of cost and performance
+- Anthropic with prompt caching can reduce costs by 50-90%
+
+**For Privacy-First Requirements:**
+- Ollama provides 100% local inference with no data sent externally
+- Ideal for HIPAA, GDPR, or confidential code bases
+- Trade-off: Higher latency, especially on CPU-only systems
+
+**For High-Volume Production:**
+- Anthropic with prompt caching (50-90% cost reduction on repeated prompts)
+- Connection pooling and retry logic built-in for all providers
+
+### Performance Benchmarking
+
+Comprehensive performance benchmarks comparing all providers are available in the [Performance Benchmarks](performance-benchmarks.md) document. The benchmarks measure:
+
+- **Latency**: Mean, median, P95, P99 response times
+- **Throughput**: Requests per second
+- **Accuracy**: Parsing success rates vs ground truth
+- **Cost**: Per-request and monthly estimates at scale
+
+**Run your own benchmarks:**
+
+```bash
+# Benchmark all providers (requires API keys)
+python scripts/benchmark_llm.py --iterations 100
+
+# Benchmark specific providers
+python scripts/benchmark_llm.py --providers ollama openai --iterations 50
+
+# Custom dataset
+python scripts/benchmark_llm.py --dataset my_comments.json --output my_report.md
+```
+
+See `python scripts/benchmark_llm.py --help` for all options.
+
 ## See Also
 
+- [Performance Benchmarks](performance-benchmarks.md) - Detailed performance comparison of all providers
 - [Ollama Setup Guide](ollama-setup.md) - Comprehensive Ollama installation and setup guide
 - [Main Configuration Guide](configuration.md) - Basic LLM setup and provider documentation
 - [Getting Started Guide](getting-started.md) - Quick start with LLM features
