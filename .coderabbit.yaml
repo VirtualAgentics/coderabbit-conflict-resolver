@@ -33,8 +33,8 @@ reviews:
     - "setup-dev.ps1"
     - ".editorconfig"
     - ".pre-commit-config.yaml"
-    - "docs/conf.py"
-    - "docs/requirements.txt"
+    - "docs/**"
+    - "scripts/**"
     # docs that define rules/security
     - "CONTRIBUTING.md"
     - "SECURITY.md"
