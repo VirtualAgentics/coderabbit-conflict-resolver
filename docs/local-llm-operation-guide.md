@@ -133,6 +133,7 @@ pr-resolve --version
 Create or update your configuration file:
 
 **config.yaml**:
+
 ```yaml
 llm:
   enabled: true
@@ -144,6 +145,7 @@ llm:
 github:
   token: ${GITHUB_TOKEN}  # Set via environment variable
 ```
+
 
 ### Step 5: Set GitHub Token
 
@@ -255,6 +257,7 @@ When using pr-resolve with Ollama, you will see:
 **Cause**: Ollama service not running
 
 **Fix**:
+
 ```bash
 # Start Ollama
 ollama serve
@@ -266,11 +269,13 @@ sudo systemctl start ollama
 curl http://localhost:11434/api/version
 ```
 
+
 ### Issue: "Model not found"
 
 **Cause**: Model not downloaded or wrong name
 
 **Fix**:
+
 ```bash
 # List available models
 ollama list
@@ -287,6 +292,7 @@ cat config.yaml | grep model
 **Cause**: Too many GitHub API requests
 
 **Fix**:
+
 ```bash
 # Use authenticated token for higher rate limits
 export GITHUB_TOKEN=ghp_your_token_here
@@ -295,11 +301,13 @@ export GITHUB_TOKEN=ghp_your_token_here
 gh api rate_limit
 ```
 
+
 ### Issue: "Out of memory error"
 
 **Cause**: Model too large for available RAM
 
 **Fix**:
+
 ```bash
 # Use smaller model
 ollama pull qwen2.5-coder:3b  # Smaller version
@@ -313,6 +321,7 @@ sudo chmod 600 /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
 ```
+
 
 ### Issue: "Slow inference speed"
 
@@ -424,16 +433,19 @@ open -a "Activity Monitor"
 ## Related Documentation
 
 ### Setup & Configuration
+
 - [Ollama Setup Guide](ollama-setup.md) - Detailed Ollama installation
 - [LLM Configuration Guide](llm-configuration.md) - Provider setup and presets
 - [Configuration Guide](configuration.md) - General configuration options
 
 ### Privacy & Security
+
 - [Privacy Architecture](privacy-architecture.md) - Comprehensive privacy analysis
 - [Privacy FAQ](privacy-faq.md) - Common privacy questions answered
 - [Security Architecture](security-architecture.md) - Overall security design
 
 ### Performance
+
 - [Performance Benchmarks](performance-benchmarks.md) - Provider performance comparison
 
 ---

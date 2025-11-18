@@ -106,12 +106,12 @@ Enable AI-powered features with your choice of LLM provider using **zero-config 
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
   --llm-preset codex-cli-free
 
-# Option 2: Local Ollama 🔒 (free, private) - REDUCED THIRD-PARTY EXPOSURE
+# Option 2: Local Ollama 🔒 (free, private) - REDUCES THIRD-PARTY LLM VENDOR EXPOSURE
 ./scripts/setup_ollama.sh          # One-time install
 ./scripts/download_ollama_models.sh  # Download model
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
   --llm-preset ollama-local
-# 🔒 Eliminates LLM vendor exposure (OpenAI/Anthropic never see comments)
+# 🔒 Reduces third-party LLM vendor exposure (OpenAI/Anthropic never see comments)
 # ✅ Simpler compliance (one fewer data processor for GDPR, HIPAA, SOC2)
 # ⚠️ Note: GitHub/CodeRabbit still have access (required for PR workflow)
 # See docs/ollama-setup.md for setup | docs/privacy-architecture.md for privacy details
@@ -133,7 +133,7 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
 
 **Available presets**: `codex-cli-free`, `ollama-local` 🔒, `claude-cli-sonnet`, `openai-api-mini`, `anthropic-api-balanced`
 
-**Privacy Note**: Ollama (`ollama-local`) eliminates LLM vendor exposure by processing review comments locally. OpenAI/Anthropic never see your code, simplifying compliance. Note: GitHub and CodeRabbit still have access (required for PR workflow). See [Privacy Architecture](docs/privacy-architecture.md) for details.
+**Privacy Note**: Ollama (`ollama-local`) reduces third-party LLM vendor exposure by processing review comments locally. OpenAI/Anthropic never see your code, simplifying compliance. Note: GitHub and CodeRabbit still have access (required for PR workflow). See [Privacy Architecture](docs/privacy-architecture.md) for details.
 
 ### Alternative: Use environment variables
 

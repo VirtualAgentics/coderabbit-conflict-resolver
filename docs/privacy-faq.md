@@ -366,7 +366,7 @@ See [Privacy Architecture - SOC 2 Compliance](privacy-architecture.md#soc-2-serv
 Generates detailed report showing network traffic during Ollama inference.
 
 **2. Open Source**:
-- Ollama is open source: https://github.com/ollama/ollama
+- Ollama is open source: <https://github.com/ollama/ollama>
 - Review the code yourself
 - Community-audited
 
@@ -389,7 +389,7 @@ lsof -i -n -P | grep ollama
 
 **A**: Download models only from trusted sources:
 
-✅ **Official Ollama registry**: https://ollama.ai/library
+✅ **Official Ollama registry**: <https://ollama.ai/library>
 ✅ **Popular, well-known models**: qwen2.5-coder, codellama, etc.
 ❌ **Avoid untrusted imports**: Don't import random model files
 

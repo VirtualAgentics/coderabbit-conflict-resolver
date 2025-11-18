@@ -38,7 +38,6 @@ NC='\033[0m' # No Color
 REPORT_FILE="privacy-verification-report.md"
 TEST_PROMPT="Write a simple Hello World function in Python"
 OLLAMA_PORT=11434
-LOCALHOST_IPS=("127.0.0.1" "::1" "localhost")
 
 # Detect OS
 OS="$(uname -s)"
@@ -173,7 +172,8 @@ get_default_model() {
 
 monitor_connections_linux() {
     local timeout=$1
-    local temp_file=$(mktemp)
+    local temp_file
+    temp_file=$(mktemp)
 
     print_info "Monitoring network connections (Linux)..."
     print_info "Running test inference for ${timeout} seconds..."
@@ -181,11 +181,11 @@ monitor_connections_linux() {
     # Start network monitoring in background
     if command -v tcpdump &> /dev/null; then
         # Use tcpdump (more comprehensive)
-        sudo timeout ${timeout} tcpdump -i any "host not 127.0.0.1 and host not ::1" -n 2>&1 > "$temp_file" &
+        sudo timeout "$timeout" tcpdump -i any "host not 127.0.0.1 and host not ::1" -n 2>&1 | tee "$temp_file" &
         MONITOR_PID=$!
     else
         # Fallback to lsof
-        timeout ${timeout} bash -c "while true; do lsof -i -n -P | grep -v '127.0.0.1\|::1' >> '$temp_file'; sleep 1; done" &
+        timeout "$timeout" bash -c "while true; do lsof -i -n -P | grep -v '127.0.0.1\|::1' >> '$temp_file'; sleep 1; done" &
         MONITOR_PID=$!
     fi
 
@@ -193,7 +193,8 @@ monitor_connections_linux() {
     sleep 2
 
     # Run test inference
-    local model=$(get_default_model)
+    local model
+    model=$(get_default_model)
     print_info "Using model: $model"
 
     ollama run "$model" "$TEST_PROMPT" > /dev/null 2>&1 || true
@@ -215,9 +216,12 @@ monitor_connections_linux() {
 
 monitor_connections_mac() {
     local timeout=$1
-    local temp_file=$(mktemp)
-    local before_file=$(mktemp)
-    local after_file=$(mktemp)
+    local temp_file
+    temp_file=$(mktemp)
+    local before_file
+    before_file=$(mktemp)
+    local after_file
+    after_file=$(mktemp)
 
     print_info "Monitoring network connections (macOS)..."
 
@@ -225,7 +229,8 @@ monitor_connections_mac() {
     lsof -i -n -P | grep -v "127.0.0.1\|::1" | grep ollama > "$before_file" 2>/dev/null || true
 
     # Run test inference
-    local model=$(get_default_model)
+    local model
+    model=$(get_default_model)
     print_info "Using model: $model"
     print_info "Running test inference..."
 
@@ -259,19 +264,19 @@ run_verification() {
     # Run platform-specific monitoring
     case "${PLATFORM}" in
         Linux)
-            if monitor_connections_linux $timeout; then
+            if monitor_connections_linux "$timeout"; then
                 VERIFICATION_RESULT="PASSED"
             else
                 VERIFICATION_RESULT="FAILED"
-                external_connections_file=$(monitor_connections_linux $timeout)
+                external_connections_file=$(monitor_connections_linux "$timeout")
             fi
             ;;
         Mac)
-            if monitor_connections_mac $timeout; then
+            if monitor_connections_mac "$timeout"; then
                 VERIFICATION_RESULT="PASSED"
             else
                 VERIFICATION_RESULT="FAILED"
-                external_connections_file=$(monitor_connections_mac $timeout)
+                external_connections_file=$(monitor_connections_mac "$timeout")
             fi
             ;;
         *)
@@ -523,10 +528,14 @@ main() {
                 exit 0
                 ;;
             --report-only)
+                # Reserved for future feature: generate report without running tests
+                # shellcheck disable=SC2034
                 report_only=true
                 shift
                 ;;
             --verbose)
+                # Reserved for future feature: verbose output mode
+                # shellcheck disable=SC2034
                 verbose=true
                 shift
                 ;;
@@ -552,7 +561,7 @@ main() {
     fi
 
     # Run verification
-    if run_verification $timeout; then
+    if run_verification "$timeout"; then
         print_success "Privacy verification completed successfully"
         echo ""
         exit 0
