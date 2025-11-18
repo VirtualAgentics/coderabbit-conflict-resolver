@@ -204,3 +204,4 @@ out/
 *.profdata
 *.profraw
 .mcp-cache/
+privacy-verification-report.md
