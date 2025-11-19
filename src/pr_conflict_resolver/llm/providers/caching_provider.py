@@ -151,27 +151,16 @@ class CachingProvider:
         """
         class_name = self.provider.__class__.__name__.lower()
 
-        # Look up in registry first
+        # Look up in registry
         if class_name in PROVIDER_NAME_REGISTRY:
             return PROVIDER_NAME_REGISTRY[class_name]
 
-        # Fallback to pattern matching for backward compatibility
-        if "claude" in class_name and "cli" in class_name:
-            return "claude-cli"
-        elif "codex" in class_name and "cli" in class_name:
-            return "codex-cli"
-        elif "openai" in class_name:
-            return "openai"
-        elif "anthropic" in class_name:
-            return "anthropic"
-        elif "ollama" in class_name:
-            return "ollama"
-        else:
-            # Fallback: use class name
-            logger.warning(
-                f"Could not auto-detect provider name from {class_name}, using class name"
-            )
-            return class_name
+        # Fallback for unknown providers: use class name
+        logger.warning(
+            f"Could not auto-detect provider name from {class_name}, using class name. "
+            f"Add to PROVIDER_NAME_REGISTRY for proper recognition."
+        )
+        return class_name
 
     def _detect_model_name(self) -> str:
         """Auto-detect model name from wrapped provider.
@@ -240,42 +229,32 @@ class CachingProvider:
                 # This thread will fetch - create event for others to wait on
                 self._in_flight[cache_key] = threading.Event()
 
-        # If another thread is fetching, wait for it to complete
-        if wait_event is not None:
+        # If another thread is fetching, wait in a retry loop
+        while wait_event is not None:
             wait_event.wait()
+
             # Re-check cache after waiting
             cached_response = self.cache.get(cache_key)
             if cached_response is not None:
                 logger.debug(f"Cache populated by other thread for {cache_key[:16]}...")
                 return cached_response
-            else:
-                # Other thread failed or cache was evicted - check for concurrent re-registration
-                logger.warning(
-                    f"Other thread completed but cache miss for {cache_key[:16]}..., "
-                    "will fetch from provider"
-                )
-                # Re-register this thread's upcoming fetch in _in_flight
-                # Check if another thread already re-registered while we were outside the lock
-                with self._in_flight_lock:
-                    if cache_key in self._in_flight:
-                        # Another thread re-registered, wait on their event instead
-                        wait_event = self._in_flight[cache_key]
-                        logger.debug(
-                            f"Another thread re-registered {cache_key[:16]}..., waiting again"
-                        )
-                    else:
-                        # Safe to register our fetch
-                        self._in_flight[cache_key] = threading.Event()
-                        wait_event = None
 
-                # If we need to wait again, loop back
-                if wait_event is not None:
-                    wait_event.wait()
-                    cached_response = self.cache.get(cache_key)
-                    if cached_response is not None:
-                        logger.debug(f"Cache populated by second thread for {cache_key[:16]}...")
-                        return cached_response
-                    # If still no cache, fall through to fetch (accept potential duplicate)
+            # Cache miss after wait - check if another thread registered
+            logger.warning(
+                f"Other thread completed but cache miss for {cache_key[:16]}..., "
+                "checking for re-registration"
+            )
+
+            # Check if another thread already re-registered while we were waiting
+            with self._in_flight_lock:
+                if cache_key in self._in_flight:
+                    # Another thread re-registered, wait on their event instead
+                    wait_event = self._in_flight[cache_key]
+                    logger.debug(f"Another thread re-registered {cache_key[:16]}..., waiting again")
+                else:
+                    # No other thread registered, register ourself and exit loop
+                    self._in_flight[cache_key] = threading.Event()
+                    wait_event = None
 
         # This thread is responsible for fetching
         try:

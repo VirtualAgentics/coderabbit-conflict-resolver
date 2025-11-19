@@ -13,3 +13,7 @@ VALID_LLM_PROVIDERS: frozenset[str] = frozenset(
         "ollama",  # Ollama local models (no API key required)
     }
 )
+
+# Maximum number of parallel workers for LLM operations
+# Used for parallel parsing, caching, and other concurrent operations
+MAX_WORKERS = 64

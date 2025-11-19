@@ -16,6 +16,7 @@ from pr_conflict_resolver.config.runtime_config import (
     ApplicationMode,
 )
 from pr_conflict_resolver.core.resolver import ConflictResolver
+from pr_conflict_resolver.llm.constants import MAX_WORKERS
 from pr_conflict_resolver.llm.exceptions import LLMError
 from pr_conflict_resolver.llm.metrics import LLMMetrics
 from pr_conflict_resolver.llm.presets import LLMPresetConfig
@@ -70,10 +71,6 @@ def sanitize_for_output(value: str) -> str:
         )
         return "[REDACTED]"
     return value
-
-
-# Maximum number of worker threads for parallel processing
-MAX_WORKERS = 64
 
 
 def validate_max_workers(

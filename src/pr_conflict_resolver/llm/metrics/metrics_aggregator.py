@@ -314,6 +314,12 @@ class MetricsAggregator:
             >>> with metrics.track_request("anthropic", "claude-sonnet-4-5") as tracker:
             ...     tracker.record_cost(0.015)
         """
+        # Validate cost parameter before acquiring lock (fail fast)
+        if not isinstance(cost, (int, float)):
+            raise ValueError(f"cost must be a number (int or float), got: {type(cost).__name__}")
+        if cost < 0:
+            raise ValueError(f"cost must be a non-negative number, got: {cost}")
+
         provider = provider or getattr(self._thread_locals, "provider", None)
         model = model or getattr(self._thread_locals, "model", None)
 

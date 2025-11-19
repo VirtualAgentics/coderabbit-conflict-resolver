@@ -95,10 +95,11 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --parallel --ma
 # 🚀 NEW: Phase 5 Optimizations - Production-ready performance & cost controls
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
   --llm-preset openai-api-mini \
-  --parallel \                      # Enable concurrent LLM calls (3-4x faster)
-  --cache-enabled \                 # Enable prompt caching (60-90% cost reduction)
+  --parallel \                      # Concurrent LLM calls (up to 3-4x faster on large batches)
+  --cache-enabled \                 # Prompt caching (up to 60-90% cost reduction with cache hits)
   --circuit-breaker-enabled \       # Automatic failure recovery
   --cost-budget 10.0                # Set $10 USD budget limit
+# See docs/optimization-guide.md for benchmarks and optimization strategies
 
 # Load configuration from file
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --config config.yaml

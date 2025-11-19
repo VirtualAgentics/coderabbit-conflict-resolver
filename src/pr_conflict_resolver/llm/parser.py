@@ -255,8 +255,11 @@ class UniversalLLMParser(LLMParser):
         if not comments:
             raise ValueError("comments list cannot be empty or None")
 
-        if not isinstance(max_workers, int) or max_workers <= 0:
-            raise ValueError(f"max_workers must be a positive integer, got: {max_workers}")
+        # Validate max_workers type first, then value
+        if not isinstance(max_workers, int):
+            raise ValueError(f"max_workers must be an integer, got: {type(max_workers).__name__}")
+        if max_workers <= 0:
+            raise ValueError(f"max_workers must be positive, got: {max_workers}")
 
         # Local import to avoid circular dependency at runtime
         # (moved here because parallel_parser imports UniversalLLMParser)

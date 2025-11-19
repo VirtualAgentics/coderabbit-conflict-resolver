@@ -29,6 +29,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 
 from pr_conflict_resolver.llm.cache.prompt_cache import PromptCache
+from pr_conflict_resolver.llm.constants import MAX_WORKERS
 from pr_conflict_resolver.llm.exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
@@ -316,13 +317,16 @@ class CacheOptimizer:
             - Progress callback receives WarmingProgress updates
         """
         # Validate and clamp max_workers to reasonable bounds
-        # Max value matches CLI MAX_WORKERS constant (src/pr_conflict_resolver/cli/main.py)
+        # Max value uses shared MAX_WORKERS constant from llm.constants
         if max_workers < 1:
             logger.warning(f"max_workers must be >= 1, clamping from {max_workers} to 1")
             max_workers = 1
-        elif max_workers > 64:
-            logger.warning(f"max_workers must be <= 64, clamping from {max_workers} to 64")
-            max_workers = 64
+        elif max_workers > MAX_WORKERS:
+            logger.warning(
+                f"max_workers must be <= {MAX_WORKERS}, "
+                f"clamping from {max_workers} to {MAX_WORKERS}"
+            )
+            max_workers = MAX_WORKERS
         elif max_workers > 16:
             logger.warning(
                 f"max_workers={max_workers} is high and may cause rate limiting. "

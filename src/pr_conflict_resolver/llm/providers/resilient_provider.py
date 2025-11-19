@@ -230,7 +230,14 @@ class ResilientProvider:
         try:
             estimated_input_tokens = self.provider.count_tokens(prompt)
         except (AttributeError, NotImplementedError):
-            # Fallback: Conservative estimate (1 token ≈ 3 characters)
+            # Fallback: Conservative token estimation using 1 token ≈ 3 characters
+            # NOTE: This is a rough approximation that varies by language and content:
+            # - English text: ~4 chars/token (this uses 3 to slightly overestimate)
+            # - Code: ~2-5 chars/token depending on language and density
+            # - Non-ASCII languages: ratio varies significantly
+            # This heuristic may underestimate costs for some models/languages.
+            # For accurate cost tracking, providers should implement count_tokens()
+            # or make this ratio configurable per provider/model.
             estimated_input_tokens = math.ceil(len(prompt) / 3)
 
         estimated_output_tokens = max_tokens
