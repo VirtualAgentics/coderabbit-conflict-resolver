@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import Mock, patch
 
 import pytest
@@ -275,10 +274,7 @@ class TestParallelCommentParser:
         with pytest.raises(RuntimeError, match="All .* comments failed to parse"):
             parser.parse_comments(["comment 1", "comment 2"])
 
-    @patch("pr_conflict_resolver.llm.parallel_parser.ThreadPoolExecutor")
-    def test_max_workers_respected(
-        self, mock_executor_class: Mock, mock_provider: MockLLMProvider
-    ) -> None:
+    def test_max_workers_respected(self, mock_provider: MockLLMProvider) -> None:
         """Test that max_workers limit is respected."""
         # Track concurrent executions
         concurrent_count = 0
@@ -298,10 +294,7 @@ class TestParallelCommentParser:
 
             return []
 
-        # Create real executor but track its usage
-        real_executor = ThreadPoolExecutor(max_workers=2)
-        mock_executor_class.return_value.__enter__.return_value = real_executor
-
+        # Use real executor to verify actual concurrent behavior
         with patch("pr_conflict_resolver.llm.parser.UniversalLLMParser") as mock_parser_class:
             mock_parser_instance = Mock()
             mock_parser_class.return_value = mock_parser_instance
@@ -310,10 +303,7 @@ class TestParallelCommentParser:
             parser = ParallelCommentParser(mock_provider, max_workers=2)
             parser.parse_comments(["c1", "c2", "c3", "c4"])
 
-        # Cleanup
-        real_executor.shutdown(wait=True)
-
-        # Verify concurrency was limited
+        # Verify concurrency was limited to max_workers=2
         assert max_concurrent <= 2
 
     def test_statistics_property(self, mock_provider: MockLLMProvider) -> None:

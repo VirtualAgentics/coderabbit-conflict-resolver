@@ -264,14 +264,18 @@ def _display_llm_metrics(metrics: LLMMetrics) -> None:
     )
 
     # Row 4: Computed metrics
-    cost_per_change_display = (
-        f"${metrics.cost_per_change:.4f}"
-        if metrics.cost_per_change is not None and metrics.cost_per_change > 0
-        else "N/A" if metrics.cost_per_change is None else "Free"
-    )
-    avg_tokens_display = (
-        f"{metrics.avg_tokens_per_call:,.0f}" if metrics.avg_tokens_per_call is not None else "N/A"
-    )
+    if metrics.cost_per_change is None:
+        cost_per_change_display = "N/A"
+    elif metrics.cost_per_change > 0:
+        cost_per_change_display = f"${metrics.cost_per_change:.4f}"
+    else:
+        cost_per_change_display = "Free"
+
+    if metrics.avg_tokens_per_call is not None:
+        avg_tokens_display = f"{metrics.avg_tokens_per_call:,.0f}"
+    else:
+        avg_tokens_display = "N/A"
+
     table.add_row(
         f"Cost per change: {cost_per_change_display}",
         f"Avg tokens/call: {avg_tokens_display}",

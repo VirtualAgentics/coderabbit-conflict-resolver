@@ -308,7 +308,7 @@ class UniversalLLMParser(LLMParser):
                 if last_error:
                     raise RuntimeError(
                         f"Failed to parse all {len(comments)} comments. "
-                        f"Last error: {last_error}"
+                        f"Last error ({type(last_error).__name__}): {last_error}"
                     ) from last_error
                 else:
                     raise RuntimeError(f"Failed to parse all {len(comments)} comments") from None

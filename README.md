@@ -32,22 +32,22 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
-- [Problem Statement](#-problem-statement)
-- [Quick Start](#-quick-start)
-- [Features](#-features)
-- [Architecture](#️-architecture)
-- [Use Cases](#-use-cases)
-- [Environment Variables](#-environment-variables)
-- [Documentation](#-documentation)
-- [Contributing](#-contributing)
-- [Project Status](#-project-status)
-- [License](#-license)
+- [Problem Statement](#problem-statement)
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Use Cases](#use-cases)
+- [Environment Variables](#environment-variables)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Project Status](#project-status)
+- [License](#license)
 
 ---
 
-## 🎯 Problem Statement
+## Problem Statement
 
 When multiple PR review comments suggest overlapping changes to the same file, traditional automation tools either:
 
@@ -63,13 +63,13 @@ When multiple PR review comments suggest overlapping changes to the same file, t
 - ✅ Learns from your decisions to improve over time
 - ✅ Provides detailed conflict analysis and actionable suggestions
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
 ```bash
 pip install pr-conflict-resolver
-```
+```text
 
 ### Basic Usage
 
@@ -92,9 +92,17 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --mode dry-run
 # Use parallel processing for large PRs
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --parallel --max-workers 8
 
+# 🚀 NEW: Phase 5 Optimizations - Production-ready performance & cost controls
+pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
+  --llm-preset openai-api-mini \
+  --parallel \                      # Enable concurrent LLM calls (3-4x faster)
+  --cache-enabled \                 # Enable prompt caching (60-90% cost reduction)
+  --circuit-breaker-enabled \       # Automatic failure recovery
+  --cost-budget 10.0                # Set $10 USD budget limit
+
 # Load configuration from file
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --config config.yaml
-```
+```text
 
 ### LLM Provider Setup (Optional)
 
@@ -130,7 +138,7 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
   --llm-preset anthropic-api-balanced \
   --llm-api-key sk-ant-...
-```
+```text
 
 **Available presets**: `codex-cli-free`, `ollama-local` 🔒, `claude-cli-sonnet`, `openai-api-mini`, `anthropic-api-balanced`
 
@@ -151,7 +159,7 @@ export CR_LLM_API_KEY="sk-..."  # Get from https://platform.openai.com/api-keys
 
 # Then use as normal
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123
-```
+```text
 
 **Documentation**:
 
@@ -176,9 +184,9 @@ results = resolver.resolve_pr_conflicts(
 print(f"Applied: {results.applied_count}")
 print(f"Conflicts: {results.conflict_count}")
 print(f"Success rate: {results.success_rate}%")
-```
+```text
 
-## 🎨 Features
+## Features
 
 ### Intelligent Conflict Analysis
 
@@ -213,12 +221,28 @@ print(f"Success rate: {results.success_rate}%")
 - **Provider Selection**: Choose based on cost, privacy, or performance needs
 - **Health Checks**: Automatic provider validation before use
 
-### Learning & Optimization
+### Learning & Optimization ✅ (Phase 5: Production-Ready)
 
-- **ML-Assisted Priority**: Learns from your resolution decisions
-- **Metrics Tracking**: Monitors success rates, resolution times, strategy effectiveness
-- **Conflict Caching**: Reuses analysis for similar conflicts
-- **Performance**: Parallel processing for large PRs
+**Performance Optimization:**
+
+- **Parallel Processing**: Concurrent LLM calls with ThreadPoolExecutor (3-4x faster for large PRs)
+- **Prompt Caching**: SHA-256-based caching with LRU eviction (60-90% cost reduction)
+- **GPU Acceleration**: Automatic NVIDIA/AMD/Apple Metal detection for Ollama
+
+**Cost Optimization:**
+
+- **Cost Budgeting**: Prevent runaway expenses with configurable USD limits
+- **Provider Selection**: Choose based on cost (free Ollama vs $0.07/1K comments with OpenAI)
+- **Cache Hit Optimization**: Automatic cache warming and preloading
+
+**Reliability & Resilience:**
+
+- **Circuit Breaker**: Three-state protection (CLOSED/OPEN/HALF_OPEN) against cascading failures
+- **Metrics Aggregation**: Track costs, latency (P50/P95/P99), token usage per provider/model
+- **Automatic Recovery**: Half-open state testing for provider health recovery
+- **Thread Safety**: Production-grade concurrency with reentrant locks
+
+See [Optimization Guide](docs/optimization-guide.md) and [Cost Optimization Guide](docs/cost-optimization.md) for complete details.
 
 ### Configuration & Presets
 
@@ -252,7 +276,7 @@ Configure via multiple sources with precedence chain:
 
 See [`.env.example`](.env.example) for available environment variables.
 
-## 📖 Documentation
+## Documentation
 
 ### User Guides
 
@@ -260,6 +284,8 @@ See [`.env.example`](.env.example) for available environment variables.
 - [Configuration Reference](docs/configuration.md) - Complete configuration options
 - [LLM Configuration Guide](docs/llm-configuration.md) - LLM providers, presets, and advanced configuration
 - [Ollama Setup Guide](docs/ollama-setup.md) - Comprehensive Ollama installation and setup
+- [Optimization Guide](docs/optimization-guide.md) - Performance, cost, and reliability optimization strategies
+- [Cost Optimization Guide](docs/cost-optimization.md) - Minimize LLM costs with caching and provider selection
 - [Rollback System](docs/rollback-system.md) - Automatic rollback and recovery
 - [Parallel Processing](docs/parallel-processing.md) - Performance tuning guide
 - [Migration Guide](docs/migration-guide.md) - Upgrading from earlier versions
@@ -285,8 +311,9 @@ See [`.env.example`](.env.example) for available environment variables.
 - [Incident Response](docs/security/incident-response.md) - Security incident procedures
 - [Compliance](docs/security/compliance.md) - GDPR, OWASP, SOC2, OpenSSF
 - [Security Testing](docs/security/security-testing.md) - Testing guide, fuzzing, SAST
+- [Phase 5 Security Audit](docs/security/phase5-security-audit.md) - Optimization features security review
 
-## 🏗️ Architecture
+## Architecture
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
@@ -334,9 +361,9 @@ See [`.env.example`](.env.example) for available environment variables.
 │        Reporting & Metrics                                  │
 │  • Conflict Summary  • Visual Diff  • Success Rate         │
 └─────────────────────────────────────────────────────────────┘
-```
+```text
 
-## 🔧 Use Cases
+## Use Cases
 
 ### 1. CodeRabbit Multi-Option Selections
 
@@ -358,7 +385,17 @@ See [`.env.example`](.env.example) for available environment variables.
 **Problem**: Manual conflict resolution is time-consuming
 **Solution**: Parallel processing + caching resolves conflicts in seconds
 
-## 🔧 Environment Variables
+### 5. High API Costs for Frequent PRs
+
+**Problem**: LLM API costs add up with many PRs
+**Solution**: Prompt caching (60-90% cost reduction) + cost budgeting + free local models (Ollama)
+
+### 6. Unreliable LLM Providers
+
+**Problem**: LLM APIs fail intermittently, cascading failures
+**Solution**: Circuit breaker pattern with automatic provider recovery + metrics tracking
+
+## Environment Variables
 
 Configure the tool using environment variables (see [`.env.example`](.env.example) for all options):
 
@@ -370,10 +407,15 @@ Configure the tool using environment variables (see [`.env.example`](.env.exampl
 | `CR_VALIDATE` | Enable pre-application validation | `true` |
 | `CR_PARALLEL` | Enable parallel processing | `false` |
 | `CR_MAX_WORKERS` | Number of parallel workers | `4` |
+| `CR_CACHE_ENABLED` | Enable prompt caching (Phase 5) | `true` |
+| `CR_CACHE_MAX_SIZE` | Maximum cache entries | `1000` |
+| `CR_CACHE_TTL` | Cache TTL in seconds | `3600` |
+| `CR_CIRCUIT_BREAKER_ENABLED` | Enable circuit breaker for LLM resilience | `true` |
+| `CR_COST_BUDGET_USD` | Maximum cost budget (USD) | None |
 | `CR_LOG_LEVEL` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) | `INFO` |
 | `CR_LOG_FILE` | Log file path (optional) | None |
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
@@ -386,7 +428,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 pre-commit install
-```
+```text
 
 ### Running Tests
 
@@ -403,7 +445,7 @@ make test-fuzz-extended     # Extended: 1000 examples
 
 # Run all tests (standard + fuzzing)
 make test-all
-```
+```text
 
 **For more details, see:**
 
@@ -411,17 +453,17 @@ make test-all
 - [Subtests Guide](docs/testing/SUBTESTS_GUIDE.md) - Writing tests with subtests
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines including testing practices
 
-## 📜 License
+## License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Inspired by the sophisticated code review capabilities of [CodeRabbit AI](https://coderabbit.ai)
 - Built with experience from [ContextForge Memory](https://github.com/VirtualAgentics/ConextForge_memory) project
 - Community feedback and contributions
 
-## 📊 Project Status
+## Project Status
 
 **Current Version**: 0.1.0 (Alpha)
 
@@ -474,18 +516,22 @@ MIT License - see [LICENSE](LICENSE) for details.
   - ✅ Enhanced error messages with actionable resolution steps
   - ✅ Support for YAML/TOML configuration files
   - ✅ Security: API keys must use ${VAR} syntax in config files
-- 🔄 **V2.0 Phase 4: Local Model Support (IN PROGRESS)** - 50% complete (3/6 sub-issues)
+- ✅ **V2.0 Phase 4: Documentation & Developer Experience (COMPLETE)** - Closed Nov 19, 2025
   - ✅ Ollama provider with GPU acceleration (NVIDIA, AMD ROCm, Apple Metal)
   - ✅ Automatic GPU detection and hardware info display
   - ✅ HTTP connection pooling for concurrent requests
   - ✅ Model auto-download feature
-  - 📅 Performance benchmarking (local vs API models) - Issue #170
-  - ✅ Privacy documentation (local LLM operation guide) - Issue #171
-  - 📅 Integration tests with privacy verification - Issue #172
-- 📅 **V2.0 Phase 5: Optimization & Production Readiness** - Not started
-- 📅 **V2.0 Phase 6: Documentation & Migration** - 50% complete
+  - ✅ Performance benchmarking infrastructure - PR #199, Issue #170
+  - ✅ Privacy documentation (local LLM operation guide) - PR #201, Issue #171
+  - ✅ Integration tests with privacy verification - Issue #172 (Closed as not feasible)
+- 🔄 **V2.0 Phase 5: Optimization & Production Readiness (IN PROGRESS)** - Issue #119, 75% complete
+  - ✅ Week 1: Parallel Processing (100% complete) - Concurrent LLM parsing with ThreadPoolExecutor
+  - ✅ Week 2: Prompt Caching (100% complete) - SHA-256 caching with LRU eviction and TTL
+  - ✅ Week 3: Circuit Breaker & Resilience (100% complete) - Three-state circuit breaker, metrics aggregation, cost budgeting
+  - 🔄 Week 4: Security & Documentation (60% complete) - Security audit, optimization guides, documentation updates
+- 📅 **V2.0 Phase 6: Documentation & Migration** - Not started
 
-**V2.0 Milestone Progress**: 57% complete (Phases 0-3 closed, Phase 4 at 50%)
+**V2.0 Milestone Progress**: 71% complete (Phases 0-4 closed, Phase 5 at 75%)
 
 ### Security Highlights
 
@@ -495,7 +541,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 - **Secret Detection**: 14+ pattern types (GitHub tokens, AWS keys, API keys, etc.)
 - **Documentation**: Comprehensive security documentation (threat model, incident response, compliance)
 
-## 🚀 LLM Features (v2.0 Architecture)
+## LLM Features (v2.0 Architecture)
 
 > **✅ Core v2.0 LLM features are production-ready!** Phases 0-3 complete (57% of v2.0 milestone). All 5 LLM providers fully functional. See [Roadmap](#-project-status) for current status.
 
@@ -532,7 +578,7 @@ Current system only parses **```suggestion** blocks, missing:
 │  • 100% reliable      • Zero cost                       │
 │  • Legacy support     • Always available                │
 └─────────────────────────────────────────────────────────┘
-```
+```text
 
 ### Multi-Provider Support (User Choice)
 
@@ -560,7 +606,7 @@ pr-resolve apply --llm --llm-provider claude-cli --owner VirtualAgentics --repo 
 # Use presets for quick config
 pr-resolve apply --llm-preset claude-cli-sonnet --owner VirtualAgentics --repo my-repo --pr 123
 pr-resolve apply --llm-preset ollama-local --owner VirtualAgentics --repo my-repo --pr 123  # Privacy-first
-```
+```text
 
 ### Backward Compatibility Guarantee
 
@@ -587,7 +633,7 @@ change = Change(
     change_rationale="Improves error handling",  # Why change was suggested
     risk_level="low"  # "low", "medium", "high"
 )
-```
+```text
 
 ### Documentation
 
@@ -606,7 +652,7 @@ Comprehensive planning documentation available:
 
 ---
 
-## 🔗 Related Projects
+## Related Projects
 
 - [ContextForge Memory](https://github.com/VirtualAgentics/ConextForge_memory) - Original implementation
 - [CodeRabbit AI](https://coderabbit.ai) - AI-powered code review

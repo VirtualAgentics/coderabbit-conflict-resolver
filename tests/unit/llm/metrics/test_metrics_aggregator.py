@@ -479,3 +479,34 @@ class TestMetricsAggregatorThreadSafety:
         assert summary.total_requests == 20
         assert summary.total_tokens == 3000  # 20 * 150
         assert abs(summary.total_cost - 0.02) < 0.001  # 20 * 0.001
+
+    def test_concurrent_different_providers(self) -> None:
+        """Test concurrent tracking with different provider names to catch attribution races."""
+        import threading
+
+        metrics = MetricsAggregator()
+        num_providers = 10
+
+        def track_provider_request(provider_id: int) -> None:
+            provider_name = f"provider_{provider_id}"
+            with metrics.track_request(provider_name, "model") as t:
+                t.record_tokens(100, 0)  # 100 input tokens
+
+        # Spawn 10 threads, each with unique provider name
+        threads = [
+            threading.Thread(target=track_provider_request, args=(i,)) for i in range(num_providers)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # Verify each provider has correct attribution (no cross-contamination)
+        for i in range(num_providers):
+            provider_name = f"provider_{i}"
+            provider_metrics = metrics.get_provider_metrics(provider_name, "model")
+            assert provider_metrics is not None, f"Provider {provider_name} metrics missing"
+            assert provider_metrics.total_input_tokens == 100, (
+                f"Provider {provider_name} has {provider_metrics.total_input_tokens} tokens, "
+                f"expected 100"
+            )

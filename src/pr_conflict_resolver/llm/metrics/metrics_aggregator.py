@@ -182,8 +182,8 @@ class MetricsAggregator:
         # Metrics storage: {(provider, model): ProviderMetrics}
         self._metrics: dict[tuple[str, str], ProviderMetrics] = {}
         self._lock = threading.RLock()
-        self._current_provider: str | None = None
-        self._current_model: str | None = None
+        # Use thread-local storage for provider/model context to avoid cross-thread attribution
+        self._thread_locals = threading.local()
 
         logger.debug("Initialized MetricsAggregator")
 
@@ -271,8 +271,8 @@ class MetricsAggregator:
             >>> with metrics.track_request("anthropic", "claude-sonnet-4-5") as tracker:
             ...     tracker.record_tokens(1000, 500)
         """
-        provider = provider or self._current_provider
-        model = model or self._current_model
+        provider = provider or getattr(self._thread_locals, "provider", None)
+        model = model or getattr(self._thread_locals, "model", None)
 
         if not provider or not model:
             raise RuntimeError(
@@ -302,8 +302,8 @@ class MetricsAggregator:
             >>> with metrics.track_request("anthropic", "claude-sonnet-4-5") as tracker:
             ...     tracker.record_cost(0.015)
         """
-        provider = provider or self._current_provider
-        model = model or self._current_model
+        provider = provider or getattr(self._thread_locals, "provider", None)
+        model = model or getattr(self._thread_locals, "model", None)
 
         if not provider or not model:
             raise RuntimeError(
@@ -335,11 +335,11 @@ class MetricsAggregator:
         self.increment_requests(provider, model)
         start_time = time.monotonic()
 
-        # Set current context
-        old_provider = self._current_provider
-        old_model = self._current_model
-        self._current_provider = provider
-        self._current_model = model
+        # Set thread-local context (thread-safe, won't affect other threads)
+        old_provider = getattr(self._thread_locals, "provider", None)
+        old_model = getattr(self._thread_locals, "model", None)
+        self._thread_locals.provider = provider
+        self._thread_locals.model = model
 
         tracker = RequestTracker(self, provider, model)
 
@@ -356,9 +356,9 @@ class MetricsAggregator:
             raise
 
         finally:
-            # Restore context
-            self._current_provider = old_provider
-            self._current_model = old_model
+            # Restore thread-local context
+            self._thread_locals.provider = old_provider
+            self._thread_locals.model = old_model
 
     def get_summary(self) -> MetricsSummary:
         """Get aggregated metrics summary.

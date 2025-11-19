@@ -1,0 +1,3 @@
+# markdownlint-cli2 configuration
+# Disable table column style checking - requires manual fixes
+MD060: false

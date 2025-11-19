@@ -662,18 +662,21 @@ class PromptCache:
             DeleteStatus enum indicating operation result
         """
         cache_file = self.cache_dir / f"{key}.json"
-        if cache_file.exists():
-            try:
-                cache_file.unlink()
-                logger.debug(f"Deleted cache entry for key {key[:16]}...")
-                return DeleteStatus.DELETED
-            except OSError as e:
-                logger.warning(f"Failed to delete cache entry {key[:16]}...: {e}")
-                return DeleteStatus.ERROR
-        logger.debug(
-            f"Cache entry not found for key {key[:16]}... (already deleted or never cached)"
-        )
-        return DeleteStatus.NOT_FOUND
+        try:
+            # Attempt deletion directly without exists() check to avoid TOCTOU race
+            cache_file.unlink()
+            logger.debug(f"Deleted cache entry for key {key[:16]}...")
+            return DeleteStatus.DELETED
+        except FileNotFoundError:
+            # File was already deleted or never existed
+            logger.debug(
+                f"Cache entry not found for key {key[:16]}... (already deleted or never cached)"
+            )
+            return DeleteStatus.NOT_FOUND
+        except OSError as e:
+            # Other errors (permission, I/O, etc.)
+            logger.warning(f"Failed to delete cache entry {key[:16]}...: {e}")
+            return DeleteStatus.ERROR
 
     def _get_cache_size_unlocked(self) -> int:
         """Calculate total size of all cache files in bytes (caller must hold lock).
