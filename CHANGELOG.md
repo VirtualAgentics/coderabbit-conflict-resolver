@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive error handling (authentication, rate limits, timeouts, API errors)
   - Integration with `ConflictResolver` for LLM-powered comment parsing
   - 30+ unit tests for OpenAI provider (93% coverage)
-  - New dependencies: `openai==2.7.1`, `tenacity==9.1.2`, `tiktoken==0.12.0`
+  - New dependencies: `openai==2.8.1`, `tenacity==9.1.2`, `tiktoken==0.12.0`
 - **V2.0 Phase 2**: Multi-Provider Support ✅ COMPLETE (Issue #116, Closed Nov 9, 2025)
   - **All 5 LLM Providers Implemented:**
     - OpenAI API (`openai_api.py`) - Production-ready with retry logic
@@ -75,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Comprehensive test coverage for all providers (93%+ per provider)
     - Integration tests with actual provider APIs
     - Mock testing for CI/CD environments
-  - **New Dependencies:** `anthropic==0.73.0`, improved Ollama integration
+  - **New Dependencies:** `anthropic==0.74.0`, improved Ollama integration
 - **V2.0 Phase 3**: CLI Integration Polish ✅ COMPLETE (Issue #117, Closed Nov 11, 2025)
   - **Zero-Config Presets:** 5 instant-setup presets via `--llm-preset` flag (PR #166)
     - `codex-cli-free` - GitHub Copilot subscription (free)
@@ -102,8 +102,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `.env.example` updated with all LLM-related environment variables
     - Comprehensive preset documentation in `docs/llm-configuration.md`
     - Provider setup guides for each LLM provider
-- **V2.0 Phase 4**: Local Model Support 🔄 IN PROGRESS (Issue #118, 50% Complete)
-  - **Completed (3/6 sub-issues):**
+- **V2.0 Phase 4**: Documentation & Developer Experience 🔄 IN PROGRESS (Issue #120, 50% Complete)
+  - **Completed (5/6 sub-issues):**
     - ✅ HTTP connection pooling and optimization (PR #173, Sub-Issue #167, Nov 12, 2025)
       - `requests.Session()` for connection reuse and keep-alive
       - 10 connections per pool for concurrent requests
@@ -118,10 +118,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       - Automatic hardware capability discovery
       - GPU metrics integrated into output display
       - Cross-platform compatibility (Linux, macOS, Windows)
-  - **Remaining (3/6 sub-issues):**
-    - 📅 Performance benchmarking - local vs API models (Sub-Issue #170)
-    - 📅 Privacy documentation - 100% local operation guide (Sub-Issue #171)
-    - 📅 Offline integration tests & network isolation validation (Sub-Issue #172)
+    - ✅ Performance benchmarking infrastructure (PR #199, Sub-Issue #170, Nov 10, 2025)
+      - Standardized benchmarking framework for all 5 LLM providers
+      - Performance metrics collection and analysis
+      - Cost tracking and comparison across providers
+      - Automated benchmarking scripts for consistent measurements
+    - ✅ Privacy documentation for local LLM operation (PR #201, Sub-Issue #171, Nov 11, 2025)
+      - Complete privacy architecture documentation (655 lines)
+      - Privacy FAQ addressing common misconceptions (575 lines)
+      - Privacy verification script with network monitoring (554 lines)
+      - GDPR, HIPAA, SOC2 compliance guidance
+      - Honest messaging: "reduces third-party LLM vendor exposure" (not air-gapped/offline)
+      - Clarifies that GitHub API access is required for PR operations
+  - **Remaining (1/6 sub-issues):**
+    - 🚫 Offline integration tests (Sub-Issue #172) - Closed as not feasible (air-gapped operation not possible due to GitHub API requirement)
 - **Phase 1**: Core functionality to apply ALL suggestions (Issue #14)
   - `ConflictResolver.separate_changes_by_conflict_status()` - Separate conflicting vs non-conflicting changes
   - `ConflictResolver.apply_changes()` - Apply changes with validation and batch processing
@@ -168,6 +178,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MIT License
 
 ### Changed
+- **Dependency Updates** (PRs #203-209, Nov 2025):
+  - Updated `openai` from 2.8.0 to 2.8.1 (PR #203)
+  - Updated `hypothesis` from 6.148.1 to 6.148.2 (PR #204)
+  - Updated `anthropic` from 0.73.0 to 0.74.0 (PR #206)
+  - Updated Docker base images (PRs #205, #207)
+  - Synchronized source files (requirements.in, requirements-dev.in, .pre-commit-config.yaml) with Renovate updates (PRs #208, #209)
+  - Regenerated requirements.txt and requirements-dev.txt with updated hashes
 - Enhanced `ResolutionResult` to track conflicting vs non-conflicting changes separately
 - Updated unit tests for change separation logic
 - **CLI Enhancement** (Issue #15):
