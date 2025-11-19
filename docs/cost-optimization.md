@@ -13,7 +13,7 @@ This guide provides comprehensive strategies for minimizing the cost of using LL
 - [Prompt Caching Strategy](#prompt-caching-strategy)
 - [Cost Budgeting & Controls](#cost-budgeting--controls)
 - [Model Selection Strategy](#model-selection-strategy)
-- [Cost Monitoring](#cost-monitoring-1)
+- [Cost Monitoring](#cost-monitoring)
 - [Real-World Cost Examples](#real-world-cost-examples)
 
 ---
@@ -71,7 +71,7 @@ ollama pull llama3.2:3b  # 2GB download
 
 # Use with PR Conflict Resolver
 pr-resolve apply --pr 123 --llm-preset ollama-local
-```text
+```
 
 **Cost Breakdown**:
 
@@ -117,7 +117,8 @@ gh auth login
 
 # Use with PR Conflict Resolver
 pr-resolve apply --pr 123 --llm-preset codex-cli-free
-```text
+
+```
 
 **Cost Breakdown**:
 
@@ -157,7 +158,8 @@ npm install -g @anthropics/claude-cli
 
 # Use with PR Conflict Resolver
 pr-resolve apply --pr 123 --llm-preset claude-cli-sonnet
-```text
+
+```
 
 **Cost Breakdown**:
 
@@ -196,7 +198,8 @@ pr-resolve apply --pr 123 --llm-preset claude-cli-sonnet
 ```bash
 export OPENAI_API_KEY="sk-..."
 pr-resolve apply --pr 123 --llm-preset openai-api-mini
-```text
+
+```
 
 **Monthly Cost Examples**:
 
@@ -236,7 +239,8 @@ pr-resolve apply --pr 123 --llm-preset openai-api-mini
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
 pr-resolve apply --pr 123 --llm-preset anthropic-api-balanced
-```text
+
+```
 
 **Monthly Cost Examples** (with native caching):
 
@@ -261,21 +265,17 @@ pr-resolve apply --pr 123 --llm-preset anthropic-api-balanced
 
 **Without Caching**: Every request = full API call = full cost
 
-```text
 Request 1: "Fix linting errors" → API call → $0.38
 Request 2: "Fix linting errors" → API call → $0.38
 Request 3: "Fix linting errors" → API call → $0.38
 Total: $1.14
-```text
 
 **With Caching**: Identical requests = cache hit = $0 cost
 
-```text
 Request 1: "Fix linting errors" → API call → $0.38
 Request 2: "Fix linting errors" → CACHE HIT → $0.00
 Request 3: "Fix linting errors" → CACHE HIT → $0.00
 Total: $0.38 (67% savings)
-```text
 
 ### Maximizing Cache Hit Rate
 
@@ -290,7 +290,8 @@ cache:
   enabled: true
   max_size: 5000
   ttl: 3600  # 1 hour
-```text
+
+```
 
 #### 2. Increase TTL for Stable Codebases
 
@@ -302,7 +303,7 @@ cache:
 # Production: Long TTL (stable patterns)
 cache:
   ttl: 86400  # 24 hours
-```text
+```
 
 **Cost Impact**:
 
@@ -328,7 +329,8 @@ common_patterns = [
 ]
 
 optimizer.warm_cache(common_patterns)
-```text
+
+```
 
 **Cost Impact**: +20-30% hit rate improvement
 
@@ -336,21 +338,17 @@ optimizer.warm_cache(common_patterns)
 
 **Bad** (every variation is a cache miss):
 
-```text
 "pls fix lint"
 "please fix linting"
 "Fix the linting errors"
 "could you fix lint errors?"
-```text
 
 **Good** (consistent phrasing = cache hits):
 
-```text
 "Please fix the linting errors"
 "Please fix the linting errors"
 "Please fix the linting errors"
 "Please fix the linting errors"
-```text
 
 **Cost Impact**: +10-15% hit rate improvement
 
@@ -365,17 +363,13 @@ optimizer.warm_cache(common_patterns)
 
 **Without Caching**:
 
-```text
 50 PRs × 10 comments × $0.38 = $190/month
-```text
 
 **With Caching**:
 
-```text
 50 PRs × 10 comments × (0.25 × $0.38) = $47.50/month
 Savings: $142.50/month (75%)
 Annual savings: $1,710
-```text
 
 ---
 
@@ -391,7 +385,8 @@ pr-resolve apply --pr 123 --cost-budget 10.0
 
 # Budget exceeded? Error before API call
 Error: Request would exceed cost budget: $10.45 > $10.00
-```text
+
+```
 
 **Budget Recommendations**:
 
@@ -413,7 +408,8 @@ pr-resolve apply --pr 123 --llm-metrics
 Total Cost: $2.45
 Remaining Budget: $7.55
 Average Cost per Request: $0.24
-```text
+
+```
 
 **Set Up Alerts**:
 
@@ -426,7 +422,8 @@ cost_alerts:
     action: "email"
   - threshold: 10.0
     action: "block"
-```text
+
+```
 
 ### 3. Rate Limiting
 
@@ -437,7 +434,8 @@ cost_alerts:
 optimization:
   parallel: true
   max_workers: 4  # Instead of 8 or 16
-```text
+
+```
 
 **Cost Impact**:
 
@@ -451,7 +449,6 @@ optimization:
 
 ### Quality vs Cost Trade-off
 
-```text
 Quality  │
    100% │                        ● Claude Sonnet 4
         │                    ● GPT-4o
@@ -463,7 +460,6 @@ Quality  │
         └────────────────────────────────────► Cost
          $0    $1    $5   $10   $15   $20
               (per 1M tokens)
-```text
 
 ### Decision Matrix
 
@@ -523,7 +519,8 @@ INFO: Request 1: 1,234 tokens → $0.38
 INFO: Request 2: 987 tokens → $0.30
 INFO: Request 3: CACHE HIT → $0.00
 INFO: Total Cost: $0.68
-```text
+
+```
 
 **Aggregate Metrics**:
 
@@ -536,7 +533,8 @@ API Calls: 3
 Total Tokens: 5,432
 Total Cost: $2.10
 Average Cost per PR: $0.21
-```text
+
+```
 
 ### Export Cost Data
 
@@ -552,7 +550,7 @@ metrics = MetricsAggregator()
 import json
 with open('cost-report.json', 'w') as f:
     json.dump(metrics.to_dict(), f, indent=2)
-```text
+```
 
 **Example Output**:
 
@@ -574,7 +572,8 @@ with open('cost-report.json', 'w') as f:
     }
   }
 }
-```text
+
+```
 
 ### Monthly Cost Reporting
 
@@ -594,7 +593,8 @@ Total Costs: $16.10
 Average per PR: $0.38
 Cheapest day: Monday ($1.20)
 Most expensive day: Friday ($3.80)
-```text
+
+```
 
 ---
 
@@ -670,25 +670,24 @@ Most expensive day: Friday ($3.80)
 
    ```bash
    --cache-enabled
-```text
 
 2. ✅ **Use GPT-4o-mini Instead of GPT-4o** - 95% cost reduction
 
-   ```bash
+```bash
    --llm-preset openai-api-mini
-```text
 
 3. ✅ **Set Cost Budgets** - Prevent overruns
 
    ```bash
    --cost-budget 10.0
-```text
 
 4. ✅ **Switch to Ollama for Development** - 100% API cost reduction
 
-   ```bash
+```bash
    --llm-preset ollama-local
-```text
+   ```
+
+```bash
 
 ### Medium-Term Actions
 
@@ -752,12 +751,10 @@ Most expensive day: Friday ($3.80)
 
 **Quick Estimate Formula**:
 
-```text
 Monthly Cost = (PRs/month × comments/PR × (1 - cache_hit_rate) × cost_per_comment)
 
 Example:
 50 PRs × 10 comments × (1 - 0.75) × $0.38 = $47.50/month
-```text
 
 ---
 

@@ -49,19 +49,19 @@ This guide provides comprehensive strategies for optimizing the performance, cos
 
 **What It Does**: Processes multiple PR comments concurrently instead of sequentially.
 
-**When to Use**:
+#### When to Use
 
 - ✅ PRs with 5+ comments
 - ✅ High-performance environments (multiple CPU cores)
 - ✅ Providers with good API rate limits (Ollama, Claude, GPT-4)
 
-**When NOT to Use**:
+#### When NOT to Use
 
 - ❌ Single-comment PRs (overhead > benefit)
 - ❌ Rate-limited API providers (will hit limits faster)
 - ❌ Memory-constrained environments
 
-**Configuration**:
+#### Configuration
 
 ```bash
 # Enable with default workers (4)
@@ -73,24 +73,24 @@ pr-resolve apply --pr 123 --parallel --max-workers 8
 # Config file (YAML)
 parallel: true
 max_workers: 8
-```text
+```
 
-**Performance Impact**:
+#### Performance Impact
 
 | PR Comments | Sequential | Parallel (4 workers) | Speedup |
-| ------------- | ----------- | --------------------- | --------- |
-| 2 comments  | 2.0s      | 2.1s                | 0.95x   |
-| 5 comments  | 5.0s      | 1.5s                | 3.3x    |
-| 10 comments | 10.0s     | 3.0s                | 3.3x    |
-| 20 comments | 20.0s     | 6.0s                | 3.3x    |
+| ----------- | ---------- | -------------------- | ------- |
+| 2 comments | 2.0s | 2.1s | 0.95x |
+| 5 comments | 5.0s | 1.5s | 3.3x |
+| 10 comments | 10.0s | 3.0s | 3.3x |
+| 20 comments | 20.0s | 6.0s | 3.3x |
 
-**Optimal Worker Count**:
+#### Optimal Worker Count
 
 - **CPU-bound (Ollama local)**: `workers = CPU cores`
 - **I/O-bound (API providers)**: `workers = 4-8`
 - **Memory-limited**: `workers = 2-4`
 
-**Trade-offs**:
+#### Trade-offs
 
 - ✅ **Pro**: 2-4x faster for multi-comment PRs
 - ✅ **Pro**: Better resource utilization
@@ -101,14 +101,14 @@ max_workers: 8
 
 **What It Does**: Caches LLM responses for identical prompts to avoid redundant API calls.
 
-**When to Use**:
+#### When to Use
 
 - ✅ **Always** - No downside, significant benefits
 - ✅ Repeated runs on same PR
 - ✅ Multiple PRs with similar comments
 - ✅ Testing and development workflows
 
-**Configuration**:
+#### Configuration
 
 ```bash
 # Enable caching (recommended)
@@ -125,9 +125,9 @@ cache:
   enabled: true
   max_size: 5000
   ttl: 7200
-```text
+```
 
-**Cache Hit Rate Optimization**:
+#### Cache Hit Rate Optimization
 
 1. **Warm the cache** with common patterns:
 
@@ -140,7 +140,8 @@ cache:
        "Please fix the linting errors",
        "Add tests for this feature"
    ])
-```text
+
+```bash
 
 2. **Increase TTL** for stable codebases:
    - Development: 1 hour (default)
@@ -152,7 +153,7 @@ cache:
    - Medium volume: 5,000 entries
    - High volume: 10,000 entries
 
-**Performance Impact**:
+#### Performance Impact
 
 - **Cache Hit**: ~0.01s (vs 0.5-2.0s for API call)
 - **Cost Savings**: 100% (no API call made)
@@ -168,7 +169,7 @@ cache:
 
 **What It Does**: Choose faster/cheaper models based on your requirements.
 
-**Model Comparison**:
+#### Model Comparison
 
 | Provider | Model | Speed | Cost | Quality | Use Case |
 | ---------- | ------- | ------- | ------ | --------- | ---------- |
@@ -184,7 +185,7 @@ cache:
 
 *Free with subscription
 
-**Recommendation**:
+#### Recommendation
 
 - **Development**: `ollama-local` preset with `llama3.2:1b`
 - **Production (cost-conscious)**: `openai-api-mini` or `anthropic-api-balanced`
@@ -195,7 +196,7 @@ cache:
 
 **What It Does**: Uses GPU for inference instead of CPU, providing 5-50x speedup.
 
-**Auto-Detection**:
+#### Auto-Detection
 
 ```bash
 # GPU automatically detected and used
@@ -204,9 +205,9 @@ pr-resolve apply --pr 123 --llm-preset ollama-local
 # Verify GPU usage
 pr-resolve apply --pr 123 --llm-preset ollama-local --log-level debug
 # Look for: "GPU: NVIDIA GeForce RTX 3080 (10GB VRAM)"
-```text
+```
 
-**GPU Performance**:
+#### GPU Performance
 
 | Hardware | Model Size | Inference Time | Throughput |
 | ---------- | ----------- | --------------- | ------------ |
@@ -216,14 +217,15 @@ pr-resolve apply --pr 123 --llm-preset ollama-local --log-level debug
 | GPU (RTX 3060) | 8B params | ~200ms | 5 req/s |
 | GPU (RTX 4090) | 8B params | ~100ms | 10 req/s |
 
-**Optimization Tips**:
+#### Optimization Tips
 
 1. **Batch requests** to maximize GPU utilization
 2. **Pre-load models** to avoid startup latency:
 
    ```bash
    ollama pull llama3.2:3b
-```text
+
+```bash
 
 3. **Use quantized models** if VRAM-limited:
    - `llama3:8b-q4_0` (4-bit, ~4GB VRAM)
@@ -235,7 +237,7 @@ pr-resolve apply --pr 123 --llm-preset ollama-local --log-level debug
 
 See [cost-optimization.md](cost-optimization.md) for comprehensive cost strategies.
 
-**Quick Tips**:
+#### Quick Tips
 
 1. Use free providers when possible (Ollama, Codex CLI, Claude CLI)
 2. Enable prompt caching to avoid redundant API calls
@@ -251,13 +253,13 @@ See [cost-optimization.md](cost-optimization.md) for comprehensive cost strategi
 
 **What It Does**: Prevents cascading failures by temporarily blocking requests to failing providers.
 
-**States**:
+#### States
 
 - **CLOSED** (normal): All requests pass through
 - **OPEN** (failing): Requests immediately rejected (fast-fail)
 - **HALF_OPEN** (testing): Limited requests to test recovery
 
-**Configuration**:
+#### Configuration
 
 ```bash
 # Enable with defaults (5 failures, 60s timeout)
@@ -275,9 +277,9 @@ circuit_breaker:
   failure_threshold: 3
   recovery_timeout: 30
   success_threshold: 2
-```text
+```
 
-**When Circuit Opens**:
+#### When Circuit Opens
 
 1. Error logged: `Circuit breaker OPEN after N failures`
 2. Subsequent requests fail immediately (no API calls)
@@ -285,7 +287,7 @@ circuit_breaker:
 4. If recovery succeeds → CLOSED
 5. If recovery fails → OPEN again
 
-**Tuning Guidelines**:
+#### Tuning Guidelines
 
 | Scenario | Threshold | Timeout | Success Threshold |
 | ---------- | ----------- | --------- | ------------------- |
@@ -298,19 +300,19 @@ circuit_breaker:
 
 **What It Does**: Automatically retries failed requests with exponential backoff.
 
-**Built-in Retry Logic**:
+#### Built-in Retry Logic
 
 - Transient errors (network, timeout): 3 retries
 - Backoff: 2s, 4s, 8s
 - Rate limits: Honors `Retry-After` headers
 
-**Not Retried**:
+#### Not Retried
 
 - Authentication errors (permanent)
 - Invalid input (client errors)
 - Circuit breaker open (fast-fail)
 
-**Configuration**:
+#### Configuration
 
 ```python
 # Providers use tenacity for retry logic
@@ -323,13 +325,13 @@ provider = OpenAIAPIProvider(
     max_retries=5,  # Default: 3
     retry_backoff=1.5  # Default: 2.0
 )
-```text
+```
 
 ### 3. Cost Budgeting
 
 **What It Does**: Prevents runaway API costs by enforcing spending limits.
 
-**Configuration**:
+#### Configuration
 
 ```bash
 # Set budget (recommended for production)
@@ -337,18 +339,18 @@ pr-resolve apply --pr 123 --cost-budget 10.0
 
 # Budget check before each request
 # Raises CostBudgetExceededError if exceeded
-```text
+```
 
-**Budget Calculation**:
+#### Budget Calculation
 
 ```text
 Estimated Cost = (input_tokens / 1000 * input_price) +
                  (output_tokens / 1000 * output_price)
 
 Budget Check = current_cost + estimated_cost <= budget
-```text
+```
 
-**Production Recommendations**:
+#### Production Recommendations
 
 | Usage Pattern | Recommended Budget |
 | -------------- | ------------------- |
@@ -357,7 +359,7 @@ Budget Check = current_cost + estimated_cost <= budget
 | Weekly automation (50 PRs) | $50.00 |
 | High-volume (200+ PRs) | $200.00 |
 
-**Monitoring**:
+#### Monitoring
 
 ```bash
 # Check spending after run
@@ -366,7 +368,7 @@ pr-resolve apply --pr 123 --llm-metrics
 # Output includes:
 # Total Cost: $0.45
 # Remaining Budget: $9.55
-```text
+```
 
 ---
 
@@ -374,7 +376,7 @@ pr-resolve apply --pr 123 --llm-metrics
 
 ### 1. Memory Usage
 
-**Memory Footprint**:
+#### Memory Footprint
 
 | Component | Base | With Cache (1K entries) | With Cache (10K entries) |
 | ----------- | ------ | ------------------------ | -------------------------- |
@@ -382,13 +384,14 @@ pr-resolve apply --pr 123 --llm-metrics
 | Ollama (1B) | ~1.5 GB | - | - |
 | Ollama (8B) | ~8 GB | - | - |
 
-**Memory Optimization**:
+#### Memory Optimization
 
 1. **Limit cache size** if memory-constrained:
 
    ```bash
    --cache-max-size 500  # 500 entries (~2.5 MB)
-```text
+
+```bash
 
 2. **Use smaller models** (Ollama):
    - `llama3.2:1b` (~1.5 GB)
@@ -398,11 +401,11 @@ pr-resolve apply --pr 123 --llm-metrics
 
    ```bash
    --max-workers 2  # Instead of default 4
-```text
+```
 
 ### 2. Thread Management
 
-**Thread Usage**:
+#### Thread Usage
 
 - Main thread: 1
 - Worker threads: `max_workers` (default: 4)
@@ -410,7 +413,7 @@ pr-resolve apply --pr 123 --llm-metrics
 
 **Total**: ~6 threads by default
 
-**Thread Pool Cleanup**:
+#### Thread Pool Cleanup
 
 - Automatic via context managers
 - No manual cleanup required
@@ -418,13 +421,13 @@ pr-resolve apply --pr 123 --llm-metrics
 
 ### 3. Network Connections
 
-**Connection Pooling**:
+#### Connection Pooling
 
 - API providers use `requests.Session()`
 - Pool size: 10 connections per provider
 - Keep-alive: Enabled for reuse
 
-**Optimization**:
+#### Optimization
 
 ```python
 # Reuse provider instances across requests
@@ -438,7 +441,7 @@ for pr in prs:
 for pr in prs:
     provider = OpenAIAPIProvider(api_key=api_key)
     result = provider.generate(pr.comment)
-```text
+```
 
 ---
 
@@ -446,7 +449,7 @@ for pr in prs:
 
 ### 1. Built-in Metrics
 
-**Enable Metrics**:
+#### Enable Metrics
 
 ```bash
 pr-resolve apply --pr 123 --llm-metrics
@@ -465,9 +468,9 @@ Provider: ollama (llama3.2:3b)
 Requests: 5 total, 5 successful, 0 failed
 Latency: p50=150ms, p95=300ms, p99=400ms
 Cost: $0.00 (local model)
-```text
+```
 
-**Metrics Available**:
+#### Metrics Available
 
 - Total requests (per provider/model)
 - Success/failure counts
@@ -479,7 +482,7 @@ Cost: $0.00 (local model)
 
 ### 2. Logging
 
-**Log Levels**:
+#### Log Levels
 
 ```bash
 # Minimal (errors only)
@@ -493,9 +496,9 @@ pr-resolve apply --pr 123 --log-level debug
 
 # Save to file
 pr-resolve apply --pr 123 --log-file pr-123.log
-```text
+```
 
-**What's Logged**:
+#### What's Logged
 
 - `ERROR`: API failures, circuit breaker trips
 - `WARNING`: Rate limits, cache misses, retries
@@ -504,7 +507,7 @@ pr-resolve apply --pr 123 --log-file pr-123.log
 
 ### 3. Exporting Metrics
 
-**JSON Export**:
+#### JSON Export
 
 ```python
 from pr_conflict_resolver.llm.metrics import MetricsAggregator
@@ -516,7 +519,7 @@ metrics = MetricsAggregator()
 import json
 with open('metrics.json', 'w') as f:
     json.dump(metrics.to_dict(), f, indent=2)
-```text
+```
 
 **Prometheus Integration** (future):
 
@@ -533,7 +536,7 @@ def export_to_prometheus(metrics: MetricsAggregator):
     summary = metrics.get_summary()
     # Export metrics to Prometheus
     # ... implementation ...
-```text
+```
 
 ---
 
@@ -541,7 +544,7 @@ def export_to_prometheus(metrics: MetricsAggregator):
 
 ### 1. Configuration Management
 
-**Use Config Files (Not CLI Flags)**:
+#### Use Config Files (Not CLI Flags)
 
 ```yaml
 # production.yaml
@@ -566,26 +569,26 @@ resilience:
 logging:
   level: "info"
   file: "/var/log/pr-resolver/pr-resolver.log"
-```text
+```
 
-**Load Config**:
+#### Load Config
 
 ```bash
 pr-resolve apply --pr 123 --config production.yaml
-```text
+```
 
 ### 2. Environment Variables
 
-**Required**:
+#### Required
 
 ```bash
 # API Keys (never commit!)
 export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}"
 export OPENAI_API_KEY="${OPENAI_API_KEY}"
 export GITHUB_TOKEN="${GITHUB_TOKEN}"
-```text
+```
 
-**Optional**:
+#### Optional
 
 ```bash
 # Override config file settings
@@ -595,11 +598,11 @@ export CR_PARALLEL="true"
 export CR_MAX_WORKERS="8"
 export CR_CACHE_ENABLED="true"
 export CR_COST_BUDGET="100.0"
-```text
+```
 
 ### 3. Health Checks
 
-**Provider Health Check**:
+#### Provider Health Check
 
 ```bash
 # Verify provider is accessible
@@ -611,11 +614,11 @@ pr-resolve check-provider --provider anthropic
 ✓ Model: claude-haiku-20240307 available
 ✓ Circuit Breaker: CLOSED
 ✓ Latency: 250ms (healthy)
-```text
+```
 
 ### 4. Graceful Degradation
 
-**Fallback Strategy**:
+#### Fallback Strategy
 
 ```yaml
 # Config with fallback providers
@@ -626,11 +629,11 @@ llm:
   # If primary fails (circuit breaker open):
   # 1. Try fallback provider
   # 2. If fallback fails, use manual parsing
-```text
+```
 
 ### 5. Rate Limiting
 
-**Respect Provider Limits**:
+#### Respect Provider Limits
 
 | Provider | Free Tier | Paid Tier | Recommendation |
 | ---------- | ----------- | ----------- | ---------------- |
@@ -640,23 +643,23 @@ llm:
 | Codex CLI | ~20 RPM | ~60 RPM | Max 4 workers |
 | Claude CLI | ~20 RPM | ~60 RPM | Max 4 workers |
 
-**Configure Workers**:
+#### Configure Workers
 
 ```yaml
 optimization:
   max_workers: 4  # Safe for most providers
-```text
+```
 
 ### 6. Monitoring Alerts
 
-**Key Metrics to Alert On**:
+#### Key Metrics to Alert On
 
 1. **Circuit Breaker State**: Alert if OPEN for > 5 minutes
 2. **Cost Threshold**: Alert at 80% of budget
 3. **Error Rate**: Alert if > 5% failures
 4. **Latency**: Alert if P95 > 2 seconds
 
-**Example (Prometheus AlertManager)**:
+#### Example (Prometheus AlertManager)
 
 ```yaml
 # alerts.yml
@@ -673,7 +676,7 @@ groups:
         expr: llm_cost_usd > (llm_budget_usd * 0.8)
         annotations:
           summary: "LLM costs at 80% of budget"
-```text
+```
 
 ---
 
@@ -681,7 +684,7 @@ groups:
 
 ### Real-World Performance
 
-**Scenario: 10-comment PR, OpenAI GPT-4o-mini**
+#### Scenario: 10-comment PR, OpenAI GPT-4o-mini
 
 | Configuration | Time | Cost | Notes |
 | -------------- | ------ | ------ | ------- |
@@ -692,7 +695,7 @@ groups:
 | + Parallel + Cache | 3.0s | $0.50 | First run |
 | + Parallel + Cache | 0.1s | $0.00 | Second run |
 
-**Scenario: 10-comment PR, Ollama llama3.2:3b (GPU)**
+#### Scenario: 10-comment PR, Ollama llama3.2:3b (GPU)
 
 | Configuration | Time | Cost | Notes |
 | -------------- | ------ | ------ | ------- |
@@ -719,7 +722,7 @@ groups:
 
 **Symptoms**: Requests taking > 5 seconds
 
-**Diagnosis**:
+#### Diagnosis
 
 ```bash
 # Enable debug logging
@@ -729,9 +732,9 @@ pr-resolve apply --pr 123 --log-level debug
 # - High latency per request (> 2s)
 # - Cache misses
 # - Sequential processing
-```text
+```
 
-**Solutions**:
+#### Solutions
 
 1. Enable parallel processing: `--parallel`
 2. Use faster model: Switch to `claude-haiku` or `gpt-4o-mini`
@@ -742,14 +745,14 @@ pr-resolve apply --pr 123 --log-level debug
 
 **Symptoms**: OOM errors or > 1 GB memory usage
 
-**Diagnosis**:
+#### Diagnosis
 
 ```bash
 # Monitor memory
 top -p $(pgrep -f pr-resolve)
-```text
+```
 
-**Solutions**:
+#### Solutions
 
 1. Reduce cache size: `--cache-max-size 500`
 2. Use smaller model (Ollama): `llama3.2:1b`
@@ -759,14 +762,14 @@ top -p $(pgrep -f pr-resolve)
 
 **Symptoms**: Unexpected API bills
 
-**Diagnosis**:
+#### Diagnosis
 
 ```bash
 # Check metrics
 pr-resolve apply --pr 123 --llm-metrics
-```text
+```
 
-**Solutions**:
+#### Solutions
 
 1. Enable caching: `--cache-enabled`
 2. Switch to cheaper model: `gpt-4o-mini` or `claude-haiku`
@@ -777,14 +780,14 @@ pr-resolve apply --pr 123 --llm-metrics
 
 **Symptoms**: All requests failing with `CircuitBreakerError`
 
-**Diagnosis**:
+#### Diagnosis
 
 ```bash
 # Check circuit breaker state
 pr-resolve check-provider --provider anthropic
-```text
+```
 
-**Solutions**:
+#### Solutions
 
 1. Wait for recovery timeout (default: 60s)
 2. Check provider status (API outage?)
@@ -812,7 +815,7 @@ resilience:
   circuit_breaker:
     enabled: true
   cost_budget: 1.0  # Safety net
-```text
+```
 
 ### For Performance-Focused Users
 
@@ -832,7 +835,7 @@ resilience:
   circuit_breaker:
     enabled: true
   cost_budget: 100.0
-```text
+```
 
 ### For Balanced Users (Recommended)
 
@@ -852,7 +855,7 @@ resilience:
   circuit_breaker:
     enabled: true
   cost_budget: 10.0
-```text
+```
 
 ---
 

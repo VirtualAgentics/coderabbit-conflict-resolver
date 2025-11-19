@@ -69,7 +69,7 @@ When multiple PR review comments suggest overlapping changes to the same file, t
 
 ```bash
 pip install pr-conflict-resolver
-```text
+```
 
 ### Basic Usage
 
@@ -102,7 +102,7 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
 
 # Load configuration from file
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --config config.yaml
-```text
+```
 
 ### LLM Provider Setup (Optional)
 
@@ -138,7 +138,6 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
   --llm-preset anthropic-api-balanced \
   --llm-api-key sk-ant-...
-```text
 
 **Available presets**: `codex-cli-free`, `ollama-local` 🔒, `claude-cli-sonnet`, `openai-api-mini`, `anthropic-api-balanced`
 
@@ -159,7 +158,6 @@ export CR_LLM_API_KEY="sk-..."  # Get from https://platform.openai.com/api-keys
 
 # Then use as normal
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123
-```text
 
 **Documentation**:
 
@@ -184,7 +182,7 @@ results = resolver.resolve_pr_conflicts(
 print(f"Applied: {results.applied_count}")
 print(f"Conflicts: {results.conflict_count}")
 print(f"Success rate: {results.success_rate}%")
-```text
+```
 
 ## Features
 
@@ -315,7 +313,6 @@ See [`.env.example`](.env.example) for available environment variables.
 
 ## Architecture
 
-```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    GitHub PR Comments                       │
 │                   (CodeRabbit, Review Bot)                  │
@@ -361,7 +358,6 @@ See [`.env.example`](.env.example) for available environment variables.
 │        Reporting & Metrics                                  │
 │  • Conflict Summary  • Visual Diff  • Success Rate         │
 └─────────────────────────────────────────────────────────────┘
-```text
 
 ## Use Cases
 
@@ -428,7 +424,6 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 pre-commit install
-```text
 
 ### Running Tests
 
@@ -445,7 +440,6 @@ make test-fuzz-extended     # Extended: 1000 examples
 
 # Run all tests (standard + fuzzing)
 make test-all
-```text
 
 **For more details, see:**
 
@@ -560,7 +554,6 @@ Current system only parses **```suggestion** blocks, missing:
 
 ### The Solution: LLM-First Parsing
 
-```text
 ┌─────────────────────────────────────────────────────────┐
 │           LLM Parser (Primary - All Formats)            │
 │  • Diff blocks        • Suggestion blocks              │
@@ -578,7 +571,6 @@ Current system only parses **```suggestion** blocks, missing:
 │  • 100% reliable      • Zero cost                       │
 │  • Legacy support     • Always available                │
 └─────────────────────────────────────────────────────────┘
-```text
 
 ### Multi-Provider Support (User Choice)
 
@@ -606,7 +598,7 @@ pr-resolve apply --llm --llm-provider claude-cli --owner VirtualAgentics --repo 
 # Use presets for quick config
 pr-resolve apply --llm-preset claude-cli-sonnet --owner VirtualAgentics --repo my-repo --pr 123
 pr-resolve apply --llm-preset ollama-local --owner VirtualAgentics --repo my-repo --pr 123  # Privacy-first
-```text
+```
 
 ### Backward Compatibility Guarantee
 
@@ -633,7 +625,7 @@ change = Change(
     change_rationale="Improves error handling",  # Why change was suggested
     risk_level="low"  # "low", "medium", "high"
 )
-```text
+```
 
 ### Documentation
 
