@@ -52,7 +52,17 @@ lint: ## Run all linters
 	mypy src/
 	@echo "Running Bandit..."
 	bandit -r src/ -f json -o bandit-report.json
+	@echo "Running Markdownlint..."
+	pre-commit run markdownlint-cli2 --all-files
 	@echo "✅ Linting complete (dependency scanning handled by Renovate)"
+
+lint-markdown: ## Run markdown linting
+	@echo "Running Markdownlint..."
+	@if [ -d .venv ]; then \
+		. .venv/bin/activate && pre-commit run markdownlint-cli2 --all-files; \
+	else \
+		pre-commit run markdownlint-cli2 --all-files; \
+	fi
 
 format: ## Auto-format code with Black and Ruff
 	black src/ tests/

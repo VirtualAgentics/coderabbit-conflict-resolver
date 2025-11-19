@@ -512,6 +512,7 @@ Hooks run on every commit:
 * Ruff (linting)
 * Mypy (type checking)
 * Bandit (security checks)
+* Markdownlint (markdown documentation)
 
 ### Pre-push Hooks
 
@@ -524,6 +525,37 @@ pre-commit install --hook-type pre-push
 # Tests run automatically before git push
 git push
 
+```
+
+### Markdown Linting
+
+The project enforces markdown quality standards using markdownlint-cli2.
+
+**Configuration**: `.markdownlint.yaml`
+
+**Enabled rules**:
+
+* MD022 - Blank lines around headings
+* MD031 - Blank lines around fenced code blocks
+* MD032 - Blank lines around lists
+* MD004 - Consistent unordered list style (asterisks)
+* MD040 - Fenced code blocks must have language
+* And many more (see [markdownlint rules](https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md))
+
+**Disabled rules** (project-specific):
+
+* MD013 (line length) - Allows long lines for code blocks and URLs
+* MD033 (inline HTML) - Permits badges and centered images
+* MD041 (first line heading) - README has badges before first heading
+
+**Run manually**:
+
+```bash
+# Check all markdown files
+pre-commit run markdownlint-cli2 --all-files
+
+# Or via make (if available)
+make lint-markdown
 ```
 
 ## Troubleshooting
