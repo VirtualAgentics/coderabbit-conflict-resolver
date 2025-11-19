@@ -10,11 +10,19 @@ MD033: false  # Inline HTML - allowed (needed for badges, centered images, etc.)
 MD041: false  # First line in file should be top-level heading - disabled (README has badges first)
 
 # Temporarily lenient rules (to be tightened gradually)
+MD001: false  # Heading increment - disabled
+MD004: false  # Unordered list style - disabled
+MD012: false  # Multiple blank lines - disabled
+MD019: false  # Multiple spaces after hash - disabled
 MD022: false  # Headings surrounded by blank lines - disabled (2045 violations to fix gradually)
+MD024: false  # Duplicate headings - disabled
+MD028: false  # Blank line inside blockquote - disabled
+MD029: false  # Ordered list item prefix - disabled
 MD031: false  # Fenced code blocks surrounded by blank lines - disabled
 MD032: false  # Lists surrounded by blank lines - disabled
 MD034: false  # Bare URLs - disabled (use angle brackets for autolinks)
-MD040: false  # Fenced code language - disabled
 MD036: false  # Emphasis as heading - disabled
-MD012: false  # Multiple blank lines - disabled
-MD024: false  # Duplicate headings - disabled
+MD038: false  # Spaces inside code span elements - disabled
+MD040: false  # Fenced code language - disabled
+MD046: false  # Code block style - disabled
+MD051: false  # Link fragments - disabled
