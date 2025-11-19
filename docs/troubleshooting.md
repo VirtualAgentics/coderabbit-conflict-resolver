@@ -102,7 +102,7 @@ AuthenticationError: Invalid API key
    ```
 
 2. **Generate new API key:**
-   - Visit: https://platform.openai.com/api-keys
+   - Visit: <https://platform.openai.com/api-keys>
    - Create new secret key
    - Copy and set immediately (can't view later)
 
@@ -126,7 +126,7 @@ RateLimitError: You exceeded your current quota
 **Solutions:**
 
 1. **Check usage limits:**
-   - Visit: https://platform.openai.com/usage
+   - Visit: <https://platform.openai.com/usage>
    - Verify you have available credits
 
 2. **Reduce request rate:**
@@ -158,7 +158,7 @@ AuthenticationError: x-api-key header is invalid
    ```
 
 2. **Generate new API key:**
-   - Visit: https://console.anthropic.com/settings/keys
+   - Visit: <https://console.anthropic.com/settings/keys>
    - Create new key
    - Copy and set immediately
 
@@ -183,12 +183,12 @@ Error: model: claude-sonnet-4-5 does not exist
 1. **Use correct model name:**
    ```bash
    # Correct model names (as of Nov 2025):
-   export CR_LLM_MODEL="claude-sonnet-4-5"      # Recommended
-   export CR_LLM_MODEL="claude-haiku-4"         # Budget option
+   export CR_LLM_MODEL="claude-sonnet-4-5"      # Recommended (aliases claude-sonnet-4-20250514)
+   export CR_LLM_MODEL="claude-haiku-4-5"       # Budget option
    ```
 
 2. **Check available models:**
-   - Visit: https://docs.anthropic.com/en/docs/models-overview
+   - Visit: <https://docs.anthropic.com/en/api/models-list>
    - Verify model name and availability
 
 ### Claude CLI
@@ -262,26 +262,24 @@ bash: codex: command not found
 
 **Solutions:**
 
-1. **Install GitHub Copilot CLI:**
+1. **Install GitHub Copilot CLI (standalone):**
    ```bash
-   # Install GitHub CLI first
-   brew install gh  # macOS
-   # Or: https://github.com/cli/cli#installation
-
-   # Install Copilot extension
-   gh extension install github/gh-copilot
+   # Requires Node.js and npm
+   npm install -g @github/copilot
    ```
+
+   **Note:** The old `gh-copilot` extension for GitHub CLI was deprecated and stopped working on October 25, 2025. Use the standalone npm package instead.
 
 2. **Verify installation:**
    ```bash
-   gh copilot --version
+   github-copilot --version
    ```
 
 3. **Set provider:**
    ```bash
    export CR_LLM_ENABLED="true"
    export CR_LLM_PROVIDER="codex-cli"
-   # Uses GitHub authentication
+   # Authenticate with: github-copilot auth
    ```
 
 #### Copilot Subscription Required
@@ -429,7 +427,7 @@ Inference is very slow
 4. **Check GPU detection script:**
    ```bash
    # Run GPU detection test
-   python -c "from pr_conflict_resolver.llm.providers.ollama import GPUDetector; print(GPUDetector.detect())"
+   python -c "from pr_conflict_resolver.llm.providers.gpu_detector import GPUDetector; print(GPUDetector.detect_gpu('http://localhost:11434'))"
    ```
 
 ## Privacy Verification Issues
@@ -716,7 +714,7 @@ ERROR: Package requires Python >=3.12
 If your issue isn't covered here:
 
 1. **Check existing issues:**
-   - Visit: https://github.com/VirtualAgentics/review-bot-automator/issues
+   - Visit: <https://github.com/VirtualAgentics/review-bot-automator/issues>
    - Search for similar problems
 
 2. **Create new issue:**
@@ -725,7 +723,7 @@ If your issue isn't covered here:
    - Provide minimal reproduction steps
 
 3. **Join discussions:**
-   - Visit: https://github.com/VirtualAgentics/review-bot-automator/discussions
+   - Visit: <https://github.com/VirtualAgentics/review-bot-automator/discussions>
    - Ask questions and share solutions
 
 4. **Review documentation:**
