@@ -123,6 +123,55 @@ curl http://localhost:11434/api/tags
 
 **See [Configuration Guide - LLM Provider Configuration](configuration.md#llm-provider-configuration) for all provider options, cost comparison, and detailed setup instructions.**
 
+### Privacy Considerations
+
+When using LLM providers with the Review Bot Automator, understanding the privacy implications is important for making informed decisions about which provider to use.
+
+#### Privacy Spectrum
+
+Different LLM providers offer different privacy tradeoffs:
+
+- **Local-Only (Ollama)**: Reduces third-party LLM vendor exposure by running models locally
+  - Code review comments are processed on your machine via localhost (127.0.0.1:11434)
+  - No third-party LLM vendors (OpenAI, Anthropic) have access to your code
+  - ⚠️ **Important**: Still requires internet access for GitHub API operations (fetching PR data, posting comments)
+  - **NOT air-gapped**: Cannot operate in isolated/offline environments
+  - Best for: Organizations with strict data residency requirements, GDPR/HIPAA compliance needs
+
+- **Subscription-Based (Claude CLI, Codex CLI)**: Zero marginal cost, subscription privacy model
+  - Code processed by Anthropic/GitHub respectively
+  - Covered under existing subscription terms
+  - Best for: Individual developers or teams already using these services
+
+- **API-Based (OpenAI API, Anthropic API)**: Pay-per-use with third-party processing
+  - Code sent to third-party LLM providers for processing
+  - Subject to provider's data retention and privacy policies
+  - Anthropic offers prompt caching (50-90% cost reduction)
+  - Best for: Cost-conscious users, high-volume processing with caching benefits
+
+#### Privacy Verification
+
+For Ollama users, you can verify localhost-only operation using the included privacy verification script:
+
+```bash
+# Run privacy verification for Ollama
+./scripts/verify_privacy.sh
+
+# Generates detailed report confirming:
+# - All LLM requests go to localhost only (127.0.0.1:11434)
+# - No connections to OpenAI/Anthropic/other third-party LLM vendors
+# - GitHub API connections are allowed (required for PR operations)
+```
+
+#### Additional Resources
+
+For comprehensive privacy information, see:
+- **[Privacy Architecture](privacy-architecture.md)** - Complete privacy model, data flows, and compliance guidance
+- **[Privacy FAQ](privacy-faq.md)** - Common questions about privacy, offline operation, and data handling
+- **[Privacy Verification Script](../scripts/verify_privacy.sh)** - Automated network monitoring for Ollama
+
+**Key Takeaway**: This tool **reduces third-party LLM vendor exposure** when using Ollama, but cannot operate in air-gapped or offline environments due to GitHub API requirements. Choose the provider that best matches your privacy, cost, and performance needs.
+
 ### Configuration
 
 The resolver uses preset configurations. The default is `balanced`:
