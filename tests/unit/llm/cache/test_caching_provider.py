@@ -173,7 +173,7 @@ class TestCachingProviderGenerate:
         mock_cache.get.return_value = None  # Cache miss
 
         cached = CachingProvider(mock_provider, cache=mock_cache)
-        result = cached.generate("Test prompt")
+        result = cached.generate("Test prompt", max_tokens=2000)
 
         # Should call provider
         mock_provider.generate.assert_called_once_with("Test prompt", max_tokens=2000)

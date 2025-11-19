@@ -28,10 +28,12 @@ class MockLLMProvider:
         self.delay = delay
         self.should_fail = should_fail
         self.call_count = 0
+        self._lock = threading.Lock()
 
     def generate(self, prompt: str, max_tokens: int = 2000) -> str:
         """Mock generate method."""
-        self.call_count += 1
+        with self._lock:
+            self.call_count += 1
         if self.delay > 0:
             time.sleep(self.delay)
         if self.should_fail:
