@@ -140,8 +140,7 @@ cache:
        "Please fix the linting errors",
        "Add tests for this feature"
    ])
-
-```bash
+   ```
 
 2. **Increase TTL** for stable codebases:
    - Development: 1 hour (default)
@@ -389,8 +388,7 @@ pr-resolve apply --pr 123 --llm-metrics
 
    ```bash
    --cache-max-size 500  # 500 entries (~2.5 MB)
-
-```bash
+   ```
 
 2. **Use smaller models** (Ollama):
    - `llama3.2:1b` (~1.5 GB)
@@ -400,7 +398,7 @@ pr-resolve apply --pr 123 --llm-metrics
 
    ```bash
    --max-workers 2  # Instead of default 4
-```
+   ```
 
 ### 2. Thread Management
 

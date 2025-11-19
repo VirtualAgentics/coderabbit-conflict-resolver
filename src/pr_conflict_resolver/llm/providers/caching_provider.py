@@ -249,15 +249,33 @@ class CachingProvider:
                 logger.debug(f"Cache populated by other thread for {cache_key[:16]}...")
                 return cached_response
             else:
-                # Other thread failed or cache was evicted, re-register and fetch
+                # Other thread failed or cache was evicted - check for concurrent re-registration
                 logger.warning(
                     f"Other thread completed but cache miss for {cache_key[:16]}..., "
                     "will fetch from provider"
                 )
                 # Re-register this thread's upcoming fetch in _in_flight
+                # Check if another thread already re-registered while we were outside the lock
                 with self._in_flight_lock:
-                    if cache_key not in self._in_flight:
+                    if cache_key in self._in_flight:
+                        # Another thread re-registered, wait on their event instead
+                        wait_event = self._in_flight[cache_key]
+                        logger.debug(
+                            f"Another thread re-registered {cache_key[:16]}..., waiting again"
+                        )
+                    else:
+                        # Safe to register our fetch
                         self._in_flight[cache_key] = threading.Event()
+                        wait_event = None
+
+                # If we need to wait again, loop back
+                if wait_event is not None:
+                    wait_event.wait()
+                    cached_response = self.cache.get(cache_key)
+                    if cached_response is not None:
+                        logger.debug(f"Cache populated by second thread for {cache_key[:16]}...")
+                        return cached_response
+                    # If still no cache, fall through to fetch (accept potential duplicate)
 
         # This thread is responsible for fetching
         try:

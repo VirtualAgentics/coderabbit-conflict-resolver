@@ -748,7 +748,7 @@ Most expensive day: Friday ($3.80)
 
 ## Cost Calculator
 
-**Interactive Cost Estimator**: [https://pr-conflict-resolver.dev/cost-calculator](https://pr-conflict-resolver.dev/cost-calculator) _(coming soon)_
+**Interactive Cost Estimator**: Coming soon - link will be added when available
 
 **Quick Estimate Formula**:
 

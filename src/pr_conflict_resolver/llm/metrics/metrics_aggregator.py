@@ -196,6 +196,12 @@ class MetricsAggregator:
 
         Returns:
             ProviderMetrics instance
+
+        Note:
+            This method must be called while holding self._lock. This is enforced
+            by callers using 'with self._lock:' context manager. We cannot add a
+            runtime assertion here because RLock does not provide a .locked()
+            method like Lock does.
         """
         key = (provider, model)
         if key not in self._metrics:
@@ -271,6 +277,12 @@ class MetricsAggregator:
             >>> with metrics.track_request("anthropic", "claude-sonnet-4-5") as tracker:
             ...     tracker.record_tokens(1000, 500)
         """
+        # Validate inputs before lock acquisition (fail fast)
+        if not isinstance(input_tokens, int) or input_tokens < 0:
+            raise ValueError(f"input_tokens must be non-negative integer, got: {input_tokens}")
+        if not isinstance(output_tokens, int) or output_tokens < 0:
+            raise ValueError(f"output_tokens must be non-negative integer, got: {output_tokens}")
+
         provider = provider or getattr(self._thread_locals, "provider", None)
         model = model or getattr(self._thread_locals, "model", None)
 

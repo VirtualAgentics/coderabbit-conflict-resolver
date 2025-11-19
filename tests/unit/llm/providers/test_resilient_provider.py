@@ -223,18 +223,27 @@ class TestResilientProviderCostTracking:
         """Test budget check when no budget is set."""
         mock_provider = MagicMock()
         mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider.generate.return_value = "response"
+        mock_provider.count_tokens.return_value = 100000  # Large token count
 
-        resilient = ResilientProvider(mock_provider)
+        resilient = ResilientProvider(
+            mock_provider,
+            cost_per_1k_input_tokens=10.0,  # Expensive: $10 per 1k tokens
+            cost_per_1k_output_tokens=0.0,
+        )
 
-        # Should not raise (unlimited budget)
-        resilient._check_budget(1000.0)
+        # Should not raise (unlimited budget) - call generate multiple times
+        resilient.generate("prompt1", max_tokens=1)  # $1000
+        resilient.generate("prompt2", max_tokens=1)  # Another $1000
+        # No exception should be raised despite high cost
 
     def test_budget_check_within_budget(self) -> None:
         """Test budget check when within budget."""
         mock_provider = MagicMock()
         mock_provider.__class__.__name__ = "TestProvider"
         mock_provider.generate.return_value = "response"
-        mock_provider.count_tokens.return_value = 5000  # 5000 tokens
+        # First call: 5000 tokens, second call: 2000 tokens
+        mock_provider.count_tokens.side_effect = [5000, 2000]
 
         # Configure to $1 per 1k input tokens: 5000 tokens * $1/1k = $5
         resilient = ResilientProvider(
@@ -248,15 +257,16 @@ class TestResilientProviderCostTracking:
         # Verify current cost is $5
         assert resilient.total_cost == 5.0
 
-        # Check budget with additional $2 (5 + 2 = 7, within 10) - should not raise
-        resilient._check_budget(2.0)
+        # Generate with additional $2 (5 + 2 = 7, within 10) - should not raise
+        resilient.generate("prompt2", max_tokens=1)  # Accumulates $2, total $7
 
     def test_budget_check_exceeds_budget(self) -> None:
         """Test budget check when budget would be exceeded."""
         mock_provider = MagicMock()
         mock_provider.__class__.__name__ = "TestProvider"
         mock_provider.generate.return_value = "response"
-        mock_provider.count_tokens.return_value = 9000  # 9000 tokens
+        # First call: 9000 tokens, second call: 2000 tokens
+        mock_provider.count_tokens.side_effect = [9000, 2000]
 
         # Configure to $1 per 1k input tokens: 9000 tokens * $1/1k = $9
         resilient = ResilientProvider(
@@ -269,8 +279,9 @@ class TestResilientProviderCostTracking:
 
         assert resilient.total_cost == 9.0
 
+        # Generate with additional $2 (9 + 2 = 11, exceeds 10) - should raise
         with pytest.raises(CostBudgetExceededError):
-            resilient._check_budget(2.0)  # 9 + 2 = 11, exceeds 10
+            resilient.generate("prompt2", max_tokens=1)  # Would accumulate $2, exceeds budget
 
     def test_remaining_budget_calculation(self) -> None:
         """Test remaining budget calculation."""
