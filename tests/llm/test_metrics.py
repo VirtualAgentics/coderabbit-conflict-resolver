@@ -182,7 +182,7 @@ class TestLLMMetricsProperties:
         assert metrics.cost_per_change == 0.005
 
     def test_cost_per_change_with_zero_changes(self) -> None:
-        """Test cost_per_change returns 0.0 when no changes parsed."""
+        """Test cost_per_change returns None when no changes parsed."""
         metrics = LLMMetrics(
             provider="openai",
             model="gpt-4o-mini",
@@ -194,7 +194,7 @@ class TestLLMMetricsProperties:
             total_tokens=0,
         )
 
-        assert metrics.cost_per_change == 0.0
+        assert metrics.cost_per_change is None
 
     def test_avg_tokens_per_call_with_calls(self) -> None:
         """Test avg_tokens_per_call calculation with API calls."""
@@ -213,7 +213,7 @@ class TestLLMMetricsProperties:
         assert metrics.avg_tokens_per_call == pytest.approx(expected)
 
     def test_avg_tokens_per_call_with_zero_calls(self) -> None:
-        """Test avg_tokens_per_call returns 0.0 when no API calls made."""
+        """Test avg_tokens_per_call returns None when no API calls made."""
         metrics = LLMMetrics(
             provider="anthropic",
             model="claude-haiku-4",
@@ -225,7 +225,7 @@ class TestLLMMetricsProperties:
             total_tokens=0,
         )
 
-        assert metrics.avg_tokens_per_call == 0.0
+        assert metrics.avg_tokens_per_call is None
 
     def test_calculate_savings_positive(self) -> None:
         """Test calculate_savings with cache hits reducing cost."""

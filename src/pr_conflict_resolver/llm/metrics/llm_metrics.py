@@ -73,6 +73,19 @@ class LLMMetrics:
 
     def __post_init__(self) -> None:
         """Validate metrics values."""
+        # Validate string fields
+        if not self.provider or not self.provider.strip():
+            raise ValueError("provider must be a non-empty string")
+        if not self.model or not self.model.strip():
+            raise ValueError("model must be a non-empty string")
+
+        # Validate gpu_info is only for Ollama provider
+        if self.gpu_info is not None and self.provider.lower().strip() != "ollama":
+            raise ValueError(
+                f"gpu_info is only valid for Ollama provider, got provider='{self.provider}'"
+            )
+
+        # Validate numeric fields
         if self.changes_parsed < 0:
             raise ValueError(f"changes_parsed must be >= 0, got {self.changes_parsed}")
         if not 0.0 <= self.avg_confidence <= 1.0:
@@ -91,11 +104,11 @@ class LLMMetrics:
             raise ValueError(f"total_tokens must be >= 0, got {self.total_tokens}")
 
     @property
-    def cost_per_change(self) -> float:
+    def cost_per_change(self) -> float | None:
         """Calculate average cost per parsed change.
 
         Returns:
-            Average cost per change in USD. Returns 0.0 if no changes parsed.
+            Average cost per change in USD, or None if no changes parsed.
 
         Example:
             >>> metrics = LLMMetrics(
@@ -106,17 +119,25 @@ class LLMMetrics:
             ... )
             >>> f"${metrics.cost_per_change:.4f}"
             '$0.0050'
+            >>> metrics_no_changes = LLMMetrics(
+            ...     provider="openai", model="gpt-4o-mini",
+            ...     changes_parsed=0, avg_confidence=0.0,
+            ...     cache_hit_rate=0.0, total_cost=0.0,
+            ...     api_calls=0, total_tokens=0
+            ... )
+            >>> metrics_no_changes.cost_per_change is None
+            True
         """
         if self.changes_parsed == 0:
-            return 0.0
+            return None
         return self.total_cost / self.changes_parsed
 
     @property
-    def avg_tokens_per_call(self) -> float:
+    def avg_tokens_per_call(self) -> float | None:
         """Calculate average tokens per API call.
 
         Returns:
-            Average tokens per API call. Returns 0.0 if no API calls made.
+            Average tokens per API call, or None if no API calls made.
 
         Example:
             >>> metrics = LLMMetrics(
@@ -127,9 +148,17 @@ class LLMMetrics:
             ... )
             >>> int(metrics.avg_tokens_per_call)
             2202
+            >>> metrics_no_calls = LLMMetrics(
+            ...     provider="anthropic", model="claude-haiku-4",
+            ...     changes_parsed=0, avg_confidence=0.0,
+            ...     cache_hit_rate=0.0, total_cost=0.0,
+            ...     api_calls=0, total_tokens=0
+            ... )
+            >>> metrics_no_calls.avg_tokens_per_call is None
+            True
         """
         if self.api_calls == 0:
-            return 0.0
+            return None
         return self.total_tokens / self.api_calls
 
     def calculate_savings(self, cache_miss_cost: float) -> float:
@@ -158,7 +187,9 @@ class LLMMetrics:
         if cache_miss_cost < 0:
             raise ValueError(f"cache_miss_cost must be >= 0, got {cache_miss_cost}")
         if cache_miss_cost < self.total_cost:
+            computed_savings = cache_miss_cost - self.total_cost
             raise ValueError(
-                f"cache_miss_cost ({cache_miss_cost}) must be >= total_cost ({self.total_cost})"
+                f"cache_miss_cost ({cache_miss_cost}) must be >= total_cost ({self.total_cost}). "
+                f"Computed cache savings would be negative: {computed_savings}"
             )
         return cache_miss_cost - self.total_cost

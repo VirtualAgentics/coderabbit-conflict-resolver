@@ -65,6 +65,8 @@ class RuntimeConfig:
         llm_cache_enabled: Cache LLM responses to reduce cost (default: True).
         llm_max_tokens: Maximum tokens per LLM request (default: 2000).
         llm_cost_budget: Maximum cost per run in USD (None = unlimited).
+        parallel_llm_parsing: Enable parallel LLM comment parsing (default: False).
+        llm_max_workers: Maximum concurrent workers for parallel LLM parsing (default: 4).
 
     Example:
         >>> config = RuntimeConfig.from_env()
@@ -88,6 +90,8 @@ class RuntimeConfig:
     llm_cache_enabled: bool = True
     llm_max_tokens: int = 2000
     llm_cost_budget: float | None = None
+    parallel_llm_parsing: bool = False
+    llm_max_workers: int = 4
 
     def __post_init__(self) -> None:
         """Validate configuration after initialization.
@@ -128,6 +132,14 @@ class RuntimeConfig:
 
         if self.llm_cost_budget is not None and self.llm_cost_budget <= 0:
             raise ConfigError(f"llm_cost_budget must be positive, got {self.llm_cost_budget}")
+
+        if self.llm_max_workers < 1:
+            raise ConfigError(f"llm_max_workers must be >= 1, got {self.llm_max_workers}")
+        if self.llm_max_workers > 32:
+            logger.warning(
+                f"llm_max_workers={self.llm_max_workers} is very high. "
+                f"Consider using <= 8 for optimal performance with LLM providers."
+            )
 
         # Validate that API-based providers have an API key if enabled
         if (
@@ -368,6 +380,8 @@ class RuntimeConfig:
         - CR_LLM_CACHE_ENABLED: Enable response caching (default: "true")
         - CR_LLM_MAX_TOKENS: Max tokens per request (default: "2000")
         - CR_LLM_COST_BUDGET: Max cost per run in USD (default: None)
+        - CR_PARALLEL_LLM_PARSING: Enable parallel LLM parsing (default: "false")
+        - CR_LLM_MAX_WORKERS: Max concurrent workers for LLM parsing (default: "4")
 
         Returns:
             RuntimeConfig loaded from environment variables.
@@ -447,6 +461,10 @@ class RuntimeConfig:
             llm_cache_enabled=parse_bool("CR_LLM_CACHE_ENABLED", defaults.llm_cache_enabled),
             llm_max_tokens=parse_int("CR_LLM_MAX_TOKENS", defaults.llm_max_tokens, min_value=1),
             llm_cost_budget=parse_float_optional("CR_LLM_COST_BUDGET"),
+            parallel_llm_parsing=parse_bool(
+                "CR_PARALLEL_LLM_PARSING", defaults.parallel_llm_parsing
+            ),
+            llm_max_workers=parse_int("CR_LLM_MAX_WORKERS", defaults.llm_max_workers, min_value=1),
         )
 
     @classmethod
@@ -699,6 +717,8 @@ class RuntimeConfig:
             llm_cache_enabled = llm_config.get("cache_enabled", defaults.llm_cache_enabled)
             llm_max_tokens = llm_config.get("max_tokens", defaults.llm_max_tokens)
             llm_cost_budget = llm_config.get("cost_budget", defaults.llm_cost_budget)
+            parallel_llm_parsing = llm_config.get("parallel_parsing", defaults.parallel_llm_parsing)
+            llm_max_workers = llm_config.get("max_workers", defaults.llm_max_workers)
 
             # SECURITY: Reject API keys in configuration files
             # API keys must only be provided via environment variables or CLI flags
@@ -718,6 +738,8 @@ class RuntimeConfig:
             llm_cache_enabled = defaults.llm_cache_enabled
             llm_max_tokens = defaults.llm_max_tokens
             llm_cost_budget = defaults.llm_cost_budget
+            parallel_llm_parsing = defaults.parallel_llm_parsing
+            llm_max_workers = defaults.llm_max_workers
 
         return cls(
             mode=mode,
@@ -735,6 +757,8 @@ class RuntimeConfig:
             llm_cache_enabled=bool(llm_cache_enabled),
             llm_max_tokens=int(llm_max_tokens),
             llm_cost_budget=float(llm_cost_budget) if llm_cost_budget else None,
+            parallel_llm_parsing=bool(parallel_llm_parsing),
+            llm_max_workers=int(llm_max_workers),
         )
 
     def merge_with_cli(self, **overrides: Any) -> "RuntimeConfig":  # noqa: ANN401
@@ -808,4 +832,6 @@ class RuntimeConfig:
             "llm_cache_enabled": self.llm_cache_enabled,
             "llm_max_tokens": self.llm_max_tokens,
             "llm_cost_budget": self.llm_cost_budget,
+            "parallel_llm_parsing": self.parallel_llm_parsing,
+            "llm_max_workers": self.llm_max_workers,
         }

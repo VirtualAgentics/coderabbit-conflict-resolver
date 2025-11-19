@@ -72,6 +72,31 @@ def sanitize_for_output(value: str) -> str:
     return value
 
 
+# Maximum number of worker threads for parallel processing
+MAX_WORKERS = 64
+
+
+def validate_max_workers(
+    ctx: click.Context, param: click.Parameter, value: int | None
+) -> int | None:
+    """Validate --llm-max-workers parameter.
+
+    Args:
+        ctx: Click context object.
+        param: Click parameter object.
+        value: Parameter value.
+
+    Returns:
+        Validated value (unchanged if valid or None).
+
+    Raises:
+        click.BadParameter: If value is not in range [1, MAX_WORKERS].
+    """
+    if value is not None and not (1 <= value <= MAX_WORKERS):
+        raise click.BadParameter(f"must be between 1 and {MAX_WORKERS}")
+    return value
+
+
 def validate_github_username(ctx: click.Context, param: click.Parameter, value: str) -> str:
     """Validate GitHub username for safety.
 
@@ -240,11 +265,16 @@ def _display_llm_metrics(metrics: LLMMetrics) -> None:
 
     # Row 4: Computed metrics
     cost_per_change_display = (
-        f"${metrics.cost_per_change:.4f}" if metrics.cost_per_change > 0 else "Free"
+        f"${metrics.cost_per_change:.4f}"
+        if metrics.cost_per_change is not None and metrics.cost_per_change > 0
+        else "N/A" if metrics.cost_per_change is None else "Free"
+    )
+    avg_tokens_display = (
+        f"{metrics.avg_tokens_per_call:,.0f}" if metrics.avg_tokens_per_call is not None else "N/A"
     )
     table.add_row(
         f"Cost per change: {cost_per_change_display}",
-        f"Avg tokens/call: {metrics.avg_tokens_per_call:,.0f}",
+        f"Avg tokens/call: {avg_tokens_display}",
     )
 
     # Row 5: GPU info (Ollama only)
@@ -345,6 +375,17 @@ def _display_llm_metrics(metrics: LLMMetrics) -> None:
     ),
 )
 @click.option(
+    "--llm-parallel/--no-llm-parallel",
+    default=None,
+    help="Enable/disable parallel LLM comment parsing for faster processing (default: disabled)",
+)
+@click.option(
+    "--llm-max-workers",
+    type=int,
+    callback=validate_max_workers,
+    help="Max workers for parallel LLM parsing (default: from config/env, fallback 4)",
+)
+@click.option(
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
     help="Logging level (default: INFO)",
@@ -364,6 +405,8 @@ def analyze(
     llm_model: str | None,
     llm_preset: str | None,
     llm_api_key: str | None,
+    llm_parallel: bool | None,
+    llm_max_workers: int | None,
     log_level: str | None,
     log_file: str | None,
 ) -> None:
@@ -383,6 +426,9 @@ def analyze(
         llm_model: LLM model identifier (e.g., claude-sonnet-4-5, gpt-4).
         llm_preset: LLM configuration preset for zero-config setup.
         llm_api_key: API key for API-based providers (OpenAI, Anthropic).
+        llm_parallel: Enable (True) or disable (False) parallel LLM comment parsing.
+            None uses config/env/defaults.
+        llm_max_workers: Maximum concurrent workers for parallel LLM parsing (default: 4).
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Path to log file for output.
 
@@ -402,6 +448,8 @@ def analyze(
             "llm_cache_enabled": "CR_LLM_CACHE_ENABLED",
             "llm_max_tokens": "CR_LLM_MAX_TOKENS",
             "llm_cost_budget": "CR_LLM_COST_BUDGET",
+            "parallel_llm_parsing": "CR_PARALLEL_LLM_PARSING",
+            "llm_max_workers": "CR_LLM_MAX_WORKERS",
         }
 
         cli_overrides = {
@@ -411,6 +459,8 @@ def analyze(
             "llm_provider": llm_provider,
             "llm_model": llm_model,
             "llm_api_key": llm_api_key,  # API key from CLI (highest priority)
+            "parallel_llm_parsing": llm_parallel,  # None, True, or False
+            "llm_max_workers": llm_max_workers,  # None or integer
         }
 
         runtime_config, preset_name = load_runtime_config(
@@ -619,6 +669,17 @@ def analyze(
     ),
 )
 @click.option(
+    "--llm-parallel/--no-llm-parallel",
+    default=None,
+    help="Enable/disable parallel LLM comment parsing for faster processing (default: disabled)",
+)
+@click.option(
+    "--llm-max-workers",
+    type=int,
+    callback=validate_max_workers,
+    help="Max workers for parallel LLM parsing (default: from config/env, fallback 4)",
+)
+@click.option(
     "--config",
     type=str,
     help=(
@@ -652,6 +713,8 @@ def apply(
     llm_model: str | None,
     llm_preset: str | None,
     llm_api_key: str | None,
+    llm_parallel: bool | None,
+    llm_max_workers: int | None,
     config: str | None,
     log_level: str | None,
     log_file: str | None,
@@ -683,6 +746,9 @@ def apply(
             (codex-cli-free, ollama-local, claude-cli-sonnet, openai-api-mini,
             anthropic-api-balanced).
         llm_api_key: API key for API-based providers (OpenAI, Anthropic).
+        llm_parallel: Enable (True) or disable (False) parallel LLM comment parsing.
+            None uses config/env/defaults.
+        llm_max_workers: Maximum concurrent workers for parallel LLM parsing (default: 4).
         config: Configuration preset name or path to configuration file (YAML or TOML).
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Path to log file for output.
@@ -742,6 +808,8 @@ def apply(
             "llm_cache_enabled": "CR_LLM_CACHE_ENABLED",
             "llm_max_tokens": "CR_LLM_MAX_TOKENS",
             "llm_cost_budget": "CR_LLM_COST_BUDGET",
+            "parallel_llm_parsing": "CR_PARALLEL_LLM_PARSING",
+            "llm_max_workers": "CR_LLM_MAX_WORKERS",
         }
 
         cli_overrides = {
@@ -756,6 +824,8 @@ def apply(
             "llm_provider": llm_provider,
             "llm_model": llm_model,
             "llm_api_key": llm_api_key,  # API key from CLI (highest priority)
+            "parallel_llm_parsing": llm_parallel,  # None, True, or False
+            "llm_max_workers": llm_max_workers,  # None or integer
         }
 
         runtime_config, preset_name = load_runtime_config(

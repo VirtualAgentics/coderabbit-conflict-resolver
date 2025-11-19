@@ -48,7 +48,9 @@ class TestCreateProvider:
         mock_provider_class.return_value = mock_instance
 
         with patch.dict(PROVIDER_REGISTRY, {"openai": mock_provider_class}):
-            result = create_provider("openai", model="gpt-4", api_key="test-key")
+            result = create_provider(
+                "openai", model="gpt-4", api_key="test-key", cache_enabled=False
+            )
 
         mock_provider_class.assert_called_once_with(
             api_key="test-key",
@@ -63,7 +65,9 @@ class TestCreateProvider:
         mock_provider_class.return_value = mock_instance
 
         with patch.dict(PROVIDER_REGISTRY, {"anthropic": mock_provider_class}):
-            result = create_provider("anthropic", model="claude-sonnet-4", api_key="sk-ant-test")
+            result = create_provider(
+                "anthropic", model="claude-sonnet-4", api_key="sk-ant-test", cache_enabled=False
+            )
 
         mock_provider_class.assert_called_once_with(
             api_key="sk-ant-test",
@@ -78,7 +82,7 @@ class TestCreateProvider:
         mock_provider_class.return_value = mock_instance
 
         with patch.dict(PROVIDER_REGISTRY, {"claude-cli": mock_provider_class}):
-            result = create_provider("claude-cli", model="claude-sonnet-4-5")
+            result = create_provider("claude-cli", model="claude-sonnet-4-5", cache_enabled=False)
 
         mock_provider_class.assert_called_once_with(
             model="claude-sonnet-4-5",
@@ -92,7 +96,7 @@ class TestCreateProvider:
         mock_provider_class.return_value = mock_instance
 
         with patch.dict(PROVIDER_REGISTRY, {"codex-cli": mock_provider_class}):
-            result = create_provider("codex-cli", model="codex-latest")
+            result = create_provider("codex-cli", model="codex-latest", cache_enabled=False)
 
         mock_provider_class.assert_called_once_with(
             model="codex-latest",
@@ -106,7 +110,7 @@ class TestCreateProvider:
         mock_provider_class.return_value = mock_instance
 
         with patch.dict(PROVIDER_REGISTRY, {"ollama": mock_provider_class}):
-            result = create_provider("ollama", model="llama3.3:70b")
+            result = create_provider("ollama", model="llama3.3:70b", cache_enabled=False)
 
         mock_provider_class.assert_called_once_with(
             model="llama3.3:70b",
@@ -120,7 +124,7 @@ class TestCreateProvider:
         mock_provider_class.return_value = mock_instance
 
         with patch.dict(PROVIDER_REGISTRY, {"anthropic": mock_provider_class}):
-            result = create_provider("anthropic", api_key="test", timeout=120)
+            result = create_provider("anthropic", api_key="test", timeout=120, cache_enabled=False)
 
         mock_provider_class.assert_called_once_with(
             api_key="test",
@@ -135,7 +139,9 @@ class TestCreateProvider:
         mock_provider_class.return_value = mock_instance
 
         with patch.dict(PROVIDER_REGISTRY, {"ollama": mock_provider_class}):
-            result = create_provider("ollama", model="llama3", base_url="http://localhost:11434")
+            result = create_provider(
+                "ollama", model="llama3", base_url="http://localhost:11434", cache_enabled=False
+            )
 
         mock_provider_class.assert_called_once_with(
             model="llama3",
@@ -150,7 +156,7 @@ class TestCreateProvider:
         mock_provider_class.return_value = mock_instance
 
         with patch.dict(PROVIDER_REGISTRY, {"claude-cli": mock_provider_class}):
-            result = create_provider("claude-cli")
+            result = create_provider("claude-cli", cache_enabled=False)
 
         mock_provider_class.assert_called_once_with()
         assert result == mock_instance
@@ -162,7 +168,9 @@ class TestCreateProvider:
         mock_provider_class.return_value = mock_instance
 
         with patch.dict(PROVIDER_REGISTRY, {"openai": mock_provider_class}):
-            result = create_provider("openai", model="gpt-4-turbo", api_key="test")
+            result = create_provider(
+                "openai", model="gpt-4-turbo", api_key="test", cache_enabled=False
+            )
 
         mock_provider_class.assert_called_once_with(
             api_key="test",
@@ -177,7 +185,9 @@ class TestCreateProvider:
         mock_provider_class.return_value = mock_instance
 
         with patch.dict(PROVIDER_REGISTRY, {"ollama": mock_provider_class}):
-            result = create_provider("ollama", custom_param="value", another_param=123)
+            result = create_provider(
+                "ollama", custom_param="value", another_param=123, cache_enabled=False
+            )
 
         mock_provider_class.assert_called_once_with(
             custom_param="value",
@@ -221,7 +231,7 @@ class TestCreateProviderValidation:
 
         with patch.dict(PROVIDER_REGISTRY, {"claude-cli": mock_provider_class}):
             # Should not raise
-            result = create_provider("claude-cli")
+            result = create_provider("claude-cli", cache_enabled=False)
             assert result == mock_instance
 
     def test_ollama_no_api_key_required(self) -> None:
@@ -232,7 +242,7 @@ class TestCreateProviderValidation:
 
         with patch.dict(PROVIDER_REGISTRY, {"ollama": mock_provider_class}):
             # Should not raise
-            result = create_provider("ollama")
+            result = create_provider("ollama", cache_enabled=False)
             assert result == mock_instance
 
     def test_empty_api_key_raises(self) -> None:
@@ -348,6 +358,7 @@ class TestCreateProviderFromConfig:
             provider="anthropic",
             model="claude-sonnet-4",
             api_key="sk-ant-test",
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"anthropic": mock_provider_class}):
@@ -370,6 +381,7 @@ class TestCreateProviderFromConfig:
             provider="openai",
             model="gpt-4",
             api_key="sk-test-123",
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"openai": mock_provider_class}):
@@ -391,6 +403,7 @@ class TestCreateProviderFromConfig:
             enabled=True,
             provider="claude-cli",
             model="claude-sonnet-4-5",
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"claude-cli": mock_provider_class}):
@@ -411,6 +424,7 @@ class TestCreateProviderFromConfig:
             enabled=True,
             provider="codex-cli",
             model="codex-latest",
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"codex-cli": mock_provider_class}):
@@ -431,6 +445,7 @@ class TestCreateProviderFromConfig:
             enabled=True,
             provider="ollama",
             model="llama3.3:70b",
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"ollama": mock_provider_class}):
@@ -452,6 +467,7 @@ class TestCreateProviderFromConfig:
             provider="claude-cli",
             model="custom-model",
             api_key=None,  # CLI doesn't need API key
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"claude-cli": mock_provider_class}):
@@ -473,6 +489,7 @@ class TestCreateProviderFromConfig:
             provider="anthropic",
             model="claude-3",
             api_key="test-key-123",
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"anthropic": mock_provider_class}):
@@ -494,6 +511,7 @@ class TestCreateProviderFromConfig:
             provider="claude-cli",
             model="claude-sonnet-4-5",
             api_key=None,
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"claude-cli": mock_provider_class}):

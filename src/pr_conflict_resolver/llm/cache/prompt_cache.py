@@ -12,12 +12,41 @@ import os
 import threading
 import time
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 # Eviction target ratio: reduce cache to 90% of max size to minimize frequent evictions
 _EVICTION_TARGET_RATIO = 0.9
+
+
+class DeleteStatus(Enum):
+    """Status of cache entry deletion operation.
+
+    This enum provides better observability than bool by distinguishing between
+    "entry not found" and "deletion failed". Useful for debugging cache invalidation
+    issues and detecting permission/disk errors.
+
+    Attributes:
+        DELETED: Entry was found and successfully deleted from disk
+        NOT_FOUND: Entry did not exist (nothing to delete)
+        ERROR: Entry existed but deletion failed (e.g., permission error, disk full)
+
+    Examples:
+        >>> cache = PromptCache()
+        >>> status = cache.delete("some-key")
+        >>> if status == DeleteStatus.DELETED:
+        ...     print("Successfully removed from cache")
+        >>> elif status == DeleteStatus.NOT_FOUND:
+        ...     print("Already removed or never cached")
+        >>> elif status == DeleteStatus.ERROR:
+        ...     print("Failed to delete - check logs")
+    """
+
+    DELETED = "deleted"
+    NOT_FOUND = "not_found"
+    ERROR = "error"
 
 
 @dataclass(frozen=True)
@@ -600,6 +629,51 @@ class PromptCache:
         self._total_requests = 0
 
         logger.info(f"Cleared cache: deleted {deleted} entries")
+
+    def delete(self, key: str) -> DeleteStatus:
+        """Delete a specific cache entry by key.
+
+        Args:
+            key: Cache key to delete (from compute_key())
+
+        Returns:
+            DeleteStatus enum indicating operation result:
+            - DELETED: Entry was found and successfully deleted
+            - NOT_FOUND: Entry did not exist
+            - ERROR: Entry existed but deletion failed (permission error, etc.)
+
+        Examples:
+            >>> cache = PromptCache()
+            >>> key = cache.compute_key("prompt", "anthropic", "claude-sonnet-4-5")
+            >>> cache.set(key, "response", {"provider": "anthropic", "model": "claude-sonnet-4-5"})
+            >>> cache.delete(key)  # Returns DeleteStatus.DELETED
+            >>> cache.delete(key)  # Returns DeleteStatus.NOT_FOUND (already deleted)
+
+        Note:
+            Thread-safe operation.
+        """
+        with self._lock:
+            return self._delete_unlocked(key)
+
+    def _delete_unlocked(self, key: str) -> DeleteStatus:
+        """Internal delete implementation without locking.
+
+        Returns:
+            DeleteStatus enum indicating operation result
+        """
+        cache_file = self.cache_dir / f"{key}.json"
+        if cache_file.exists():
+            try:
+                cache_file.unlink()
+                logger.debug(f"Deleted cache entry for key {key[:16]}...")
+                return DeleteStatus.DELETED
+            except OSError as e:
+                logger.warning(f"Failed to delete cache entry {key[:16]}...: {e}")
+                return DeleteStatus.ERROR
+        logger.debug(
+            f"Cache entry not found for key {key[:16]}... (already deleted or never cached)"
+        )
+        return DeleteStatus.NOT_FOUND
 
     def _get_cache_size_unlocked(self) -> int:
         """Calculate total size of all cache files in bytes (caller must hold lock).

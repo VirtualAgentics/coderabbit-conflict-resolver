@@ -33,10 +33,12 @@ Usage Examples:
 import logging
 from typing import Any
 
+from pr_conflict_resolver.llm.cache.prompt_cache import PromptCache
 from pr_conflict_resolver.llm.config import LLMConfig
 from pr_conflict_resolver.llm.constants import VALID_LLM_PROVIDERS
 from pr_conflict_resolver.llm.exceptions import LLMAPIError, LLMConfigurationError
 from pr_conflict_resolver.llm.providers.anthropic_api import AnthropicAPIProvider
+from pr_conflict_resolver.llm.providers.caching_provider import CachingProvider
 from pr_conflict_resolver.llm.providers.claude_cli import ClaudeCLIProvider
 from pr_conflict_resolver.llm.providers.codex_cli import CodexCLIProvider
 from pr_conflict_resolver.llm.providers.ollama import OllamaProvider
@@ -62,13 +64,18 @@ def create_provider(
     model: str | None = None,
     api_key: str | None = None,
     timeout: int | None = None,
+    cache_enabled: bool = True,
+    shared_cache: PromptCache | None = None,
     **kwargs: Any,  # noqa: ANN401
 ) -> Any:  # noqa: ANN401
-    """Create LLM provider instance with validation.
+    """Create LLM provider instance with validation and optional caching.
 
     This factory function creates and configures an LLM provider instance with
     comprehensive validation of provider name, API key requirements, and parameters.
     It supports all 5 LLM providers with provider-specific parameter handling.
+
+    When cache_enabled=True (default), the provider is wrapped with CachingProvider
+    to transparently cache LLM responses, reducing costs by 50-90% for repeated prompts.
 
     Args:
         provider: Provider name (openai, anthropic, claude-cli, codex-cli, ollama).
@@ -80,12 +87,18 @@ def create_provider(
             variable or pass explicitly.
         timeout: Request timeout in seconds (optional, uses provider-specific defaults
             if not specified). Used for API calls and CLI command execution.
+        cache_enabled: Enable response caching to reduce costs (default: True).
+            When enabled, wraps provider with CachingProvider for transparent caching.
+        shared_cache: Optional PromptCache instance to share across multiple providers.
+            If None, creates a new cache instance. Use shared cache to enable cross-
+            provider cache hits (e.g., same prompt to different providers).
         **kwargs: Provider-specific parameters passed through to provider constructor.
             Examples: base_url for Ollama, custom headers for API providers.
 
     Returns:
         Configured provider instance implementing the LLMProvider protocol. The instance
         can be used polymorphically with .generate() and .count_tokens() methods.
+        If cache_enabled=True, returns CachingProvider wrapping the base provider.
 
     Raises:
         LLMConfigurationError: If provider name is invalid, API key is missing for
@@ -97,22 +110,26 @@ def create_provider(
             (e.g., network errors, authentication failures, missing dependencies).
 
     Examples:
-        Create OpenAI provider:
+        Create OpenAI provider with caching:
             >>> provider = create_provider(
             ...     "openai",
             ...     model="gpt-4",
-            ...     api_key=os.getenv("OPENAI_API_KEY")
+            ...     api_key=os.getenv("OPENAI_API_KEY"),
+            ...     cache_enabled=True
             ... )
 
-        Create Anthropic provider:
+        Create Anthropic provider without caching:
             >>> provider = create_provider(
             ...     "anthropic",
             ...     model="claude-sonnet-4",
-            ...     api_key=os.getenv("ANTHROPIC_API_KEY")
+            ...     api_key=os.getenv("ANTHROPIC_API_KEY"),
+            ...     cache_enabled=False
             ... )
 
-        Create Claude CLI provider:
-            >>> provider = create_provider("claude-cli", model="claude-sonnet-4-5")
+        Create Claude CLI provider with shared cache:
+            >>> cache = PromptCache()
+            >>> provider1 = create_provider("claude-cli", shared_cache=cache)
+            >>> provider2 = create_provider("ollama", shared_cache=cache)
 
         Create Ollama provider with custom base URL:
             >>> provider = create_provider(
@@ -168,18 +185,41 @@ def create_provider(
     # Pass through any additional provider-specific kwargs
     provider_kwargs.update(kwargs)
 
-    # Create and return provider instance
+    # Create base provider instance
     timeout_str = f"{timeout}s" if timeout is not None else "provider default"
     logger.info(
         f"Creating {provider} provider: model={model}, timeout={timeout_str}, "
-        f"kwargs={list(kwargs.keys())}"
+        f"cache_enabled={cache_enabled}, kwargs={list(kwargs.keys())}"
     )
 
     try:
-        return provider_class(**provider_kwargs)
+        base_provider = provider_class(**provider_kwargs)
     except Exception as e:
         logger.error(f"Failed to create {provider} provider: {e}")
         raise
+
+    # Wrap with caching if enabled
+    if cache_enabled:
+        cache = shared_cache or PromptCache()
+        # Get cache config details safely
+        max_size = getattr(cache, "max_size_bytes", "unknown")
+        ttl = getattr(cache, "ttl_seconds", "unknown")
+        cache_id = id(cache)
+
+        logger.info(
+            f"Wrapping {provider} provider with CachingProvider "
+            f"(shared_cache={'yes' if shared_cache else 'no'}, "
+            f"cache_id={cache_id}, max_size={max_size}B, ttl={ttl}s)"
+        )
+        return CachingProvider(
+            provider=base_provider,
+            cache=cache,
+            enabled=True,
+            provider_name=provider,
+            model_name=model,
+        )
+
+    return base_provider
 
 
 def validate_provider(provider: Any) -> bool:  # noqa: ANN401
@@ -232,8 +272,10 @@ def validate_provider(provider: Any) -> bool:  # noqa: ANN401
         ) from e
 
 
-def create_provider_from_config(config: LLMConfig) -> Any:  # noqa: ANN401
-    """Create provider from LLMConfig dataclass.
+def create_provider_from_config(
+    config: LLMConfig, shared_cache: PromptCache | None = None
+) -> Any:  # noqa: ANN401
+    """Create provider from LLMConfig dataclass with optional shared cache.
 
     Convenience helper that extracts provider settings from an LLMConfig instance
     and delegates to create_provider(). This simplifies provider creation when
@@ -241,10 +283,13 @@ def create_provider_from_config(config: LLMConfig) -> Any:  # noqa: ANN401
 
     Args:
         config: LLMConfig instance with provider settings. Must have valid provider,
-            model, and api_key (if required) fields.
+            model, api_key (if required), and cache_enabled fields.
+        shared_cache: Optional PromptCache instance to share across multiple providers.
+            If None and config.cache_enabled=True, creates a new cache instance.
 
     Returns:
-        Configured provider instance created from config values.
+        Configured provider instance created from config values. If config.cache_enabled
+        is True, returns CachingProvider wrapping the base provider.
 
     Raises:
         LLMConfigurationError: If config contains invalid provider settings or
@@ -261,20 +306,32 @@ def create_provider_from_config(config: LLMConfig) -> Any:  # noqa: ANN401
             >>> config = LLMConfig.from_env()
             >>> provider = create_provider_from_config(config)
 
+        Create with shared cache:
+            >>> config = LLMConfig.from_defaults()
+            >>> cache = PromptCache()
+            >>> provider1 = create_provider_from_config(config, shared_cache=cache)
+            >>> provider2 = create_provider_from_config(config, shared_cache=cache)
+
         Create from custom config:
             >>> config = LLMConfig(
             ...     enabled=True,
             ...     provider="anthropic",
             ...     model="claude-sonnet-4",
-            ...     api_key="sk-ant-..."
+            ...     api_key="sk-ant-...",
+            ...     cache_enabled=True
             ... )
             >>> provider = create_provider_from_config(config)
     """
-    logger.info(f"Creating provider from config: provider={config.provider}, model={config.model}")
+    logger.info(
+        f"Creating provider from config: provider={config.provider}, "
+        f"model={config.model}, cache_enabled={config.cache_enabled}"
+    )
 
     return create_provider(
         provider=config.provider,
         model=config.model,
         api_key=config.api_key,
+        cache_enabled=config.cache_enabled,
+        shared_cache=shared_cache,
         # Don't specify timeout - let providers use their own defaults
     )

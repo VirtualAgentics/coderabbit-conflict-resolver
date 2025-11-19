@@ -10,11 +10,12 @@ This module tests the LLM-powered parser implementation including:
 - Edge cases (malformed JSON, invalid fields, empty responses)
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from pr_conflict_resolver.llm.base import LLMParser
+from pr_conflict_resolver.llm.parallel_parser import ParsingProgress
 from pr_conflict_resolver.llm.parser import UniversalLLMParser
 from pr_conflict_resolver.llm.providers.base import LLMProvider
 
@@ -481,3 +482,130 @@ class TestUniversalLLMParserEdgeCases:
         assert len(changes) == 2
         assert changes[0].risk_level == "low"
         assert changes[1].risk_level == "high"
+
+
+class TestUniversalLLMParserParallelParsing:
+    """Test parse_comments_parallel method in UniversalLLMParser."""
+
+    def test_parse_comments_parallel_basic(self) -> None:
+        """Test basic parallel comment parsing."""
+        mock_provider = MagicMock(spec=LLMProvider)
+        mock_provider.generate.return_value = """[
+            {
+                "file_path": "test.py",
+                "start_line": 1,
+                "end_line": 2,
+                "new_content": "# Fixed",
+                "change_type": "modification",
+                "confidence": 0.9,
+                "rationale": "Fix",
+                "risk_level": "low"
+            }
+        ]"""
+
+        parser = UniversalLLMParser(mock_provider)
+        comments = ["Fix bug 1", "Fix bug 2", "Fix bug 3"]
+        results = parser.parse_comments_parallel(comments, max_workers=4)
+
+        assert len(results) == 3
+
+        # Expected values for each ParsedChange
+        expected = {
+            "file_path": "test.py",
+            "start_line": 1,
+            "end_line": 2,
+            "new_content": "# Fixed",
+            "change_type": "modification",
+            "confidence": 0.9,
+            "rationale": "Fix",
+            "risk_level": "low",
+        }
+
+        # Validate all changes match expected values
+        for change in results:
+            actual = {
+                "file_path": change.file_path,
+                "start_line": change.start_line,
+                "end_line": change.end_line,
+                "new_content": change.new_content,
+                "change_type": change.change_type,
+                "confidence": change.confidence,
+                "rationale": change.rationale,
+                "risk_level": change.risk_level,
+            }
+            assert actual == expected
+
+    def test_parse_comments_parallel_empty_list(self) -> None:
+        """Test parallel parsing with empty comments list."""
+        mock_provider = MagicMock(spec=LLMProvider)
+        parser = UniversalLLMParser(mock_provider)
+
+        with pytest.raises(ValueError, match="cannot be empty or None"):
+            parser.parse_comments_parallel([])
+
+    def test_parse_comments_parallel_with_progress_callback(self) -> None:
+        """Test parallel parsing with progress callback."""
+        mock_provider = MagicMock(spec=LLMProvider)
+        mock_provider.generate.return_value = "[]"
+
+        progress_updates = []
+
+        def callback(progress: ParsingProgress) -> None:
+            progress_updates.append(progress.percent_complete)
+
+        parser = UniversalLLMParser(mock_provider)
+        comments = ["Comment 1", "Comment 2"]
+        parser.parse_comments_parallel(comments, max_workers=2, progress_callback=callback)
+
+        assert len(progress_updates) > 0
+
+    def test_parse_comments_parallel_with_timeout(self) -> None:
+        """Test parallel parsing with timeout setting."""
+        mock_provider = MagicMock(spec=LLMProvider)
+        mock_provider.generate.return_value = "[]"
+
+        parser = UniversalLLMParser(mock_provider)
+        comments = ["Comment 1"]
+        results = parser.parse_comments_parallel(comments, timeout=30.0)
+
+        assert results == []
+
+    def test_parse_comments_parallel_fallback_on_error(self) -> None:
+        """Test parallel parsing falls back to sequential on error."""
+        mock_provider = MagicMock(spec=LLMProvider)
+        mock_provider.generate.return_value = "[]"
+
+        parser = UniversalLLMParser(mock_provider)
+
+        # Mock ParallelCommentParser to raise exception during instantiation
+        with patch(
+            "pr_conflict_resolver.llm.parallel_parser.ParallelCommentParser",
+            side_effect=RuntimeError("Parallel parsing failed"),
+        ):
+            comments = ["Comment 1", "Comment 2"]
+            results = parser.parse_comments_parallel(comments)
+
+            # Should fall back to sequential and succeed
+            assert isinstance(results, list)
+
+    def test_parse_comments_parallel_custom_workers(self) -> None:
+        """Test parallel parsing with custom worker count."""
+        mock_provider = MagicMock(spec=LLMProvider)
+        mock_provider.generate.return_value = "[]"
+
+        parser = UniversalLLMParser(mock_provider)
+        comments = [f"Comment {i}" for i in range(10)]
+
+        with patch(
+            "pr_conflict_resolver.llm.parallel_parser.ParallelCommentParser"
+        ) as mock_parallel:
+            mock_instance = MagicMock()
+            mock_instance.parse_comments.return_value = []
+            mock_parallel.return_value = mock_instance
+
+            parser.parse_comments_parallel(comments, max_workers=8)
+
+            # Verify ParallelCommentParser was created with max_workers=8
+            mock_parallel.assert_called_once()
+            call_kwargs = mock_parallel.call_args[1]
+            assert call_kwargs["max_workers"] == 8
