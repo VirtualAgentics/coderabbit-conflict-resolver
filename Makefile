@@ -56,6 +56,7 @@ lint: ## Run all linters
 	pre-commit run markdownlint-cli2 --all-files
 	@echo "✅ Linting complete (dependency scanning handled by Renovate)"
 
+.ONESHELL:
 lint-markdown: ## Run markdown linting
 	@echo "Running Markdownlint..."
 	@if [ -d .venv ]; then \

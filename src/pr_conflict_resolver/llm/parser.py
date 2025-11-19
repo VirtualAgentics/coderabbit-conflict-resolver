@@ -16,6 +16,8 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from typing import TYPE_CHECKING
 
 from pr_conflict_resolver.llm.base import LLMParser, ParsedChange
@@ -253,6 +255,9 @@ class UniversalLLMParser(LLMParser):
         if not comments:
             raise ValueError("comments list cannot be empty or None")
 
+        if not isinstance(max_workers, int) or max_workers <= 0:
+            raise ValueError(f"max_workers must be a positive integer, got: {max_workers}")
+
         # Local import to avoid circular dependency at runtime
         # (moved here because parallel_parser imports UniversalLLMParser)
         from pr_conflict_resolver.llm.parallel_parser import ParallelCommentParser
@@ -280,21 +285,33 @@ class UniversalLLMParser(LLMParser):
         except Exception as e:
             logger.error(f"Parallel parsing failed: {e}. Falling back to sequential parsing.")
 
-            # Fallback to sequential parsing with tracking
+            # Fallback to sequential parsing with tracking and timeout enforcement
             all_changes = []
             successful_parses = 0
             failed_parses = 0
-            last_error = None
+            last_error: Exception | None = None
 
-            for comment in comments:
-                try:
-                    changes = self.parse_comment(comment)
-                    all_changes.extend(changes)
-                    successful_parses += 1
-                except Exception as comment_error:
-                    logger.warning(f"Failed to parse comment in fallback: {comment_error}")
-                    failed_parses += 1
-                    last_error = comment_error
+            # Use ThreadPoolExecutor to enforce timeout on each comment
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                for comment in comments:
+                    try:
+                        # Submit parse_comment to executor and wait with timeout
+                        future = executor.submit(self.parse_comment, comment)
+                        changes = future.result(timeout=timeout)
+                        all_changes.extend(changes)
+                        successful_parses += 1
+                    except FuturesTimeoutError:
+                        logger.warning(
+                            f"Sequential fallback timed out after {timeout}s for comment, skipping"
+                        )
+                        failed_parses += 1
+                        last_error = FuturesTimeoutError(
+                            f"Comment parsing timed out after {timeout}s"
+                        )
+                    except Exception as comment_error:
+                        logger.warning(f"Failed to parse comment in fallback: {comment_error}")
+                        failed_parses += 1
+                        last_error = comment_error
 
             # Log summary of fallback results
             logger.info(

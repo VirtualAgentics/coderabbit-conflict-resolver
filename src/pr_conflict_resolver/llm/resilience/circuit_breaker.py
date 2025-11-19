@@ -207,8 +207,8 @@ class CircuitBreaker:
         self._total_successes = 0
         self._total_rejected = 0
 
-        # Thread safety
-        self._lock = threading.Lock()
+        # Thread safety - use RLock for reentrant locking to prevent deadlocks
+        self._lock = threading.RLock()
 
         logger.debug(
             f"Initialized CircuitBreaker: failure_threshold={failure_threshold}, "

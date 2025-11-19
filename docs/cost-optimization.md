@@ -670,24 +670,25 @@ Most expensive day: Friday ($3.80)
 
    ```bash
    --cache-enabled
+   ```
 
 2. ✅ **Use GPT-4o-mini Instead of GPT-4o** - 95% cost reduction
 
-```bash
+   ```bash
    --llm-preset openai-api-mini
+   ```
 
 3. ✅ **Set Cost Budgets** - Prevent overruns
 
    ```bash
    --cost-budget 10.0
+   ```
 
 4. ✅ **Switch to Ollama for Development** - 100% API cost reduction
 
-```bash
+   ```bash
    --llm-preset ollama-local
    ```
-
-```bash
 
 ### Medium-Term Actions
 

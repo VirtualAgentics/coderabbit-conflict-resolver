@@ -559,8 +559,8 @@ class TestUniversalLLMParserParallelParsing:
 
         assert len(progress_updates) > 0
 
-    def test_parse_comments_parallel_with_timeout(self) -> None:
-        """Test parallel parsing with timeout setting."""
+    def test_parse_comments_parallel_accepts_timeout_parameter(self) -> None:
+        """Test parallel parsing accepts timeout parameter without error."""
         mock_provider = MagicMock(spec=LLMProvider)
         mock_provider.generate.return_value = "[]"
 

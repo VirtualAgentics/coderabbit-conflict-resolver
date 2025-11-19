@@ -59,7 +59,7 @@ A comprehensive security audit was conducted on all Phase 5 code additions, incl
     }
   }
 }
-```text
+```
 
 **Result**: ✅ ZERO security vulnerabilities detected
 

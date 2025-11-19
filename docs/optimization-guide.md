@@ -224,8 +224,7 @@ pr-resolve apply --pr 123 --llm-preset ollama-local --log-level debug
 
    ```bash
    ollama pull llama3.2:3b
-
-```bash
+   ```
 
 3. **Use quantized models** if VRAM-limited:
    - `llama3:8b-q4_0` (4-bit, ~4GB VRAM)
@@ -237,7 +236,7 @@ pr-resolve apply --pr 123 --llm-preset ollama-local --log-level debug
 
 See [cost-optimization.md](cost-optimization.md) for comprehensive cost strategies.
 
-#### Quick Tips
+### Quick Tips
 
 1. Use free providers when possible (Ollama, Codex CLI, Claude CLI)
 2. Enable prompt caching to avoid redundant API calls

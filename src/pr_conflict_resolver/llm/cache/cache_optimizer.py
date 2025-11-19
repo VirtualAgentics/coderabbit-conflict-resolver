@@ -214,10 +214,12 @@ class CacheOptimizer:
             except ValueError as e:
                 # Invalid input parameters (empty strings, etc.)
                 logger.error(f"Failed to cache prompt {i}/{len(prompts)} - invalid input: {e}")
+                failed += 1
                 continue
             except TypeError as e:
                 # Type errors in method calls
                 logger.error(f"Failed to cache prompt {i}/{len(prompts)} - type error: {e}")
+                failed += 1
                 continue
             except (LLMAuthenticationError, LLMRateLimitError) as e:
                 # Auth and rate limit errors may indicate systemic issues
@@ -225,16 +227,19 @@ class CacheOptimizer:
                     f"Failed to cache prompt {i}/{len(prompts)} - provider error: {e}. "
                     "Consider pausing cache warming."
                 )
+                failed += 1
                 continue
             except (LLMAPIError, LLMTimeoutError, LLMProviderError) as e:
                 # Transient API errors - log and continue
                 logger.warning(
                     f"Failed to cache prompt {i}/{len(prompts)} - transient provider error: {e}"
                 )
+                failed += 1
                 continue
             except OSError as e:
                 # File system errors during cache operations
                 logger.error(f"Failed to cache prompt {i}/{len(prompts)} - file system error: {e}")
+                failed += 1
                 continue
             except Exception as e:
                 # Unexpected errors - log with traceback and re-raise or continue based on fail_fast
@@ -360,8 +365,21 @@ class CacheOptimizer:
                 }
                 self.cache.set(cache_key, response, metadata)
                 return True
+            except (LLMAuthenticationError, LLMRateLimitError) as e:
+                # Auth and rate limit errors - re-raise to terminate early
+                logger.error(f"Failed to cache prompt - {type(e).__name__}: {e}")
+                raise
+            except (LLMAPIError, LLMTimeoutError, LLMProviderError) as e:
+                # Transient network/provider errors - log and return False
+                logger.warning(f"Failed to cache prompt - transient {type(e).__name__}: {e}")
+                return False
+            except OSError as e:
+                # File system errors - log and return False
+                logger.error(f"Failed to cache prompt - file system error: {e}")
+                return False
             except Exception as e:
-                logger.exception(f"Failed to cache prompt: {e}")
+                # Unexpected errors - log with traceback and return False
+                logger.exception(f"Failed to cache prompt - unexpected {type(e).__name__}: {e}")
                 return False
 
         # Process prompts in parallel

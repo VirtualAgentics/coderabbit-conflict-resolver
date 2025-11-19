@@ -249,11 +249,15 @@ class CachingProvider:
                 logger.debug(f"Cache populated by other thread for {cache_key[:16]}...")
                 return cached_response
             else:
-                # Other thread failed or cache was evicted, fall through to fetch
+                # Other thread failed or cache was evicted, re-register and fetch
                 logger.warning(
                     f"Other thread completed but cache miss for {cache_key[:16]}..., "
                     "will fetch from provider"
                 )
+                # Re-register this thread's upcoming fetch in _in_flight
+                with self._in_flight_lock:
+                    if cache_key not in self._in_flight:
+                        self._in_flight[cache_key] = threading.Event()
 
         # This thread is responsible for fetching
         try:

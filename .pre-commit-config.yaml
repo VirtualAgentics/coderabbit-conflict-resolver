@@ -72,7 +72,7 @@ repos:
         exclude: tests/
 
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.14.0  # Last version supporting Node 18
+    rev: v0.14.0  # Last version supporting Node 18 (markdownlint v0.35.0)
     hooks:
       - id: markdownlint-cli2
         name: markdownlint
