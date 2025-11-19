@@ -17,6 +17,7 @@
   <a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black"></a>
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
   <a href="http://mypy-lang.org/"><img src="https://img.shields.io/badge/mypy-checked-blue" alt="MyPy"></a>
+  <a href="https://github.com/DavidAnson/markdownlint"><img src="https://img.shields.io/badge/markdown-linted-brightgreen" alt="Markdownlint"></a>
   <a href="https://github.com/pre-commit/pre-commit"><img src="https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit" alt="pre-commit"></a>
   <br>
   <!-- Security & Compliance -->

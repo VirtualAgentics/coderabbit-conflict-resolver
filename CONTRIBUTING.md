@@ -250,7 +250,8 @@ The pre-push hook runs these quality checks in order:
 2. **Ruff linting** - Checks for code style and quality issues
 3. **MyPy type checking** - Validates type annotations
 4. **Bandit security** - Scans for security vulnerabilities
-5. **Test suite** - Runs tests with coverage requirements
+5. **Markdownlint** - Validates markdown documentation formatting
+6. **Test suite** - Runs tests with coverage requirements
 
 ### Installation
 
@@ -307,6 +308,21 @@ make security   # Security checks
 * **Linting**: Use [Ruff](https://docs.astral.sh/ruff/) for fast linting
 * **Type hints**: Use [MyPy](https://mypy.readthedocs.io/) for type checking
 * **Imports**: Sort imports with `ruff` (handled automatically)
+
+### Markdown Documentation Style
+
+* **Linting**: Use [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) for markdown quality
+* **Configuration**: See `.markdownlint.yaml` for project-specific rules
+* **Standards**:
+  * Blank lines around headings, code blocks, and lists
+  * Use `*` (asterisk) for unordered lists (not `-` dash)
+  * Add language specifiers to all fenced code blocks
+  * Wrap bare URLs in angle brackets `<url>`
+  * Remove trailing punctuation from headings
+* **Disabled rules** (project-specific):
+  * MD013 (line length) - Disabled for code blocks and long URLs
+  * MD033 (inline HTML) - Allowed for badges and images
+  * MD041 (first line heading) - Disabled (README has badges first)
 
 ### Code Organization
 
