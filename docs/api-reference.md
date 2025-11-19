@@ -258,7 +258,7 @@ rollback_manager = RollbackManager(workspace_root="/path/to/repo")
 
 ```
 
-#### Methods (Provider)
+#### Methods
 
 ##### `__init__(workspace_root: Path | str) -> None`
 
@@ -705,7 +705,7 @@ strategy = PriorityStrategy(config={
 
 ```
 
-#### Methods (LLMProviderFactory)
+#### Methods
 
 ##### `__init__(config: dict[str, Any] | None = None) -> None` (ResolutionStrategy)
 
@@ -732,7 +732,7 @@ extractor = GitHubCommentExtractor(token="your_token")
 
 ```
 
-#### Methods (PromptCache)
+#### Methods
 
 ##### `__init__(token: str | None = None, base_url: str = "https://api.github.com") -> None`
 
