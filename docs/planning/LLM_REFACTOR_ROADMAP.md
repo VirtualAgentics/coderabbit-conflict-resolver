@@ -1,19 +1,20 @@
 # Review Bot Automator: LLM-First Refactor Roadmap
 
-**Version:** 1.1
+**Version:**1.1
 **Last Updated:** 2025-11-16
 **Status:** 57% Complete - Phases 0-3 Closed, Phase 4 In Progress (50%)
 **Target Release:** v2.0 (Q1 2026)
 
 > **📌 Important Note on Issue Numbers**:
 > This document was created referencing issues #25-#31, but GitHub actually assigned issues #114-#120 for the LLM phases. When reading this document, interpret issue numbers as follows:
-> - #25 → **#114** (Phase 0: Foundation)
-> - #26 → **#115** (Phase 1: Basic LLM Parsing)
-> - #27 → **#116** (Phase 2: Multi-Provider Support)
-> - #28 → **#117** (Phase 3: CLI Integration Polish)
-> - #29 → **#118** (Phase 4: Local Model Support)
-> - #30 → **#119** (Phase 5: Optimization & Production Readiness)
-> - #31 → **#120** (Phase 6: Documentation & Migration)
+>
+> * #25 → **#114** (Phase 0: Foundation)
+> * #26 → **#115** (Phase 1: Basic LLM Parsing)
+> * #27 → **#116** (Phase 2: Multi-Provider Support)
+> * #28 → **#117** (Phase 3: CLI Integration Polish)
+> * #29 → **#118** (Phase 4: Local Model Support)
+> * #30 → **#119** (Phase 5: Optimization & Production Readiness)
+> * #31 → **#120** (Phase 6: Documentation & Migration)
 >
 > All other references in this document remain accurate.
 
@@ -44,11 +45,11 @@
 
 ### 1.1 The Problem
 
-The Review Bot Automator currently parses **only 20% of CodeRabbit comment formats** - specifically, fenced ```` ```suggestion`` `` blocks. Analysis of real PR data revealed:
+The Review Bot Automator currently parses **only 20% of CodeRabbit comment formats** - specifically, fenced ```` ```suggestion```` blocks. Analysis of real PR data revealed:
 
-- **60%** of CodeRabbit comments use ```` ```diff`` `` blocks
-- **20%** use natural language descriptions
-- **20%** use ```` ```suggestion`` `` blocks (our only supported format)
+* **60%** of CodeRabbit comments use ```` ```diff```` blocks
+* **20%** use natural language descriptions
+* **20%** use ```` ```suggestion```` blocks (our only supported format)
 
 **Result:** We're missing **80% of CodeRabbit's suggestions**, rendering the tool ineffective for most use cases.
 
@@ -56,10 +57,10 @@ The Review Bot Automator currently parses **only 20% of CodeRabbit comment forma
 
 Transform from a narrow **regex-only parser** to an **LLM-first universal parser** that understands all CodeRabbit comment formats:
 
-- ✅ Diff blocks (`@@ -1,3 +1,3 @@`)
-- ✅ Suggestion blocks (`` `suggestion` ``)
-- ✅ Natural language ("change timeout from 30 to 60 seconds")
-- ✅ Multi-option suggestions with rationales
+* ✅ Diff blocks (`@@ -1,3 +1,3 @@`)
+* ✅ Suggestion blocks (`` `suggestion` ``)
+* ✅ Natural language ("change timeout from 30 to 60 seconds")
+* ✅ Multi-option suggestions with rationales
 
 ### 1.3 Key Principles
 
@@ -71,14 +72,15 @@ Transform from a narrow **regex-only parser** to an **LLM-first universal parser
 
 ### 1.4 Project Scope
 
-**Total Effort:** 150-190 hours + 25% buffer = **188-238 hours**
-**Duration:** 10-12 weeks (phased implementation)
+### Total Effort:**150-190 hours + 25% buffer =**188-238 hours
+
+**Duration:**10-12 weeks (phased implementation)
 **Testing Cost:** $50-100 in API costs
 **Expected Outcome:** 5x increase in format coverage (20% → 100%)
 
 ### 1.5 Architecture at a Glance
 
-```
+```text
 Before (v1.x):
 GitHub Comments → Regex Parser → Change Objects → Conflict Resolution
 
@@ -86,11 +88,11 @@ After (v2.0):
 GitHub Comments → [LLM Parser OR Regex Fallback] → Change Objects → Conflict Resolution
                    ↓
              User chooses provider:
-             - Claude Code CLI (claude.ai subscription)
-             - Codex CLI (chatgpt.com subscription)
-             - OpenAI API (pay-per-token)
-             - Anthropic API (pay-per-token)
-             - Ollama (local, free)
+             * Claude Code CLI (claude.ai subscription)
+             * Codex CLI (chatgpt.com subscription)
+             * OpenAI API (pay-per-token)
+             * Anthropic API (pay-per-token)
+             * Ollama (local, free)
 ```
 
 ### 1.6 Current Progress (As of 2025-11-16)
@@ -99,50 +101,50 @@ GitHub Comments → [LLM Parser OR Regex Fallback] → Change Objects → Confli
 
 #### ✅ Completed Phases (Closed)
 
-- **Phase 0: Foundation** ✅ CLOSED (Nov 6, 2025)
-  - GitHub Issue: #114
-  - PR: #121
-  - Actual Effort: 20-25 hours
-  - Deliverables: LLM data models, `CommentParser`, provider protocol, prompt engineering
+* **Phase 0: Foundation** ✅ CLOSED (Nov 6, 2025)
+  * GitHub Issue: #114
+  * PR: #121
+  * Actual Effort: 20-25 hours
+  * Deliverables: LLM data models, `CommentParser`, provider protocol, prompt engineering
 
-- **Phase 1: Basic LLM Parsing** ✅ CLOSED (Nov 6, 2025)
-  - GitHub Issue: #115
-  - PR: #122
-  - Actual Effort: 35-45 hours
-  - Deliverables: OpenAI API provider, retry logic, cost tracking, 30+ tests
+* **Phase 1: Basic LLM Parsing** ✅ CLOSED (Nov 6, 2025)
+  * GitHub Issue: #115
+  * PR: #122
+  * Actual Effort: 35-45 hours
+  * Deliverables: OpenAI API provider, retry logic, cost tracking, 30+ tests
 
-- **Phase 2: Multi-Provider Support** ✅ CLOSED (Nov 9, 2025)
-  - GitHub Issue: #116
-  - Actual Effort: 25-30 hours
-  - Deliverables: All 5 providers (OpenAI, Anthropic, Claude CLI, Codex CLI, Ollama), GPU acceleration, HTTP pooling
+* **Phase 2: Multi-Provider Support** ✅ CLOSED (Nov 9, 2025)
+  * GitHub Issue: #116
+  * Actual Effort: 25-30 hours
+  * Deliverables: All 5 providers (OpenAI, Anthropic, Claude CLI, Codex CLI, Ollama), GPU acceleration, HTTP pooling
 
-- **Phase 3: CLI Integration Polish** ✅ CLOSED (Nov 11, 2025)
-  - GitHub Issue: #117
-  - Actual Effort: 15-20 hours
-  - Deliverables: 5 presets, configuration precedence chain, enhanced error messages
+* **Phase 3: CLI Integration Polish** ✅ CLOSED (Nov 11, 2025)
+  * GitHub Issue: #117
+  * Actual Effort: 15-20 hours
+  * Deliverables: 5 presets, configuration precedence chain, enhanced error messages
 
 #### 🔄 In Progress
 
-- **Phase 4: Local Model Support** 🔄 50% COMPLETE
-  - GitHub Issue: #118 (OPEN)
-  - Completed Sub-Issues: 3/6
-    - ✅ #167: HTTP connection pooling (Nov 12, 2025) - PR #173
-    - ✅ #168: Model auto-download (Nov 12, 2025) - PR #175
-    - ✅ #169: GPU acceleration (Nov 14, 2025) - PR #176
-  - Remaining Sub-Issues: 3/6
-    - 📅 #170: Performance benchmarking
-    - 📅 #171: Privacy documentation
-    - 📅 #172: Offline integration tests
+* **Phase 4: Local Model Support** 🔄 50% COMPLETE
+  * GitHub Issue: #118 (OPEN)
+  * Completed Sub-Issues: 3/6
+    * ✅ #167: HTTP connection pooling (Nov 12, 2025) - PR #173
+    * ✅ #168: Model auto-download (Nov 12, 2025) - PR #175
+    * ✅ #169: GPU acceleration (Nov 14, 2025) - PR #176
+  * Remaining Sub-Issues: 3/6
+    * 📅 #170: Performance benchmarking
+    * 📅 #171: Privacy documentation
+    * 📅 #172: Offline integration tests
 
 #### 📋 Not Started
 
-- **Phase 5: Optimization & Production Readiness** (Issue #119)
-  - Dependencies: Phase 4 completion
-  - Estimated: 25-30 hours
+* **Phase 5: Optimization & Production Readiness** (Issue #119)
+  * Dependencies: Phase 4 completion
+  * Estimated: 25-30 hours
 
-- **Phase 6: Documentation & Migration** (Issue #120 - 50% complete)
-  - Core LLM docs done, remaining: provider selection guide, cost analysis, troubleshooting
-  - Estimated: 15-20 hours total, ~7-10 hours remaining
+* **Phase 6: Documentation & Migration** (Issue #120 - 50% complete)
+  * Core LLM docs done, remaining: provider selection guide, cost analysis, troubleshooting
+  * Estimated: 15-20 hours total, ~7-10 hours remaining
 
 **Total Effort to Date:** ~95-120 hours (of 150-190 estimated)
 **Remaining Effort:** ~55-70 hours
@@ -156,7 +158,7 @@ GitHub Comments → [LLM Parser OR Regex Fallback] → Change Objects → Confli
 
 **Total Source Code:** 7,481 lines of Python across 19 modules
 **Test Coverage:** 82.35% overall, 95%+ on security modules
-**Phase 0 (Security):** 100% complete (committed 2025-11-03)
+**Phase 0 (Security):**100% complete (committed 2025-11-03)
 
 ### 2.2 Module Analysis
 
@@ -165,7 +167,7 @@ GitHub Comments → [LLM Parser OR Regex Fallback] → Change Objects → Confli
 These modules work perfectly and need NO changes:
 
 | Module | Purpose | LOC | Status |
-|--------|---------|-----|--------|
+| -------- | --------- | ----- | -------- |
 | `security/input_validator.py` | Path traversal prevention, validation | 596 | ✅ Keep |
 | `security/secure_file_handler.py` | Atomic file ops, permissions | 222 | ✅ Keep |
 | `security/secret_scanner.py` | Secret detection (14+ patterns) | 410 | ✅ Keep |
@@ -186,7 +188,7 @@ These modules work perfectly and need NO changes:
 These modules need LLM integration:
 
 | Module | Changes Needed | LOC | Impact |
-|--------|----------------|-----|--------|
+| -------- | ---------------- | ----- | -------- |
 | `core/resolver.py` | Add LLM parser integration | 1,184 | Medium |
 | `core/models.py` | Add LLM metadata fields | 153 | Low |
 | `integrations/github.py` | Store raw comments for LLM | 316 | Low |
@@ -196,12 +198,12 @@ These modules need LLM integration:
 
 #### **Replace (1% - 100 LOC)**
 
-- Current regex-only `_parse_comment_suggestions()` in `resolver.py` (lines 198-244)
-- Will be superseded by LLM parser with regex fallback
+* Current regex-only `_parse_comment_suggestions()` in `resolver.py` (lines 198-244)
+* Will be superseded by LLM parser with regex fallback
 
 #### **New Code (11% - 800 LOC estimated)**
 
-- `llm/` module: Provider abstraction, parsers, caching, cost tracking
+* `llm/` module: Provider abstraction, parsers, caching, cost tracking
 
 ### 2.3 Current Parsing Capabilities
 
@@ -212,15 +214,21 @@ These modules need LLM integration:
 # Lines 198-244
 
 suggestion_pattern = re.compile(r"```suggestion\s*\n(.*?)\n```", re.DOTALL)
+
 ```
 
 **Supported Format:**
+
 ```markdown
 **Option A:**
+
 ```suggestion
+
 def foo():
     return "bar"
-```
+
+```text
+
 ```
 
 **Unsupported Formats (80% of comments):**
@@ -228,11 +236,15 @@ def foo():
 ```markdown
 <!-- Diff Block -->
 Apply this diff:
+
 ```diff
+
 @@ -10,3 +10,3 @@ def calculate():
--    timeout = 30
+
+*    timeout = 30
 +    timeout = 60
-```
+
+```text
 
 <!-- Natural Language -->
 In the `calculate_total()` function, change the discount from 10% to 15%.
@@ -241,6 +253,7 @@ In the `calculate_total()` function, change the discount from 10% to 15%.
 **Option 1:** Use async/await
 **Option 2:** Use threading
 **Option 3:** Keep synchronous
+
 ```
 
 ### 2.4 Critical Gap Analysis
@@ -252,36 +265,36 @@ In the `calculate_total()` function, change the discount from 10% to 15%.
 **Non-Negotiable Assets:**
 
 1. **Security Foundation (Phase 0 - 100% Complete)**
-   - Input validation, secret scanning, secure file operations
-   - Test coverage: 95%+ on security modules
-   - Zero regressions allowed
+   * Input validation, secret scanning, secure file operations
+   * Test coverage: 95%+ on security modules
+   * Zero regressions allowed
 
 2. **Conflict Detection Engine**
-   - Format-agnostic (works with any `Change` objects)
-   - 5 conflict types: exact, major, partial, minor, semantic
-   - Proven accuracy
+   * Format-agnostic (works with any `Change` objects)
+   * 5 conflict types: exact, major, partial, minor, semantic
+   * Proven accuracy
 
 3. **Priority System**
-   - User selections: 100, Security: 90, Syntax: 80, Regular: 50
-   - Works downstream of parsing
+   * User selections: 100, Security: 90, Syntax: 80, Regular: 50
+   * Works downstream of parsing
 
 4. **File Handlers**
-   - JSON, YAML, TOML structure-aware merging
-   - Comment preservation, format preservation
-   - Battle-tested
+   * JSON, YAML, TOML structure-aware merging
+   * Comment preservation, format preservation
+   * Battle-tested
 
 5. **Rollback System**
-   - Git-based checkpointing
-   - Automatic rollback on failure
-   - Zero data loss
+   * Git-based checkpointing
+   * Automatic rollback on failure
+   * Zero data loss
 
 6. **Application Modes**
-   - `all`, `conflicts-only`, `non-conflicts-only`, `dry-run`
-   - Already implemented (Phase 2 complete)
+   * `all`, `conflicts-only`, `non-conflicts-only`, `dry-run`
+   * Already implemented (Phase 2 complete)
 
 7. **Test Coverage**
-   - 82.35% overall
-   - Must maintain > 80% throughout refactor
+   * 82.35% overall
+   * Must maintain > 80% throughout refactor
 
 ---
 
@@ -289,17 +302,19 @@ In the `calculate_total()` function, change the discount from 10% to 15%.
 
 ### 3.1 From Conflict Resolver to Suggestion Applier
 
-**Old Mental Model:**
+### Old Mental Model
+
 > "We resolve conflicts when multiple suggestions overlap."
 
 **Problem:** Conflicts are rare (~5% of PRs). Most CodeRabbit comments are individual suggestions.
 
-**New Mental Model:**
+### New Mental Model
+
 > "We parse and apply ALL CodeRabbit suggestions. When conflicts occur (edge case), we resolve them intelligently."
 
 **Impact:** This pivot expands the tool's purpose from a niche conflict handler to a universal suggestion applier.
 
-### 3.2 Why LLM-First?
+### 3.2 Why LLM-First
 
 **Regex Limitations:**
 
@@ -319,7 +334,7 @@ In the `calculate_total()` function, change the discount from 10% to 15%.
 **Trade-offs:**
 
 | Aspect | Regex | LLM |
-|--------|-------|-----|
+| -------- | ------- | ----- |
 | **Accuracy** | 100% (for known formats) | 90-95% (structured output) |
 | **Coverage** | 20% (only ```suggestion) | 100% (all formats) |
 | **Cost** | Free | $0-$1.50 per 1K comments |
@@ -332,9 +347,9 @@ In the `calculate_total()` function, change the discount from 10% to 15%.
 
 **Philosophy:** Let users choose based on their preferences:
 
-- **Subscription-based (zero marginal cost):** Claude Code CLI, Codex CLI
-- **API-based (pay-per-use):** OpenAI, Anthropic
-- **Local (free, private):** Ollama
+* **Subscription-based (zero marginal cost):** Claude Code CLI, Codex CLI
+* **API-based (pay-per-use):** OpenAI, Anthropic
+* **Local (free, private):** Ollama
 
 **No Forced Hierarchy:** We don't decide what's "best" - users do.
 
@@ -359,6 +374,7 @@ llm:
   provider: ollama
   model: qwen2.5-coder:32b
 # Cost: $0 (local inference)
+
 ```
 
 ---
@@ -367,7 +383,7 @@ llm:
 
 ### 4.1 System Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    GitHub PR Comments                       │
 │       (All formats: diff, suggestion, natural language)     │
@@ -416,11 +432,12 @@ llm:
                      ▼
          (Rest of pipeline unchanged)
          [Priority System → Resolution → Application → Rollback]
+
 ```
 
 ### 4.2 New Module Structure
 
-```
+```text
 src/pr_conflict_resolver/llm/         # NEW MODULE (~800 LOC)
 ├── __init__.py                        # Package initialization
 ├── base.py                            # Abstract interfaces (100 LOC)
@@ -444,6 +461,7 @@ src/pr_conflict_resolver/llm/         # NEW MODULE (~800 LOC)
 │   └── LLMResponseCache
 └── cost_tracker.py                    # Token/cost tracking (80 LOC)
     └── CostTracker
+
 ```
 
 ### 4.3 Integration Points
@@ -453,7 +471,7 @@ src/pr_conflict_resolver/llm/         # NEW MODULE (~800 LOC)
 ```python
 # Line 133-196: extract_changes_from_comments()
 
-# BEFORE (v1.x):
+# BEFORE (v1.x)
 def extract_changes_from_comments(self, comments: list[dict[str, Any]]) -> list[Change]:
     """Extract changes using regex."""
     changes = []
@@ -461,7 +479,7 @@ def extract_changes_from_comments(self, comments: list[dict[str, Any]]) -> list[
         # ... parse with _parse_comment_suggestions() ...
     return changes
 
-# AFTER (v2.0):
+# AFTER (v2.0)
 def extract_changes_from_comments(self, comments: list[dict[str, Any]]) -> list[Change]:
     """Extract changes using LLM or regex based on config."""
     if self.config.get("llm_enabled", False):
@@ -496,6 +514,7 @@ def _extract_changes_with_llm(self, comments: list[dict[str, Any]]) -> list[Chan
             changes.extend(self._parse_single_comment_with_regex(comment))
 
     return changes
+
 ```
 
 **Extension: `core/models.py`**
@@ -522,6 +541,7 @@ class Change:
     parsing_method: str = "regex"                 # "regex" | "llm"
     change_rationale: str | None = None           # Why this change
     risk_level: str | None = None                 # "low" | "medium" | "high"
+
 ```
 
 **Extension: `config/runtime_config.py`**
@@ -549,6 +569,7 @@ class RuntimeConfig:
     llm_cache_enabled: bool = True                # Cache LLM responses
     llm_max_tokens: int = 2000                    # Token limit per request
     llm_cost_budget: float | None = None          # Max cost per run (USD)
+
 ```
 
 ### 4.4 Backward Compatibility Strategy
@@ -556,23 +577,23 @@ class RuntimeConfig:
 **Feature Flag Approach:**
 
 1. **Default Behavior:** LLM parsing **DISABLED** by default
-   - Existing users see no change
-   - Must opt-in via `--llm` flag or `CR_LLM_ENABLED=true`
+   * Existing users see no change
+   * Must opt-in via `--llm` flag or `CR_LLM_ENABLED=true`
 
 2. **Graceful Degradation:**
-   - If LLM provider unavailable → fallback to regex
-   - If LLM parsing fails → fallback to regex
-   - Log warnings, don't fail hard
+   * If LLM provider unavailable → fallback to regex
+   * If LLM parsing fails → fallback to regex
+   * Log warnings, don't fail hard
 
 3. **Data Model Compatibility:**
-   - New fields have default values
-   - Old code ignores new fields
-   - Serialization/deserialization handles both formats
+   * New fields have default values
+   * Old code ignores new fields
+   * Serialization/deserialization handles both formats
 
 4. **No Breaking Changes:**
-   - CLI commands identical (new flags are optional)
-   - API signatures unchanged (new parameters have defaults)
-   - Configuration files v1.x work in v2.0
+   * CLI commands identical (new flags are optional)
+   * API signatures unchanged (new parameters have defaults)
+   * Configuration files v1.x work in v2.0
 
 ---
 
@@ -600,6 +621,7 @@ touch src/pr_conflict_resolver/llm/cache.py
 touch src/pr_conflict_resolver/llm/cost_tracker.py
 mkdir src/pr_conflict_resolver/llm/providers
 touch src/pr_conflict_resolver/llm/providers/__init__.py
+
 ```
 
 **Implement `base.py`:**
@@ -632,7 +654,6 @@ class ParsedChange:
     confidence: float                 # 0.0-1.0 (LLM's confidence in extraction)
     rationale: str                    # Why this change is suggested
     risk_level: str = "low"           # "low", "medium", "high"
-
 
 @runtime_checkable
 class LLMProvider(Protocol):
@@ -670,7 +691,6 @@ class LLMProvider(Protocol):
         """
         ...
 
-
 class LLMParser(ABC):
     """Abstract base for LLM-powered parsers."""
 
@@ -693,6 +713,7 @@ class LLMParser(ABC):
             RuntimeError: If parsing fails and no fallback available
         """
         ...
+
 ```
 
 #### Task 0.2: Add Configuration Support (4 hours)
@@ -730,6 +751,7 @@ class LLMParser(ABC):
             llm_model=llm_model,
             llm_api_key=llm_api_key,
         )
+
 ```
 
 **Update `.env.example`:**
@@ -744,6 +766,7 @@ CR_LLM_FALLBACK=true                    # Fallback to regex on LLM failure
 CR_LLM_CACHE_ENABLED=true               # Cache LLM responses
 CR_LLM_MAX_TOKENS=2000                  # Max tokens per request
 CR_LLM_COST_BUDGET=                     # Max cost per run (USD, optional)
+
 ```
 
 #### Task 0.3: Update Data Models (3 hours)
@@ -770,6 +793,7 @@ class Change:
     parsing_method: str = "regex"
     change_rationale: str | None = None
     risk_level: str | None = None
+
 ```
 
 **Write backward compatibility tests:**
@@ -812,6 +836,7 @@ def test_change_serialization_backward_compat():
     # Should deserialize successfully
     change = Change(**old_data)
     assert change.parsing_method == "regex"
+
 ```
 
 #### Task 0.4: Add Feature Flag Plumbing (3 hours)
@@ -846,6 +871,7 @@ def apply(owner: str, repo: str, pr: int, mode: str, llm: bool, llm_provider: st
         config["llm_model"] = llm_model
 
     # ... rest of command ...
+
 ```
 
 #### Task 0.5: Set Up Test Infrastructure (4 hours)
@@ -858,6 +884,7 @@ touch tests/llm/__init__.py
 touch tests/llm/test_base.py
 touch tests/llm/test_parser.py
 mkdir tests/fixtures/llm
+
 ```
 
 **Create test fixtures:**
@@ -871,6 +898,7 @@ mkdir tests/fixtures/llm
 
 # tests/fixtures/llm/llm_responses/
 # Cached LLM responses for testing
+
 ```
 
 **Write mock utilities:**
@@ -903,6 +931,7 @@ def mock_llm_provider():
     return MockLLMProvider({
         "default": '[{"file_path": "test.py", "start_line": 1, "end_line": 1, ...}]'
     })
+
 ```
 
 #### Task 0.6: Add Dependencies (3 hours)
@@ -923,6 +952,7 @@ llm = [
 dependencies = [
     # ... existing dependencies ...
 ]
+
 ```
 
 **Test installation:**
@@ -930,26 +960,27 @@ dependencies = [
 ```bash
 pip install -e ".[llm]"
 python -c "import anthropic, openai, httpx, tenacity, tiktoken; print('LLM dependencies OK')"
+
 ```
 
 ### 5.2 Deliverables
 
-- [ ] `llm/` module structure created
-- [ ] `RuntimeConfig` extended with LLM fields
-- [ ] `Change` model extended (backward compatible)
-- [ ] Feature flag infrastructure (`--llm` CLI flag)
-- [ ] Test infrastructure ready (`tests/llm/`, fixtures, mocks)
-- [ ] Dependencies added and tested
-- [ ] All existing tests still pass
-- [ ] Backward compatibility tests pass
+* [ ] `llm/` module structure created
+* [ ] `RuntimeConfig` extended with LLM fields
+* [ ] `Change` model extended (backward compatible)
+* [ ] Feature flag infrastructure (`--llm` CLI flag)
+* [ ] Test infrastructure ready (`tests/llm/`, fixtures, mocks)
+* [ ] Dependencies added and tested
+* [ ] All existing tests still pass
+* [ ] Backward compatibility tests pass
 
 ### 5.3 Success Criteria
 
-- ✅ Feature flag can be toggled (no-op currently)
-- ✅ Config validation works for LLM options
-- ✅ No regression in existing functionality
-- ✅ Test coverage maintained at 80%+
-- ✅ Documentation updated (inline docstrings)
+* ✅ Feature flag can be toggled (no-op currently)
+* ✅ Config validation works for LLM options
+* ✅ No regression in existing functionality
+* ✅ Test coverage maintained at 80%+
+* ✅ Documentation updated (inline docstrings)
 
 ### 5.4 Testing
 
@@ -963,6 +994,7 @@ pytest tests/unit/test_models_backward_compat.py -v
 # Verify feature flag
 pr-resolve apply --owner test --repo test --pr 1 --llm --help
 # Should show LLM options but not fail
+
 ```
 
 ---
@@ -989,6 +1021,7 @@ pr-resolve apply --owner test --repo test --pr 1 --llm --help
 **File:** `src/pr_conflict_resolver/llm/prompt_templates.py`
 
 **Research and design prompts for:**
+
 1. Diff block parsing (`@@ -1,3 +1,3 @@`)
 2. Suggestion block parsing (`` `suggestion` ``)
 3. Natural language parsing ("change X to Y")
@@ -1011,9 +1044,12 @@ File context: {file_path}
 Line context: {line_number}
 
 Comment body:
+
 ```
+
 {comment_body}
-```
+
+```text
 
 Extract changes in this JSON array format:
 [
@@ -1041,6 +1077,7 @@ Rules:
 
 Output ONLY valid JSON array, no markdown, no explanation.
 """
+
 ```
 
 **Test prompts with real API:**
@@ -1068,6 +1105,7 @@ def test_parse_diff_block_with_real_api():
     assert isinstance(parsed, list)
     assert len(parsed) > 0
     assert "file_path" in parsed[0]
+
 ```
 
 #### Task 1.3: Implement Claude API Provider (10 hours)
@@ -1075,11 +1113,12 @@ def test_parse_diff_block_with_real_api():
 **File:** `src/pr_conflict_resolver/llm/providers/anthropic_api.py`
 
 **Full implementation with:**
-- Retry logic (exponential backoff)
-- Rate limiting
-- Error handling
-- Token counting
-- Cost tracking
+
+* Retry logic (exponential backoff)
+* Rate limiting
+* Error handling
+* Token counting
+* Cost tracking
 
 ```python
 """Anthropic Claude API provider implementation."""
@@ -1093,7 +1132,6 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 from pr_conflict_resolver.llm.base import LLMProvider
 
 logger = logging.getLogger(__name__)
-
 
 class ClaudeAPIProvider:
     """Claude API provider implementation.
@@ -1128,12 +1166,12 @@ class ClaudeAPIProvider:
         """Generate completion with retry logic.
 
         Retries on:
-        - API timeout errors
-        - Rate limit errors
+        * API timeout errors
+        * Rate limit errors
 
         Does NOT retry on:
-        - Authentication errors
-        - Invalid request errors
+        * Authentication errors
+        * Invalid request errors
 
         Args:
             prompt: Input prompt
@@ -1185,6 +1223,7 @@ class ClaudeAPIProvider:
         """
         # Anthropic provides token counting via API
         return self.client.count_tokens(text)
+
 ```
 
 #### Task 1.4: Implement LLM Parser (8 hours)
@@ -1205,15 +1244,14 @@ from pr_conflict_resolver.llm.prompt_templates import PARSE_COMMENT_PROMPT
 
 logger = logging.getLogger(__name__)
 
-
 class UniversalLLMParser(LLMParser):
     """LLM-powered universal comment parser.
 
     Parses all CodeRabbit comment formats:
-    - Diff blocks (```diff)
-    - Suggestion blocks (```suggestion)
-    - Natural language descriptions
-    - Multi-option suggestions
+    * Diff blocks (```diff)
+    * Suggestion blocks (```suggestion)
+    * Natural language descriptions
+    * Multi-option suggestions
     """
 
     def __init__(
@@ -1304,6 +1342,7 @@ class UniversalLLMParser(LLMParser):
                 return []
             else:
                 raise RuntimeError(f"LLM parsing failed: {e}") from e
+
 ```
 
 #### Task 1.5: Integrate into Resolver (6 hours)
@@ -1418,6 +1457,7 @@ def _parse_single_comment_with_regex(self, comment: dict[str, Any]) -> list[Chan
     Extracts existing _parse_comment_suggestions logic for single comment.
     """
     # ... implementation ...
+
 ```
 
 #### Task 1.6: Add Error Handling (4 hours)
@@ -1442,10 +1482,13 @@ def test_parse_suggestion_block(mock_llm_provider):
     parser = UniversalLLMParser(mock_llm_provider)
     comment = """
     Apply this change:
+
     ```suggestion
+
     def foo():
         return "bar"
-    ```
+
+```text
     """
 
     parsed = parser.parse_comment(comment, file_path="test.py")
@@ -1467,27 +1510,28 @@ def test_confidence_threshold_filtering():
 def test_fallback_on_llm_failure():
     """Test fallback to regex when LLM fails."""
     # ... test implementation ...
+
 ```
 
 ### 6.2 Deliverables
 
-- [ ] Abstract parser interface complete
-- [ ] Prompt templates designed and tested
-- [ ] Claude API provider working
-- [ ] LLM parser implemented
-- [ ] Integration into resolver.py complete
-- [ ] Error handling robust
-- [ ] Fallback to regex works
-- [ ] Unit tests pass (>85% coverage on new code)
-- [ ] Integration test with real API passes (in CI)
+* [ ] Abstract parser interface complete
+* [ ] Prompt templates designed and tested
+* [ ] Claude API provider working
+* [ ] LLM parser implemented
+* [ ] Integration into resolver.py complete
+* [ ] Error handling robust
+* [ ] Fallback to regex works
+* [ ] Unit tests pass (>85% coverage on new code)
+* [ ] Integration test with real API passes (in CI)
 
 ### 6.3 Success Criteria
 
-- ✅ Can parse ```suggestion blocks via LLM
-- ✅ Can parse diff blocks (`@@ -1,3 +1,3 @@`)
-- ✅ Can parse natural language suggestions
-- ✅ Fallback works when LLM fails
-- ✅ Test coverage > 85% for new code
+* ✅ Can parse ```suggestion blocks via LLM
+* ✅ Can parse diff blocks (`@@ -1,3 +1,3 @@`)
+* ✅ Can parse natural language suggestions
+* ✅ Fallback works when LLM fails
+* ✅ Test coverage > 85% for new code
 
 ### 6.4 Testing
 
@@ -1499,6 +1543,7 @@ pytest tests/llm/test_parser.py -v
 pytest tests/llm/test_parser.py -v --integration
 
 # Expected: 5 changes parsed (vs 1 with regex)
+
 ```
 
 ---
@@ -1532,7 +1577,6 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from pr_conflict_resolver.llm.base import LLMProvider
 
 logger = logging.getLogger(__name__)
-
 
 class OpenAIProvider:
     """OpenAI GPT provider implementation.
@@ -1609,6 +1653,7 @@ class OpenAIProvider:
             # Fallback for newer models
             encoding = tiktoken.get_encoding("cl100k_base")
         return len(encoding.encode(text))
+
 ```
 
 #### Task 2.2: Implement Claude Code CLI Provider (7 hours)
@@ -1628,7 +1673,6 @@ from pathlib import Path
 from pr_conflict_resolver.llm.base import LLMProvider
 
 logger = logging.getLogger(__name__)
-
 
 class ClaudeCLIProvider:
     """Claude Code CLI provider.
@@ -1714,6 +1758,7 @@ class ClaudeCLIProvider:
         """Estimate tokens (Claude CLI doesn't expose token count)."""
         # Rough estimate: ~4 chars per token
         return len(text) // 4
+
 ```
 
 #### Task 2.3: Implement Codex CLI Provider (6 hours)
@@ -1739,7 +1784,6 @@ import httpx
 from pr_conflict_resolver.llm.base import LLMProvider
 
 logger = logging.getLogger(__name__)
-
 
 class OllamaProvider:
     """Local Ollama provider.
@@ -1825,6 +1869,7 @@ class OllamaProvider:
         """Estimate tokens (Ollama doesn't expose token count)."""
         # Rough estimate: ~4 chars per token
         return len(text) // 4
+
 ```
 
 #### Task 2.5: Add Provider Factory (3 hours)
@@ -1847,7 +1892,6 @@ from pr_conflict_resolver.llm.providers.codex_cli import CodexCLIProvider
 from pr_conflict_resolver.llm.providers.ollama import OllamaProvider
 
 logger = logging.getLogger(__name__)
-
 
 def create_provider(config: dict) -> LLMProvider:
     """Factory to create LLM provider based on configuration.
@@ -1911,6 +1955,7 @@ def create_provider(config: dict) -> LLMProvider:
             f"Unknown LLM provider: {provider_name}. "
             f"Supported: anthropic-api, openai, claude-cli, codex-cli, ollama"
         )
+
 ```
 
 #### Task 2.6: Update CLI (3 hours)
@@ -1928,6 +1973,7 @@ def create_provider(config: dict) -> LLMProvider:
               ]),
               default="claude-cli",
               help="LLM provider to use")
+
 ```
 
 #### Task 2.7: Write Tests (4 hours)
@@ -1955,24 +2001,25 @@ def test_anthropic_provider_real_api():
     assert isinstance(response, str)
     # Verify JSON parseable
     json.loads(response)
+
 ```
 
 ### 7.2 Deliverables
 
-- [ ] 5 provider implementations complete
-- [ ] Provider factory working
-- [ ] CLI updated with provider selection
-- [ ] Documentation for each provider
-- [ ] Tests pass for all providers
-- [ ] Integration tests with real APIs (optional, in CI)
+* [ ] 5 provider implementations complete
+* [ ] Provider factory working
+* [ ] CLI updated with provider selection
+* [ ] Documentation for each provider
+* [ ] Tests pass for all providers
+* [ ] Integration tests with real APIs (optional, in CI)
 
 ### 7.3 Success Criteria
 
-- ✅ All 5 providers can parse CodeRabbit comments
-- ✅ Can switch providers via config/CLI
-- ✅ Graceful failure if provider unavailable
-- ✅ Test coverage > 85%
-- ✅ Clear error messages for misconfiguration
+* ✅ All 5 providers can parse CodeRabbit comments
+* ✅ Can switch providers via config/CLI
+* ✅ Graceful failure if provider unavailable
+* ✅ Test coverage > 85%
+* ✅ Clear error messages for misconfiguration
 
 ### 7.4 Testing
 
@@ -1988,6 +2035,7 @@ pr-resolve analyze --pr 8 --llm --llm-provider codex-cli
 pr-resolve analyze --pr 8 --llm --llm-provider ollama --llm-model qwen2.5-coder:7b
 
 # All should parse 5/5 comments
+
 ```
 
 ---
@@ -1999,51 +2047,56 @@ pr-resolve analyze --pr 8 --llm --llm-provider ollama --llm-model qwen2.5-coder:
 **GitHub Issue:** #28
 **Milestone:** v2.0 - LLM-First Architecture
 **Dependencies:** Phase 2 (#27)
-**Estimated Effort:** 15-20 hours
+**Estimated Effort:**15-20 hours
 
 ### 8.1 Tasks
 
 #### Task 3.1: Auto-Detection (5 hours)
-- Detect installed CLI tools (claude, codex)
-- Choose best default provider
-- Warn if no providers available
+
+* Detect installed CLI tools (claude, codex)
+* Choose best default provider
+* Warn if no providers available
 
 #### Task 3.2: Setup Wizard (4 hours)
-- `pr-resolve setup-llm` command
-- Guide user through provider selection
-- Test provider connection
-- Save configuration
+
+* `pr-resolve setup-llm` command
+* Guide user through provider selection
+* Test provider connection
+* Save configuration
 
 #### Task 3.3: Provider Testing Command (3 hours)
-- `pr-resolve test-llm --provider <name>` command
-- Test provider availability
-- Simple parsing test
-- Cost estimation
+
+* `pr-resolve test-llm --provider <name>` command
+* Test provider availability
+* Simple parsing test
+* Cost estimation
 
 #### Task 3.4: Documentation (4 hours)
-- Provider comparison matrix
-- Setup guides per provider
-- Troubleshooting guide
-- Performance benchmarks
+
+* Provider comparison matrix
+* Setup guides per provider
+* Troubleshooting guide
+* Performance benchmarks
 
 #### Task 3.5: Examples (4 hours)
-- Example configs for each provider
-- Example comments (all formats)
-- Example outputs
+
+* Example configs for each provider
+* Example comments (all formats)
+* Example outputs
 
 ### 8.2 Deliverables
 
-- [ ] Auto-detection working
-- [ ] Setup wizard functional
-- [ ] Testing command works
-- [ ] Comprehensive docs
-- [ ] Examples for all providers
+* [ ] Auto-detection working
+* [ ] Setup wizard functional
+* [ ] Testing command works
+* [ ] Comprehensive docs
+* [ ] Examples for all providers
 
 ### 8.3 Success Criteria
 
-- ✅ New users can set up in < 5 minutes
-- ✅ Clear error messages
-- ✅ Provider comparison helps choice
+* ✅ New users can set up in < 5 minutes
+* ✅ Clear error messages
+* ✅ Provider comparison helps choice
 
 ---
 
@@ -2054,48 +2107,53 @@ pr-resolve analyze --pr 8 --llm --llm-provider ollama --llm-model qwen2.5-coder:
 **GitHub Issue:** #29
 **Milestone:** v2.0 - LLM-First Architecture
 **Dependencies:** Phase 2 (#27)
-**Estimated Effort:** 15-20 hours
+**Estimated Effort:**15-20 hours
 
 ### 9.1 Tasks
 
 #### Task 4.1: Ollama Integration Polish (5 hours)
-- Test with multiple models
-- Optimize prompts for smaller models
-- Tune parameters
+
+* Test with multiple models
+* Optimize prompts for smaller models
+* Tune parameters
 
 #### Task 4.2: Model Download Helper (4 hours)
-- `pr-resolve llm download-model <name>` command
-- Wraps `ollama pull`
+
+* `pr-resolve llm download-model <name>` command
+* Wraps `ollama pull`
 
 #### Task 4.3: Prompt Optimization (4 hours)
-- Shorter prompts for smaller models
-- Few-shot examples
-- Template variants per model family
+
+* Shorter prompts for smaller models
+* Few-shot examples
+* Template variants per model family
 
 #### Task 4.4: Performance Testing (3 hours)
-- Benchmark accuracy per model
-- Measure latency
-- Compare quality vs API models
+
+* Benchmark accuracy per model
+* Measure latency
+* Compare quality vs API models
 
 #### Task 4.5: Documentation (4 hours)
-- Ollama setup guide
-- Model recommendations
-- Accuracy comparison
-- Troubleshooting
+
+* Ollama setup guide
+* Model recommendations
+* Accuracy comparison
+* Troubleshooting
 
 ### 9.2 Deliverables
 
-- [ ] Ollama integration production-ready
-- [ ] Model download helper
-- [ ] Optimized prompts
-- [ ] Performance benchmarks
-- [ ] Documentation complete
+* [ ] Ollama integration production-ready
+* [ ] Model download helper
+* [ ] Optimized prompts
+* [ ] Performance benchmarks
+* [ ] Documentation complete
 
 ### 9.3 Success Criteria
 
-- ✅ Works offline with no API keys
-- ✅ Accuracy ≥ 85% for common formats
-- ✅ Latency < 10s per comment
+* ✅ Works offline with no API keys
+* ✅ Accuracy ≥ 85% for common formats
+* ✅ Latency < 10s per comment
 
 ---
 
@@ -2111,47 +2169,53 @@ pr-resolve analyze --pr 8 --llm --llm-provider ollama --llm-model qwen2.5-coder:
 ### 10.1 Tasks
 
 #### Task 5.1: Implement Response Caching (8 hours)
-- Cache LLM responses by prompt hash
-- 60%+ cache hit rate target
-- LRU eviction policy
+
+* Cache LLM responses by prompt hash
+* 60%+ cache hit rate target
+* LRU eviction policy
 
 #### Task 5.2: Implement Cost Tracking (8 hours)
-- Track tokens and costs per provider
-- Cost per PR reporting
-- Budget alerts
+
+* Track tokens and costs per provider
+* Cost per PR reporting
+* Budget alerts
 
 #### Task 5.3: Add Rate Limiting (4 hours)
-- Respect API rate limits
-- Token bucket algorithm
+
+* Respect API rate limits
+* Token bucket algorithm
 
 #### Task 5.4: Batch Processing (5 hours)
-- Group multiple comments in one request
-- Reduce API calls
+
+* Group multiple comments in one request
+* Reduce API calls
 
 #### Task 5.5: Performance Tuning (3 hours)
-- Parallel LLM calls (where safe)
-- Async/await optimization
+
+* Parallel LLM calls (where safe)
+* Async/await optimization
 
 #### Task 5.6: Monitoring & Metrics (2 hours)
-- Log parsing success rate
-- Log latency metrics
-- Log cost per PR
+
+* Log parsing success rate
+* Log latency metrics
+* Log cost per PR
 
 ### 10.2 Deliverables
 
-- [ ] Response caching working
-- [ ] Cost tracking implemented
-- [ ] Rate limiting prevents errors
-- [ ] Batch processing optimized
-- [ ] Performance tuned
-- [ ] Monitoring in place
+* [ ] Response caching working
+* [ ] Cost tracking implemented
+* [ ] Rate limiting prevents errors
+* [ ] Batch processing optimized
+* [ ] Performance tuned
+* [ ] Monitoring in place
 
 ### 10.3 Success Criteria
 
-- ✅ Cache hit rate > 50%
-- ✅ Cost visible to users
-- ✅ No rate limit errors
-- ✅ 2-3x faster for large PRs with batching
+* ✅ Cache hit rate > 50%
+* ✅ Cost visible to users
+* ✅ No rate limit errors
+* ✅ 2-3x faster for large PRs with batching
 
 ---
 
@@ -2162,47 +2226,51 @@ pr-resolve analyze --pr 8 --llm --llm-provider ollama --llm-model qwen2.5-coder:
 **GitHub Issue:** #31
 **Milestone:** v2.1 - Optimization
 **Dependencies:** Phase 5 (#30)
-**Estimated Effort:** 15-20 hours
+**Estimated Effort:**15-20 hours
 
 ### 11.1 Tasks
 
 #### Task 6.1: User Documentation (8 hours)
-- `docs/llm-parsing.md`: Comprehensive guide
-- `docs/llm-providers.md`: Provider comparison
-- `docs/llm-configuration.md`: All config options
-- `docs/llm-troubleshooting.md`: Common issues
-- Update `README.md`
+
+* `docs/llm-parsing.md`: Comprehensive guide
+* `docs/llm-providers.md`: Provider comparison
+* `docs/llm-configuration.md`: All config options
+* `docs/llm-troubleshooting.md`: Common issues
+* Update `README.md`
 
 #### Task 6.2: Migration Guide (4 hours)
-- `docs/migration/v1-to-v2.md`
-- Regex → LLM transition
-- Config changes
-- Rollback instructions
+
+* `docs/migration/v1-to-v2.md`
+* Regex → LLM transition
+* Config changes
+* Rollback instructions
 
 #### Task 6.3: API Documentation (3 hours)
-- Document `LLMParser` interface
-- Document `LLMProvider` protocol
-- Code examples
+
+* Document `LLMParser` interface
+* Document `LLMProvider` protocol
+* Code examples
 
 #### Task 6.4: Developer Guide (5 hours)
-- Architecture diagrams
-- Adding new providers
-- Testing LLM code
-- Debugging tips
+
+* Architecture diagrams
+* Adding new providers
+* Testing LLM code
+* Debugging tips
 
 ### 11.2 Deliverables
 
-- [ ] Complete user docs
-- [ ] Migration guide
-- [ ] API docs
-- [ ] Developer guide
-- [ ] Updated README
+* [ ] Complete user docs
+* [ ] Migration guide
+* [ ] API docs
+* [ ] Developer guide
+* [ ] Updated README
 
 ### 11.3 Success Criteria
 
-- ✅ Users can migrate without support
-- ✅ New contributors can add providers
-- ✅ All config options documented
+* ✅ Users can migrate without support
+* ✅ New contributors can add providers
+* ✅ All config options documented
 
 ---
 
@@ -2211,7 +2279,7 @@ pr-resolve analyze --pr 8 --llm --llm-provider ollama --llm-model qwen2.5-coder:
 ### 12.1 Technical Risks
 
 | Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
+| ------ | ------------ | -------- | ------------ |
 | **LLM accuracy lower than regex** | Medium | High | Confidence thresholds, validation layer, fallback to regex, A/B testing |
 | **API costs too high** | Medium | Medium | Cost tracking, budgets, cache aggressively, local models default |
 | **Latency unacceptable** | Low | Medium | Parallel requests, streaming, local models, timeout fallback |
@@ -2221,7 +2289,7 @@ pr-resolve analyze --pr 8 --llm --llm-provider ollama --llm-model qwen2.5-coder:
 ### 12.2 Project Risks
 
 | Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
+| ------ | ------------ | -------- | ------------ |
 | **Scope creep** | High | High | Strict phase boundaries, MVP mindset, feature freeze during implementation |
 | **Timeline underestimation** | Medium | Medium | 25% buffer in estimates, parallel work where possible, early validation |
 | **Provider API changes** | Medium | High | Abstract provider interface, version pinning, multi-provider strategy |
@@ -2230,7 +2298,7 @@ pr-resolve analyze --pr 8 --llm --llm-provider ollama --llm-model qwen2.5-coder:
 ### 12.3 User Impact Risks
 
 | Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
+| ------ | ------------ | -------- | ------------ |
 | **Users confused by options** | Medium | Medium | Smart defaults (Claude CLI), setup wizard, clear docs, provider comparison |
 | **Breaking existing workflows** | Low | Critical | Feature flag OFF by default, 6-month migration period, rollback support |
 | **Cost surprise** | Medium | High | Cost estimation upfront, budget warnings, cost transparency, free tier prominent |
@@ -2242,12 +2310,13 @@ pr-resolve analyze --pr 8 --llm --llm-provider ollama --llm-model qwen2.5-coder:
 ### 13.1 Per-Comment Cost Breakdown
 
 **Assumptions:**
-- Average comment: 2,300 tokens (input)
-- Average parsed output: 500 tokens
-- Cache hit rate: 30% (conservative)
+
+* Average comment: 2,300 tokens (input)
+* Average parsed output: 500 tokens
+* Cache hit rate: 30% (conservative)
 
 | Provider | Input Cost | Output Cost | Per Comment | Per 1K Comments | With 30% Cache |
-|----------|-----------|-------------|-------------|-----------------|----------------|
+| ---------- | ----------- | ------------- | ------------- | ----------------- | ---------------- |
 | **Claude Sonnet 4.5 API** | $0.00690 | $0.0075 | $0.0144 | $14.40 | $10.08 |
 | **Claude Haiku 4.5 API** | $0.00058 | $0.00063 | $0.00121 | $1.21 | $0.85 |
 | **GPT-5-Mini API** | TBD | TBD | ~$0.002-0.005 | ~$2-5 | ~$1.40-3.50 |
@@ -2258,16 +2327,17 @@ pr-resolve analyze --pr 8 --llm --llm-provider ollama --llm-model qwen2.5-coder:
 ### 13.2 Monthly Cost Projections
 
 | Team Size | PRs/Day | Comments/Day | Monthly (Haiku API) | Monthly (Sonnet API) | Monthly (CLI/Local) |
-|-----------|---------|--------------|---------------------|----------------------|---------------------|
+| ----------- | --------- | -------------- | --------------------- | ---------------------- | --------------------- |
 | **Small (10 PRs)** | 10 | 200 | $5.10 | $60.48 | $0 |
 | **Medium (50 PRs)** | 50 | 1,000 | $25.50 | $302.40 | $0 |
 | **Large (200 PRs)** | 200 | 4,000 | $102.00 | $1,209.60 | $0 |
 | **Enterprise (1K PRs)** | 1,000 | 20,000 | $510.00 | $6,048.00 | $0 |
 
 **With Phase 5 Caching (50-90% additional reduction):**
-- Small team: $2.55-5.10/month (Haiku)
-- Medium team: $12.75-25.50/month (Haiku)
-- Large team: $51-102/month (Haiku)
+
+* Small team: $2.55-5.10/month (Haiku)
+* Medium team: $12.75-25.50/month (Haiku)
+* Large team: $51-102/month (Haiku)
 
 ### 13.3 Cost Recommendations
 
@@ -2282,58 +2352,67 @@ pr-resolve analyze --pr 8 --llm --llm-provider ollama --llm-model qwen2.5-coder:
 ### 14.1 Technical KPIs
 
 **Parsing Accuracy:**
-- Target: ≥ 90% for ```suggestion blocks
-- Target: ≥ 85% for diff blocks
-- Target: ≥ 80% for natural language
-- Measure: Precision/recall vs hand-labeled test set (100 comments)
+
+* Target: ≥ 90% for ```suggestion blocks
+* Target: ≥ 85% for diff blocks
+* Target: ≥ 80% for natural language
+* Measure: Precision/recall vs hand-labeled test set (100 comments)
 
 **Performance:**
-- Target: < 5s latency per comment (with caching)
-- Target: < 30s for 50-comment PR
-- Target: Cache hit rate > 50% (after warm-up)
-- Measure: Benchmark suite, production telemetry
+
+* Target: < 5s latency per comment (with caching)
+* Target: < 30s for 50-comment PR
+* Target: Cache hit rate > 50% (after warm-up)
+* Measure: Benchmark suite, production telemetry
 
 **Coverage:**
-- Target: 100% of CodeRabbit comment formats
-- Target: 90%+ test coverage on LLM code
-- Target: No regression in existing tests
-- Measure: pytest + coverage.py
+
+* Target: 100% of CodeRabbit comment formats
+* Target: 90%+ test coverage on LLM code
+* Target: No regression in existing tests
+* Measure: pytest + coverage.py
 
 **Reliability:**
-- Target: < 1% hard failures (with fallback)
-- Target: 100% backward compatibility
-- Target: Zero security vulnerabilities
-- Measure: Production monitoring, security audits
+
+* Target: < 1% hard failures (with fallback)
+* Target: 100% backward compatibility
+* Target: Zero security vulnerabilities
+* Measure: Production monitoring, security audits
 
 ### 14.2 User Metrics (6 months post-launch)
 
 **Adoption:**
-- Target: 20% of existing users enable LLM parsing
-- Target: 50% of new users enable LLM
-- Measure: Telemetry (opt-in)
+
+* Target: 20% of existing users enable LLM parsing
+* Target: 50% of new users enable LLM
+* Measure: Telemetry (opt-in)
 
 **Satisfaction:**
-- Target: ≥ 4.0/5.0 user satisfaction with LLM parsing
-- Target: < 5% revert to regex-only mode
-- Measure: User surveys, GitHub issues
+
+* Target: ≥ 4.0/5.0 user satisfaction with LLM parsing
+* Target: < 5% revert to regex-only mode
+* Measure: User surveys, GitHub issues
 
 **Cost:**
-- Target: < $0.50 per PR average (API users)
-- Target: 80% of users choose CLI/local (zero cost)
-- Measure: Cost tracking logs
+
+* Target: < $0.50 per PR average (API users)
+* Target: 80% of users choose CLI/local (zero cost)
+* Measure: Cost tracking logs
 
 ### 14.3 Business Metrics
 
 **Community Growth:**
-- Target: +50% GitHub stars (LLM feature attraction)
-- Target: +30% contributors
-- Target: Featured in AI/DevTools publications
-- Measure: GitHub analytics, press monitoring
+
+* Target: +50% GitHub stars (LLM feature attraction)
+* Target: +30% contributors
+* Target: Featured in AI/DevTools publications
+* Measure: GitHub analytics, press monitoring
 
 **Maintenance:**
-- Target: < 10% of issues related to LLM
-- Target: < 5% increase in support load
-- Measure: Issue tracker, support tickets
+
+* Target: < 10% of issues related to LLM
+* Target: < 5% increase in support load
+* Measure: Issue tracker, support tickets
 
 ---
 
@@ -2341,51 +2420,58 @@ pr-resolve analyze --pr 8 --llm --llm-provider ollama --llm-model qwen2.5-coder:
 
 ### 15.1 Overall Timeline
 
-```
+```text
 Week 1-2:   Phase 0 (Foundation) + Phase 1 (Basic LLM) start
 Week 3-4:   Phase 1 complete + Phase 2 (Multi-Provider) start
 Week 5-6:   Phase 2 complete + Phase 3 (CLI) + Phase 4 (Local) [parallel]
 Week 7-8:   Phase 3 & 4 complete + Phase 5 (Optimization) start
 Week 9-10:  Phase 5 complete + Phase 6 (Documentation)
 Week 11-12: Phase 6 complete + Testing + Beta release
+
 ```
 
 ### 15.2 Milestones
 
 **Milestone 1: LLM Proof of Concept** (After Phase 0 + Phase 1)
-- Date: Week 3
-- Goal: Parse one comment format with Claude API
-- Success: Feature flag works, basic tests pass, 1 provider functional
-- ETA: 55-70 hours
+
+* Date: Week 3
+* Goal: Parse one comment format with Claude API
+* Success: Feature flag works, basic tests pass, 1 provider functional
+* ETA: 55-70 hours
 
 **Milestone 2: Multi-Provider MVP** (After Phase 2)
-- Date: Week 5
-- Goal: All 5 providers implemented
-- Success: Users can choose provider, tests pass
-- ETA: +25-30 hours = 80-100 hours total
+
+* Date: Week 5
+* Goal: All 5 providers implemented
+* Success: Users can choose provider, tests pass
+* ETA: +25-30 hours = 80-100 hours total
 
 **Milestone 3: Production Ready** (After Phases 3-5)
-- Date: Week 9
-- Goal: CLI polished, local models working, caching
-- Success: Ready for beta testing
-- ETA: +55-70 hours = 135-170 hours total
+
+* Date: Week 9
+* Goal: CLI polished, local models working, caching
+* Success: Ready for beta testing
+* ETA: +55-70 hours = 135-170 hours total
 
 **Milestone 4: Full Release** (After Phase 6)
-- Date: Week 11
-- Goal: Documentation complete, migration guide ready
-- Success: v2.0 release
-- ETA: +15-20 hours = 150-190 hours total
+
+* Date: Week 11
+* Goal: Documentation complete, migration guide ready
+* Success: v2.0 release
+* ETA: +15-20 hours = 150-190 hours total
 
 ### 15.3 Critical Path
 
-```
+```text
 Phase 0 → Phase 1 → Phase 2 → Phase 5 → Phase 6
 (Foundation → Basic LLM → Multi-Provider → Optimization → Docs)
+
 ```
 
 **Parallelizable:**
-- Phase 3 (CLI) and Phase 4 (Local) can run in parallel after Phase 2
-- Documentation can start during Phase 5
+
+* Phase 3 (CLI) and Phase 4 (Local) can run in parallel after Phase 2
+* Documentation can start during Phase 5
 
 ---
 
@@ -2394,41 +2480,45 @@ Phase 0 → Phase 1 → Phase 2 → Phase 5 → Phase 6
 ### 16.1 Test Corpus
 
 **Create Test Set (100 comments):**
-- 40x ```suggestion blocks (baseline, regex already works)
-- 30x diff blocks (`@@ -1,3 +1,3 @@` format)
-- 20x natural language ("change X to Y on line N")
-- 10x multi-option suggestions
 
-**Hand-Label Ground Truth:**
+* 40x ```suggestion blocks (baseline, regex already works)
+* 30x diff blocks (`@@ -1,3 +1,3 @@` format)
+* 20x natural language ("change X to Y on line N")
+* 10x multi-option suggestions
+
+### Hand-Label Ground Truth
+
 For each comment, manually extract:
-- file_path
-- start_line, end_line
-- new_content
-- change_type
+
+* file_path
+* start_line, end_line
+* new_content
+* change_type
 
 **Evaluation Metrics:**
-- **Precision:** % of extracted changes that are correct
-- **Recall:** % of actual changes that were extracted
-- **F1 Score:** Harmonic mean of precision and recall
-- **Confidence Calibration:** Correlation between LLM confidence and actual accuracy
+
+* **Precision:** % of extracted changes that are correct
+* **Recall:** % of actual changes that were extracted
+* **F1 Score:** Harmonic mean of precision and recall
+* **Confidence Calibration:** Correlation between LLM confidence and actual accuracy
 
 ### 16.2 Glossary
 
-- **Change:** A single suggested modification (line range + new content)
-- **Conflict:** Two or more changes that overlap in line ranges
-- **LLM Provider:** Service providing language model API (Claude, GPT, Ollama)
-- **Parsing Method:** Technique to extract changes (regex or LLM)
-- **Confidence Score:** LLM's self-assessed probability (0.0-1.0) that extraction is correct
-- **Fallback:** Automatic reversion to regex parsing if LLM fails
-- **Feature Flag:** Configuration toggle to enable/disable LLM parsing
-- **Provider Factory:** Design pattern to select and instantiate LLM provider based on config
+* **Change:** A single suggested modification (line range + new content)
+* **Conflict:** Two or more changes that overlap in line ranges
+* **LLM Provider:** Service providing language model API (Claude, GPT, Ollama)
+* **Parsing Method:** Technique to extract changes (regex or LLM)
+* **Confidence Score:** LLM's self-assessed probability (0.0-1.0) that extraction is correct
+* **Fallback:** Automatic reversion to regex parsing if LLM fails
+* **Feature Flag:** Configuration toggle to enable/disable LLM parsing
+* **Provider Factory:** Design pattern to select and instantiate LLM provider based on config
 
 ### 16.3 Related Documents
 
-- [LLM Architecture Specification](./LLM_ARCHITECTURE.md) - Detailed technical architecture
-- [Migration Guide](./MIGRATION_GUIDE.md) - v1.x → v2.0 migration path
-- [Main Roadmap](./ROADMAP.md) - Overall project roadmap
-- [Security Architecture](../security-architecture.md) - Security foundation (Phase 0)
+* [LLM Architecture Specification](./LLM_ARCHITECTURE.md) - Detailed technical architecture
+* [Migration Guide](./MIGRATION_GUIDE.md) - v1.x → v2.0 migration path
+* [Main Roadmap](./ROADMAP.md) - Overall project roadmap
+* [Security Architecture](../security-architecture.md) - Security foundation (Phase 0)
 
 ---
 

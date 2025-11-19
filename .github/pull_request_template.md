@@ -8,22 +8,22 @@
 
 Please check the relevant option(s):
 
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
-- [ ] Dependency update
-- [ ] CI/CD or workflow improvement
-- [ ] Refactoring (no functional changes)
-- [ ] Performance improvement
+* [ ] Bug fix (non-breaking change which fixes an issue)
+* [ ] New feature (non-breaking change which adds functionality)
+* [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+* [ ] Documentation update
+* [ ] Dependency update
+* [ ] CI/CD or workflow improvement
+* [ ] Refactoring (no functional changes)
+* [ ] Performance improvement
 
 ## Changes Made
 
 <!-- List the specific changes made in this PR -->
 
--
--
--
+*
+*
+*
 
 ## Related Issues
 
@@ -35,11 +35,11 @@ Closes #
 
 Please verify the following have been tested:
 
-- [ ] All existing tests pass
-- [ ] New tests added for new functionality (if applicable)
-- [ ] Manual testing performed (describe below if applicable)
-- [ ] No regressions in existing functionality
-- [ ] Code coverage maintained or improved
+* [ ] All existing tests pass
+* [ ] New tests added for new functionality (if applicable)
+* [ ] Manual testing performed (describe below if applicable)
+* [ ] No regressions in existing functionality
+* [ ] Code coverage maintained or improved
 
 ### Manual Testing Performed
 
@@ -54,21 +54,21 @@ Please verify the following have been tested:
 
 ### Updated Dependencies
 
-| Dependency | Old Version | New Version | Breaking Changes? |
-|------------|-------------|-------------|-------------------|
-| | | | [ ] Yes / [ ] No |
+| Dependency | Old Version | New Version | Breaking Changes?    |
+| ---------- | ----------- | ----------- | -------------------- |
+|            |             |             | [ ] Yes / [ ] No     |
 
 ### Release Notes Review
 
-- [ ] Reviewed release notes for all updated dependencies
-- [ ] Verified no breaking changes affect this project
-- [ ] Security advisories reviewed (if any)
+* [ ] Reviewed release notes for all updated dependencies
+* [ ] Verified no breaking changes affect this project
+* [ ] Security advisories reviewed (if any)
 
 ### Security Considerations
 
-- [ ] SHA pinning maintained for GitHub Actions (if applicable)
-- [ ] No known vulnerabilities in new versions
-- [ ] Dependencies sourced from trusted repositories
+* [ ] SHA pinning maintained for GitHub Actions (if applicable)
+* [ ] No known vulnerabilities in new versions
+* [ ] Dependencies sourced from trusted repositories
 
 </details>
 
@@ -82,10 +82,10 @@ Please verify the following have been tested:
 
 ## Checklist
 
-- [ ] My code follows the project's style guidelines
-- [ ] I have performed a self-review of my code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation
-- [ ] My changes generate no new warnings or errors
-- [ ] Pre-commit hooks pass locally
-- [ ] CI/CD workflows pass
+* [ ] My code follows the project's style guidelines
+* [ ] I have performed a self-review of my code
+* [ ] I have commented my code, particularly in hard-to-understand areas
+* [ ] I have made corresponding changes to the documentation
+* [ ] My changes generate no new warnings or errors
+* [ ] Pre-commit hooks pass locally
+* [ ] CI/CD workflows pass

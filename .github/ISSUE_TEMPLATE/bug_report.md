@@ -27,16 +27,17 @@ A clear and concise description of what actually happened.
 
 ## Environment
 
-- **OS**: [e.g. Ubuntu 22.04, Windows 11, macOS 13.0]
-- **Python Version**: [e.g. 3.12.0]
-- **Package Version**: [e.g. 0.1.0]
-- **GitHub Repository**: [e.g. owner/repo]
-- **PR Number**: [if applicable]
+* **OS**: [e.g. Ubuntu 22.04, Windows 11, macOS 13.0]
+* **Python Version**: [e.g. 3.12.0]
+* **Package Version**: [e.g. 0.1.0]
+* **GitHub Repository**: [e.g. owner/repo]
+* **PR Number**: [if applicable]
 
 ## Error Messages
 
-```
+```text
 Paste any error messages here
+
 ```
 
 ## Additional Context
@@ -49,7 +50,7 @@ If applicable, add screenshots to help explain your problem.
 
 ## Checklist
 
-- [ ] I have searched for existing issues
-- [ ] I have provided all required information
-- [ ] I have tested with the latest version
-- [ ] I have included error messages/logs
+* [ ] I have searched for existing issues
+* [ ] I have provided all required information
+* [ ] I have tested with the latest version
+* [ ] I have included error messages/logs

@@ -3,10 +3,12 @@
 **Document Version**: 1.0
 **Last Updated**: 2025-11-06
 **Status**: Draft
-**Related Documents**:
-- [LLM Refactor Roadmap](./LLM_REFACTOR_ROADMAP.md)
-- [Main Roadmap](./ROADMAP.md)
-- [Migration Guide](./MIGRATION_GUIDE.md)
+
+## Related Documents
+
+* [LLM Refactor Roadmap](./LLM_REFACTOR_ROADMAP.md)
+* [Main Roadmap](./ROADMAP.md)
+* [Migration Guide](./MIGRATION_GUIDE.md)
 
 ---
 
@@ -36,10 +38,10 @@
 
 The LLM-First Architecture transforms the Review Bot Automator from a regex-based suggestion parser to an intelligent, multi-format parsing system powered by Large Language Models. This architecture enables:
 
-- **Universal Format Support**: Parse all CodeRabbit comment formats (diff blocks, natural language, suggestions, multi-options)
-- **Provider Flexibility**: Support multiple LLM providers (APIs, CLIs, local models) with user-driven selection
-- **Graceful Degradation**: Automatic fallback from LLM → regex if parsing fails
-- **Zero Breaking Changes**: Backward compatible with v1.x through feature flags and default values
+* **Universal Format Support**: Parse all CodeRabbit comment formats (diff blocks, natural language, suggestions, multi-options)
+* **Provider Flexibility**: Support multiple LLM providers (APIs, CLIs, local models) with user-driven selection
+* **Graceful Degradation**: Automatic fallback from LLM → regex if parsing fails
+* **Zero Breaking Changes**: Backward compatible with v1.x through feature flags and default values
 
 ### 1.2 Key Architectural Principles
 
@@ -53,7 +55,7 @@ The LLM-First Architecture transforms the Review Bot Automator from a regex-base
 ### 1.3 Architecture Goals
 
 | Goal | Success Criteria |
-|------|-----------------|
+| ------ | ----------------- |
 | **Format Coverage** | Parse 95%+ of CodeRabbit comments (up from 20%) |
 | **Provider Support** | 5+ providers (OpenAI API, Anthropic API, Claude CLI, Codex CLI, Ollama) |
 | **Backward Compatibility** | 100% of v1.x code works without changes |
@@ -67,7 +69,7 @@ The LLM-First Architecture transforms the Review Bot Automator from a regex-base
 
 ### 2.1 High-Level Architecture Diagram
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                          GitHub PR Comments (Input)                         │
 │         (Diff blocks, Suggestions, Natural Language, Multi-Options)        │
@@ -130,11 +132,12 @@ The LLM-First Architecture transforms the Review Bot Automator from a regex-base
 │                   • Rollback on failure                                     │
 │                   • Generate reports                                        │
 └─────────────────────────────────────────────────────────────────────────────┘
+
 ```
 
 ### 2.2 Layer Architecture
 
-```
+```text
 ┌────────────────────────────────────────────────────────────────┐
 │                    Layer 1: API/CLI Interface                  │
 │  • pr-resolve CLI commands                                     │
@@ -173,14 +176,16 @@ The LLM-First Architecture transforms the Review Bot Automator from a regex-base
 │  • Git operations (rollback)                                   │
 │  • Logging and metrics                                         │
 └────────────────────────────────────────────────────────────────┘
+
 ```
 
-**Layer Dependencies**:
-- Layer 1 → Layer 2 (CLI calls orchestration)
-- Layer 2 → Layer 3 (Orchestration calls parsing)
-- Layer 3 → Layer 4 (Parsing produces Change models for conflict detection)
-- Layer 4 → Layer 5 (Core logic uses infrastructure services)
-- **NEW**: Layer 3 is the primary addition; Layers 4-5 remain mostly unchanged
+#### Layer Dependencies
+
+* Layer 1 → Layer 2 (CLI calls orchestration)
+* Layer 2 → Layer 3 (Orchestration calls parsing)
+* Layer 3 → Layer 4 (Parsing produces Change models for conflict detection)
+* Layer 4 → Layer 5 (Core logic uses infrastructure services)
+* **NEW**: Layer 3 is the primary addition; Layers 4-5 remain mostly unchanged
 
 ---
 
@@ -188,7 +193,7 @@ The LLM-First Architecture transforms the Review Bot Automator from a regex-base
 
 ### 3.1 Current Module Hierarchy (v1.x)
 
-```
+```text
 src/pr_conflict_resolver/
 ├── __init__.py
 ├── cli/
@@ -216,11 +221,12 @@ src/pr_conflict_resolver/
     ├── __init__.py
     ├── logging.py
     └── metrics.py
+
 ```
 
 ### 3.2 New Module Hierarchy (v2.0)
 
-```
+```text
 src/pr_conflict_resolver/
 ├── __init__.py
 ├── cli/
@@ -269,18 +275,21 @@ src/pr_conflict_resolver/
     ├── __init__.py
     ├── logging.py                 # ✅ NO CHANGE
     └── metrics.py                 # ✏️ MODIFIED: Add LLM metrics
+
 ```
 
-**Legend**:
-- ✅ **NO CHANGE**: Module remains unchanged
-- ✏️ **MODIFIED**: Module receives minor additions (backward compatible)
-- 🆕 **NEW**: New module added
+#### Legend
 
-**Change Summary**:
-- **7 existing files** remain unchanged (44% of codebase)
-- **6 existing files** receive minor modifications (37% of codebase)
-- **12 new files** added in `llm/` module (new 19% of codebase)
-- **Total**: 44% unchanged, 37% modified, 19% new
+* ✅ **NO CHANGE**: Module remains unchanged
+* ✏️ **MODIFIED**: Module receives minor additions (backward compatible)
+* 🆕 **NEW**: New module added
+
+#### Change Summary
+
+* **7 existing files** remain unchanged (44% of codebase)
+* **6 existing files** receive minor modifications (37% of codebase)
+* **12 new files** added in `llm/` module (new 19% of codebase)
+* **Total**: 44% unchanged, 37% modified, 19% new
 
 ---
 
@@ -322,6 +331,7 @@ graph TD
     Q -->|List of Changes| R[Conflict Detection]
     R -->|Conflicts| S[Resolution Strategies]
     S -->|Patches| T[Application Engine]
+
 ```
 
 ### 4.2 Step-by-Step Data Transformation
@@ -331,15 +341,18 @@ graph TD
 ```python
 # Raw GitHub comment text
 comment_text = """
-**Suggestion: Improve error handling**
+#### Suggestion: Improve error handling
 
 ```diff
-- raise Exception("Error")
+
+* raise Exception("Error")
 + raise ValueError("Invalid input: {input}")
-```
+
+```text
 
 This change improves error specificity.
 """
+
 ```
 
 #### Step 2: LLM Provider Selection
@@ -357,6 +370,7 @@ config = {
 # Factory creates appropriate provider
 parser = LLMParserFactory.create_parser(config)
 # Returns: ClaudeCodeCLIProvider instance
+
 ```
 
 #### Step 3: Prompt Construction
@@ -387,10 +401,13 @@ GitHub comment body (markdown, may contain diff blocks, natural language, or sug
 
 ## Example 1: Diff Block
 Comment:
+
 ```diff
-- old_function()
+
+* old_function()
 + new_function()
-```
+
+```text
 
 Output:
 {"changes": [{"file_path": null, "start_line": 1, "end_line": 1, ...}]}
@@ -400,6 +417,7 @@ Parse this comment:
 
 {comment_text}
 """
+
 ```
 
 #### Step 4: LLM Inference
@@ -415,6 +433,7 @@ response = subprocess.run(
 
 # Response (JSON string)
 llm_output = response.stdout
+
 ```
 
 #### Step 5: Structured Output Parsing
@@ -438,6 +457,7 @@ parsed.changes = [
         risk_level="low"
     )
 ]
+
 ```
 
 #### Step 6: Conversion to Internal Models
@@ -469,6 +489,7 @@ for parsed_change in parsed.changes:
         risk_level=parsed_change.risk_level
     )
     changes.append(change)
+
 ```
 
 #### Step 7: Conflict Detection (Unchanged)
@@ -477,6 +498,7 @@ for parsed_change in parsed.changes:
 # Existing conflict detection logic works with new Change models
 conflicts = detector.detect_conflicts(changes)
 # Returns: List[Conflict] (existing data structure)
+
 ```
 
 ---
@@ -504,7 +526,6 @@ class ParsedChange:
     rationale: str
     risk_level: str = "low"  # "low", "medium", "high"
 
-
 @dataclass(frozen=True, slots=True)
 class LLMParseResponse:
     """Full response from LLM parser."""
@@ -514,7 +535,6 @@ class LLMParseResponse:
     model_name: str  # "gpt-5-mini", "claude-sonnet-4-5", etc.
     total_tokens: int | None = None
     cost_usd: float | None = None
-
 
 class LLMParser(ABC):
     """Abstract interface for LLM-based comment parsing."""
@@ -563,6 +583,7 @@ class LLMParser(ABC):
     def supports_streaming(self) -> bool:
         """Whether provider supports streaming responses."""
         ...
+
 ```
 
 ### 5.2 Provider Implementations
@@ -654,6 +675,7 @@ class OpenAIAPIProvider(LLMParser):
         input_cost = (usage.prompt_tokens / 1_000_000) * 0.10
         output_cost = (usage.completion_tokens / 1_000_000) * 0.40
         return input_cost + output_cost
+
 ```
 
 #### 5.2.2 Claude Code CLI Provider
@@ -739,6 +761,7 @@ class ClaudeCodeCLIProvider(LLMParser):
     @property
     def supports_streaming(self) -> bool:
         return True  # CLI supports --stream flag
+
 ```
 
 #### 5.2.3 Ollama Local Provider
@@ -821,6 +844,7 @@ class OllamaProvider(LLMParser):
     @property
     def supports_streaming(self) -> bool:
         return True
+
 ```
 
 ### 5.3 Provider Factory
@@ -838,7 +862,6 @@ from llm.providers.ollama import OllamaProvider
 
 if TYPE_CHECKING:
     from config.settings import LLMConfig
-
 
 class LLMParserFactory:
     """Factory for creating LLM parser instances."""
@@ -934,6 +957,7 @@ class LLMParserFactory:
                 return False, "Ollama is not running (check http://localhost:11434)"
 
         return True, ""
+
 ```
 
 ---
@@ -955,7 +979,6 @@ class ChangeMetadata:
     author: str
     source: str  # "suggestion", "llm", "diff", "natural_language"
     option_label: str | None = None
-
 
 @dataclass(frozen=True, slots=True)
 class Change:
@@ -979,9 +1002,11 @@ class Change:
     parsing_method: str = "regex"  # "llm" or "regex"
     change_rationale: str | None = None  # Why change was suggested (LLM)
     risk_level: str | None = None  # "low", "medium", "high" (LLM)
+
 ```
 
-**Backward Compatibility Check**:
+#### Backward Compatibility Check
+
 ```python
 # v1.x code (still works without changes)
 change = Change(
@@ -995,6 +1020,7 @@ change = Change(
     # NEW fields automatically get default values:
     # llm_confidence=None, llm_provider=None, parsing_method="regex", ...
 )
+
 ```
 
 ### 6.2 LLM Configuration Model
@@ -1049,6 +1075,7 @@ class LLMConfig:
             fallback_to_regex=os.getenv("CR_LLM_FALLBACK", "true").lower() == "true",
             max_cost_per_run=float(os.getenv("CR_LLM_MAX_COST", "0")) or None
         )
+
 ```
 
 ### 6.3 Provider Preset Configurations
@@ -1101,6 +1128,7 @@ class LLMPresetConfig:
         enable_caching=True,
         max_cost_per_run=10.0
     )
+
 ```
 
 ---
@@ -1118,7 +1146,6 @@ from llm.base import LLMParser
 
 if TYPE_CHECKING:
     from config.settings import LLMConfig
-
 
 class ConflictResolver:
     """Main orchestration class for conflict resolution."""
@@ -1212,6 +1239,7 @@ class ConflictResolver:
         """EXISTING: Extract changes using regex (v1.x logic - unchanged)."""
         # Existing implementation remains unchanged
         ...
+
 ```
 
 ### 7.2 CLI Integration
@@ -1226,7 +1254,6 @@ from config.settings import LLMConfig, LLMPresetConfig
 def cli():
     """Review Bot Automator CLI."""
     pass
-
 
 @cli.command()
 @click.option("--owner", required=True, help="GitHub repository owner")
@@ -1285,6 +1312,7 @@ def apply(
 
     # Display results (including LLM metrics)
     display_results(results, llm_config)
+
 ```
 
 ---
@@ -1294,7 +1322,7 @@ def apply(
 ### 8.1 Feature Comparison
 
 | Feature | OpenAI API | Anthropic API | Claude CLI | Codex CLI | Ollama |
-|---------|-----------|---------------|------------|-----------|--------|
+| --------- | ----------- | --------------- | ------------ | ----------- | -------- |
 | **Cost Model** | Pay-per-token | Pay-per-token | Subscription | Subscription | Free (local) |
 | **Subscription** | N/A | N/A | claude.ai | chatgpt.com | N/A |
 | **Internet Required** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ❌ No |
@@ -1308,28 +1336,30 @@ def apply(
 ### 8.2 Performance Comparison
 
 | Provider | Avg Latency | Throughput | Reliability | Quality Score |
-|----------|------------|------------|-------------|---------------|
+| ---------- | ------------ | ------------ | ------------- | --------------- |
 | **OpenAI API (gpt-5-mini)** | 1.2s | High | 99.5% | 9/10 |
 | **Anthropic API (claude-sonnet-4-5)** | 1.5s | High | 99.8% | 10/10 |
 | **Claude CLI** | 2.0s | Medium | 98% | 10/10 |
 | **Codex CLI** | 1.8s | Medium | 98% | 9/10 |
 | **Ollama (llama3.1)** | 5-15s (GPU) | Low | 95% | 7/10 |
 
-**Quality Score Criteria**:
-- Accuracy of parsing (diff blocks, natural language)
-- Structured output compliance
-- Confidence calibration
-- Context understanding
+#### Quality Score Criteria
+
+* Accuracy of parsing (diff blocks, natural language)
+* Structured output compliance
+* Confidence calibration
+* Context understanding
 
 ### 8.3 Cost Comparison (Per 1000 Comments)
 
-**Assumptions**:
-- Average comment size: 500 tokens input
-- Average response size: 200 tokens output
-- Caching enabled where supported (50% cache hit rate)
+#### Assumptions
+
+* Average comment size: 500 tokens input
+* Average response size: 200 tokens output
+* Caching enabled where supported (50% cache hit rate)
 
 | Provider | Model | Input Cost | Output Cost | **Total Cost (No Cache)** | **Total Cost (With Cache)** |
-|----------|-------|-----------|-------------|--------------------------|----------------------------|
+| ---------- | ------- | ----------- | ------------- | -------------------------- | ---------------------------- |
 | **OpenAI API** | gpt-5-mini | $0.10/1M | $0.40/1M | **$0.13** | **$0.07** |
 | **OpenAI API** | gpt-5 | $2.50/1M | $10.00/1M | **$3.25** | **$1.88** |
 | **Anthropic API** | claude-haiku-4-5 | $0.25/1M | $1.25/1M | **$0.38** | **$0.22** |
@@ -1338,12 +1368,13 @@ def apply(
 | **Codex CLI** | gpt-5-mini | Subscription ($20/mo) | Subscription | **$0** (covered) | **$0** (covered) |
 | **Ollama** | llama3.1 | Free (local) | Free (local) | **$0** | **$0** |
 
-**Recommendation by Use Case**:
-- **High volume (>10K comments/month)**: Codex CLI or Claude CLI (subscription covers unlimited usage)
-- **Medium volume (1K-10K/month)**: OpenAI API (gpt-5-mini) with caching (~$0.70-$7)
-- **Low volume (<1K/month)**: Any provider (cost negligible)
-- **Privacy-critical**: Ollama (local inference, no data leaves machine)
-- **Best quality**: Anthropic API (claude-sonnet-4-5) or Claude CLI
+#### Recommendation by Use Case
+
+* **High volume (>10K comments/month)**: Codex CLI or Claude CLI (subscription covers unlimited usage)
+* **Medium volume (1K-10K/month)**: OpenAI API (gpt-5-mini) with caching (~$0.70-$7)
+* **Low volume (<1K/month)**: Any provider (cost negligible)
+* **Privacy-critical**: Ollama (local inference, no data leaves machine)
+* **Best quality**: Anthropic API (claude-sonnet-4-5) or Claude CLI
 
 ---
 
@@ -1351,7 +1382,7 @@ def apply(
 
 ### 9.1 Configuration Precedence Chain
 
-```
+```text
 CLI Flags (highest priority)
     ↓
 Environment Variables
@@ -1361,6 +1392,7 @@ Configuration File (.env, config.yaml)
 Preset Configurations
     ↓
 Default Values (lowest priority)
+
 ```
 
 ### 9.2 Environment Variable Schema
@@ -1408,6 +1440,7 @@ GITHUB_PERSONAL_ACCESS_TOKEN=ghp_...
 CR_MODE=all
 CR_ENABLE_ROLLBACK=true
 # ... (rest unchanged)
+
 ```
 
 ### 9.3 YAML Configuration File
@@ -1455,6 +1488,7 @@ mode: all
 enable_rollback: true
 validate: true
 # ... (rest unchanged)
+
 ```
 
 ### 9.4 Configuration Loading Logic
@@ -1530,6 +1564,7 @@ class Config:
         # ... (other environment variables)
 
         return replace(config, llm=llm_config)
+
 ```
 
 ---
@@ -1543,6 +1578,7 @@ class Config:
 ### 10.2 Compatibility Mechanisms
 
 #### 1. Feature Flag Pattern
+
 ```python
 # Default: LLM disabled (v1.x behavior)
 llm_config = LLMConfig(enabled=False)
@@ -1551,9 +1587,11 @@ llm_config = LLMConfig(enabled=False)
 if not llm_config.enabled:
     # Execute original regex parsing
     changes = self._extract_changes_with_regex(comment)
+
 ```
 
 #### 2. Optional Fields with Defaults
+
 ```python
 # All new fields have default values
 @dataclass
@@ -1566,15 +1604,18 @@ class Change:
     # New fields (optional with defaults)
     llm_confidence: float | None = None
     parsing_method: str = "regex"  # Default = v1.x behavior
+
 ```
 
 #### 3. Graceful Fallback
+
 ```python
 # If LLM fails, automatically fall back to regex
 try:
     changes = self._extract_changes_with_llm(comment)
 except Exception:
     changes = self._extract_changes_with_regex(comment)
+
 ```
 
 ### 10.3 Compatibility Test Suite
@@ -1596,7 +1637,6 @@ def test_v1_api_unchanged():
     # Should not use LLM by default
     assert all(c.parsing_method == "regex" for c in results.changes)
 
-
 def test_v1_cli_unchanged():
     """Ensure v1.x CLI commands still work."""
     # v1.x CLI command (no --llm flag)
@@ -1612,7 +1652,6 @@ def test_v1_cli_unchanged():
     # Should not mention LLM in output
     assert "llm" not in result.stdout.decode().lower()
 
-
 def test_v1_config_files():
     """Ensure v1.x config files still work."""
     # Load v1.x config file (no LLM section)
@@ -1620,6 +1659,7 @@ def test_v1_config_files():
 
     assert config.llm.enabled is False  # LLM disabled by default
     assert config.mode == "all"  # Existing config works
+
 ```
 
 ---
@@ -1628,7 +1668,7 @@ def test_v1_config_files():
 
 ### 11.1 Fallback Chain
 
-```
+```text
 LLM Parsing Attempt
     ↓
 [FAIL: API Error / Timeout / Invalid JSON]
@@ -1638,6 +1678,7 @@ Regex Parsing (Fallback)
 [FAIL: No Suggestion Blocks Found]
     ↓
 Empty Change List (Graceful Degradation)
+
 ```
 
 ### 11.2 Error Scenarios and Handling
@@ -1649,21 +1690,17 @@ class LLMParseError(Exception):
     """Base exception for LLM parsing errors."""
     pass
 
-
 class LLMProviderError(LLMParseError):
     """Provider-specific error (API failure, CLI not found, etc.)."""
     pass
-
 
 class LLMTimeoutError(LLMParseError):
     """Timeout during LLM inference."""
     pass
 
-
 class LLMInvalidResponseError(LLMParseError):
     """LLM returned invalid/unparseable JSON."""
     pass
-
 
 # Error handling in resolver
 def _extract_changes_with_llm(self, comment: dict) -> list[Change]:
@@ -1694,6 +1731,7 @@ def _extract_changes_with_llm(self, comment: dict) -> list[Change]:
         logger.exception(f"Unexpected LLM error: {e}")
         # Always fall back on unexpected errors
         return self._extract_changes_with_regex(comment)
+
 ```
 
 ### 11.3 Retry Logic with Exponential Backoff
@@ -1731,6 +1769,7 @@ class OpenAIAPIProvider(LLMParser):
                 raise  # Retry will trigger
             else:  # Client error (don't retry)
                 raise LLMProviderError(f"API error: {e}") from e
+
 ```
 
 ---
@@ -1753,16 +1792,15 @@ class LLMConfig:
         )
         return f"LLMConfig(provider={self.provider}, api_key={redacted_key}, ...)"
 
-
 # 2. Code Content Sanitization
 def sanitize_comment_for_llm(comment_body: str) -> str:
     """
     Sanitize comment before sending to LLM.
 
     Removes:
-    - API keys, tokens, secrets (regex-based detection)
-    - PII (email addresses, phone numbers)
-    - Internal URLs, IP addresses
+    * API keys, tokens, secrets (regex-based detection)
+    * PII (email addresses, phone numbers)
+    * Internal URLs, IP addresses
     """
     import re
 
@@ -1780,16 +1818,15 @@ def sanitize_comment_for_llm(comment_body: str) -> str:
 
     return sanitized
 
-
 # 3. Response Validation (prevent injection attacks)
 def validate_llm_response(response_json: str) -> bool:
     """
     Validate LLM response before parsing.
 
     Checks:
-    - JSON structure validity
-    - No executable code injection
-    - Field type compliance
+    * JSON structure validity
+    * No executable code injection
+    * Field type compliance
     """
     import json
 
@@ -1814,28 +1851,33 @@ def validate_llm_response(response_json: str) -> bool:
                 return False
 
     return True
+
 ```
 
 ### 12.2 Privacy Considerations
 
-**Data Sent to External Providers**:
-- GitHub comment text (public PR comments)
-- File paths (public repository paths)
-- PR metadata (PR number, repository name)
+#### Data Sent to External Providers
 
-**Data NOT Sent**:
-- Full repository contents
-- Private repository data (unless explicitly enabled)
-- User credentials
-- Internal system paths
+* GitHub comment text (public PR comments)
+* File paths (public repository paths)
+* PR metadata (PR number, repository name)
 
-**Privacy Modes**:
+#### Data NOT Sent
+
+* Full repository contents
+* Private repository data (unless explicitly enabled)
+* User credentials
+* Internal system paths
+
+#### Privacy Modes
+
 ```python
 class LLMConfig:
     # Privacy controls
     allow_public_repos_only: bool = True  # Reject private repo PRs
     redact_file_paths: bool = False  # Redact full paths to relative paths
     redact_code_content: bool = False  # Redact code, send only metadata
+
 ```
 
 ---
@@ -1890,12 +1932,14 @@ class PromptCache:
         """Compute cache key from inputs."""
         content = f"{provider}:{model}:{comment_body}"
         return hashlib.sha256(content.encode()).hexdigest()[:16]
+
 ```
 
-**Cache Hit Rate Impact**:
-- 0% hit rate: Full cost, full latency
-- 50% hit rate: 50% cost reduction, 50% latency reduction
-- 90% hit rate: 90% cost reduction, 90% latency reduction
+#### Cache Hit Rate Impact
+
+* 0% hit rate: Full cost, full latency
+* 50% hit rate: 50% cost reduction, 50% latency reduction
+* 90% hit rate: 90% cost reduction, 90% latency reduction
 
 ### 13.2 Parallel Processing
 
@@ -1935,11 +1979,13 @@ def _extract_changes_from_comments(
                 logger.error(f"Failed to parse comment {comment['id']}: {e}")
 
     return changes
+
 ```
 
-**Performance Gains**:
-- Sequential: 50 comments × 2s = 100s
-- Parallel (4 workers): 50 comments / 4 × 2s = 25s (4x faster)
+#### Performance Gains
+
+* Sequential: 50 comments × 2s = 100s
+* Parallel (4 workers): 50 comments / 4 × 2s = 25s (4x faster)
 
 ### 13.3 Token Usage Optimization
 
@@ -1968,12 +2014,14 @@ Comment:
     else:
         # Full prompt with detailed examples
         return construct_full_prompt(comment_body, file_path, context)
+
 ```
 
-**Token Savings**:
-- Full prompt: ~800 tokens
-- Compact prompt: ~200 tokens
-- Savings: 75% input token reduction
+#### Token Savings
+
+* Full prompt: ~800 tokens
+* Compact prompt: ~200 tokens
+* Savings: 75% input token reduction
 
 ---
 
@@ -2006,13 +2054,13 @@ def test_openai_provider_successful_parse():
         assert result.provider_name == "openai-api"
         assert result.total_tokens == 500
 
-
 def test_provider_validation():
     """Test provider validation logic."""
     provider = OpenAIAPIProvider(api_key="invalid-key")
 
     # Should fail validation
     assert provider.validate_provider() is False
+
 ```
 
 ### 14.2 Integration Tests (Real API Calls)
@@ -2038,12 +2086,14 @@ def test_real_openai_parsing():
 
     # Real CodeRabbit comment
     comment = """
-**Suggestion: Improve error handling**
+#### Suggestion: Improve error handling
 
 ```diff
-- raise Exception("Error")
+
+* raise Exception("Error")
 + raise ValueError("Invalid input")
-```
+
+```text
 """
 
     result = provider.parse_comment(comment)
@@ -2051,6 +2101,7 @@ def test_real_openai_parsing():
     assert len(result.changes) > 0
     assert result.changes[0].change_type == "modification"
     assert result.total_tokens > 0
+
 ```
 
 ### 14.3 Regression Tests (v1.x Compatibility)
@@ -2063,9 +2114,12 @@ def test_regex_parser_unchanged():
 
     comment = {
         "body": """
+
 ```suggestion
+
 new code here
-```
+
+```text
 """,
         "html_url": "https://github.com/...",
         "user": {"login": "coderabbitai[bot]"}
@@ -2080,6 +2134,7 @@ new code here
     assert len(changes) == 1
     assert changes[0].parsing_method == "regex"
     assert changes[0].content == "new code here"
+
 ```
 
 ### 14.4 Performance Tests
@@ -2102,7 +2157,6 @@ def test_parsing_latency():
 
     # SLA: <2s for simple comments
     assert latency < 2.0
-
 
 def test_cache_effectiveness():
     """Test prompt cache reduces latency."""
@@ -2127,6 +2181,7 @@ def test_cache_effectiveness():
 
     # Cache hit should be >10x faster
     assert latency_hit < latency_miss / 10
+
 ```
 
 ---
@@ -2135,33 +2190,36 @@ def test_cache_effectiveness():
 
 ### 15.1 Production Readiness Checklist
 
-- [ ] **Provider Validation**: All providers validate before use
-- [ ] **Error Handling**: Graceful degradation on all failure modes
-- [ ] **Cost Monitoring**: Track and alert on cost thresholds
-- [ ] **Rate Limiting**: Respect provider rate limits
-- [ ] **Logging**: Comprehensive logging for debugging
-- [ ] **Metrics**: Track success rate, latency, cost per provider
-- [ ] **Secret Management**: API keys from environment/secrets manager
-- [ ] **Backward Compatibility**: All v1.x tests pass
-- [ ] **Documentation**: Updated user guides and API docs
-- [ ] **Migration Path**: Clear v1.x → v2.0 migration guide
+* [ ] **Provider Validation**: All providers validate before use
+* [ ] **Error Handling**: Graceful degradation on all failure modes
+* [ ] **Cost Monitoring**: Track and alert on cost thresholds
+* [ ] **Rate Limiting**: Respect provider rate limits
+* [ ] **Logging**: Comprehensive logging for debugging
+* [ ] **Metrics**: Track success rate, latency, cost per provider
+* [ ] **Secret Management**: API keys from environment/secrets manager
+* [ ] **Backward Compatibility**: All v1.x tests pass
+* [ ] **Documentation**: Updated user guides and API docs
+* [ ] **Migration Path**: Clear v1.x → v2.0 migration guide
 
 ### 15.2 Rollout Strategy
 
-**Phase 1: Opt-In Beta (Week 1-2)**
-- LLM parsing disabled by default
-- Enable via `--llm` flag
-- Monitor error rates, cost, latency
+#### Phase 1: Opt-In Beta (Week 1-2)
 
-**Phase 2: Gradual Rollout (Week 3-4)**
-- Enable LLM for 10% of users (via config)
-- Increase to 50% if metrics healthy
-- Full rollout to 100% if success rate >99%
+* LLM parsing disabled by default
+* Enable via `--llm` flag
+* Monitor error rates, cost, latency
 
-**Phase 3: Default Enabled (Week 5+)**
-- LLM parsing enabled by default
-- Regex parser becomes fallback (not default)
-- Monitor for regressions
+#### Phase 2: Gradual Rollout (Week 3-4)
+
+* Enable LLM for 10% of users (via config)
+* Increase to 50% if metrics healthy
+* Full rollout to 100% if success rate >99%
+
+#### Phase 3: Default Enabled (Week 5+)
+
+* LLM parsing enabled by default
+* Regex parser becomes fallback (not default)
+* Monitor for regressions
 
 ### 15.3 Monitoring & Observability
 
@@ -2188,6 +2246,7 @@ class LLMMetrics:
     # Provider breakdown
     provider_usage: dict[str, int]  # Usage count per provider
     provider_errors: dict[str, int]  # Error count per provider
+
 ```
 
 ---
@@ -2246,30 +2305,34 @@ results = resolver.application_engine.apply(resolutions)
 print(f"Applied: {results.applied_count}")
 print(f"LLM Parsing: {sum(1 for c in changes if c.parsing_method == 'llm')}/{len(changes)}")
 print(f"Total Cost: ${results.total_cost:.2f}")
+
 ```
 
 ### B. Architecture Decision Records (ADRs)
 
-**ADR-001: LLM-First Architecture**
-- **Status**: Approved
-- **Decision**: Use LLM as primary parser, regex as fallback
-- **Rationale**: LLM can parse all formats; regex only handles 20%
-- **Alternatives Considered**: Hybrid regex+LLM (rejected: too complex)
+#### ADR-001: LLM-First Architecture
 
-**ADR-002: User-Driven Provider Selection**
-- **Status**: Approved
-- **Decision**: Users choose provider; no forced hierarchy
-- **Rationale**: Different users have different priorities (cost, privacy, performance)
-- **Alternatives Considered**: Automatic provider selection (rejected: too prescriptive)
+* **Status**: Approved
+* **Decision**: Use LLM as primary parser, regex as fallback
+* **Rationale**: LLM can parse all formats; regex only handles 20%
+* **Alternatives Considered**: Hybrid regex+LLM (rejected: too complex)
 
-**ADR-003: Feature Flag Pattern**
-- **Status**: Approved
-- **Decision**: LLM parsing disabled by default
-- **Rationale**: Backward compatibility; gradual rollout
-- **Alternatives Considered**: Always-on (rejected: breaking change)
+#### ADR-002: User-Driven Provider Selection
+
+* **Status**: Approved
+* **Decision**: Users choose provider; no forced hierarchy
+* **Rationale**: Different users have different priorities (cost, privacy, performance)
+* **Alternatives Considered**: Automatic provider selection (rejected: too prescriptive)
+
+#### ADR-003: Feature Flag Pattern
+
+* **Status**: Approved
+* **Decision**: LLM parsing disabled by default
+* **Rationale**: Backward compatibility; gradual rollout
+* **Alternatives Considered**: Always-on (rejected: breaking change)
 
 ---
 
-**Document End**
+#### Document End
 
 This architecture specification provides the technical blueprint for implementing the LLM-First Parsing system. For implementation details, see [LLM Refactor Roadmap](./LLM_REFACTOR_ROADMAP.md).

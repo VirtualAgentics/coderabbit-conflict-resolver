@@ -34,13 +34,13 @@ If you have ideas about how this could be implemented, please share them here.
 
 Would this feature require any breaking changes to the existing API?
 
-- [ ] No breaking changes
-- [ ] Minor breaking changes (backward compatible with deprecation)
-- [ ] Major breaking changes (incompatible with current API)
+* [ ] No breaking changes
+* [ ] Minor breaking changes (backward compatible with deprecation)
+* [ ] Major breaking changes (incompatible with current API)
 
 ## Checklist
 
-- [ ] I have searched for existing feature requests
-- [ ] I have provided a clear use case
-- [ ] I have considered alternative solutions
-- [ ] I have checked for breaking changes
+* [ ] I have searched for existing feature requests
+* [ ] I have provided a clear use case
+* [ ] I have considered alternative solutions
+* [ ] I have checked for breaking changes

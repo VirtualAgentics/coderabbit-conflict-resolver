@@ -19,9 +19,11 @@ from pr_conflict_resolver import ConflictResolver
 from pr_conflict_resolver.config import PresetConfig
 
 resolver = ConflictResolver(config=PresetConfig.CONSERVATIVE)
+
 ```
 
 **Configuration:**
+
 ```python
 {
     "mode": "conservative",
@@ -30,13 +32,15 @@ resolver = ConflictResolver(config=PresetConfig.CONSERVATIVE)
     "semantic_merging": False,
     "priority_system": False,
 }
+
 ```
 
 **Behavior:**
-- Skips all conflicting changes
-- Requires manual review for every conflict
-- Safe default for production systems
-- No automatic resolution
+
+* Skips all conflicting changes
+* Requires manual review for every conflict
+* Safe default for production systems
+* No automatic resolution
 
 ### Balanced Preset (Default)
 
@@ -44,9 +48,11 @@ resolver = ConflictResolver(config=PresetConfig.CONSERVATIVE)
 
 ```python
 resolver = ConflictResolver(config=PresetConfig.BALANCED)
+
 ```
 
 **Configuration:**
+
 ```python
 {
     "mode": "balanced",
@@ -62,14 +68,16 @@ resolver = ConflictResolver(config=PresetConfig.BALANCED)
         "formatting": 10,
     },
 }
+
 ```
 
 **Behavior:**
-- Automatically resolves conflicts using priority rules
-- Supports semantic merging for compatible changes
-- User selections override other suggestions
-- Security fixes have high priority
-- Best balance between automation and safety
+
+* Automatically resolves conflicts using priority rules
+* Supports semantic merging for compatible changes
+* User selections override other suggestions
+* Security fixes have high priority
+* Best balance between automation and safety
 
 ### Aggressive Preset
 
@@ -77,9 +85,11 @@ resolver = ConflictResolver(config=PresetConfig.BALANCED)
 
 ```python
 resolver = ConflictResolver(config=PresetConfig.AGGRESSIVE)
+
 ```
 
 **Configuration:**
+
 ```python
 {
     "mode": "aggressive",
@@ -90,13 +100,15 @@ resolver = ConflictResolver(config=PresetConfig.AGGRESSIVE)
     "max_automation": True,
     "user_selections_always_win": True,
 }
+
 ```
 
 **Behavior:**
-- Maximizes automation with minimal user intervention
-- User selections always override other changes
-- Applies as many changes as possible
-- Best for rapid development with trusted reviews
+
+* Maximizes automation with minimal user intervention
+* User selections always override other changes
+* Applies as many changes as possible
+* Best for rapid development with trusted reviews
 
 ### Semantic Preset
 
@@ -104,9 +116,11 @@ resolver = ConflictResolver(config=PresetConfig.AGGRESSIVE)
 
 ```python
 resolver = ConflictResolver(config=PresetConfig.SEMANTIC)
+
 ```
 
 **Configuration:**
+
 ```python
 {
     "mode": "semantic",
@@ -117,13 +131,15 @@ resolver = ConflictResolver(config=PresetConfig.SEMANTIC)
     "focus_on_structured_files": True,
     "structure_aware_merging": True,
 }
+
 ```
 
 **Behavior:**
-- Focuses on structured files (JSON, YAML, TOML)
-- Structure-aware merging for compatible changes
-- Key-level conflict detection and resolution
-- Best for configuration and package management files
+
+* Focuses on structured files (JSON, YAML, TOML)
+* Structure-aware merging for compatible changes
+* Key-level conflict detection and resolution
+* Best for configuration and package management files
 
 ## Custom Configuration
 
@@ -147,6 +163,7 @@ custom_config = {
 }
 
 resolver = ConflictResolver(config=custom_config)
+
 ```
 
 ### Advanced Custom Configuration
@@ -180,6 +197,7 @@ advanced_config = {
         "max_conflicts_per_file": 10,
     },
 }
+
 ```
 
 ## Configuration Parameters
@@ -187,7 +205,7 @@ advanced_config = {
 ### Core Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| ----------- | ------ | --------- | ------------- |
 | `mode` | str | "balanced" | Configuration mode identifier |
 | `skip_all_conflicts` | bool | False | Skip all conflicting changes |
 | `manual_review_required` | bool | False | Require manual review before applying |
@@ -199,7 +217,7 @@ advanced_config = {
 Priority rules determine the order in which conflicting changes are applied. Higher values take precedence.
 
 | Rule | Default | Description |
-|------|---------|-------------|
+| ------ | --------- | ------------- |
 | `user_selections` | 100 | User-identified options (highest priority) |
 | `security_fixes` | 90 | Security-related changes |
 | `syntax_errors` | 80 | Syntax fixes and corrections |
@@ -211,6 +229,7 @@ Priority rules determine the order in which conflicting changes are applied. Hig
 Handler-specific options control how different file types are processed.
 
 **JSON Handler:**
+
 ```python
 "handler_options": {
     "json": {
@@ -218,9 +237,11 @@ Handler-specific options control how different file types are processed.
         "merge_arrays": True,  # Merge arrays when compatible
     }
 }
+
 ```
 
 **YAML Handler:**
+
 ```python
 "handler_options": {
     "yaml": {
@@ -229,9 +250,11 @@ Handler-specific options control how different file types are processed.
         "multi_document": True,  # Support multi-document YAML
     }
 }
+
 ```
 
 **TOML Handler:**
+
 ```python
 "handler_options": {
     "toml": {
@@ -239,6 +262,7 @@ Handler-specific options control how different file types are processed.
         "merge_tables": True,  # Merge table sections
     }
 }
+
 ```
 
 ## Runtime Configuration
@@ -259,7 +283,7 @@ Configuration values are loaded in the following order (later sources override e
 The runtime configuration introduces four application modes that control which changes are applied:
 
 | Mode | Value | Description |
-|------|-------|-------------|
+| ------ | ------- | ------------- |
 | All | `all` | Apply both conflicting and non-conflicting changes (default) |
 | Conflicts Only | `conflicts-only` | Apply only changes that have conflicts (after resolution) |
 | Non-Conflicts Only | `non-conflicts-only` | Apply only non-conflicting changes |
@@ -270,6 +294,7 @@ The runtime configuration introduces four application modes that control which c
 Create a configuration file in YAML or TOML format:
 
 **YAML Example** (`config.yaml`):
+
 ```yaml
 # Application mode
 mode: all  # all, conflicts-only, non-conflicts-only, dry-run
@@ -290,9 +315,11 @@ parallel:
 logging:
   level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
   file:  # Optional log file path (leave empty for stdout only)
+
 ```
 
 **TOML Example** (`config.toml`):
+
 ```toml
 # Application mode
 mode = "conflicts-only"
@@ -313,6 +340,7 @@ max_workers = 8
 [logging]
 level = "DEBUG"
 file = "/var/log/pr-resolver/resolver.log"
+
 ```
 
 ### Environment Variables
@@ -320,7 +348,7 @@ file = "/var/log/pr-resolver/resolver.log"
 Set these environment variables for runtime configuration:
 
 | Variable | Type | Default | Description |
-|----------|------|---------|-------------|
+| ---------- | ------ | --------- | ------------- |
 | `CR_MODE` | string | `all` | Application mode |
 | `CR_ENABLE_ROLLBACK` | boolean | `true` | Enable automatic rollback on failure |
 | `CR_VALIDATE` | boolean | `true` | Enable pre-application validation |
@@ -333,6 +361,7 @@ Set these environment variables for runtime configuration:
 **Boolean Values:** Accept `true`/`false`, `1`/`0`, `yes`/`no`, `on`/`off` (case-insensitive)
 
 **Example:**
+
 ```bash
 # Set environment variables
 export CR_MODE="dry-run"
@@ -345,6 +374,7 @@ export GITHUB_PERSONAL_ACCESS_TOKEN="your_token_here"
 
 # Run the resolver (will use env vars)
 pr-resolve apply --pr 123 --owner myorg --repo myrepo
+
 ```
 
 ### CLI Configuration Flags
@@ -375,12 +405,13 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo \
 pr-resolve apply --pr 123 --owner myorg --repo myrepo \
   --log-level DEBUG \
   --log-file /tmp/resolver.log
+
 ```
 
 ### CLI Flag Reference
 
 | Flag | Type | Description |
-|------|------|-------------|
+| ------ | ------ | ------------- |
 | `--mode` | choice | Application mode (all, conflicts-only, non-conflicts-only, dry-run) |
 | `--config` | path | Path to configuration file (YAML or TOML) |
 | `--no-rollback` | flag | Disable automatic rollback on failure |
@@ -401,6 +432,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo \
 pr-resolve apply --pr 123 --owner myorg --repo myrepo \
   --config config.yaml \
   --mode dry-run
+
 ```
 
 ### Python API Usage
@@ -429,6 +461,7 @@ config = config.merge_with_cli(
 print(f"Mode: {config.mode}")
 print(f"Rollback enabled: {config.enable_rollback}")
 print(f"Parallel: {config.parallel_processing}")
+
 ```
 
 ### Safety Features
@@ -443,6 +476,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo
 
 # Rollback disabled (not recommended)
 pr-resolve apply --pr 123 --owner myorg --repo myrepo --no-rollback
+
 ```
 
 #### Pre-Application Validation
@@ -455,6 +489,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo
 
 # Validation disabled (for performance, not recommended)
 pr-resolve apply --pr 123 --owner myorg --repo myrepo --no-validation
+
 ```
 
 ### Parallel Processing (Experimental)
@@ -467,14 +502,16 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo --parallel
 
 # Enable with custom worker count
 pr-resolve apply --pr 123 --owner myorg --repo myrepo --parallel --max-workers 16
+
 ```
 
 **Notes:**
-- Parallel processing uses ThreadPoolExecutor for I/O-bound operations
-- Thread-safe collections ensure data integrity
-- Maintains result order across parallel execution
-- Recommended workers: 4-8 (higher values may not improve performance)
-- **Experimental:** May affect logging order
+
+* Parallel processing uses ThreadPoolExecutor for I/O-bound operations
+* Thread-safe collections ensure data integrity
+* Maintains result order across parallel execution
+* Recommended workers: 4-8 (higher values may not improve performance)
+* **Experimental:** May affect logging order
 
 ### Configuration Examples
 
@@ -493,10 +530,12 @@ parallel:
 logging:
   level: DEBUG
   file: /tmp/pr-resolver-dev.log
+
 ```
 
 ```bash
 pr-resolve apply --pr 123 --owner myorg --repo myrepo --config dev-config.yaml
+
 ```
 
 #### Example 2: Production Environment
@@ -513,6 +552,7 @@ parallel:
 logging:
   level: WARNING  # Less verbose logging
   file: /var/log/pr-resolver/production.log
+
 ```
 
 #### Example 3: CI/CD Pipeline
@@ -524,6 +564,7 @@ export CR_LOG_LEVEL="INFO"
 export GITHUB_PERSONAL_ACCESS_TOKEN="${GITHUB_TOKEN}"  # From CI secrets
 
 pr-resolve apply --pr $PR_NUMBER --owner $REPO_OWNER --repo $REPO_NAME
+
 ```
 
 #### Example 4: Quick Dry-Run
@@ -531,6 +572,7 @@ pr-resolve apply --pr $PR_NUMBER --owner $REPO_OWNER --repo $REPO_NAME
 ```bash
 # Fastest way to analyze without applying
 pr-resolve apply --pr 123 --owner myorg --repo myrepo --mode dry-run
+
 ```
 
 ### Legacy Environment Variables
@@ -538,7 +580,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo --mode dry-run
 For backwards compatibility, these environment variables are also supported:
 
 | Variable | Type | Description |
-|----------|------|-------------|
+| ---------- | ------ | ------------- |
 | `GITHUB_TOKEN` | string | GitHub personal access token (legacy alias) |
 | `PR_CONFLICT_RESOLVER_CONFIG` | string | Path to configuration file (legacy) |
 | `PR_CONFLICT_RESOLVER_LOG_LEVEL` | string | Logging level (legacy) |
@@ -552,19 +594,19 @@ The resolver supports multiple LLM providers for AI-powered conflict resolution 
 ### Supported Providers
 
 | Provider | Type | API Key Required | Cost | Best For |
-|----------|------|------------------|------|----------|
+| ---------- | ------ | ------------------ | ------ | ---------- |
 | `openai` | API | Yes | $$ | Production, high accuracy |
 | `anthropic` | API | Yes | $$ | Advanced reasoning, long context |
 | `claude-cli` | CLI | No (subscription) | Subscription | Development, debugging |
 | `codex-cli` | CLI | No (subscription) | Subscription | Code-specific tasks |
 | `ollama` | Local | No | Free | Privacy, offline use, experimentation |
 
-### Environment Variables
+### Environment Variables (Runtime Configuration)
 
 Configure LLM providers using these environment variables:
 
 | Variable | Type | Default | Description |
-|----------|------|---------|-------------|
+| ---------- | ------ | --------- | ------------- |
 | `CR_LLM_ENABLED` | boolean | `false` | Enable LLM-powered features |
 | `CR_LLM_PROVIDER` | string | `openai` | Provider name (openai, anthropic, claude-cli, codex-cli, ollama) |
 | `CR_LLM_MODEL` | string | provider-specific | Model identifier (optional, uses provider defaults) |
@@ -589,6 +631,7 @@ export CR_LLM_API_KEY="sk-..."  # Get from https://platform.openai.com/api-keys
 
 # Run resolver with OpenAI
 pr-resolve apply --pr 123 --owner myorg --repo myrepo
+
 ```
 
 **Cost**: Pay-per-token
@@ -609,6 +652,7 @@ export CR_LLM_API_KEY="sk-ant-..."  # Get from https://console.anthropic.com/
 
 # Run resolver with Anthropic
 pr-resolve apply --pr 123 --owner myorg --repo myrepo
+
 ```
 
 **Cost**: Pay-per-token with prompt caching (50-90% cost reduction)
@@ -632,6 +676,7 @@ export CR_LLM_MODEL="claude-sonnet-4-5"  # Optional
 
 # Run resolver with Claude CLI
 pr-resolve apply --pr 123 --owner myorg --repo myrepo
+
 ```
 
 **Cost**: $0 (subscription-based)
@@ -651,6 +696,7 @@ export CR_LLM_MODEL="codex"  # Optional
 
 # Run resolver with Codex CLI
 pr-resolve apply --pr 123 --owner myorg --repo myrepo
+
 ```
 
 **Cost**: $0 (subscription-based)
@@ -677,6 +723,7 @@ export CR_LLM_MODEL="llama3.3:70b"  # Required
 
 # Run resolver with Ollama
 pr-resolve apply --pr 123 --owner myorg --repo myrepo
+
 ```
 
 **Cost**: $0 (local inference)
@@ -684,6 +731,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo
 **Best For**: Privacy, offline use, experimentation, cost-sensitive environments
 
 **Ollama Configuration:**
+
 ```bash
 # Use custom Ollama base URL (default: http://localhost:11434)
 export OLLAMA_BASE_URL="http://custom-host:11434"
@@ -696,12 +744,13 @@ provider = create_provider(
     model="llama3.3:70b",
     base_url="http://custom-host:11434"
 )
+
 ```
 
 ### Cost Comparison
 
 | Provider | Input Cost | Output Cost | Context Size | Caching |
-|----------|-----------|-------------|--------------|---------|
+| ---------- | ----------- | ------------- | -------------- | --------- |
 | OpenAI (GPT-4) | $0.03/1K | $0.06/1K | 8K-128K | No |
 | Anthropic (Sonnet 4.5) | $0.003/1K | $0.015/1K | 200K | Yes (50-90% savings) |
 | Anthropic (Opus 4) | $0.015/1K | $0.075/1K | 200K | Yes |
@@ -714,36 +763,41 @@ provider = create_provider(
 ### Provider Selection Guide
 
 **Choose OpenAI if:**
-- You need reliable, production-grade performance
-- You're already using OpenAI in your stack
-- You need fast response times
-- Cost is secondary to accuracy
+
+* You need reliable, production-grade performance
+* You're already using OpenAI in your stack
+* You need fast response times
+* Cost is secondary to accuracy
 
 **Choose Anthropic if:**
-- You need the best reasoning capabilities
-- You process large context (>50K tokens)
-- You want significant cost savings via prompt caching
-- You need long-running context retention
+
+* You need the best reasoning capabilities
+* You process large context (>50K tokens)
+* You want significant cost savings via prompt caching
+* You need long-running context retention
 
 **Choose Claude CLI if:**
-- You're developing or debugging locally
-- You have a Claude subscription
-- You don't want to manage API keys
-- You want interactive development experience
+
+* You're developing or debugging locally
+* You have a Claude subscription
+* You don't want to manage API keys
+* You want interactive development experience
 
 **Choose Codex CLI if:**
-- You focus on code-specific tasks
-- You have GitHub Copilot subscription
-- You want tight GitHub integration
+
+* You focus on code-specific tasks
+* You have GitHub Copilot subscription
+* You want tight GitHub integration
 
 **Choose Ollama if:**
-- Privacy is a primary concern
-- You need offline operation
-- You have capable hardware (GPU recommended)
-- You want to experiment without cost
-- You're in a cost-sensitive environment
 
-### Python API Usage
+* Privacy is a primary concern
+* You need offline operation
+* You have capable hardware (GPU recommended)
+* You want to experiment without cost
+* You're in a cost-sensitive environment
+
+### Python API Usage (Advanced)
 
 ```python
 from pr_conflict_resolver.llm import create_provider, validate_provider
@@ -784,6 +838,7 @@ if validate_provider(provider):
     print(f"Response: {response}")
 else:
     print("Provider validation failed")
+
 ```
 
 ### Prompt Caching (Anthropic Only)
@@ -809,6 +864,7 @@ cache = PromptCache(
 stats = cache.get_stats()
 print(f"Cache hit rate: {stats['hit_rate']}%")
 print(f"Total size: {stats['total_size']} bytes")
+
 ```
 
 ### Troubleshooting LLM Providers
@@ -818,16 +874,17 @@ print(f"Total size: {stats['total_size']} bytes")
 **Problem:** Provider reports as unavailable during health check
 
 **Solutions:**
+
 ```bash
 # For API providers: verify API key
 echo $CR_LLM_API_KEY | cut -c1-10  # Check first 10 chars
 
 # Test API key manually
-# OpenAI:
+# OpenAI
 curl https://api.openai.com/v1/models \
   -H "Authorization: Bearer $CR_LLM_API_KEY"
 
-# Anthropic:
+# Anthropic
 curl https://api.anthropic.com/v1/messages \
   -H "x-api-key: $CR_LLM_API_KEY" \
   -H "anthropic-version: 2023-06-01"
@@ -839,6 +896,7 @@ which codex   # Should return path
 # For Ollama: verify service is running
 curl http://localhost:11434/api/tags
 ollama list  # Should show installed models
+
 ```
 
 #### Slow responses
@@ -846,6 +904,7 @@ ollama list  # Should show installed models
 **Problem:** LLM responses take too long
 
 **Solutions:**
+
 ```bash
 # Increase timeout
 export CR_LLM_TIMEOUT="60"  # 60 seconds
@@ -856,6 +915,7 @@ export CR_LLM_MODEL="llama3.3:8b"  # Smaller than 70b
 # For API providers: use faster model
 export CR_LLM_MODEL="gpt-4-turbo"  # Faster than gpt-4
 export CR_LLM_MODEL="claude-haiku-4"  # Faster than Sonnet/Opus
+
 ```
 
 #### High costs
@@ -863,6 +923,7 @@ export CR_LLM_MODEL="claude-haiku-4"  # Faster than Sonnet/Opus
 **Problem:** LLM API costs too high
 
 **Solutions:**
+
 ```bash
 # Switch to Anthropic with prompt caching
 export CR_LLM_PROVIDER="anthropic"
@@ -877,6 +938,7 @@ export CR_LLM_MODEL="llama3.3:70b"  # Free
 
 # Switch to subscription-based CLI
 export CR_LLM_PROVIDER="claude-cli"  # Fixed cost
+
 ```
 
 ## Configuration Examples
@@ -895,6 +957,7 @@ security_config = {
     },
     "semantic_merging": False,  # Disable for strict control
 }
+
 ```
 
 ### Example 2: Formatting-First Configuration
@@ -911,6 +974,7 @@ formatting_config = {
     },
     "semantic_merging": True,
 }
+
 ```
 
 ### Example 3: Strict Manual Review
@@ -923,6 +987,7 @@ strict_config = {
     "semantic_merging": False,
     "priority_system": False,
 }
+
 ```
 
 ## Integration Examples
@@ -962,6 +1027,7 @@ export CR_LOG_LEVEL="INFO"
 export CR_LOG_FILE="/var/log/pr-resolver/prod.log"
 
 pr-resolve apply --pr 456 --owner myorg --repo myproject
+
 ```
 
 ### Example 2: Development Workflow with Debug Logging
@@ -981,6 +1047,7 @@ pr-resolve apply --pr 789 --owner myorg --repo myproject \
   --rollback \
   --validation \
   --log-level DEBUG
+
 ```
 
 ### Example 3: High-Performance Large PR Processing
@@ -999,6 +1066,7 @@ parallel:
   max_workers: 16  # High parallelism
 logging:
   level: WARNING  # Reduce logging overhead
+
 ```
 
 ```bash
@@ -1006,6 +1074,7 @@ pr-resolve apply --pr 999 --owner myorg --repo myproject \
   --config perf-config.yaml \
   --parallel \
   --max-workers 16
+
 ```
 
 ### Example 4: Conservative Production with Manual Checkpoints
@@ -1032,6 +1101,7 @@ pr-resolve apply --pr 111 --owner myorg --repo myproject \
   --validation \
   --log-level INFO \
   --log-file /var/log/conflicts-$(date +%Y%m%d).log
+
 ```
 
 ### Example 5: CI/CD Integration with Precedence Chain
@@ -1067,6 +1137,7 @@ pr-resolve apply --pr $PR_NUMBER --owner $ORG --repo $REPO \
   --mode conflicts-only \
   --parallel \
   --max-workers 8
+
 ```
 
 ### Example 6: Python API with Dynamic Configuration
@@ -1117,6 +1188,7 @@ results = resolver.resolve_pr_conflicts(
 
 print(f"Applied: {results.applied_count}/{results.total_count}")
 print(f"Success rate: {results.success_rate}%")
+
 ```
 
 ## Performance Tuning
@@ -1136,22 +1208,25 @@ The resolver's performance is affected by several factors:
 #### When to Enable Parallel Processing
 
 **Enable for:**
-- Large PRs (30+ files)
-- Independent file changes
-- I/O-bound workloads
-- Time-critical resolutions
+
+* Large PRs (30+ files)
+* Independent file changes
+* I/O-bound workloads
+* Time-critical resolutions
 
 **Disable for:**
-- Small PRs (< 10 files)
-- Dependent changes across files
-- Debugging sessions (easier to trace)
-- Systems with limited CPU cores (< 4)
+
+* Small PRs (< 10 files)
+* Dependent changes across files
+* Debugging sessions (easier to trace)
+* Systems with limited CPU cores (< 4)
 
 #### Optimal Worker Count
 
 The optimal number of workers depends on your system and workload:
 
 **General Guidelines:**
+
 ```bash
 # Small PRs (10-30 files): 2-4 workers
 pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 4
@@ -1164,9 +1239,11 @@ pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 16
 
 # Very large PRs (300+ files): 16-32 workers
 pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 32
+
 ```
 
 **CPU-Based Guidelines:**
+
 ```bash
 # Rule of thumb: 2x CPU cores for I/O-bound work
 WORKERS=$(($(nproc) * 2))
@@ -1174,6 +1251,7 @@ pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers $WORK
 
 # Conservative: Match CPU cores
 pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers $(nproc)
+
 ```
 
 #### Benchmarking Your Configuration
@@ -1196,6 +1274,7 @@ for workers in 1 4 8 16 32; do
         --max-workers $workers \
         --log-level WARNING
 done
+
 ```
 
 ### Validation Trade-offs
@@ -1208,11 +1287,13 @@ pr-resolve apply --pr 123 --owner org --repo repo --validation
 
 # Performance optimized (faster, riskier): validation disabled
 pr-resolve apply --pr 123 --owner org --repo repo --no-validation --rollback
+
 ```
 
 **Recommendations:**
-- **Enable validation** for: Production systems, critical changes, unfamiliar PRs
-- **Disable validation** for: Trusted PRs, time-critical resolutions, when rollback is enabled
+
+* **Enable validation** for: Production systems, critical changes, unfamiliar PRs
+* **Disable validation** for: Trusted PRs, time-critical resolutions, when rollback is enabled
 
 ### Logging Performance Impact
 
@@ -1229,13 +1310,15 @@ pr-resolve apply --pr 123 --owner org --repo repo --log-level DEBUG
 pr-resolve apply --pr 123 --owner org --repo repo \
   --log-level INFO \
   --log-file /var/log/pr-resolver/perf.log
+
 ```
 
 **Performance Impact by Log Level:**
-- `ERROR`: Minimal overhead (< 1%)
-- `WARNING`: Low overhead (1-2%)
-- `INFO`: Moderate overhead (2-5%)
-- `DEBUG`: High overhead (10-20%)
+
+* `ERROR`: Minimal overhead (< 1%)
+* `WARNING`: Low overhead (1-2%)
+* `INFO`: Moderate overhead (2-5%)
+* `DEBUG`: High overhead (10-20%)
 
 ### Optimization Strategies
 
@@ -1255,6 +1338,7 @@ pr-resolve apply --pr 999 --owner org --repo repo \
   --mode conflicts-only \
   --parallel --max-workers 8 \
   --validation
+
 ```
 
 #### Strategy 2: Configuration Caching
@@ -1279,6 +1363,7 @@ EOF
 for pr in 100 101 102 103; do
     pr-resolve apply --pr $pr --owner org --repo repo --config optimized.yaml
 done
+
 ```
 
 #### Strategy 3: Resource Monitoring
@@ -1297,6 +1382,7 @@ while kill -0 $PID 2>/dev/null; do
     ps -p $PID -o %cpu,%mem,cmd
     sleep 1
 done
+
 ```
 
 ## CLI Configuration
@@ -1312,6 +1398,7 @@ pr-resolve analyze --pr 123 --owner myorg --repo myrepo --config conservative
 
 # Use aggressive preset
 pr-resolve apply --pr 123 --owner myorg --repo myrepo --config aggressive
+
 ```
 
 ## Configuration Validation
@@ -1328,6 +1415,7 @@ try:
     })
 except ValueError as e:
     print(f"Configuration error: {e}")
+
 ```
 
 ## Best Practices
@@ -1335,11 +1423,12 @@ except ValueError as e:
 ### Configuration Organization
 
 1. **Start with Balanced Preset**
-   - Use the balanced preset as a starting point for most workflows
-   - Override specific settings rather than creating from scratch
-   - Understand each preset's trade-offs before switching
+   * Use the balanced preset as a starting point for most workflows
+   * Override specific settings rather than creating from scratch
+   * Understand each preset's trade-offs before switching
 
 2. **Use Configuration Files for Persistence**
+
    ```bash
    # Store team configuration in version control
    mkdir -p .pr-resolver
@@ -1357,9 +1446,11 @@ except ValueError as e:
    # Share with team
    git add .pr-resolver/team-config.yaml
    git commit -m "Add PR resolver team configuration"
+
    ```
 
 3. **Use Environment Variables for Environment-Specific Settings**
+
    ```bash
    # Development environment
    cat >> ~/.bashrc <<EOF
@@ -1371,9 +1462,11 @@ except ValueError as e:
    export CR_LOG_LEVEL="WARNING"
    export CR_MAX_WORKERS="16"
    export CR_MODE="conflicts-only"
+
    ```
 
 4. **Use CLI Flags for One-Off Overrides**
+
    ```bash
    # Normal workflow: use team config
    pr-resolve apply --pr 123 --owner org --repo repo --config .pr-resolver/team-config.yaml
@@ -1382,11 +1475,13 @@ except ValueError as e:
    pr-resolve apply --pr 123 --owner org --repo repo \
      --config .pr-resolver/team-config.yaml \
      --log-level DEBUG
+
    ```
 
 ### Configuration Strategy by Environment
 
 #### Development Environment
+
 ```yaml
 # dev-config.yaml - Optimized for iteration speed
 mode: all
@@ -1399,9 +1494,11 @@ parallel:
 logging:
   level: DEBUG
   file: /tmp/pr-resolver-dev.log
+
 ```
 
 #### CI/CD Environment
+
 ```yaml
 # ci-config.yaml - Optimized for automated testing
 mode: dry-run  # Analyze only by default
@@ -1414,9 +1511,11 @@ parallel:
   max_workers: 8
 logging:
   level: INFO
+
 ```
 
 #### Production Environment
+
 ```yaml
 # prod-config.yaml - Optimized for safety
 mode: conflicts-only
@@ -1430,27 +1529,33 @@ parallel:
 logging:
   level: WARNING
   file: /var/log/pr-resolver/production.log
+
 ```
 
 ### Testing Configuration Changes
 
 1. **Always Test with Dry-Run First**
+
    ```bash
    # Test new configuration without applying changes
    pr-resolve apply --pr 123 --owner org --repo repo \
      --config new-config.yaml \
      --mode dry-run
+
    ```
 
 2. **Use Non-Conflicts Only for Safe Testing**
+
    ```bash
    # Apply only safe changes to test configuration
    pr-resolve apply --pr 123 --owner org --repo repo \
      --config new-config.yaml \
      --mode non-conflicts-only
+
    ```
 
 3. **Test on Small PRs First**
+
    ```bash
    # Find a small PR for testing
    gh pr list --limit 10 --json number,additions,deletions
@@ -1458,11 +1563,13 @@ logging:
    # Test on small PR
    pr-resolve apply --pr <small-pr> --owner org --repo repo \
      --config new-config.yaml
+
    ```
 
 ### Documentation and Maintenance
 
 1. **Document Custom Configurations**
+
    ```yaml
    # team-config.yaml
    # Custom configuration for MyTeam
@@ -1474,15 +1581,17 @@ logging:
    rollback:
      enabled: true
    # ... rest of configuration
+
    ```
 
 2. **Version Control All Configurations**
-   - Store in `.pr-resolver/` directory
-   - Include comments explaining choices
-   - Document changes in commit messages
-   - Review configuration changes in PRs
+   * Store in `.pr-resolver/` directory
+   * Include comments explaining choices
+   * Document changes in commit messages
+   * Review configuration changes in PRs
 
 3. **Monitor and Adjust**
+
    ```bash
    # Track success rates
    pr-resolve apply --pr 123 --owner org --repo repo \
@@ -1492,11 +1601,13 @@ logging:
    # Review logs periodically
    grep "Success rate" logs/*.log
    grep "Rollback triggered" logs/*.log
+
    ```
 
 ### Common Patterns
 
 #### Pattern 1: Progressive Enhancement
+
 ```bash
 # Start conservative, gradually increase automation
 # Week 1: Analyze only
@@ -1510,9 +1621,11 @@ pr-resolve apply --pr $PR --owner $ORG --repo $REPO --mode conflicts-only --vali
 
 # Week 4: Full automation with rollback
 pr-resolve apply --pr $PR --owner $ORG --repo $REPO --mode all --rollback
+
 ```
 
 #### Pattern 2: Defense in Depth
+
 ```bash
 # Multiple safety layers
 pr-resolve apply --pr 123 --owner org --repo repo \
@@ -1520,9 +1633,11 @@ pr-resolve apply --pr 123 --owner org --repo repo \
   --validation \        # Layer 2: Pre-validation
   --log-level INFO \    # Layer 3: Detailed logging
   --log-file audit.log  # Layer 4: Audit trail
+
 ```
 
 #### Pattern 3: Configuration Inheritance
+
 ```python
 # Base configuration for all teams
 from pr_conflict_resolver.config import PresetConfig
@@ -1543,11 +1658,13 @@ team_b_config = {
     **base_config,
     "semantic_merging": False,  # More conservative
 }
+
 ```
 
 ### Security Considerations
 
 1. **Protect GitHub Tokens**
+
    ```bash
    # Never commit tokens
    echo 'GITHUB_PERSONAL_ACCESS_TOKEN="***"' >> .gitignore
@@ -1558,44 +1675,47 @@ team_b_config = {
    # Or use secret managers in CI/CD
    # GitHub Actions: ${{ secrets.GITHUB_TOKEN }}
    # GitLab CI: $GITHUB_TOKEN
+
    ```
 
 2. **Review Configuration Changes**
-   - Treat configuration as code
-   - Require PR reviews for config changes
-   - Test in non-production first
-   - Monitor for unexpected behavior
+   * Treat configuration as code
+   * Require PR reviews for config changes
+   * Test in non-production first
+   * Monitor for unexpected behavior
 
 3. **Audit Logging**
+
    ```yaml
    # Enable comprehensive logging for auditing
    logging:
      level: INFO
      file: /var/log/pr-resolver/audit-${USER}-${DATE}.log
+
    ```
 
 ### Performance Best Practices
 
 1. **Match Workers to Workload**
-   - Small PRs: 2-4 workers
-   - Medium PRs: 4-8 workers
-   - Large PRs: 8-16 workers
-   - Very large PRs: 16-32 workers
+   * Small PRs: 2-4 workers
+   * Medium PRs: 4-8 workers
+   * Large PRs: 8-16 workers
+   * Very large PRs: 16-32 workers
 
 2. **Disable Validation Strategically**
-   - Keep enabled for production
-   - Disable for trusted automated PRs
-   - Always enable rollback if validation is disabled
+   * Keep enabled for production
+   * Disable for trusted automated PRs
+   * Always enable rollback if validation is disabled
 
 3. **Optimize Logging**
-   - Use WARNING in production
-   - Use DEBUG only for troubleshooting
-   - Log to file for performance-critical operations
+   * Use WARNING in production
+   * Use DEBUG only for troubleshooting
+   * Log to file for performance-critical operations
 
 4. **Use Staged Application**
-   - Apply non-conflicts first (fast)
-   - Then apply conflicts (slower)
-   - Reduces overall execution time
+   * Apply non-conflicts first (fast)
+   * Then apply conflicts (slower)
+   * Reduces overall execution time
 
 ## Troubleshooting
 
@@ -1606,11 +1726,13 @@ team_b_config = {
 **Problem:** Configuration seems to be ignored
 
 **Possible Causes:**
-- Configuration file not found
-- Invalid YAML/TOML syntax
-- Incorrect precedence (CLI flags override config file)
+
+* Configuration file not found
+* Invalid YAML/TOML syntax
+* Incorrect precedence (CLI flags override config file)
 
 **Solutions:**
+
 ```bash
 # 1. Verify configuration file exists and is valid
 cat config.yaml
@@ -1627,6 +1749,7 @@ pr-resolve apply --pr 123 --owner org --repo repo \
 
 # 4. Verify precedence - CLI flags override config file
 # If you specify --mode dry-run, it will override mode in config file
+
 ```
 
 #### Environment variables not recognized
@@ -1634,11 +1757,13 @@ pr-resolve apply --pr 123 --owner org --repo repo \
 **Problem:** Environment variables like `CR_MODE` seem ignored
 
 **Possible Causes:**
-- Typo in variable name
-- Variable not exported
-- Shell not sourced after setting
+
+* Typo in variable name
+* Variable not exported
+* Shell not sourced after setting
 
 **Solutions:**
+
 ```bash
 # 1. Verify variable is set
 echo $CR_MODE
@@ -1653,6 +1778,7 @@ export RESOLVER_MODE="dry-run"  # Wrong - will be ignored
 
 # 4. Source your shell profile if you added to .bashrc
 source ~/.bashrc
+
 ```
 
 #### Configuration validation errors
@@ -1660,22 +1786,26 @@ source ~/.bashrc
 **Problem:** Configuration rejected with validation error
 
 **Possible Causes:**
-- Invalid type (string instead of boolean)
-- Invalid value (unknown mode)
-- Missing required fields
+
+* Invalid type (string instead of boolean)
+* Invalid value (unknown mode)
+* Missing required fields
 
 **Solutions:**
+
 ```bash
 # Check error message for details
 pr-resolve apply --pr 123 --owner org --repo repo --config config.yaml 2>&1 | grep -i error
 
-# Common fixes:
+# Common fixes
 # - Boolean values: use true/false, not "true"/"false"
 # - Mode values: all, conflicts-only, non-conflicts-only, dry-run
 # - Worker count: must be positive integer
+
 ```
 
 **Valid Configuration:**
+
 ```yaml
 mode: conflicts-only  # String, no quotes needed
 rollback:
@@ -1683,6 +1813,7 @@ rollback:
 parallel:
   enabled: true
   max_workers: 8  # Integer, no quotes
+
 ```
 
 ### Runtime Configuration Issues
@@ -1692,11 +1823,13 @@ parallel:
 **Problem:** Conflicts resolved in unexpected ways
 
 **Possible Causes:**
-- Priority rules not configured correctly
-- Mode filtering changes being applied
-- Preset configuration not suitable for use case
+
+* Priority rules not configured correctly
+* Mode filtering changes being applied
+* Preset configuration not suitable for use case
 
 **Solutions:**
+
 ```bash
 # 1. Check what would be applied with dry-run
 pr-resolve apply --pr 123 --owner org --repo repo --mode dry-run
@@ -1709,6 +1842,7 @@ pr-resolve apply --pr 123 --owner org --repo repo --config conservative
 
 # 4. Enable debug logging to see decision-making
 pr-resolve apply --pr 123 --owner org --repo repo --log-level DEBUG
+
 ```
 
 #### Mode not filtering correctly
@@ -1716,11 +1850,13 @@ pr-resolve apply --pr 123 --owner org --repo repo --log-level DEBUG
 **Problem:** Wrong changes being applied for selected mode
 
 **Possible Causes:**
-- Misunderstanding of mode behavior
-- Conflict detection not working correctly
-- Changes incorrectly categorized
+
+* Misunderstanding of mode behavior
+* Conflict detection not working correctly
+* Changes incorrectly categorized
 
 **Solutions:**
+
 ```bash
 # 1. Analyze conflicts first
 pr-resolve analyze --pr 123 --owner org --repo repo
@@ -1735,6 +1871,7 @@ pr-resolve apply --pr 123 --owner org --repo repo --mode conflicts-only --dry-ru
 # - conflicts-only: applies ONLY changes that HAVE conflicts (after resolution)
 # - non-conflicts-only: applies ONLY changes with NO conflicts
 # - dry-run: applies nothing, analyzes only
+
 ```
 
 ### Rollback System Issues
@@ -1744,11 +1881,13 @@ pr-resolve apply --pr 123 --owner org --repo repo --mode conflicts-only --dry-ru
 **Problem:** Errors occur but rollback doesn't activate
 
 **Possible Causes:**
-- Rollback disabled in configuration
-- Git repository not initialized
-- Insufficient git permissions
+
+* Rollback disabled in configuration
+* Git repository not initialized
+* Insufficient git permissions
 
 **Solutions:**
+
 ```bash
 # 1. Verify rollback is enabled
 pr-resolve apply --pr 123 --owner org --repo repo --rollback
@@ -1762,6 +1901,7 @@ git config --list | grep user
 
 # 4. Check permissions
 ls -la .git/
+
 ```
 
 #### Rollback fails to restore
@@ -1769,11 +1909,13 @@ ls -la .git/
 **Problem:** Rollback attempted but files not restored
 
 **Possible Causes:**
-- Uncommitted changes before running
-- Git stash conflicts
-- Repository in detached HEAD state
+
+* Uncommitted changes before running
+* Git stash conflicts
+* Repository in detached HEAD state
 
 **Solutions:**
+
 ```bash
 # 1. Check for uncommitted changes BEFORE running resolver
 git status
@@ -1788,6 +1930,7 @@ git log -1
 # 4. Manual rollback if automatic fails
 git stash list
 git stash apply stash@{0}  # Apply most recent stash
+
 ```
 
 #### Rollback leaves repository dirty
@@ -1795,11 +1938,13 @@ git stash apply stash@{0}  # Apply most recent stash
 **Problem:** After rollback, `git status` shows changes
 
 **Possible Causes:**
-- Normal behavior - rollback restores to pre-resolver state
-- Some files were not tracked by git
-- File permission changes
+
+* Normal behavior - rollback restores to pre-resolver state
+* Some files were not tracked by git
+* File permission changes
 
 **Solutions:**
+
 ```bash
 # 1. Check what changed
 git status
@@ -1814,6 +1959,7 @@ git clean -fd
 
 # 4. Review resolver logs
 pr-resolve apply --pr 123 --owner org --repo repo --log-level DEBUG
+
 ```
 
 ### Parallel Processing Issues
@@ -1823,12 +1969,14 @@ pr-resolve apply --pr 123 --owner org --repo repo --log-level DEBUG
 **Problem:** Using `--parallel` makes execution slower
 
 **Possible Causes:**
-- Too many workers for small PR
-- Worker overhead exceeds benefits
-- I/O contention
-- CPU-bound rather than I/O-bound
+
+* Too many workers for small PR
+* Worker overhead exceeds benefits
+* I/O contention
+* CPU-bound rather than I/O-bound
 
 **Solutions:**
+
 ```bash
 # 1. Reduce worker count
 pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 4
@@ -1843,6 +1991,7 @@ for workers in 1 4 8 16; do
   time pr-resolve apply --pr 123 --owner org --repo repo \
     --mode dry-run --parallel --max-workers $workers
 done
+
 ```
 
 #### Thread safety errors
@@ -1850,11 +1999,13 @@ done
 **Problem:** Errors related to threading or concurrent access
 
 **Possible Causes:**
-- Race condition in file operations
-- Shared state corruption
-- Log file contention
+
+* Race condition in file operations
+* Shared state corruption
+* Log file contention
 
 **Solutions:**
+
 ```bash
 # 1. Disable parallel processing temporarily
 pr-resolve apply --pr 123 --owner org --repo repo  # No --parallel
@@ -1866,6 +2017,7 @@ pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 2
 pr-resolve apply --pr 123 --owner org --repo repo \
   --parallel \
   --log-file /tmp/resolver-$$.log  # $$ = process ID
+
 ```
 
 #### Worker pool hangs
@@ -1873,11 +2025,13 @@ pr-resolve apply --pr 123 --owner org --repo repo \
 **Problem:** Execution hangs with parallel processing enabled
 
 **Possible Causes:**
-- Deadlock in worker threads
-- Exception in worker not handled
-- Resource exhaustion
+
+* Deadlock in worker threads
+* Exception in worker not handled
+* Resource exhaustion
 
 **Solutions:**
+
 ```bash
 # 1. Check system resources
 top  # Look for high CPU or memory usage
@@ -1891,6 +2045,7 @@ pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 4
 
 # 4. Disable parallel and report issue
 pr-resolve apply --pr 123 --owner org --repo repo
+
 ```
 
 ### Validation Issues
@@ -1900,11 +2055,13 @@ pr-resolve apply --pr 123 --owner org --repo repo
 **Problem:** Pre-application validation rejects valid changes
 
 **Possible Causes:**
-- Overly strict validation rules
-- File format differences
-- Encoding issues
+
+* Overly strict validation rules
+* File format differences
+* Encoding issues
 
 **Solutions:**
+
 ```bash
 # 1. Check validation error details
 pr-resolve apply --pr 123 --owner org --repo repo --validation --log-level DEBUG
@@ -1916,6 +2073,7 @@ pr-resolve apply --pr 123 --owner org --repo repo --no-validation --rollback
 # Check logs for filename and error
 
 # 4. Report issue with reproduction steps
+
 ```
 
 #### Validation taking too long
@@ -1923,11 +2081,13 @@ pr-resolve apply --pr 123 --owner org --repo repo --no-validation --rollback
 **Problem:** Validation step significantly slows execution
 
 **Possible Causes:**
-- Large number of changes
-- Complex semantic validation
-- File I/O overhead
+
+* Large number of changes
+* Complex semantic validation
+* File I/O overhead
 
 **Solutions:**
+
 ```bash
 # 1. Disable validation for performance (use rollback instead)
 pr-resolve apply --pr 123 --owner org --repo repo --no-validation --rollback
@@ -1939,6 +2099,7 @@ pr-resolve apply --pr 123 --owner org --repo repo --mode conflicts-only --valida
 # 3. Profile validation time
 time pr-resolve apply --pr 123 --owner org --repo repo --validation --mode dry-run
 time pr-resolve apply --pr 123 --owner org --repo repo --no-validation --mode dry-run
+
 ```
 
 ### Performance Issues
@@ -1948,12 +2109,14 @@ time pr-resolve apply --pr 123 --owner org --repo repo --no-validation --mode dr
 **Problem:** Resolution takes much longer than expected
 
 **Possible Causes:**
-- Very large PR (100+ files)
-- Complex conflicts requiring semantic analysis
-- Debug logging enabled
-- Sequential processing when parallel would help
+
+* Very large PR (100+ files)
+* Complex conflicts requiring semantic analysis
+* Debug logging enabled
+* Sequential processing when parallel would help
 
 **Solutions:**
+
 ```bash
 # 1. Enable parallel processing
 pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 8
@@ -1970,6 +2133,7 @@ pr-resolve apply --pr 123 --owner org --repo repo --mode conflicts-only
 
 # 5. Profile execution
 time pr-resolve apply --pr 123 --owner org --repo repo --mode dry-run
+
 ```
 
 #### High memory usage
@@ -1977,11 +2141,13 @@ time pr-resolve apply --pr 123 --owner org --repo repo --mode dry-run
 **Problem:** Process uses excessive memory
 
 **Possible Causes:**
-- Very large files
-- Too many parallel workers
-- Memory leak
+
+* Very large files
+* Too many parallel workers
+* Memory leak
 
 **Solutions:**
+
 ```bash
 # 1. Reduce parallel workers
 pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 4
@@ -1994,6 +2160,7 @@ ps aux | grep pr-resolve
 top -p $(pgrep pr-resolve)
 
 # 4. Report issue with PR details
+
 ```
 
 ### GitHub API Issues
@@ -2003,11 +2170,13 @@ top -p $(pgrep pr-resolve)
 **Problem:** GitHub API authentication fails
 
 **Possible Causes:**
-- Token not set or incorrect
-- Token expired
-- Insufficient token permissions
+
+* Token not set or incorrect
+* Token expired
+* Insufficient token permissions
 
 **Solutions:**
+
 ```bash
 # 1. Verify token is set
 echo $GITHUB_PERSONAL_ACCESS_TOKEN | cut -c1-10  # Show first 10 chars
@@ -2020,6 +2189,7 @@ curl -H "Authorization: token $GITHUB_PERSONAL_ACCESS_TOKEN" https://api.github.
 
 # 4. Use token inline for testing
 GITHUB_PERSONAL_ACCESS_TOKEN="ghp_xxx" pr-resolve apply --pr 123 --owner org --repo repo
+
 ```
 
 #### Rate limiting
@@ -2027,6 +2197,7 @@ GITHUB_PERSONAL_ACCESS_TOKEN="ghp_xxx" pr-resolve apply --pr 123 --owner org --r
 **Problem:** GitHub API rate limit exceeded
 
 **Solutions:**
+
 ```bash
 # 1. Check current rate limit
 curl -H "Authorization: token $GITHUB_PERSONAL_ACCESS_TOKEN" https://api.github.com/rate_limit
@@ -2035,6 +2206,7 @@ curl -H "Authorization: token $GITHUB_PERSONAL_ACCESS_TOKEN" https://api.github.
 
 # 3. Reduce API calls by using dry-run once
 pr-resolve apply --pr 123 --owner org --repo repo --mode dry-run  # Cache results
+
 ```
 
 ### General Troubleshooting
@@ -2051,6 +2223,7 @@ pr-resolve apply --pr 123 --owner org --repo repo \
 less /tmp/resolver-debug-*.log
 grep -i error /tmp/resolver-debug-*.log
 grep -i rollback /tmp/resolver-debug-*.log
+
 ```
 
 #### Isolating the issue
@@ -2067,11 +2240,13 @@ pr-resolve apply --pr 123 --owner org --repo repo --mode non-conflicts-only
 
 # 4. Compare with analyze command
 pr-resolve analyze --pr 123 --owner org --repo repo
+
 ```
 
 #### Reporting issues
 
 When reporting issues, include:
+
 1. Full command used
 2. Configuration file (if used)
 3. Error message
@@ -2081,6 +2256,6 @@ When reporting issues, include:
 
 ## See Also
 
-- [Resolution Strategies](resolution-strategies.md) - How strategies use configuration
-- [Conflict Types](conflict-types.md) - Understanding what gets configured
-- [Getting Started](getting-started.md) - Basic configuration setup
+* [Resolution Strategies](resolution-strategies.md) - How strategies use configuration
+* [Conflict Types](conflict-types.md) - Understanding what gets configured
+* [Getting Started](getting-started.md) - Basic configuration setup

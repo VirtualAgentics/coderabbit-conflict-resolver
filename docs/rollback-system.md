@@ -4,19 +4,19 @@ The Review Bot Automator includes a robust, git-based rollback system that provi
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [How It Works](#how-it-works)
-- [Usage](#usage)
-  - [CLI Usage](#cli-usage)
-  - [Python API Usage](#python-api-usage)
-  - [Context Manager Pattern](#context-manager-pattern)
-- [Configuration](#configuration)
-- [Architecture](#architecture)
-- [Safety Features](#safety-features)
-- [Use Cases](#use-cases)
-- [Troubleshooting](#troubleshooting)
-- [Best Practices](#best-practices)
-- [Limitations](#limitations)
+* [Overview](#overview)
+* [How It Works](#how-it-works)
+* [Usage](#usage)
+  * [CLI Usage](#cli-usage)
+  * [Python API Usage](#python-api-usage)
+  * [Context Manager Pattern](#context-manager-pattern)
+* [Configuration](#configuration)
+* [Architecture](#architecture)
+* [Safety Features](#safety-features)
+* [Use Cases](#use-cases)
+* [Troubleshooting](#troubleshooting)
+* [Best Practices](#best-practices)
+* [Limitations](#limitations)
 
 ## Overview
 
@@ -24,27 +24,29 @@ The rollback system provides **automatic recovery** from failures during change 
 
 ### Key Features
 
-- **Git-based Checkpointing**: Uses `git stash` for reliable state capture
-- **Automatic Recovery**: Rolls back on any exception during application
-- **Tracked and Untracked Files**: Preserves both tracked changes and untracked files
-- **Context Manager Support**: Pythonic API with automatic cleanup
-- **Configurable**: Enable/disable per execution
-- **Safe Defaults**: Enabled by default for maximum safety
+* **Git-based Checkpointing**: Uses `git stash` for reliable state capture
+* **Automatic Recovery**: Rolls back on any exception during application
+* **Tracked and Untracked Files**: Preserves both tracked changes and untracked files
+* **Context Manager Support**: Pythonic API with automatic cleanup
+* **Configurable**: Enable/disable per execution
+* **Safe Defaults**: Enabled by default for maximum safety
 
 ### When to Use Rollback
 
 **Always Enable (Default):**
-- Production environments
-- Critical systems
-- Unfamiliar PRs
-- Large PRs with many changes
-- When validation is disabled
+
+* Production environments
+* Critical systems
+* Unfamiliar PRs
+* Large PRs with many changes
+* When validation is disabled
 
 **Consider Disabling:**
-- When you have external backup systems
-- Testing environments with disposable state
-- When performance is absolutely critical
-- You want to manually inspect failed state
+
+* When you have external backup systems
+* Testing environments with disposable state
+* When performance is absolutely critical
+* You want to manually inspect failed state
 
 ## How It Works
 
@@ -56,12 +58,12 @@ Before applying any changes, the system:
 
 1. **Checks for uncommitted changes** in the working directory
 2. **Creates a git stash** using `git stash push --include-untracked`
-   - Captures all tracked modifications
-   - Captures untracked files (new files not in .gitignore)
-   - Does NOT capture ignored files (respects .gitignore)
+   * Captures all tracked modifications
+   * Captures untracked files (new files not in .gitignore)
+   * Does NOT capture ignored files (respects .gitignore)
 3. **Immediately reapplies changes** using `git stash apply`
-   - Restores working directory to original state
-   - Keeps stash reference for potential rollback
+   * Restores working directory to original state
+   * Keeps stash reference for potential rollback
 4. **Stores checkpoint ID** (`stash@{0}`) for later use
 
 **Result**: Working directory unchanged, but state saved for rollback
@@ -79,11 +81,13 @@ The resolver applies changes with the checkpoint in place:
 After change application completes:
 
 #### On Success (Commit)
+
 1. **Drops the git stash** using `git stash drop stash@{0}`
 2. **Clears checkpoint reference**
 3. **Keeps all applied changes**
 
 #### On Failure (Rollback)
+
 1. **Resets working directory** using `git reset --hard HEAD`
 2. **Removes untracked files** using `git clean -fd`
 3. **Applies checkpoint state** using `git stash apply stash@{0}`
@@ -106,6 +110,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo
 
 # Explicitly enable rollback
 pr-resolve apply --pr 123 --owner myorg --repo myrepo --rollback
+
 ```
 
 #### Disable Rollback
@@ -113,6 +118,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo --rollback
 ```bash
 # Disable rollback (not recommended for production)
 pr-resolve apply --pr 123 --owner myorg --repo myrepo --no-rollback
+
 ```
 
 #### Environment Variable
@@ -125,6 +131,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo
 # Disable via environment variable
 export CR_ENABLE_ROLLBACK="false"
 pr-resolve apply --pr 123 --owner myorg --repo myrepo
+
 ```
 
 #### Configuration File
@@ -133,10 +140,12 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo
 # config.yaml
 rollback:
   enabled: true  # Enable rollback
+
 ```
 
 ```bash
 pr-resolve apply --pr 123 --owner myorg --repo myrepo --config config.yaml
+
 ```
 
 ### Python API Usage
@@ -167,6 +176,7 @@ except Exception as e:
     manager.rollback()
     print(f"Error occurred, rolled back: {e}")
     raise
+
 ```
 
 #### Using ConflictResolver
@@ -189,6 +199,7 @@ results = resolver.resolve_pr_conflicts(
 # Check results
 if results.success_rate < 100:
     print(f"Some changes failed, but rollback protected working directory")
+
 ```
 
 ### Context Manager Pattern
@@ -209,12 +220,14 @@ with RollbackManager(Path("/path/to/repo")) as manager:
 
 # If exception occurs, automatically rolls back
 # If no exception, automatically commits
+
 ```
 
 **Behavior:**
-- **On exception**: Automatically calls `rollback()`, then propagates exception
-- **On success (no exception)**: Automatically calls `commit()`
-- **Explicit commit**: Can call `manager.commit()` before block ends
+
+* **On exception**: Automatically calls `rollback()`, then propagates exception
+* **On success (no exception)**: Automatically calls `commit()`
+* **Explicit commit**: Can call `manager.commit()` before block ends
 
 #### Advanced Context Manager Usage
 
@@ -240,6 +253,7 @@ def apply_changes_safely(changes, repo_path):
     except Exception as e:
         print(f"Changes failed, rolled back: {e}")
         return False
+
 ```
 
 ## Configuration
@@ -258,28 +272,32 @@ Configuration sources (highest to lowest priority):
 #### CLI Flags
 
 | Flag | Description | Default |
-|------|-------------|---------|
+| ------ | ------------- | --------- |
 | `--rollback` | Enable automatic rollback on failure | Enabled |
 | `--no-rollback` | Disable automatic rollback | - |
 
 #### Environment Variables
 
 | Variable | Type | Values | Default |
-|----------|------|--------|---------|
+| ---------- | ------ | -------- | --------- |
 | `CR_ENABLE_ROLLBACK` | boolean | `true`, `false`, `1`, `0`, `yes`, `no` | `true` |
 
 #### Configuration File
 
 **YAML:**
+
 ```yaml
 rollback:
   enabled: true
+
 ```
 
 **TOML:**
+
 ```toml
 [rollback]
 enabled = true
+
 ```
 
 ### Configuration Examples
@@ -296,6 +314,7 @@ validation:
 logging:
   level: INFO
   file: /var/log/pr-resolver/production.log
+
 ```
 
 #### Example 2: Performance Optimized
@@ -310,6 +329,7 @@ validation:
 parallel:
   enabled: true
   max_workers: 16
+
 ```
 
 #### Example 3: Testing Environment
@@ -318,13 +338,14 @@ parallel:
 # Disable rollback in disposable testing environment
 export CR_ENABLE_ROLLBACK="false"
 pr-resolve apply --pr 123 --owner myorg --repo myrepo
+
 ```
 
 ## Architecture
 
 ### Component Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │              RollbackManager                            │
 │                                                         │
@@ -354,6 +375,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo
 │  │              │               │ • drop stash  │      │
 │  └──────────────┘               └──────────────┘      │
 └─────────────────────────────────────────────────────────┘
+
 ```
 
 ### Class Structure
@@ -381,6 +403,7 @@ class RollbackManager:
     def _is_git_available(self) -> bool
     def _is_git_repo(self) -> bool
     def _run_git_command(self, args: list[str]) -> CompletedProcess[str]
+
 ```
 
 ### Git Commands Used
@@ -397,7 +420,7 @@ The rollback system uses these git commands:
 
 ### State Diagram
 
-```
+```text
                     ┌──────────────┐
                     │  No Checkpoint│
                     └───────┬──────┘
@@ -428,33 +451,34 @@ The rollback system uses these git commands:
                     ┌──────────────┐
                     │  No Checkpoint│
                     └──────────────┘
+
 ```
 
 ## Safety Features
 
 ### 1. Checkpoint Protection
 
-- **Single checkpoint enforcement**: Cannot create new checkpoint while one exists
-- **Atomic operations**: Checkpoint creation is all-or-nothing
-- **Immediate verification**: Verifies stash creation before proceeding
+* **Single checkpoint enforcement**: Cannot create new checkpoint while one exists
+* **Atomic operations**: Checkpoint creation is all-or-nothing
+* **Immediate verification**: Verifies stash creation before proceeding
 
 ### 2. Error Handling
 
-- **Rollback on any exception**: Catches all exceptions during application
-- **Cleanup on rollback failure**: Attempts to drop stash even if rollback fails
-- **Detailed logging**: All operations logged for audit trail
+* **Rollback on any exception**: Catches all exceptions during application
+* **Cleanup on rollback failure**: Attempts to drop stash even if rollback fails
+* **Detailed logging**: All operations logged for audit trail
 
 ### 3. State Validation
 
-- **Git availability check**: Verifies git command is available
-- **Repository validation**: Confirms path is a valid git repository
-- **Path validation**: Checks path exists and is a directory
+* **Git availability check**: Verifies git command is available
+* **Repository validation**: Confirms path is a valid git repository
+* **Path validation**: Checks path exists and is a directory
 
 ### 4. Recovery Mechanisms
 
-- **Manual rollback support**: Can call `rollback()` explicitly if auto-rollback fails
-- **Stash reference tracking**: Stores `stash@{0}` reference for reliable operations
-- **Non-fatal stash drop**: Continues even if stash drop fails (already cleaned up)
+* **Manual rollback support**: Can call `rollback()` explicitly if auto-rollback fails
+* **Stash reference tracking**: Stores `stash@{0}` reference for reliable operations
+* **Non-fatal stash drop**: Continues even if stash drop fails (already cleaned up)
 
 ## Use Cases
 
@@ -470,9 +494,11 @@ pr-resolve apply --pr 456 --owner myorg --repo production \
   --validation \
   --log-level INFO \
   --log-file /var/log/pr-resolver/prod-$(date +%Y%m%d-%H%M%S).log
+
 ```
 
 **What happens:**
+
 1. Checkpoint created before any changes
 2. Only conflicting changes applied
 3. All changes validated before application
@@ -506,6 +532,7 @@ def test_experimental_changes(changes, repo_path):
         manager.commit()
         print("Changes kept")
         return True
+
 ```
 
 ### Use Case 3: Large PR Processing
@@ -525,12 +552,14 @@ pr-resolve apply --pr 789 --owner myorg --repo myrepo \
   --mode conflicts-only \
   --rollback \
   --validation
+
 ```
 
 **Benefits:**
-- Each stage independently protected by rollback
-- If stage 2 fails, stage 1 changes remain
-- Can recover from partial application
+
+* Each stage independently protected by rollback
+* If stage 2 fails, stage 1 changes remain
+* Can recover from partial application
 
 ### Use Case 4: CI/CD Pipeline
 
@@ -538,7 +567,7 @@ pr-resolve apply --pr 789 --owner myorg --repo myrepo \
 
 ```yaml
 # .github/workflows/auto-resolve.yml
-- name: Resolve PR Conflicts
+* name: Resolve PR Conflicts
   run: |
     # Enable rollback for safety
     export CR_ENABLE_ROLLBACK="true"
@@ -556,12 +585,13 @@ pr-resolve apply --pr 789 --owner myorg --repo myrepo \
     # Upload logs even on failure
   continue-on-error: true
 
-- name: Upload Logs
+* name: Upload Logs
   if: always()
   uses: actions/upload-artifact@v3
   with:
     name: resolution-logs
     path: /tmp/pr-resolve.log
+
 ```
 
 ### Use Case 5: Manual Recovery
@@ -622,6 +652,7 @@ def manual_recovery(repo_path, checkpoint_id):
     except subprocess.CalledProcessError as e:
         print(f"Manual recovery failed: {e}")
         print("Please recover manually using git commands")
+
 ```
 
 ## Troubleshooting
@@ -631,16 +662,19 @@ def manual_recovery(repo_path, checkpoint_id):
 #### 1. Rollback Not Triggering
 
 **Symptoms:**
-- Changes applied but errors occur
-- No rollback happens
-- Working directory left in failed state
+
+* Changes applied but errors occur
+* No rollback happens
+* Working directory left in failed state
 
 **Causes:**
-- Rollback disabled in configuration
-- Not using context manager or explicit try/catch
-- Exception caught and suppressed before rollback
+
+* Rollback disabled in configuration
+* Not using context manager or explicit try/catch
+* Exception caught and suppressed before rollback
 
 **Solutions:**
+
 ```bash
 # 1. Verify rollback is enabled
 pr-resolve apply --pr 123 --owner org --repo repo --rollback --log-level DEBUG
@@ -653,22 +687,26 @@ cat config.yaml | grep -A 2 "rollback:"
 with RollbackManager(repo_path) as manager:
     apply_changes()  # Will auto-rollback on exception
     manager.commit()
+
 ```
 
 #### 2. Rollback Fails to Restore
 
 **Symptoms:**
-- Rollback attempted but fails
-- Files not restored to previous state
-- `RollbackError` exception raised
+
+* Rollback attempted but fails
+* Files not restored to previous state
+* `RollbackError` exception raised
 
 **Causes:**
-- Uncommitted changes existed before running
-- Git stash conflicts with current changes
-- Repository in detached HEAD state
-- Stash was manually deleted
+
+* Uncommitted changes existed before running
+* Git stash conflicts with current changes
+* Repository in detached HEAD state
+* Stash was manually deleted
 
 **Solutions:**
+
 ```bash
 # 1. Check git status BEFORE running resolver
 git status
@@ -680,7 +718,7 @@ git log -1  # Should show recent commit
 
 # 3. Check stash list
 git stash list
-# If stash exists, manually apply it:
+# If stash exists, manually apply it
 git reset --hard HEAD
 git clean -fd
 git stash apply stash@{0}
@@ -688,22 +726,26 @@ git stash apply stash@{0}
 # 4. If stash is missing, check git reflog
 git reflog stash
 git stash apply stash@{N}  # Where N is the stash index
+
 ```
 
 #### 3. Repository Left Dirty After Rollback
 
 **Symptoms:**
-- Rollback completes
-- `git status` shows uncommitted changes
-- Changes don't match pre-application state
+
+* Rollback completes
+* `git status` shows uncommitted changes
+* Changes don't match pre-application state
 
 **Causes:**
-- Normal behavior - rollback restores to checkpoint state
-- Untracked files not captured (in .gitignore)
-- File permissions changed
-- Symbolic links modified
+
+* Normal behavior - rollback restores to checkpoint state
+* Untracked files not captured (in .gitignore)
+* File permissions changed
+* Symbolic links modified
 
 **Solutions:**
+
 ```bash
 # 1. Check what changed
 git status
@@ -718,30 +760,34 @@ git clean -fd  # Remove untracked files
 
 # 4. Check logs for rollback details
 pr-resolve apply --pr 123 --owner org --repo repo --log-level DEBUG 2>&1 | grep -i rollback
+
 ```
 
 #### 4. Git Not Found
 
 **Symptoms:**
-- `RollbackError: git command not found`
-- Cannot initialize RollbackManager
+
+* `RollbackError: git command not found`
+* Cannot initialize RollbackManager
 
 **Causes:**
-- Git not installed on system
-- Git not in PATH
-- Running in restricted environment
+
+* Git not installed on system
+* Git not in PATH
+* Running in restricted environment
 
 **Solutions:**
+
 ```bash
 # 1. Verify git is installed
 which git
 git --version
 
 # 2. Install git if missing
-# Ubuntu/Debian:
+# Ubuntu/Debian
 sudo apt-get install git
 
-# macOS:
+# macOS
 brew install git
 
 # 3. Add git to PATH if installed but not found
@@ -749,20 +795,24 @@ export PATH="/usr/bin:$PATH"
 
 # 4. Or disable rollback if git unavailable (not recommended)
 pr-resolve apply --pr 123 --owner org --repo repo --no-rollback
+
 ```
 
 #### 5. Stash Apply Conflicts
 
 **Symptoms:**
-- Rollback fails with "stash apply" conflicts
-- Git reports merge conflicts during rollback
+
+* Rollback fails with "stash apply" conflicts
+* Git reports merge conflicts during rollback
 
 **Causes:**
-- Changes applied by resolver conflict with checkpoint state
-- File was deleted then recreated differently
-- Binary file conflicts
+
+* Changes applied by resolver conflict with checkpoint state
+* File was deleted then recreated differently
+* Binary file conflicts
 
 **Solutions:**
+
 ```bash
 # 1. Abort the conflicted stash apply
 git reset --hard HEAD
@@ -779,6 +829,7 @@ git stash drop stash@{0}
 
 # 4. If unrecoverable, inspect stash contents
 git stash show -p stash@{0}  # See what's in the stash
+
 ```
 
 ### Debugging Rollback Issues
@@ -794,6 +845,7 @@ pr-resolve apply --pr 123 --owner org --repo repo \
 
 # Review rollback-specific logs
 grep -i "rollback\|checkpoint\|stash" /tmp/rollback-debug-*.log
+
 ```
 
 #### Python API Debugging
@@ -821,6 +873,7 @@ except Exception as e:
     print(f"Failed: {e}")
     import traceback
     traceback.print_exc()
+
 ```
 
 #### Manual Inspection
@@ -840,6 +893,7 @@ git stash show -p stash@{0}  # Full diff
 
 # 4. Test stash apply manually
 git stash apply stash@{0} --dry-run  # Test without applying
+
 ```
 
 ### Getting Help
@@ -847,31 +901,37 @@ git stash apply stash@{0} --dry-run  # Test without applying
 When reporting rollback issues, include:
 
 1. **Full command used**
+
    ```bash
    pr-resolve apply --pr 123 --owner org --repo repo --rollback --log-level DEBUG
+
    ```
 
 2. **Debug log file**
+
    ```bash
    --log-file /tmp/rollback-issue.log
+
    ```
 
 3. **Git repository state**
+
    ```bash
    git status
    git stash list
    git log -5 --oneline
    git branch -v
+
    ```
 
 4. **Error messages**
-   - Full exception stack trace
-   - Git command errors from log
+   * Full exception stack trace
+   * Git command errors from log
 
 5. **Environment details**
-   - OS and version
-   - Git version: `git --version`
-   - Python version: `python --version`
+   * OS and version
+   * Git version: `git --version`
+   * Python version: `python --version`
 
 ## Best Practices
 
@@ -881,6 +941,7 @@ When reporting rollback issues, include:
 # production-config.yaml
 rollback:
   enabled: true  # Never disable in production
+
 ```
 
 **Rationale**: Even with validation, unexpected errors can occur. Rollback provides a last line of defense.
@@ -901,6 +962,7 @@ try:
     manager.commit()
 except Exception:
     manager.rollback()  # Easy to forget
+
 ```
 
 ### 3. Clean Working Directory Before Running
@@ -914,6 +976,7 @@ git stash push -m "Before PR resolver"
 
 # Then run resolver
 pr-resolve apply --pr 123 --owner org --repo repo --rollback
+
 ```
 
 **Rationale**: Clean working directory ensures checkpoint captures only resolver changes.
@@ -925,6 +988,7 @@ pr-resolve apply --pr 123 --owner org --repo repo --rollback
 pr-resolve apply --pr 123 --owner org --repo repo \
   --validation \  # Catch errors early
   --rollback      # Recover if validation misses something
+
 ```
 
 ### 5. Log to File for Audit Trail
@@ -939,6 +1003,7 @@ pr-resolve apply --pr 123 --owner org --repo repo \
 
 # Review logs later
 grep -i "rollback\|checkpoint" logs/*.log
+
 ```
 
 ### 6. Test Rollback in Non-Production First
@@ -949,6 +1014,7 @@ pr-resolve apply --pr 123 --owner org --repo test-repo --rollback
 
 # Verify rollback works by intentionally causing failure
 # Then apply to production with confidence
+
 ```
 
 ### 7. Monitor Rollback Frequency
@@ -958,66 +1024,71 @@ pr-resolve apply --pr 123 --owner org --repo test-repo --rollback
 grep "Rolling back" logs/*.log | wc -l
 
 # If rollback triggers frequently, investigate root causes
+
 ```
 
 ## Limitations
 
 ### 1. Requires Git Repository
 
-- **Limitation**: Only works in git repositories
-- **Workaround**: Not available for non-git projects
-- **Alternative**: Use external backup systems
+* **Limitation**: Only works in git repositories
+* **Workaround**: Not available for non-git projects
+* **Alternative**: Use external backup systems
 
 ### 2. Untracked Files in .gitignore Not Saved
 
-- **Limitation**: Files matching .gitignore patterns not captured
-- **Workaround**: Temporarily unignore critical files
-- **Example**:
+* **Limitation**: Files matching .gitignore patterns not captured
+* **Workaround**: Temporarily unignore critical files
+* **Example**:
+
   ```bash
   # Temporarily remove from .gitignore
   echo "!critical-file.log" >> .gitignore
+
   ```
 
 ### 3. Performance Impact
 
-- **Limitation**: Checkpoint creation adds overhead
-- **Impact**: ~1-2 seconds for small repos, 5-10 seconds for large repos
-- **Mitigation**: Disable for performance-critical operations (not recommended)
+* **Limitation**: Checkpoint creation adds overhead
+* **Impact**: ~1-2 seconds for small repos, 5-10 seconds for large repos
+* **Mitigation**: Disable for performance-critical operations (not recommended)
 
 ### 4. Requires Git Installed
 
-- **Limitation**: `git` command must be available
-- **Workaround**: Install git or disable rollback
-- **Check**: `which git` and `git --version`
+* **Limitation**: `git` command must be available
+* **Workaround**: Install git or disable rollback
+* **Check**: `which git` and `git --version`
 
 ### 5. Single Checkpoint at a Time
 
-- **Limitation**: Cannot create nested checkpoints
-- **Workaround**: Commit or rollback before creating new checkpoint
-- **Example**:
+* **Limitation**: Cannot create nested checkpoints
+* **Workaround**: Commit or rollback before creating new checkpoint
+* **Example**:
+
   ```python
   manager.create_checkpoint()
   # ... apply some changes ...
   manager.commit()  # Must commit before new checkpoint
   manager.create_checkpoint()  # Now can create new one
+
   ```
 
 ### 6. No Cross-Branch Rollback
 
-- **Limitation**: Rollback within same branch only
-- **Impact**: Cannot rollback across branch switches
-- **Example**: If changes cause branch switch, rollback may not restore correctly
+* **Limitation**: Rollback within same branch only
+* **Impact**: Cannot rollback across branch switches
+* **Example**: If changes cause branch switch, rollback may not restore correctly
 
 ### 7. Large Repository Performance
 
-- **Limitation**: Stash operations slow on large repos (1M+ files)
-- **Impact**: Checkpoint creation may take 30+ seconds
-- **Mitigation**: Use `--no-rollback` only if performance critical
+* **Limitation**: Stash operations slow on large repos (1M+ files)
+* **Impact**: Checkpoint creation may take 30+ seconds
+* **Mitigation**: Use `--no-rollback` only if performance critical
 
 ## See Also
 
-- [Configuration Reference](configuration.md) - Rollback configuration options
-- [Getting Started](getting-started.md) - Basic rollback usage
-- [API Reference](api-reference.md) - RollbackManager API documentation
-- [Parallel Processing](parallel-processing.md) - Combining rollback with parallel execution
-- [Troubleshooting](troubleshooting.md) - General troubleshooting guide
+* [Configuration Reference](configuration.md) - Rollback configuration options
+* [Getting Started](getting-started.md) - Basic rollback usage
+* [API Reference](api-reference.md) - RollbackManager API documentation
+* [Parallel Processing](parallel-processing.md) - Combining rollback with parallel execution
+* [Troubleshooting](troubleshooting.md) - General troubleshooting guide

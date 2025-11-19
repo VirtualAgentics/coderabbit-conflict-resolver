@@ -4,19 +4,19 @@ The Review Bot Automator supports parallel processing to significantly speed up 
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [How It Works](#how-it-works)
-- [When to Use Parallel Processing](#when-to-use-parallel-processing)
-- [Usage](#usage)
-- [Configuration](#configuration)
-- [Performance Optimization](#performance-optimization)
-- [Architecture](#architecture)
-- [Safety and Thread Safety](#safety-and-thread-safety)
-- [Benchmarking](#benchmarking)
-- [Use Cases](#use-cases)
-- [Troubleshooting](#troubleshooting)
-- [Best Practices](#best-practices)
-- [Limitations](#limitations)
+* [Overview](#overview)
+* [How It Works](#how-it-works)
+* [When to Use Parallel Processing](#when-to-use-parallel-processing)
+* [Usage](#usage)
+* [Configuration](#configuration)
+* [Performance Optimization](#performance-optimization)
+* [Architecture](#architecture)
+* [Safety and Thread Safety](#safety-and-thread-safety)
+* [Benchmarking](#benchmarking)
+* [Use Cases](#use-cases)
+* [Troubleshooting](#troubleshooting)
+* [Best Practices](#best-practices)
+* [Limitations](#limitations)
 
 ## Overview
 
@@ -24,19 +24,19 @@ Parallel processing enables the resolver to apply changes to multiple files conc
 
 ### Key Features
 
-- **File-Level Parallelization**: Processes different files concurrently
-- **Sequential Per-File Processing**: Changes to the same file applied sequentially (prevents race conditions)
-- **Thread-Safe**: Uses locks and thread-safe collections
-- **Configurable Workers**: Adjust worker count based on workload
-- **Exception Handling**: Propagates exceptions from worker threads
-- **Compatible with Rollback**: Works seamlessly with rollback system
+* **File-Level Parallelization**: Processes different files concurrently
+* **Sequential Per-File Processing**: Changes to the same file applied sequentially (prevents race conditions)
+* **Thread-Safe**: Uses locks and thread-safe collections
+* **Configurable Workers**: Adjust worker count based on workload
+* **Exception Handling**: Propagates exceptions from worker threads
+* **Compatible with Rollback**: Works seamlessly with rollback system
 
 ### Performance Improvements
 
 Parallel processing provides significant speedup for large PRs:
 
 | PR Size | Sequential | Parallel (4 workers) | Parallel (8 workers) | Speedup |
-|---------|-----------|---------------------|---------------------|---------|
+| --------- | ----------- | --------------------- | --------------------- | --------- |
 | 10 files | 5s | 4s | 4s | 1.25x |
 | 30 files | 15s | 5s | 4s | 3.75x |
 | 100 files | 50s | 15s | 10s | 5x |
@@ -60,14 +60,16 @@ The parallel processing system uses a **file-level parallelization** model:
 ### Why File-Level Parallelization?
 
 **Prevents Race Conditions:**
-- Multiple concurrent modifications to same file would cause conflicts
-- Sequential processing per file ensures consistency
-- Different files are independent, safe to process concurrently
+
+* Multiple concurrent modifications to same file would cause conflicts
+* Sequential processing per file ensures consistency
+* Different files are independent, safe to process concurrently
 
 **Maintains Change Order:**
-- Changes to same file applied in original order
-- Dependencies between changes in same file preserved
-- No risk of out-of-order application
+
+* Changes to same file applied in original order
+* Dependencies between changes in same file preserved
+* No risk of out-of-order application
 
 ### Thread Safety Mechanisms
 
@@ -81,46 +83,56 @@ The parallel processing system uses a **file-level parallelization** model:
 ### Enable Parallel Processing
 
 ✅ **Large PRs (30+ files)**
-- Significant speedup from concurrent file processing
-- Worker overhead amortized over many files
+
+* Significant speedup from concurrent file processing
+* Worker overhead amortized over many files
 
 ✅ **Independent File Changes**
-- Changes don't depend on each other across files
-- No cross-file dependencies
+
+* Changes don't depend on each other across files
+* No cross-file dependencies
 
 ✅ **I/O-Bound Workloads**
-- File reading/writing dominates processing time
-- Multiple threads reduce I/O wait time
+
+* File reading/writing dominates processing time
+* Multiple threads reduce I/O wait time
 
 ✅ **Time-Critical Resolutions**
-- Need to apply changes quickly
-- Willing to trade resource usage for speed
+
+* Need to apply changes quickly
+* Willing to trade resource usage for speed
 
 ✅ **Sufficient System Resources**
-- 4+ CPU cores available
-- Adequate memory for worker threads
+
+* 4+ CPU cores available
+* Adequate memory for worker threads
 
 ### Disable Parallel Processing
 
 ❌ **Small PRs (< 10 files)**
-- Worker overhead exceeds benefits
-- Sequential processing is faster
+
+* Worker overhead exceeds benefits
+* Sequential processing is faster
 
 ❌ **Dependent Changes Across Files**
-- Changes in one file depend on changes in another
-- Sequential processing ensures correct order
+
+* Changes in one file depend on changes in another
+* Sequential processing ensures correct order
 
 ❌ **Debugging Sessions**
-- Sequential execution easier to trace
-- Logging order is clearer
+
+* Sequential execution easier to trace
+* Logging order is clearer
 
 ❌ **Limited System Resources**
-- System has < 4 CPU cores
-- Memory constrained environment
+
+* System has < 4 CPU cores
+* Memory constrained environment
 
 ❌ **Single-File PRs**
-- All changes to one file (no parallelization possible)
-- Sequential processing required
+
+* All changes to one file (no parallelization possible)
+* Sequential processing required
 
 ## Usage
 
@@ -142,6 +154,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo \
   --max-workers 16 \
   --rollback \
   --validation
+
 ```
 
 #### Disable Parallel Processing (Default)
@@ -152,6 +165,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo
 
 # Can explicitly specify sequential (not necessary)
 pr-resolve apply --pr 123 --owner myorg --repo myrepo --max-workers 1
+
 ```
 
 ### Environment Variables
@@ -162,28 +176,34 @@ export CR_PARALLEL="true"
 export CR_MAX_WORKERS="8"
 
 pr-resolve apply --pr 123 --owner myorg --repo myrepo
+
 ```
 
 ### Configuration File
 
 **YAML:**
+
 ```yaml
 # config.yaml
 parallel:
   enabled: true
   max_workers: 8
+
 ```
 
 **TOML:**
+
 ```toml
 # config.toml
 [parallel]
 enabled = true
 max_workers = 8
+
 ```
 
 ```bash
 pr-resolve apply --pr 123 --owner myorg --repo myrepo --config config.yaml
+
 ```
 
 ### Python API
@@ -208,6 +228,7 @@ results = resolver.resolve_pr_conflicts(
 
 print(f"Applied: {results.applied_count} changes")
 print(f"Time: {results.elapsed_time:.2f}s")
+
 ```
 
 #### Using apply_changes Directly
@@ -228,6 +249,7 @@ applied, skipped, failed = resolver.apply_changes(
 print(f"Applied: {len(applied)}")
 print(f"Skipped: {len(skipped)}")
 print(f"Failed: {len(failed)}")
+
 ```
 
 ## Configuration
@@ -244,7 +266,7 @@ Configuration sources (highest to lowest priority):
 ### Configuration Options
 
 | Option | Type | CLI | Environment | Config File | Default |
-|--------|------|-----|-------------|-------------|---------|
+| -------- | ------ | ----- | ------------- | ------------- | --------- |
 | Enable | boolean | `--parallel` | `CR_PARALLEL` | `parallel.enabled` | `false` |
 | Workers | integer | `--max-workers N` | `CR_MAX_WORKERS` | `parallel.max_workers` | `4` |
 
@@ -264,6 +286,7 @@ pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 16
 
 # Very large PRs (300+ files): 16-32 workers
 pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 32
+
 ```
 
 #### By CPU Cores
@@ -280,6 +303,7 @@ pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers $WORK
 # Maximum: 4x CPU cores (only for very large PRs with heavy I/O)
 WORKERS=$(($(nproc) * 4))
 pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers $WORKERS
+
 ```
 
 ### Configuration Examples
@@ -295,6 +319,7 @@ rollback:
   enabled: true
 logging:
   level: DEBUG
+
 ```
 
 #### Example 2: Production Environment
@@ -311,6 +336,7 @@ validation:
   enabled: true
 logging:
   level: INFO
+
 ```
 
 #### Example 3: High-Performance Environment
@@ -327,6 +353,7 @@ validation:
   enabled: false   # Disable for speed
 logging:
   level: WARNING   # Minimal logging overhead
+
 ```
 
 ## Performance Optimization
@@ -344,14 +371,15 @@ nproc
 # Check available memory (ensure ~100MB per worker)
 free -h
 
-# Recommended formula for I/O-bound work:
+# Recommended formula for I/O-bound work
 WORKERS=$(($(nproc) * 2))
+
 ```
 
 #### PR Characteristics
 
 | PR Characteristic | Recommended Workers | Rationale |
-|------------------|-------------------|-----------|
+| ------------------ | ------------------- | ----------- |
 | 10-30 small files | 2-4 | Low parallelization benefit |
 | 30-100 medium files | 4-8 | Good parallelization benefit |
 | 100-300 large files | 8-16 | High parallelization benefit |
@@ -394,6 +422,7 @@ done
 
 echo "=================================="
 echo "Choose the worker count with lowest duration"
+
 ```
 
 ### Performance Tips
@@ -414,6 +443,7 @@ else
 fi
 
 pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers $WORKERS
+
 ```
 
 #### 2. Disable Validation for Performance
@@ -425,6 +455,7 @@ pr-resolve apply --pr 123 --owner org --repo repo \
   --parallel --max-workers 16 \
   --no-validation \  # Disable validation
   --rollback         # Use rollback for safety
+
 ```
 
 #### 3. Reduce Logging Overhead
@@ -434,6 +465,7 @@ pr-resolve apply --pr 123 --owner org --repo repo \
 pr-resolve apply --pr 123 --owner org --repo repo \
   --parallel --max-workers 16 \
   --log-level WARNING  # Minimal logging
+
 ```
 
 #### 4. Use Staged Application
@@ -449,6 +481,7 @@ pr-resolve apply --pr 123 --owner org --repo repo \
 pr-resolve apply --pr 123 --owner org --repo repo \
   --mode conflicts-only \
   --validation
+
 ```
 
 ### Performance Monitoring
@@ -465,13 +498,14 @@ watch -n 1 'ps aux | grep pr-resolve | grep -v grep'
 
 # Or use htop for real-time CPU/memory monitoring
 htop -p $(pgrep pr-resolve)
+
 ```
 
 ## Architecture
 
 ### Component Overview
 
-```
+```text
 ┌────────────────────────────────────────────────────────────┐
 │              ConflictResolver                              │
 │                                                            │
@@ -524,6 +558,7 @@ htop -p $(pgrep pr-resolve)
 │  │    failed (with lock)                                 │ │
 │  └──────────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────┘
+
 ```
 
 ### Thread Pool Architecture
@@ -566,11 +601,12 @@ def _apply_changes_parallel(changes, validate, max_workers):
                 mark_as_failed(affected_changes, str(e))
 
     return applied, skipped, failed
+
 ```
 
 ### Data Flow
 
-```
+```text
 Input: List[Change]
     │
     ▼
@@ -596,6 +632,7 @@ Thread-Safe Accumulation
     │
     ▼
 Output: Tuple[List[Change], List[Change], List[Tuple[Change, str]]]
+
 ```
 
 ## Safety and Thread Safety
@@ -617,6 +654,7 @@ for change in changes:
 # Each file processed by one worker only
 for file_changes in changes_by_file.values():
     executor.submit(process_file_changes, file_changes)
+
 ```
 
 #### 2. Thread-Safe Collections
@@ -635,6 +673,7 @@ failed_lock = threading.Lock()
 def add_applied(change):
     with applied_lock:
         applied.append(change)
+
 ```
 
 #### 3. Exception Propagation
@@ -657,6 +696,7 @@ for future in as_completed(future_to_changes):
     except Exception as e:
         affected_changes = future_to_changes[future]
         mark_as_failed(affected_changes, str(e))
+
 ```
 
 ### Compatibility with Rollback
@@ -669,14 +709,16 @@ pr-resolve apply --pr 123 --owner org --repo repo \
   --parallel --max-workers 8 \
   --rollback
 
-# If any worker thread fails:
+# If any worker thread fails
 # 1. Exception propagated to main thread
 # 2. Rollback system triggers
 # 3. All changes rolled back (both sequential and parallel)
 # 4. Working directory restored to checkpoint
+
 ```
 
 **How it works:**
+
 1. Checkpoint created before any worker starts
 2. Workers apply changes concurrently
 3. If any worker fails, exception propagated
@@ -686,16 +728,18 @@ pr-resolve apply --pr 123 --owner org --repo repo \
 ### Data Integrity
 
 **Guaranteed:**
-- ✅ No concurrent modifications to same file
-- ✅ Changes to same file applied in order
-- ✅ Thread-safe result accumulation
-- ✅ Exception propagation from workers
-- ✅ Compatible with rollback
+
+* ✅ No concurrent modifications to same file
+* ✅ Changes to same file applied in order
+* ✅ Thread-safe result accumulation
+* ✅ Exception propagation from workers
+* ✅ Compatible with rollback
 
 **Not Guaranteed:**
-- ❌ Result order (changes accumulated in completion order, not input order)
-- ❌ Logging order (log messages may be interleaved)
-- ❌ Cross-file dependencies (files processed independently)
+
+* ❌ Result order (changes accumulated in completion order, not input order)
+* ❌ Logging order (log messages may be interleaved)
+* ❌ Cross-file dependencies (files processed independently)
 
 ## Benchmarking
 
@@ -717,6 +761,7 @@ time pr-resolve apply --pr $PR --owner $OWNER --repo $REPO --mode dry-run --para
 
 echo "Parallel processing (8 workers):"
 time pr-resolve apply --pr $PR --owner $OWNER --repo $REPO --mode dry-run --parallel --max-workers 8
+
 ```
 
 ### Comprehensive Benchmark
@@ -764,6 +809,7 @@ plot '$RESULTS_FILE' using 1:2 with linespoints title 'Duration'
 EOF
 
 echo "Chart saved to benchmark-results.png"
+
 ```
 
 ### Analyzing Results
@@ -819,6 +865,7 @@ ax2.grid(True)
 plt.tight_layout()
 plt.savefig('benchmark-analysis.png')
 print("\nAnalysis chart saved to benchmark-analysis.png")
+
 ```
 
 ## Use Cases
@@ -842,6 +889,7 @@ pr-resolve apply --pr 456 --owner myorg --repo production \
 
 # Result: 150 changes applied in 22s (vs 150s sequential)
 # Speedup: 6.8x faster
+
 ```
 
 ### Use Case 2: CI/CD Pipeline Optimization
@@ -850,7 +898,7 @@ pr-resolve apply --pr 456 --owner myorg --repo production \
 
 ```yaml
 # .github/workflows/auto-resolve.yml
-- name: Resolve PR Conflicts
+* name: Resolve PR Conflicts
   run: |
     # Enable parallel processing for speed
     export CR_PARALLEL="true"
@@ -866,6 +914,7 @@ pr-resolve apply --pr 456 --owner myorg --repo production \
       --rollback \
       --log-file /tmp/pr-resolve.log
   timeout-minutes: 5  # Reduced from 15 with parallel processing
+
 ```
 
 ### Use Case 3: Staged Application
@@ -887,6 +936,7 @@ pr-resolve apply --pr 789 --owner myorg --repo myrepo \
   --validation \
   --rollback \
   --log-level INFO
+
 ```
 
 ### Use Case 4: Development Workflow
@@ -903,6 +953,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo \
 pr-resolve apply --pr 123 --owner myorg --repo myrepo \
   --parallel --max-workers 8 \
   --rollback
+
 ```
 
 ### Use Case 5: Dynamic Worker Scaling
@@ -967,12 +1018,15 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 ```
 
 Usage:
+
 ```bash
 ./smart-apply.py myorg myrepo 123
 # Automatically uses optimal worker count
+
 ```
 
 ## Troubleshooting
@@ -980,16 +1034,19 @@ Usage:
 ### Issue 1: Parallel Processing Slower Than Sequential
 
 **Symptoms:**
-- `--parallel` is slower than without it
-- High worker overhead
-- No performance improvement
+
+* `--parallel` is slower than without it
+* High worker overhead
+* No performance improvement
 
 **Causes:**
-- Too many workers for small PR
-- Worker overhead exceeds benefits
-- I/O contention on slow disk
+
+* Too many workers for small PR
+* Worker overhead exceeds benefits
+* I/O contention on slow disk
 
 **Solutions:**
+
 ```bash
 # 1. Reduce worker count
 pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 2
@@ -1004,21 +1061,25 @@ fi
 
 # 3. Benchmark to find optimal worker count
 ./benchmark.sh  # Test 1, 2, 4, 8, 16, 32 workers
+
 ```
 
 ### Issue 2: Worker Thread Exceptions
 
 **Symptoms:**
-- Error: "Worker thread exception"
-- Changes marked as failed
-- Unexpected failures
+
+* Error: "Worker thread exception"
+* Changes marked as failed
+* Unexpected failures
 
 **Causes:**
-- Exception in worker thread
-- File access issues
-- Memory constraints
+
+* Exception in worker thread
+* File access issues
+* Memory constraints
 
 **Solutions:**
+
 ```bash
 # 1. Check logs for details
 pr-resolve apply --pr 123 --owner org --repo repo \
@@ -1037,21 +1098,25 @@ pr-resolve apply --pr 123 --owner org --repo repo
 # 4. Check system resources
 free -h  # Check memory
 df -h    # Check disk space
+
 ```
 
 ### Issue 3: High Memory Usage
 
 **Symptoms:**
-- System slowdown
-- High memory consumption
-- Out of memory errors
+
+* System slowdown
+* High memory consumption
+* Out of memory errors
 
 **Causes:**
-- Too many workers
-- Large files loaded into memory
-- Memory leak (report as bug)
+
+* Too many workers
+* Large files loaded into memory
+* Memory leak (report as bug)
 
 **Solutions:**
+
 ```bash
 # 1. Reduce worker count
 pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 4
@@ -1064,20 +1129,24 @@ watch -n 1 'ps aux | grep pr-resolve'
 AVAILABLE_MB=$(free -m | awk 'NR==2 {print $7}')
 MAX_WORKERS=$((AVAILABLE_MB / 100))
 pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers $MAX_WORKERS
+
 ```
 
 ### Issue 4: Logging Order Confusion
 
 **Symptoms:**
-- Log messages interleaved
-- Difficult to trace execution
-- Unclear failure source
+
+* Log messages interleaved
+* Difficult to trace execution
+* Unclear failure source
 
 **Causes:**
-- Multiple worker threads logging concurrently
-- No log ordering guarantee with parallel processing
+
+* Multiple worker threads logging concurrently
+* No log ordering guarantee with parallel processing
 
 **Solutions:**
+
 ```bash
 # 1. Use timestamps in logs
 pr-resolve apply --pr 123 --owner org --repo repo \
@@ -1093,21 +1162,25 @@ pr-resolve apply --pr 123 --owner org --repo repo \
   --log-file /tmp/parallel.log
 
 grep "file_path.py" /tmp/parallel.log
+
 ```
 
 ### Issue 5: No Speedup on Multi-Core System
 
 **Symptoms:**
-- Have 8 CPU cores
-- No speedup with `--parallel`
-- All workers run on one core
+
+* Have 8 CPU cores
+* No speedup with `--parallel`
+* All workers run on one core
 
 **Causes:**
-- Python GIL (Global Interpreter Lock) for CPU-bound work
-- File I/O not concurrent
-- Disk bottleneck
+
+* Python GIL (Global Interpreter Lock) for CPU-bound work
+* File I/O not concurrent
+* Disk bottleneck
 
 **Solutions:**
+
 ```bash
 # 1. Verify I/O-bound workload
 # Parallel helps only for I/O-bound work (file operations)
@@ -1122,6 +1195,7 @@ iostat -x 1  # Should see disk activity
 # 4. If truly CPU-bound, parallel won't help
 # Example: Complex conflict resolution algorithms
 # Consider sequential processing instead
+
 ```
 
 ## Best Practices
@@ -1133,6 +1207,7 @@ iostat -x 1  # Should see disk activity
 ./benchmark.sh > benchmark-$(date +%Y%m%d).txt
 
 # Use results to configure production
+
 ```
 
 ### 2. Match Workers to Workload
@@ -1142,6 +1217,7 @@ iostat -x 1  # Should see disk activity
 # Medium PRs: 4-8 workers
 # Large PRs: 8-16 workers
 # Very large PRs: 16-32 workers
+
 ```
 
 ### 3. Combine with Rollback for Safety
@@ -1151,6 +1227,7 @@ iostat -x 1  # Should see disk activity
 pr-resolve apply --pr 123 --owner org --repo repo \
   --parallel --max-workers 8 \
   --rollback  # Safety net for worker failures
+
 ```
 
 ### 4. Monitor System Resources
@@ -1163,6 +1240,7 @@ nproc    # CPU cores
 
 # Monitor during execution
 htop -p $(pgrep pr-resolve)
+
 ```
 
 ### 5. Use Staged Application for Large PRs
@@ -1177,6 +1255,7 @@ pr-resolve apply --pr 123 --owner org --repo repo \
 pr-resolve apply --pr 123 --owner org --repo repo \
   --mode conflicts-only \
   --parallel --max-workers 8
+
 ```
 
 ### 6. Disable Parallel for Debugging
@@ -1187,6 +1266,7 @@ pr-resolve apply --pr 123 --owner org --repo repo --log-level DEBUG
 
 # Production: Parallel for speed
 pr-resolve apply --pr 123 --owner org --repo repo --parallel --max-workers 8
+
 ```
 
 ### 7. Configure Per Environment
@@ -1200,6 +1280,7 @@ parallel:
 parallel:
   enabled: true
   max_workers: 16  # Optimized for performance
+
 ```
 
 ## Limitations
@@ -1262,8 +1343,8 @@ parallel:
 
 ## See Also
 
-- [Configuration Reference](configuration.md) - Parallel processing configuration
-- [Rollback System](rollback-system.md) - Combining rollback with parallel processing
-- [Getting Started](getting-started.md) - Basic parallel processing usage
-- [API Reference](api-reference.md) - Python API for parallel processing
-- [Troubleshooting](troubleshooting.md) - General troubleshooting guide
+* [Configuration Reference](configuration.md) - Parallel processing configuration
+* [Rollback System](rollback-system.md) - Combining rollback with parallel processing
+* [Getting Started](getting-started.md) - Basic parallel processing usage
+* [API Reference](api-reference.md) - Python API for parallel processing
+* [Troubleshooting](troubleshooting.md) - General troubleshooting guide

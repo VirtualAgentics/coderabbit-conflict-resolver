@@ -7,6 +7,7 @@ This directory contains the configuration and build scripts for continuous fuzzi
 ClusterFuzzLite runs coverage-guided fuzzing on pull requests and scheduled workflows to detect crashes, memory issues, and edge cases in security-critical code.
 
 **Base Image**: `gcr.io/oss-fuzz-base/base-builder-python`
+
 - **Python Version**: 3.11.13 (Atheris doesn't support Python 3.12 yet)
 - **Pre-installed**: Atheris 2.3.0, pip (latest)
 
@@ -24,6 +25,7 @@ ClusterFuzzLite runs coverage-guided fuzzing on pull requests and scheduled work
 OpenSSF Scorecard's `Pinned-Dependencies` check **does not recognize** inline `--hash` arguments in pip install commands.
 
 **❌ WRONG (will trigger CodeQL alert #83)**:
+
 ```bash
 python3 -m pip install \
   "PyYAML==6.0.3" \
@@ -31,6 +33,7 @@ python3 -m pip install \
 ```
 
 **✅ CORRECT (recognized by Scorecard)**:
+
 ```bash
 python3 -m pip install --require-hashes -r /src/.clusterfuzzlite/requirements-fuzz.txt
 ```
@@ -43,6 +46,7 @@ python3 -m pip install --require-hashes -r /src/.clusterfuzzlite/requirements-fu
 4. **Enforcement**: `--require-hashes` flag ensures ALL dependencies have hashes
 
 **Impact**:
+
 - Without requirements file: Pinned-Dependencies score = 9/10 (CodeQL alert)
 - With requirements file: Pinned-Dependencies score = 10/10 ✅
 
@@ -53,6 +57,7 @@ python3 -m pip install --require-hashes -r /src/.clusterfuzzlite/requirements-fu
 The Docker image uses **Python 3.11.13**, but local development may use Python 3.12+.
 
 **Problem**: Compiled packages (PyYAML, ruamel.yaml.clib) have different binary wheels per Python version:
+
 - `pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.whl` (Python 3.11)
 - `pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.whl` (Python 3.12)
 
@@ -61,13 +66,15 @@ The Docker image uses **Python 3.11.13**, but local development may use Python 3
 ### How to Generate Correct Hashes
 
 **Method 1: Query PyPI JSON API** (Recommended)
+
 ```bash
 # Get PyYAML 6.0.3 for Python 3.11 Linux x86_64
-curl -s https://pypi.org/pypi/PyYAML/json | \
+curl -s <https://pypi.org/pypi/PyYAML/json> | \
   jq -r '.releases["6.0.3"][] | select(.python_version == "cp311" and .filename | contains("manylinux2014_x86_64")) | "\(.filename)\n  --hash=sha256:\(.digests.sha256)"'
 ```
 
-**Method 2: Download and Verify**
+### Method 2: Download and Verify
+
 ```bash
 # Download specific wheel for Python 3.11
 pip download --python-version 3.11 --platform manylinux2014_x86_64 \
@@ -77,7 +84,8 @@ pip download --python-version 3.11 --platform manylinux2014_x86_64 \
 sha256sum pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.whl
 ```
 
-**Method 3: pip-compile (for multiple dependencies)**
+### Method 3: pip-compile (for multiple dependencies)
+
 ```bash
 # Install pip-tools
 pip install pip-tools
@@ -92,11 +100,13 @@ pip-compile --generate-hashes requirements.in -o requirements-fuzz.txt
 ### Universal vs. Platform-Specific Wheels
 
 **Pure Python packages** (e.g., `ruamel.yaml`):
+
 - Wheel: `ruamel.yaml-0.18.16-py3-none-any.whl`
 - Tag: `py3-none-any` (universal, works on all Python 3.x versions)
 - Hash: **Same across all Python versions** ✅
 
 **Compiled packages** (e.g., `PyYAML`, `ruamel.yaml.clib`):
+
 - Wheel: `pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.whl`
 - Tag: `cp311` (CPython 3.11), `manylinux2014_x86_64` (Linux x86_64)
 - Hash: **Different per Python version** ⚠️
@@ -106,12 +116,14 @@ pip-compile --generate-hashes requirements.in -o requirements-fuzz.txt
 ### `requirements-py311.txt` - Core Dependencies
 
 Contains all core project dependencies (from `pyproject.toml`) with Python 3.11 hashes:
+
 - click, requests, pydantic, ruamel.yaml, tomli-w, rich
 - All transitive dependencies (annotated-types, certifi, charset-normalizer, etc.)
 - Installed first in `build.sh` with `--require-hashes` flag
 - Project is then installed with `--no-deps` to avoid dependency conflicts
 
-**Why separate from `requirements.txt`?**
+### Why separate from `requirements.txt`?
+
 - Root `requirements.txt` has Python 3.12 hashes
 - Compiled packages (charset-normalizer, pydantic-core) have different wheel hashes per Python version
 - ClusterFuzzLite Docker image uses Python 3.11.13 (Atheris limitation)
@@ -119,6 +131,7 @@ Contains all core project dependencies (from `pyproject.toml`) with Python 3.11 
 ### `requirements-fuzz.txt` - Additional Runtime Dependencies
 
 Contains additional dependencies needed only for fuzzing (not in core dependencies):
+
 - PyYAML (if not already in core)
 - ruamel.yaml runtime components
 
@@ -126,7 +139,7 @@ Contains additional dependencies needed only for fuzzing (not in core dependenci
 
 ### Step 1: Update `requirements-py311.txt` and `requirements-fuzz.txt`
 
-1. **Check current version on PyPI**: https://pypi.org/project/<package>/
+1. **Check current version on PyPI**: <https://pypi.org/project/><package>/
 2. **Generate hash** for Python 3.11 (see methods above)
 3. **Update** `requirements-fuzz.txt` with new version and hash
 4. **Verify** transitive dependencies are included
@@ -153,7 +166,8 @@ docker run --rm -v $(pwd):/src clusterfuzzlite-test bash -c \
 ### Issue 1: Hash Mismatch Error
 
 **Error**:
-```
+
+```text
 ERROR: THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE
 ```
 
@@ -170,13 +184,15 @@ ERROR: THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE
 ### Issue 3: Missing Transitive Dependencies
 
 **Error**:
-```
+
+```text
 ERROR: In --require-hashes mode, all requirements must have their versions pinned
 ```
 
 **Cause**: Transitive dependency (e.g., `ruamel.yaml.clib`) not included with hash
 
 **Fix**: Add all transitive dependencies to `requirements-fuzz.txt`:
+
 ```bash
 # Find transitive dependencies
 pip install --dry-run PyYAML==6.0.3 ruamel.yaml==0.18.16
@@ -222,16 +238,19 @@ pip install --dry-run PyYAML==6.0.3 ruamel.yaml==0.18.16
 ### Supply Chain Security
 
 **Hash Pinning** (SHA256):
+
 - ✅ Prevents package substitution attacks
 - ✅ Ensures reproducible builds
 - ✅ Complies with SLSA framework Level 2
 
 **Dependency Scanning**:
+
 - ✅ Trivy scans for CVEs
 - ✅ pip-audit checks PyPI advisories
 - ✅ Renovate auto-updates dependencies
 
 **Scorecard Compliance**:
+
 - ✅ Pinned-Dependencies: 10/10 (after PR #96)
 - ✅ Dependency-Update-Tool: Renovate configured
 - ✅ SBOM-Generation: Enabled
@@ -263,10 +282,10 @@ All fuzz targets are located in the `/fuzz` directory:
 
 ## References
 
-- **ClusterFuzzLite Docs**: https://google.github.io/clusterfuzzlite/
-- **OpenSSF Scorecard**: https://github.com/ossf/scorecard
-- **Pip Hash Checking**: https://pip.pypa.io/en/stable/topics/secure-installs/
-- **PyPI JSON API**: https://warehouse.pypa.io/api-reference/json.html
+- **ClusterFuzzLite Docs**: <https://google.github.io/clusterfuzzlite/>
+- **OpenSSF Scorecard**: <https://github.com/ossf/scorecard>
+- **Pip Hash Checking**: <https://pip.pypa.io/en/stable/topics/secure-installs/>
+- **PyPI JSON API**: <https://warehouse.pypa.io/api-reference/json.html>
 - **Issue #94**: OpenSSF Scorecard improvement
 - **PR #96**: Hash pinning implementation
 - **Alert #83**: pipCommand not pinned by hash
