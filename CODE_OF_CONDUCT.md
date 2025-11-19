@@ -72,9 +72,9 @@ Community leaders will follow these Community Impact Guidelines in determining t
 
 For questions or concerns about this Code of Conduct, please contact:
 
-- **Email**: conduct@virtualagentics.com
-- **GitHub**: Create a private issue or contact the maintainers directly
-- **Discord/Community Chat**: Contact moderators in the community chat
+* **Email**: <conduct@virtualagentics.com>
+* **GitHub**: Create a private issue or contact the maintainers directly
+* **Discord/Community Chat**: Contact moderators in the community chat
 
 ## Attribution
 

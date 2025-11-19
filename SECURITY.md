@@ -4,10 +4,10 @@
 
 We release patches for security vulnerabilities in the following versions:
 
-| Version | Supported          |
+| Version | Supported |
 | ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
-| < 0.1   | :x:                |
+| 0.1.x | :white_check_mark: |
+| < 0.1 | :x: |
 
 ## Reporting a Vulnerability
 
@@ -22,7 +22,7 @@ Please report security vulnerabilities through the following channels:
    - Click "Report a vulnerability"
    - Fill out the private report form
 
-2. **Email**: Send details to security@virtualagentics.com
+2. **Email**: Send details to <security@virtualagentics.com>
    - Use a descriptive subject line
    - Include detailed steps to reproduce
    - Provide your contact information
@@ -78,6 +78,7 @@ When using Review Bot Automator:
 ## Security Architecture
 
 For a comprehensive overview of our security posture, see:
+
 - **[Security Architecture](docs/security-architecture.md)**: Detailed security design, principles, and threat model
 - **[Threat Model](docs/security/threat-model.md)**: STRIDE analysis, attack scenarios, and risk assessment
 - **[Compliance Guide](docs/security/compliance.md)**: GDPR, OWASP Top 10, SOC2, and OpenSSF compliance
@@ -115,11 +116,13 @@ Review Bot Automator implements multiple layers of security controls:
    - Configurable security policies
 
 ### Safe Parsing
+
 - **YAML**: `yaml.safe_load()` prevents code execution
 - **JSON**: Duplicate key detection, no eval()
 - **TOML**: Safe parsing with structure validation
 
 ### CI/CD Security
+
 - **ClusterFuzzLite**: Continuous fuzzing (address & UB sanitizers)
 - **CodeQL**: Semantic security analysis
 - **Trivy**: SBOM generation and CVE scanning
@@ -146,9 +149,11 @@ Review Bot Automator implements multiple layers of security controls:
 ### Security Testing
 
 For developers and contributors, see:
+
 - **[Security Testing Guide](docs/security/security-testing.md)**: How to run security tests locally, add new tests, and perform security reviews
 
 **Quick Start**:
+
 ```bash
 # Run all security tests
 pytest tests/security/ -v
@@ -166,17 +171,20 @@ docker run --rm -v $(pwd):/src gcr.io/oss-fuzz-base/base-builder-python \
 Our security posture is continuously monitored and measured:
 
 ### Test Coverage
+
 - **Overall Coverage**: 82%+ (target: 80%)
 - **Security Module Coverage**: 95%+
 - **Test Suite**: 609+ tests (2 skipped)
 
 ### Continuous Fuzzing (ClusterFuzzLite)
+
 - **Fuzz Targets**: 3 active targets
 - **Execution**: Every PR + Weekly deep fuzzing
 - **Sanitizers**: Address Sanitizer (ASan), Undefined Behavior Sanitizer (UBSan)
 - **Coverage**: Expanding with each fuzzing cycle
 
 ### Vulnerability Scanning
+
 - **pip-audit**: Daily dependency vulnerability checks
 - **Trivy**: Container and filesystem CVE scanning
 - **CodeQL**: Semantic analysis for code vulnerabilities
@@ -184,11 +192,13 @@ Our security posture is continuously monitored and measured:
 - **Bandit**: Python security issue detection
 
 ### OpenSSF Scorecard
+
 - **Current Score**: View at <https://github.com/VirtualAgentics/review-bot-automator/security>
 - **Checks**: 15+ security best practice checks
 - **Status**: Monitored continuously in CI/CD
 
 ### Security Incidents
+
 - **Total Reported**: 0 (as of 2025-11-03)
 - **Resolved**: 0
 - **Average Response Time**: N/A (no incidents)
@@ -213,7 +223,7 @@ Review Bot Automator includes several security features:
 
 For security-related questions or concerns:
 
-- **Email**: security@virtualagentics.com
+- **Email**: <security@virtualagentics.com>
 - **GitHub**: Use private vulnerability reporting
 - **Response Time**: We aim to respond within 48 hours
 

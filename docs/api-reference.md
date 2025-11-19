@@ -13,6 +13,7 @@ from pr_conflict_resolver import ConflictResolver
 from pr_conflict_resolver.config import PresetConfig
 
 resolver = ConflictResolver(config=PresetConfig.BALANCED)
+
 ```
 
 #### Methods
@@ -22,14 +23,17 @@ resolver = ConflictResolver(config=PresetConfig.BALANCED)
 Initialize the conflict resolver with optional configuration.
 
 **Parameters:**
-- `config` (dict, optional): Configuration dictionary for customizing resolver behavior
+
+* `config` (dict, optional): Configuration dictionary for customizing resolver behavior
 
 **Example:**
+
 ```python
 resolver = ConflictResolver(config={
     "semantic_merging": True,
     "priority_system": True,
 })
+
 ```
 
 ##### `detect_file_type(path: str) -> FileType`
@@ -37,15 +41,19 @@ resolver = ConflictResolver(config={
 Determine file type from path extension.
 
 **Parameters:**
-- `path` (str): File path
+
+* `path` (str): File path
 
 **Returns:**
-- `FileType`: Detected file type enum
+
+* `FileType`: Detected file type enum
 
 **Example:**
+
 ```python
 file_type = resolver.detect_file_type("config.json")
 # Returns: FileType.JSON
+
 ```
 
 ##### `generate_fingerprint(path: str, start: int, end: int, content: str) -> str`
@@ -53,19 +61,23 @@ file_type = resolver.detect_file_type("config.json")
 Create unique fingerprint for a change.
 
 **Parameters:**
-- `path` (str): File path
-- `start` (int): Start line number
-- `end` (int): End line number
-- `content` (str): Change content
+
+* `path` (str): File path
+* `start` (int): Start line number
+* `end` (int): End line number
+* `content` (str): Change content
 
 **Returns:**
-- `str`: 16-character hex fingerprint
+
+* `str`: 16-character hex fingerprint
 
 **Example:**
+
 ```python
 fingerprint = resolver.generate_fingerprint(
     "file.py", 10, 15, "def new_function():"
 )
+
 ```
 
 ##### `extract_changes_from_comments(comments: list[dict[str, Any]]) -> list[Change]`
@@ -73,28 +85,34 @@ fingerprint = resolver.generate_fingerprint(
 Extract Change objects from GitHub comment data.
 
 **Parameters:**
-- `comments` (list[dict]): GitHub comment objects
+
+* `comments` (list[dict]): GitHub comment objects
 
 **Returns:**
-- `list[Change]`: List of extracted Change objects
+
+* `list[Change]`: List of extracted Change objects
 
 ##### `analyze_conflicts(owner: str, repo: str, pr_number: int) -> list[Conflict]`
 
 Analyze conflicts in a pull request without applying changes.
 
 **Parameters:**
-- `owner` (str): Repository owner
-- `repo` (str): Repository name
-- `pr_number` (int): Pull request number
+
+* `owner` (str): Repository owner
+* `repo` (str): Repository name
+* `pr_number` (int): Pull request number
 
 **Returns:**
-- `list[Conflict]`: List of detected conflicts
+
+* `list[Conflict]`: List of detected conflicts
 
 **Example:**
+
 ```python
 conflicts = resolver.analyze_conflicts("myorg", "myrepo", 123)
 for conflict in conflicts:
     print(f"Conflict in {conflict.file_path}: {conflict.conflict_type}")
+
 ```
 
 ##### `resolve_pr_conflicts(owner: str, repo: str, pr_number: int, mode: ApplicationMode = ApplicationMode.ALL, validate: bool = True, parallel: bool = False, max_workers: int = 4, enable_rollback: bool = True) -> ResolutionResult`
@@ -102,23 +120,26 @@ for conflict in conflicts:
 Resolve all conflicts in a pull request and return results.
 
 **Parameters:**
-- `owner` (str): Repository owner
-- `repo` (str): Repository name
-- `pr_number` (int): Pull request number
-- `mode` (ApplicationMode, optional): Application mode (default: ALL)
-  - `ApplicationMode.ALL`: Apply both conflicting and non-conflicting changes
-  - `ApplicationMode.CONFLICTS_ONLY`: Apply only conflicting changes
-  - `ApplicationMode.NON_CONFLICTS_ONLY`: Apply only non-conflicting changes
-  - `ApplicationMode.DRY_RUN`: Analyze without applying
-- `validate` (bool, optional): Enable pre-application validation (default: True)
-- `parallel` (bool, optional): Enable parallel processing (default: False)
-- `max_workers` (int, optional): Number of parallel workers (default: 4)
-- `enable_rollback` (bool, optional): Enable automatic rollback on failure (default: True)
+
+* `owner` (str): Repository owner
+* `repo` (str): Repository name
+* `pr_number` (int): Pull request number
+* `mode` (ApplicationMode, optional): Application mode (default: ALL)
+  * `ApplicationMode.ALL`: Apply both conflicting and non-conflicting changes
+  * `ApplicationMode.CONFLICTS_ONLY`: Apply only conflicting changes
+  * `ApplicationMode.NON_CONFLICTS_ONLY`: Apply only non-conflicting changes
+  * `ApplicationMode.DRY_RUN`: Analyze without applying
+* `validate` (bool, optional): Enable pre-application validation (default: True)
+* `parallel` (bool, optional): Enable parallel processing (default: False)
+* `max_workers` (int, optional): Number of parallel workers (default: 4)
+* `enable_rollback` (bool, optional): Enable automatic rollback on failure (default: True)
 
 **Returns:**
-- `ResolutionResult`: Complete resolution results with counts and details
+
+* `ResolutionResult`: Complete resolution results with counts and details
 
 **Example:**
+
 ```python
 from pr_conflict_resolver.config.runtime_config import ApplicationMode
 
@@ -139,6 +160,7 @@ results = resolver.resolve_pr_conflicts(
 print(f"Applied: {results.applied_count}")
 print(f"Conflicts: {results.conflict_count}")
 print(f"Success rate: {results.success_rate}%")
+
 ```
 
 ##### `apply_changes(changes: list[Change], validate: bool = True, parallel: bool = False, max_workers: int = 4) -> tuple[list[Change], list[Change], list[tuple[Change, str]]]`
@@ -146,15 +168,18 @@ print(f"Success rate: {results.success_rate}%")
 Apply changes to files with optional validation and parallel processing.
 
 **Parameters:**
-- `changes` (list[Change]): List of changes to apply
-- `validate` (bool, optional): Validate changes before applying (default: True)
-- `parallel` (bool, optional): Process files in parallel (default: False)
-- `max_workers` (int, optional): Number of parallel workers (default: 4)
+
+* `changes` (list[Change]): List of changes to apply
+* `validate` (bool, optional): Validate changes before applying (default: True)
+* `parallel` (bool, optional): Process files in parallel (default: False)
+* `max_workers` (int, optional): Number of parallel workers (default: 4)
 
 **Returns:**
-- `tuple`: (applied_changes, skipped_changes, failed_changes_with_errors)
+
+* `tuple`: (applied_changes, skipped_changes, failed_changes_with_errors)
 
 **Example:**
+
 ```python
 applied, skipped, failed = resolver.apply_changes(
     changes,
@@ -168,6 +193,7 @@ for change in applied:
 
 for change, error in failed:
     print(f"Failed {change.path}: {error}")
+
 ```
 
 ##### `apply_changes_with_rollback(changes: list[Change], enable_rollback: bool = True, parallel: bool = False, max_workers: int = 4) -> tuple[int, int, int]`
@@ -175,15 +201,18 @@ for change, error in failed:
 Apply changes with automatic rollback on failure.
 
 **Parameters:**
-- `changes` (list[Change]): List of changes to apply
-- `enable_rollback` (bool, optional): Enable rollback (default: True)
-- `parallel` (bool, optional): Process files in parallel (default: False)
-- `max_workers` (int, optional): Number of parallel workers (default: 4)
+
+* `changes` (list[Change]): List of changes to apply
+* `enable_rollback` (bool, optional): Enable rollback (default: True)
+* `parallel` (bool, optional): Process files in parallel (default: False)
+* `max_workers` (int, optional): Number of parallel workers (default: 4)
 
 **Returns:**
-- `tuple[int, int, int]`: (applied_count, skipped_count, failed_count)
+
+* `tuple[int, int, int]`: (applied_count, skipped_count, failed_count)
 
 **Example:**
+
 ```python
 applied_count, skipped_count, failed_count = resolver.apply_changes_with_rollback(
     changes,
@@ -193,6 +222,7 @@ applied_count, skipped_count, failed_count = resolver.apply_changes_with_rollbac
 )
 
 print(f"Applied: {applied_count}, Skipped: {skipped_count}, Failed: {failed_count}")
+
 ```
 
 ##### `separate_changes_by_conflict_status(changes: list[Change]) -> tuple[list[Change], list[Change]]`
@@ -200,17 +230,21 @@ print(f"Applied: {applied_count}, Skipped: {skipped_count}, Failed: {failed_coun
 Separate changes into conflicting and non-conflicting groups.
 
 **Parameters:**
-- `changes` (list[Change]): List of changes to separate
+
+* `changes` (list[Change]): List of changes to separate
 
 **Returns:**
-- `tuple[list[Change], list[Change]]`: (conflicting_changes, non_conflicting_changes)
+
+* `tuple[list[Change], list[Change]]`: (conflicting_changes, non_conflicting_changes)
 
 **Example:**
+
 ```python
 conflicting, non_conflicting = resolver.separate_changes_by_conflict_status(changes)
 
 print(f"Conflicting: {len(conflicting)}")
 print(f"Non-conflicting: {len(non_conflicting)}")
+
 ```
 
 ### RollbackManager
@@ -221,28 +255,33 @@ Manages git-based rollback checkpoints for safe change application.
 from pr_conflict_resolver.core.rollback import RollbackManager
 
 rollback_manager = RollbackManager(workspace_root="/path/to/repo")
+
 ```
 
-#### Methods
+#### Methods (Provider)
 
 ##### `__init__(workspace_root: Path | str) -> None`
 
 Initialize the rollback manager.
 
 **Parameters:**
-- `workspace_root` (Path | str): Path to git repository root
+
+* `workspace_root` (Path | str): Path to git repository root
 
 ##### `create_checkpoint() -> str`
 
 Create a rollback checkpoint using git stash.
 
 **Returns:**
-- `str`: Checkpoint identifier
+
+* `str`: Checkpoint identifier
 
 **Example:**
+
 ```python
 checkpoint_id = rollback_manager.create_checkpoint()
 print(f"Created checkpoint: {checkpoint_id}")
+
 ```
 
 ##### `rollback(checkpoint_id: str) -> bool`
@@ -250,18 +289,22 @@ print(f"Created checkpoint: {checkpoint_id}")
 Restore from a checkpoint.
 
 **Parameters:**
-- `checkpoint_id` (str): Checkpoint identifier to restore
+
+* `checkpoint_id` (str): Checkpoint identifier to restore
 
 **Returns:**
-- `bool`: True if rollback successful, False otherwise
+
+* `bool`: True if rollback successful, False otherwise
 
 **Example:**
+
 ```python
 success = rollback_manager.rollback(checkpoint_id)
 if success:
     print("Rollback successful")
 else:
     print("Rollback failed")
+
 ```
 
 ##### Context Manager Usage
@@ -274,6 +317,7 @@ with RollbackManager(workspace_root="/path/to/repo") as rollback:
     # Automatically rolls back if exception occurs
     apply_changes(changes)
 # Cleanup happens automatically
+
 ```
 
 ### RuntimeConfig
@@ -297,17 +341,18 @@ config = RuntimeConfig.from_conservative()
 config = RuntimeConfig.from_balanced()
 config = RuntimeConfig.from_aggressive()
 config = RuntimeConfig.from_semantic()
+
 ```
 
 #### Attributes
 
-- `mode` (ApplicationMode): Application mode
-- `enable_rollback` (bool): Enable automatic rollback
-- `validate_before_apply` (bool): Enable pre-application validation
-- `parallel_processing` (bool): Enable parallel processing
-- `max_workers` (int): Number of parallel workers
-- `log_level` (str): Logging level
-- `log_file` (str | None): Log file path
+* `mode` (ApplicationMode): Application mode
+* `enable_rollback` (bool): Enable automatic rollback
+* `validate_before_apply` (bool): Enable pre-application validation
+* `parallel_processing` (bool): Enable parallel processing
+* `max_workers` (int): Number of parallel workers
+* `log_level` (str): Logging level
+* `log_file` (str | None): Log file path
 
 #### Class Methods
 
@@ -316,21 +361,26 @@ config = RuntimeConfig.from_semantic()
 Create configuration with default values.
 
 **Returns:**
-- `RuntimeConfig`: Configuration with defaults
+
+* `RuntimeConfig`: Configuration with defaults
 
 ##### `from_file(file_path: Path | str) -> RuntimeConfig`
 
 Load configuration from YAML or TOML file.
 
 **Parameters:**
-- `file_path` (Path | str): Path to configuration file
+
+* `file_path` (Path | str): Path to configuration file
 
 **Returns:**
-- `RuntimeConfig`: Loaded configuration
+
+* `RuntimeConfig`: Loaded configuration
 
 **Example:**
+
 ```python
 config = RuntimeConfig.from_file("config.yaml")
+
 ```
 
 ##### `from_env() -> RuntimeConfig`
@@ -338,12 +388,15 @@ config = RuntimeConfig.from_file("config.yaml")
 Load configuration from environment variables (CR_* prefix).
 
 **Returns:**
-- `RuntimeConfig`: Configuration from environment
+
+* `RuntimeConfig`: Configuration from environment
 
 **Example:**
+
 ```python
 # Set environment: CR_MODE=conflicts-only, CR_PARALLEL=true
 config = RuntimeConfig.from_env()
+
 ```
 
 ##### `from_conservative() -> RuntimeConfig`
@@ -351,28 +404,32 @@ config = RuntimeConfig.from_env()
 Create conservative preset configuration.
 
 **Returns:**
-- `RuntimeConfig`: Conservative configuration
+
+* `RuntimeConfig`: Conservative configuration
 
 ##### `from_balanced() -> RuntimeConfig`
 
 Create balanced preset configuration (default).
 
 **Returns:**
-- `RuntimeConfig`: Balanced configuration
+
+* `RuntimeConfig`: Balanced configuration
 
 ##### `from_aggressive() -> RuntimeConfig`
 
 Create aggressive preset configuration.
 
 **Returns:**
-- `RuntimeConfig`: Aggressive configuration
+
+* `RuntimeConfig`: Aggressive configuration
 
 ##### `from_semantic() -> RuntimeConfig`
 
 Create semantic preset configuration.
 
 **Returns:**
-- `RuntimeConfig`: Semantic configuration
+
+* `RuntimeConfig`: Semantic configuration
 
 #### Instance Methods
 
@@ -381,12 +438,15 @@ Create semantic preset configuration.
 Merge configuration with CLI overrides.
 
 **Parameters:**
-- `**cli_overrides`: CLI flag overrides (mode, enable_rollback, etc.)
+
+* `**cli_overrides`: CLI flag overrides (mode, enable_rollback, etc.)
 
 **Returns:**
-- `RuntimeConfig`: New configuration with CLI overrides applied
+
+* `RuntimeConfig`: New configuration with CLI overrides applied
 
 **Example:**
+
 ```python
 config = RuntimeConfig.from_file("config.yaml")
 config = config.merge_with_cli(
@@ -394,6 +454,7 @@ config = config.merge_with_cli(
     parallel_processing=True,
     max_workers=8
 )
+
 ```
 
 ### ApplicationMode
@@ -407,9 +468,11 @@ ApplicationMode.ALL  # Apply both conflicting and non-conflicting changes (defau
 ApplicationMode.CONFLICTS_ONLY  # Apply only conflicting changes
 ApplicationMode.NON_CONFLICTS_ONLY  # Apply only non-conflicting changes
 ApplicationMode.DRY_RUN  # Analyze without applying changes
+
 ```
 
 **Usage:**
+
 ```python
 from pr_conflict_resolver import ConflictResolver
 from pr_conflict_resolver.config.runtime_config import ApplicationMode
@@ -419,6 +482,7 @@ results = resolver.resolve_pr_conflicts(
     "myorg", "myrepo", 123,
     mode=ApplicationMode.CONFLICTS_ONLY
 )
+
 ```
 
 ## Data Models
@@ -436,6 +500,7 @@ FileType.TOML  # TOML files
 FileType.PYTHON  # Python files
 FileType.TYPESCRIPT  # TypeScript/JavaScript files
 FileType.PLAINTEXT  # Plain text files
+
 ```
 
 ### Change
@@ -452,9 +517,11 @@ class Change:
     metadata: dict[str, Any]  # Additional metadata
     fingerprint: str  # Unique identifier
     file_type: FileType  # Detected file type
+
 ```
 
 **Example:**
+
 ```python
 from pr_conflict_resolver.core.models import Change, FileType
 
@@ -467,6 +534,7 @@ change = Change(
     fingerprint="abc123def456",
     file_type=FileType.JSON
 )
+
 ```
 
 ### Conflict
@@ -482,9 +550,11 @@ class Conflict:
     conflict_type: str  # Type of conflict
     severity: str  # Severity level
     overlap_percentage: float  # Overlap percentage
+
 ```
 
 **Example:**
+
 ```python
 conflict = Conflict(
     file_path="config.json",
@@ -494,6 +564,7 @@ conflict = Conflict(
     severity="high",
     overlap_percentage=100.0
 )
+
 ```
 
 ### Resolution
@@ -508,6 +579,7 @@ class Resolution:
     skipped_changes: list[Change]  # Skipped changes
     success: bool  # Success status
     message: str  # Result message
+
 ```
 
 ### ResolutionResult
@@ -522,6 +594,7 @@ class ResolutionResult:
     success_rate: float  # Success rate percentage
     resolutions: list[Resolution]  # All resolutions
     conflicts: list[Conflict]  # All conflicts
+
 ```
 
 ## Handlers
@@ -532,6 +605,7 @@ Abstract base class for all file handlers.
 
 ```python
 from pr_conflict_resolver.handlers.base import BaseHandler
+
 ```
 
 #### Abstract Methods
@@ -570,12 +644,14 @@ Handler for JSON files.
 from pr_conflict_resolver.handlers.json_handler import JsonHandler
 
 handler = JsonHandler()
+
 ```
 
 Extends `BaseHandler` with JSON-specific logic:
-- Duplicate key detection
-- Key-level merging
-- Structure validation
+
+* Duplicate key detection
+* Key-level merging
+* Structure validation
 
 ### YamlHandler
 
@@ -585,12 +661,14 @@ Handler for YAML files.
 from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
 
 handler = YamlHandler()
+
 ```
 
 Extends `BaseHandler` with YAML-specific logic:
-- Comment preservation
-- Anchor/alias handling
-- Structure-aware merging
+
+* Comment preservation
+* Anchor/alias handling
+* Structure-aware merging
 
 ### TomlHandler
 
@@ -600,12 +678,14 @@ Handler for TOML files.
 from pr_conflict_resolver.handlers.toml_handler import TomlHandler
 
 handler = TomlHandler()
+
 ```
 
 Extends `BaseHandler` with TOML-specific logic:
-- Section merging
-- Comment preservation
-- Table array handling
+
+* Section merging
+* Comment preservation
+* Table array handling
 
 ## Strategies
 
@@ -622,11 +702,12 @@ strategy = PriorityStrategy(config={
         "security_fixes": 90,
     }
 })
+
 ```
 
-#### Methods
+#### Methods (LLMProviderFactory)
 
-##### `__init__(config: dict[str, Any] | None = None) -> None`
+##### `__init__(config: dict[str, Any] | None = None) -> None` (ResolutionStrategy)
 
 Initialize strategy with configuration.
 
@@ -635,7 +716,8 @@ Initialize strategy with configuration.
 Resolve a conflict using priority rules.
 
 **Returns:**
-- `Resolution`: Resolution with applied and skipped changes
+
+* `Resolution`: Resolution with applied and skipped changes
 
 ## Integration
 
@@ -647,35 +729,41 @@ Extract comments from GitHub PRs.
 from pr_conflict_resolver.integrations.github import GitHubCommentExtractor
 
 extractor = GitHubCommentExtractor(token="your_token")
+
 ```
 
-#### Methods
+#### Methods (PromptCache)
 
 ##### `__init__(token: str | None = None, base_url: str = "https://api.github.com") -> None`
 
 Initialize with optional token.
 
 **Parameters:**
-- `token` (str, optional): GitHub personal access token
-- `base_url` (str): GitHub API base URL
+
+* `token` (str, optional): GitHub personal access token
+* `base_url` (str): GitHub API base URL
 
 ##### `fetch_pr_comments(owner: str, repo: str, pr_number: int) -> list[dict[str, Any]]`
 
 Fetch all comments for a PR.
 
 **Parameters:**
-- `owner` (str): Repository owner
-- `repo` (str): Repository name
-- `pr_number` (int): PR number
+
+* `owner` (str): Repository owner
+* `repo` (str): Repository name
+* `pr_number` (int): PR number
 
 **Returns:**
-- `list[dict]`: List of comment objects from GitHub API
+
+* `list[dict]`: List of comment objects from GitHub API
 
 **Example:**
+
 ```python
 comments = extractor.fetch_pr_comments("myorg", "myrepo", 123)
 for comment in comments:
     print(comment["body"])
+
 ```
 
 ## Configuration
@@ -692,6 +780,7 @@ PresetConfig.CONSERVATIVE
 PresetConfig.BALANCED
 PresetConfig.AGGRESSIVE
 PresetConfig.SEMANTIC
+
 ```
 
 ## Utilities
@@ -702,6 +791,7 @@ PresetConfig.SEMANTIC
 from pr_conflict_resolver.utils.text import normalize_content
 
 normalized = normalize_content("some  content\n\nwith   spaces")
+
 ```
 
 #### `normalize_content(content: str) -> str`
@@ -714,6 +804,7 @@ Normalize whitespace in content for comparison.
 
 ```bash
 pr-resolve analyze --pr <number> --owner <owner> --repo <repo> [--config <preset>]
+
 ```
 
 Analyze conflicts in a PR without applying changes.
@@ -722,6 +813,7 @@ Analyze conflicts in a PR without applying changes.
 
 ```bash
 pr-resolve apply --pr <number> --owner <owner> --repo <repo> [--strategy <strategy>] [--dry-run]
+
 ```
 
 Apply conflict resolutions to a PR.
@@ -730,6 +822,7 @@ Apply conflict resolutions to a PR.
 
 ```bash
 pr-resolve simulate --pr <number> --owner <owner> --repo <repo> [--config <preset>]
+
 ```
 
 Simulate conflict resolution without applying changes.
@@ -752,6 +845,7 @@ print(f"Found {len(conflicts)} conflicts")
 # Resolve conflicts
 results = resolver.resolve_pr_conflicts("myorg", "myrepo", 123)
 print(f"Applied {results.applied_count} changes")
+
 ```
 
 ### Custom Configuration
@@ -767,6 +861,7 @@ custom_config = {
 }
 
 resolver = ConflictResolver(config=custom_config)
+
 ```
 
 ### Custom Handler
@@ -790,6 +885,7 @@ class CustomHandler(BaseHandler):
     def detect_conflicts(self, path: str, changes: list[Change]) -> list[Conflict]:
         # Implementation
         return []
+
 ```
 
 ### Custom Strategy
@@ -807,15 +903,16 @@ class CustomStrategy:
             success=True,
             message="Custom resolution applied"
         )
+
 ```
 
 ## Error Handling
 
 All operations may raise standard Python exceptions:
 
-- `IOError`: File operations fail
-- `ValueError`: Invalid parameters or data
-- `requests.RequestException`: GitHub API errors
+* `IOError`: File operations fail
+* `ValueError`: Invalid parameters or data
+* `requests.RequestException`: GitHub API errors
 
 ## Type Hints
 
@@ -827,11 +924,12 @@ from typing import Any, List, Dict, Tuple
 def example_function(data: Dict[str, Any]) -> List[str]:
     """Fully typed function."""
     return []
+
 ```
 
 ## See Also
 
-- [Getting Started](getting-started.md) - Installation and basic usage
-- [Configuration](configuration.md) - Configuration options
-- [Conflict Types](conflict-types.md) - Understanding conflicts
-- [Resolution Strategies](resolution-strategies.md) - Strategy details
+* [Getting Started](getting-started.md) - Installation and basic usage
+* [Configuration](configuration.md) - Configuration options
+* [Conflict Types](conflict-types.md) - Understanding conflicts
+* [Resolution Strategies](resolution-strategies.md) - Strategy details

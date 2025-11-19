@@ -153,6 +153,7 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123
 ```
 
 **Documentation**:
+
 - [LLM Configuration Guide](docs/llm-configuration.md) - All provider options and setup
 - [Privacy Architecture](docs/privacy-architecture.md) - Privacy comparison and compliance
 - [Local LLM Operation Guide](docs/local-llm-operation-guide.md) - Local LLM setup with Ollama
@@ -276,6 +277,7 @@ See [`.env.example`](.env.example) for available environment variables.
 - [Contributing Guide](CONTRIBUTING.md) - How to contribute
 
 ### Security
+
 - [Security Policy](SECURITY.md) - Vulnerability reporting, security features
 - [Security Architecture](docs/security-architecture.md) - Design principles, threat model
 - [Threat Model](docs/security/threat-model.md) - STRIDE analysis, risk assessment
@@ -285,7 +287,7 @@ See [`.env.example`](.env.example) for available environment variables.
 
 ## 🏗️ Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    GitHub PR Comments                       │
 │                   (CodeRabbit, Review Bot)                  │
@@ -360,7 +362,7 @@ See [`.env.example`](.env.example) for available environment variables.
 Configure the tool using environment variables (see [`.env.example`](.env.example) for all options):
 
 | Variable | Description | Default |
-|----------|-------------|---------|
+| ---------- | ------------- | --------- |
 | `GITHUB_PERSONAL_ACCESS_TOKEN` | GitHub API token (required) | None |
 | `CR_MODE` | Application mode (`all`, `conflicts-only`, `non-conflicts-only`, `dry-run`) | `all` |
 | `CR_ENABLE_ROLLBACK` | Enable automatic rollback on failure | `true` |
@@ -403,6 +405,7 @@ make test-all
 ```
 
 **For more details, see:**
+
 - [Testing Guide](docs/testing/TESTING.md) - Comprehensive testing documentation
 - [Subtests Guide](docs/testing/SUBTESTS_GUIDE.md) - Writing tests with subtests
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines including testing practices
@@ -484,6 +487,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 **V2.0 Milestone Progress**: 57% complete (Phases 0-3 closed, Phase 4 at 50%)
 
 ### Security Highlights
+
 - **ClusterFuzzLite**: Continuous fuzzing (3 fuzz targets, ASan + UBSan)
 - **Test Coverage**: 82.35% overall, 95%+ for security modules
 - **Security Scanning**: CodeQL, Trivy, TruffleHog, Bandit, pip-audit, OpenSSF Scorecard
@@ -499,6 +503,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ### The Problem We're Solving
 
 Current system only parses **```suggestion** blocks, missing:
+
 - ❌ Diff blocks (```diff) - **60% of CodeRabbit comments**
 - ❌ Natural language suggestions - **20% of comments**
 - ❌ Multi-option suggestions
@@ -533,7 +538,7 @@ Current system only parses **```suggestion** blocks, missing:
 Choose your preferred LLM provider:
 
 | Provider | Cost Model | Best For | Est. Cost (1000 comments) |
-|----------|-----------|----------|---------------------------|
+| ---------- | ----------- | ---------- | --------------------------- |
 | **Claude CLI** | Subscription ($20/mo) | Best quality + zero marginal cost | $0 (covered) |
 | **Codex CLI** | Subscription ($20/mo) | Cost-effective, OpenAI quality | $0 (covered) |
 | **Ollama** | Free (local) | Privacy, offline, no API costs | $0 |
@@ -586,6 +591,7 @@ change = Change(
 ### Documentation
 
 Comprehensive planning documentation available:
+
 - [LLM Refactor Roadmap](./docs/planning/LLM_REFACTOR_ROADMAP.md) (15K words) - Full implementation plan
 - [LLM Architecture](./docs/planning/LLM_ARCHITECTURE.md) (8K words) - Technical specification
 - [Migration Guide](./docs/planning/MIGRATION_GUIDE.md) (3K words) - v1.x → v2.0 upgrade path

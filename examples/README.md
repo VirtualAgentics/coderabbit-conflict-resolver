@@ -4,7 +4,7 @@ This directory contains practical examples for using the Review Bot Automator.
 
 ## Directory Structure
 
-```
+```text
 examples/
 ├── configs/          # Configuration file examples
 ├── workflows/        # CI/CD workflow examples

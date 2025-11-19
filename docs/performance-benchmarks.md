@@ -6,19 +6,19 @@ Comprehensive performance comparison of LLM providers for code review comment re
 
 This benchmarking infrastructure allows you to systematically compare the performance of all supported LLM providers (Anthropic, OpenAI, Ollama, Claude CLI, Codex CLI) across multiple dimensions:
 
-- **Latency**: Response time metrics (mean, median, P95, P99)
-- **Throughput**: Requests per second
-- **Accuracy**: Parsing success rate against ground truth
-- **Cost**: Per-request and monthly estimates
-- **GPU Performance**: Hardware utilization for local models
+* **Latency**: Response time metrics (mean, median, P95, P99)
+* **Throughput**: Requests per second
+* **Accuracy**: Parsing success rate against ground truth
+* **Cost**: Per-request and monthly estimates
+* **GPU Performance**: Hardware utilization for local models
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.12+ with virtual environment activated
-- API keys configured for cloud providers (Anthropic, OpenAI)
-- Ollama installed for local model testing (optional)
+* Python 3.12+ with virtual environment activated
+* API keys configured for cloud providers (Anthropic, OpenAI)
+* Ollama installed for local model testing (optional)
 
 ### Basic Usage
 
@@ -34,6 +34,7 @@ python scripts/benchmark_llm.py --dataset my_comments.json --iterations 100
 
 # Save report to custom location
 python scripts/benchmark_llm.py --output reports/benchmark-2025-11-17.md
+
 ```
 
 ### Command-Line Options
@@ -57,95 +58,110 @@ Options:
 
   --warmup N           Number of warmup iterations (default: 5)
                         Warmup runs are not included in metrics
+
 ```
 
 ## Metrics Explained
 
 ### Latency Metrics
 
-**Mean Latency**
-- Average response time across all requests
-- Good indicator of typical performance
-- Affected by outliers
+#### Mean Latency
 
-**Median Latency (P50)**
-- Middle value when sorted by response time
-- More robust to outliers than mean
-- Better represents "typical" user experience
+* Average response time across all requests
+* Good indicator of typical performance
+* Affected by outliers
 
-**P95 Latency**
-- 95% of requests complete faster than this time
-- Indicates worst-case performance for most users
-- **Acceptance Criteria**: < 5 seconds for all providers
+#### Median Latency (P50)
 
-**P99 Latency**
-- 99% of requests complete faster than this time
-- Captures tail latency and outliers
-- Important for SLA guarantees
+* Middle value when sorted by response time
+* More robust to outliers than mean
+* Better represents "typical" user experience
+
+#### P95 Latency
+
+* 95% of requests complete faster than this time
+* Indicates worst-case performance for most users
+* **Acceptance Criteria**: < 5 seconds for all providers
+
+#### P99 Latency
+
+* 99% of requests complete faster than this time
+* Captures tail latency and outliers
+* Important for SLA guarantees
 
 ### Throughput
 
-**Requests Per Second**
-- How many requests the provider can handle
-- Calculated as: `1 / mean_latency`
-- Higher is better for high-volume deployments
+#### Requests Per Second
+
+* How many requests the provider can handle
+* Calculated as: `1 / mean_latency`
+* Higher is better for high-volume deployments
 
 ### Accuracy Metrics
 
-**Success Rate**
-- Percentage of requests that returned valid responses
-- Calculated as: `successful_parses / total_requests`
-- Target: > 95% for production use
+#### Success Rate
 
-**Average Confidence**
-- Mean confidence score from parsed responses
-- Range: 0.0 - 1.0 (higher is better)
-- Indicates model certainty in suggestions
+* Percentage of requests that returned valid responses
+* Calculated as: `successful_parses / total_requests`
+* Target: > 95% for production use
+
+#### Average Confidence
+
+* Mean confidence score from parsed responses
+* Range: 0.0 - 1.0 (higher is better)
+* Indicates model certainty in suggestions
 
 ### Cost Analysis
 
-**Total Cost**
-- Sum of all API costs for the benchmark run
-- Free for local models (Ollama, Claude CLI, Codex CLI)
+#### Total Cost
 
-**Cost Per Request**
-- Average cost per API call
-- Important for budgeting at scale
+* Sum of all API costs for the benchmark run
+* Free for local models (Ollama, Claude CLI, Codex CLI)
 
-**Monthly Estimates**
-- Projected costs at 1K and 10K requests/month
-- Helps plan production deployment budgets
+#### Cost Per Request
+
+* Average cost per API call
+* Important for budgeting at scale
+
+#### Monthly Estimates
+
+* Projected costs at 1K and 10K requests/month
+* Helps plan production deployment budgets
 
 ### GPU Information (Local Models Only)
 
 For Ollama and local models, the benchmark captures:
-- GPU name and model
-- Total memory available
-- Driver version
-- CUDA version (NVIDIA GPUs)
+
+* GPU name and model
+* Total memory available
+* Driver version
+* CUDA version (NVIDIA GPUs)
 
 ## Test Dataset
 
 The default benchmark dataset (`tests/benchmarks/sample_comments.json`) contains 30 realistic CodeRabbit-style review comments across three complexity levels:
 
 ### Simple Comments (10)
-- Basic code suggestions
-- Single-line fixes
-- Simple formatting changes
-- **Expected latency**: < 2s
+
+* Basic code suggestions
+* Single-line fixes
+* Simple formatting changes
+* **Expected latency**: < 2s
 
 ### Medium Comments (10)
-- Multi-line code changes
-- Diff blocks with context
-- Moderate refactoring suggestions
-- **Expected latency**: 2-4s
+
+* Multi-line code changes
+* Diff blocks with context
+* Moderate refactoring suggestions
+* **Expected latency**: 2-4s
 
 ### Complex Comments (10)
-- Security vulnerability fixes
-- Architecture refactoring
-- Multi-file changes
-- Multi-option recommendations
-- **Expected latency**: 4-6s
+
+* Security vulnerability fixes
+* Architecture refactoring
+* Multi-file changes
+* Multi-option recommendations
+* **Expected latency**: 4-6s
 
 ### Ground Truth Annotations
 
@@ -164,6 +180,7 @@ Each comment includes ground truth data for accuracy validation:
     "confidence_threshold": 0.8
   }
 }
+
 ```
 
 ### Creating Custom Datasets
@@ -192,88 +209,104 @@ Example custom dataset:
   "medium": [...],
   "complex": [...]
 }
+
 ```
 
 ## Provider Comparison
 
 ### Anthropic (Claude)
 
-**Strengths:**
-- Excellent accuracy on complex code understanding
-- Strong security vulnerability detection
-- Prompt caching reduces costs by 50-90%
+#### Strengths
 
-**Considerations:**
-- Slightly higher per-request cost than OpenAI
-- API latency depends on region
+* Excellent accuracy on complex code understanding
+* Strong security vulnerability detection
+* Prompt caching reduces costs by 50-90%
 
-**Best For:**
-- Production deployments with repeated prompts
-- Security-critical code reviews
-- Complex architectural refactoring
+#### Considerations
+
+* Slightly higher per-request cost than OpenAI
+* API latency depends on region
+
+#### Best For
+
+* Production deployments with repeated prompts
+* Security-critical code reviews
+* Complex architectural refactoring
 
 ### OpenAI (GPT-4o, GPT-4o-mini)
 
-**Strengths:**
-- Fast response times (1-3s typical)
-- GPT-4o-mini offers excellent cost/performance ratio
-- Wide model selection
+#### Strengths: (GPT-4o-mini)
 
-**Considerations:**
-- No prompt caching (yet)
-- Higher costs for GPT-4o at scale
+* Fast response times (1-3s typical)
+* GPT-4o-mini offers excellent cost/performance ratio
+* Wide model selection
 
-**Best For:**
-- Speed-critical applications
-- Cost-sensitive deployments (with mini model)
-- High-volume production systems
+#### Considerations: (GPT-4o-mini)
+
+* No prompt caching (yet)
+* Higher costs for GPT-4o at scale
+
+#### Best For: (GPT-4o-mini)
+
+* Speed-critical applications
+* Cost-sensitive deployments (with mini model)
+* High-volume production systems
 
 ### Ollama (Local Models)
 
-**Strengths:**
-- Zero per-request cost
-- 100% privacy (no data leaves your infrastructure)
-- GPU acceleration support
+#### Strengths: (Claude Sonnet)
 
-**Considerations:**
-- Requires local hardware (GPU recommended)
-- Higher latency than cloud APIs
-- Model quality varies (qwen2.5-coder:7b recommended)
+* Zero per-request cost
+* 100% privacy (no data leaves your infrastructure)
+* GPU acceleration support
 
-**Best For:**
-- Privacy-first requirements (HIPAA, GDPR, confidential code)
-- Cost-sensitive high-volume deployments
-- Air-gapped environments
+#### Considerations: (Claude Sonnet)
+
+* Requires local hardware (GPU recommended)
+* Higher latency than cloud APIs
+* Model quality varies (qwen2.5-coder:7b recommended)
+
+#### Best For: (Claude Sonnet)
+
+* Privacy-first requirements (HIPAA, GDPR, confidential code)
+* Cost-sensitive high-volume deployments
+* Air-gapped environments
 
 ### Claude CLI
 
-**Strengths:**
-- Free for development/testing
-- Uses latest Claude models
-- No API key management
+#### Strengths: (Qwen2.5-Coder)
 
-**Considerations:**
-- Not suitable for production automation
-- Rate limits apply
-- Requires Claude desktop app
+* Free for development/testing
+* Uses latest Claude models
+* No API key management
 
-**Best For:**
-- Local development and testing
-- Prototyping before API integration
+#### Considerations: (Qwen2.5-Coder)
+
+* Not suitable for production automation
+* Rate limits apply
+* Requires Claude desktop app
+
+#### Best For: (Qwen2.5-Coder)
+
+* Local development and testing
+* Prototyping before API integration
 
 ### Codex CLI
 
-**Strengths:**
-- Free for development/testing
-- Direct integration with OpenAI Codex
+#### Strengths: (Deepseek-Coder)
 
-**Considerations:**
-- Not suitable for production automation
-- Limited to Codex model family
+* Free for development/testing
+* Direct integration with OpenAI Codex
 
-**Best For:**
-- Local development and testing
-- Codex-specific workflows
+#### Considerations: (Deepseek-Coder)
+
+* Not suitable for production automation
+* Limited to Codex model family
+
+#### Best For: (Deepseek-Coder)
+
+* Local development and testing
+* Codex-specific workflows
 
 ## Interpreting Results
 
@@ -287,24 +320,28 @@ Example custom dataset:
 | anthropic  | claude-3-5     | 2.1s   | 2.0s   | 3.5s  | 4.2s  | 0.48 req/s |
 | openai     | gpt-4o-mini    | 1.8s   | 1.7s   | 2.9s  | 3.5s  | 0.56 req/s |
 | ollama     | qwen2.5:7b     | 4.5s   | 4.2s   | 7.1s  | 8.5s  | 0.22 req/s |
+
 ```
 
 ### What to Look For
 
-**Production Readiness**
-- ✅ P95 latency < 5s (all providers meet acceptance criteria)
-- ✅ Success rate > 95%
-- ✅ Average confidence > 0.7
+#### Production Readiness
 
-**Cost Optimization**
-- Compare monthly estimates at expected volume
-- Consider Anthropic with prompt caching for repeated prompts
-- Evaluate Ollama for high-volume scenarios
+* ✅ P95 latency < 5s (all providers meet acceptance criteria)
+* ✅ Success rate > 95%
+* ✅ Average confidence > 0.7
 
-**Performance vs Cost Trade-offs**
-- OpenAI gpt-4o-mini: Best cost/performance for cloud
-- Anthropic: Best accuracy, cost-effective with caching
-- Ollama: Best for privacy and zero ongoing costs
+#### Cost Optimization
+
+* Compare monthly estimates at expected volume
+* Consider Anthropic with prompt caching for repeated prompts
+* Evaluate Ollama for high-volume scenarios
+
+#### Performance vs Cost Trade-offs
+
+* OpenAI gpt-4o-mini: Best cost/performance for cloud
+* Anthropic: Best accuracy, cost-effective with caching
+* Ollama: Best for privacy and zero ongoing costs
 
 ## Advanced Usage
 
@@ -319,6 +356,7 @@ python scripts/benchmark_llm.py --warmup 10 --iterations 100
 
 # Benchmark with verbose output
 python scripts/benchmark_llm.py --verbose
+
 ```
 
 ### Continuous Benchmarking
@@ -330,15 +368,15 @@ Integrate benchmarking into your CI/CD pipeline:
 name: LLM Benchmark
 on:
   schedule:
-    - cron: '0 0 * * 0'  # Weekly on Sunday
+    * cron: '0 0 * * 0'  # Weekly on Sunday
   workflow_dispatch:
 
 jobs:
   benchmark:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Run benchmarks
+      * uses: actions/checkout@v4
+      * name: Run benchmarks
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -347,6 +385,7 @@ jobs:
           git add docs/performance-benchmarks-results.md
           git commit -m "chore: update weekly benchmarks"
           git push
+
 ```
 
 ### Regression Detection
@@ -359,19 +398,22 @@ python scripts/benchmark_llm.py --output "reports/benchmark-$(date +%Y-%m-%d).md
 
 # Compare with previous results
 diff reports/benchmark-2025-11-10.md reports/benchmark-2025-11-17.md
+
 ```
 
 ## Troubleshooting
 
 ### Low Success Rate (< 95%)
 
-**Possible Causes:**
-- Invalid API keys
-- Network connectivity issues
-- Model timeout (increase timeout in config)
-- Malformed test comments
+#### Possible Causes
 
-**Solutions:**
+* Invalid API keys
+* Network connectivity issues
+* Model timeout (increase timeout in config)
+* Malformed test comments
+
+#### Solutions
+
 1. Check API key validity: `echo $ANTHROPIC_API_KEY`
 2. Test network: `curl https://api.anthropic.com`
 3. Increase timeout: `--timeout 60`
@@ -379,13 +421,15 @@ diff reports/benchmark-2025-11-10.md reports/benchmark-2025-11-17.md
 
 ### High P99 Latency (> 10s)
 
-**Possible Causes:**
-- Network congestion
-- Provider rate limiting
-- Cold start delays (first request)
-- Complex comments exceeding context limits
+#### Possible Causes: (High Latency)
 
-**Solutions:**
+* Network congestion
+* Provider rate limiting
+* Cold start delays (first request)
+* Complex comments exceeding context limits
+
+#### Solutions: (High Latency)
+
 1. Increase warmup iterations: `--warmup 10`
 2. Reduce concurrent requests
 3. Split complex comments into simpler chunks
@@ -393,35 +437,39 @@ diff reports/benchmark-2025-11-10.md reports/benchmark-2025-11-17.md
 
 ### GPU Not Detected (Ollama)
 
-**Possible Causes:**
-- CUDA/ROCm drivers not installed
-- GPU not accessible to Docker (if running in container)
-- Ollama not configured for GPU
+#### Possible Causes: (Low Confidence)
 
-**Solutions:**
+* CUDA/ROCm drivers not installed
+* GPU not accessible to Docker (if running in container)
+* Ollama not configured for GPU
+
+#### Solutions: (Low Confidence)
+
 1. Verify GPU: `nvidia-smi` or `rocm-smi`
 2. Check Ollama config: `ollama ps`
 3. Reinstall with GPU support: See [Ollama Setup Guide](ollama-setup.md)
 
 ### Out of Memory (Local Models)
 
-**Possible Causes:**
-- Model too large for available VRAM
-- Batch size too high
-- Memory leak in long-running benchmarks
+#### Possible Causes: (High Cost)
 
-**Solutions:**
+* Model too large for available VRAM
+* Batch size too high
+* Memory leak in long-running benchmarks
+
+#### Solutions: (High Cost)
+
 1. Use smaller model: `qwen2.5-coder:3b` instead of `7b`
 2. Reduce iterations: `--iterations 50`
 3. Restart Ollama between runs
 
 ## See Also
 
-- [LLM Configuration Guide](llm-configuration.md) - Provider setup and configuration
-- [Ollama Setup Guide](ollama-setup.md) - Local model installation
-- [Main Configuration Guide](configuration.md) - General tool configuration
-- [API Reference](api-reference.md) - Python API documentation
-- [Getting Started Guide](getting-started.md) - Quick start tutorial
+* [LLM Configuration Guide](llm-configuration.md) - Provider setup and configuration
+* [Ollama Setup Guide](ollama-setup.md) - Local model installation
+* [Main Configuration Guide](configuration.md) - General tool configuration
+* [API Reference](api-reference.md) - Python API documentation
+* [Getting Started Guide](getting-started.md) - Quick start tutorial
 
 ## Contributing
 

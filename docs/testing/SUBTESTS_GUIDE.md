@@ -2,15 +2,15 @@
 
 ## Table of Contents
 
-- [Introduction](#introduction)
-- [When to Use Subtests](#when-to-use-subtests)
-- [When NOT to Use Subtests](#when-not-to-use-subtests)
-- [Basic Subtest Pattern](#basic-subtest-pattern)
-- [Advanced Patterns](#advanced-patterns)
-- [Best Practices](#best-practices)
-- [Examples from Codebase](#examples-from-codebase)
-- [Common Pitfalls](#common-pitfalls)
-- [Migration Guide](#migration-guide)
+* [Introduction](#introduction)
+* [When to Use Subtests](#when-to-use-subtests)
+* [When NOT to Use Subtests](#when-not-to-use-subtests)
+* [Basic Subtest Pattern](#basic-subtest-pattern)
+* [Advanced Patterns](#advanced-patterns)
+* [Best Practices](#best-practices)
+* [Examples from Codebase](#examples-from-codebase)
+* [Common Pitfalls](#common-pitfalls)
+* [Migration Guide](#migration-guide)
 
 ## Introduction
 
@@ -19,15 +19,17 @@
 ### What are Subtests?
 
 Subtests allow you to:
-- Run multiple related test cases in a single test method
-- Get independent failure reporting for each case
-- Continue testing even if one case fails
-- Share expensive setup/teardown across cases
-- Provide contextual information for debugging
+
+* Run multiple related test cases in a single test method
+* Get independent failure reporting for each case
+* Continue testing even if one case fails
+* Share expensive setup/teardown across cases
+* Provide contextual information for debugging
 
 ### Why Use Subtests?
 
 **Traditional approach (separate test methods):**
+
 ```python
 def test_validates_path_case1(self) -> None:
     assert validate("path1")
@@ -37,15 +39,18 @@ def test_validates_path_case2(self) -> None:
 
 def test_validates_path_case3(self) -> None:
     assert validate("path3")
+
 ```
 
 **Problems:**
-- Lots of boilerplate
-- Hard to add new test cases
-- Unclear relationship between tests
-- Expensive setup runs multiple times
+
+* Lots of boilerplate
+* Hard to add new test cases
+* Unclear relationship between tests
+* Expensive setup runs multiple times
 
 **Subtest approach:**
+
 ```python
 def test_validates_paths(self, subtests: pytest.Subtests) -> None:
     """Test path validation using subtests."""
@@ -54,20 +59,22 @@ def test_validates_paths(self, subtests: pytest.Subtests) -> None:
     for path in paths:
         with subtests.test(msg=f"Validating: {path}", path=path):
             assert validate(path)
+
 ```
 
 **Benefits:**
-- Less boilerplate
-- Easy to add test cases
-- Clear test organization
-- Setup runs once
-- All cases run even if one fails
+
+* Less boilerplate
+* Easy to add test cases
+* Clear test organization
+* Setup runs once
+* All cases run even if one fails
 
 ## When to Use Subtests
 
 ### Decision Tree
 
-```
+```text
 Is this a test with multiple similar test cases?
 ├─ NO → Use a single test method
 └─ YES → Continue...
@@ -88,6 +95,7 @@ Is this a test with multiple similar test cases?
             Do you want all cases to run even if one fails?
             ├─ YES → ✅ USE SUBTESTS
             └─ NO → ⚠️ USE PARAMETRIZE (or subtests if preferred)
+
 ```
 
 ### Use Cases
@@ -110,6 +118,7 @@ def test_rejects_invalid_paths(self, subtests: pytest.Subtests) -> None:
     for description, path in invalid_paths:
         with subtests.test(msg=f"{description}: {path}", path=path):
             assert not InputValidator.validate_file_path(path)
+
 ```
 
 #### 2. Testing Multiple Implementations
@@ -129,6 +138,7 @@ def test_handlers_reject_malicious_input(self, subtests: pytest.Subtests) -> Non
     for name, handler in handlers:
         with subtests.test(msg=f"Handler: {name}", handler=name):
             assert not handler.apply_change(malicious_input, "content", 1, 1)
+
 ```
 
 #### 3. Testing Configuration Variants
@@ -147,6 +157,7 @@ def test_from_env_boolean_true_variants(self, subtests: pytest.Subtests) -> None
         ):
             config = Config.from_env()
             assert config.flag is True
+
 ```
 
 #### 4. Testing Platform-Specific Behavior
@@ -167,6 +178,7 @@ def test_path_validation_cross_platform(self, subtests: pytest.Subtests) -> None
         with subtests.test(msg=description, path=path):
             result = validate_path(path)
             assert result == should_validate
+
 ```
 
 #### 5. Testing Edge Cases
@@ -189,6 +201,7 @@ def test_handles_unicode_edge_cases(self, subtests: pytest.Subtests) -> None:
         with subtests.test(msg=f"Edge case: {description}", input=text):
             result = sanitize_input(text)
             assert is_safe(result)
+
 ```
 
 ## When NOT to Use Subtests
@@ -198,14 +211,17 @@ def test_handles_unicode_edge_cases(self, subtests: pytest.Subtests) -> None:
 #### 1. Small, Static Test Sets (< 4 cases)
 
 **❌ Don't use subtests:**
+
 ```python
 def test_boolean_parsing(self, subtests: pytest.Subtests) -> None:
     for value, expected in [("true", True), ("false", False)]:
         with subtests.test(value=value):
             assert parse_bool(value) == expected
+
 ```
 
 **✅ Use parametrize:**
+
 ```python
 @pytest.mark.parametrize("value,expected", [
     ("true", True),
@@ -213,6 +229,7 @@ def test_boolean_parsing(self, subtests: pytest.Subtests) -> None:
 ])
 def test_boolean_parsing(value: str, expected: bool) -> None:
     assert parse_bool(value) == expected
+
 ```
 
 **Why:** Parametrize is clearer for small, static sets and shows each case as a separate test in reports.
@@ -220,20 +237,23 @@ def test_boolean_parsing(value: str, expected: bool) -> None:
 #### 2. When You Want Separate Test Reports
 
 **❌ Don't use subtests if:**
-- You want each case to appear as a separate test in CI reports
-- You're tracking test counts as a metric
-- You need fine-grained test selection (e.g., `pytest -k case1`)
+
+* You want each case to appear as a separate test in CI reports
+* You're tracking test counts as a metric
+* You need fine-grained test selection (e.g., `pytest -k case1`)
 
 **✅ Use parametrize for:**
-- Separate test entries in reports
-- Better test discovery
-- Individual test selection
+
+* Separate test entries in reports
+* Better test discovery
+* Individual test selection
 
 ### Use Separate Test Methods Instead
 
 #### 1. Unrelated Test Logic
 
 **❌ Don't use subtests:**
+
 ```python
 def test_user_operations(self, subtests: pytest.Subtests) -> None:
     """Test various user operations."""
@@ -248,9 +268,11 @@ def test_user_operations(self, subtests: pytest.Subtests) -> None:
     with subtests.test("update"):
         update_user(456, name="bob")
         assert get_user(456).name == "bob"
+
 ```
 
 **✅ Use separate tests:**
+
 ```python
 def test_create_user(self) -> None:
     user = create_user("alice")
@@ -263,6 +285,7 @@ def test_delete_user(self) -> None:
 def test_update_user(self) -> None:
     update_user(456, name="bob")
     assert get_user(456).name == "bob"
+
 ```
 
 **Why:** These are independent test cases with different logic, not variations of the same test.
@@ -270,6 +293,7 @@ def test_update_user(self) -> None:
 #### 2. Tests with Different Fixtures
 
 **❌ Don't use subtests:**
+
 ```python
 def test_with_different_setups(
     self,
@@ -286,9 +310,11 @@ def test_with_different_setups(
         # Only uses mock_api
         mock_api.return_value = "data"
         assert fetch_data() == "data"
+
 ```
 
 **✅ Use separate tests:**
+
 ```python
 def test_file_operations(tmp_path: Path) -> None:
     file = tmp_path / "test.txt"
@@ -297,6 +323,7 @@ def test_file_operations(tmp_path: Path) -> None:
 def test_api_operations(mock_api: Mock) -> None:
     mock_api.return_value = "data"
     assert fetch_data() == "data"
+
 ```
 
 ## Basic Subtest Pattern
@@ -317,21 +344,22 @@ def test_with_subtests(self, subtests: pytest.Subtests) -> None:
         with subtests.test(msg=f"Testing: {input_val}", input=input_val):
             result = function_under_test(input_val)
             assert result == expected
+
 ```
 
 ### Key Components
 
 1. **Fixture Parameter:** `subtests: pytest.Subtests`
-   - Injects the subtests fixture into your test
+   * Injects the subtests fixture into your test
 
 2. **Context Manager:** `with subtests.test(...)`
-   - Creates an isolated subtest context
+   * Creates an isolated subtest context
 
 3. **Message:** `msg="Descriptive message"`
-   - Shown in failure reports (required for clarity)
+   * Shown in failure reports (required for clarity)
 
 4. **Context Variables:** `**kwargs` (e.g., `input=input_val`)
-   - Included in failure reports for debugging
+   * Included in failure reports for debugging
 
 ### Complete Pattern
 
@@ -358,6 +386,7 @@ def test_example(self, subtests: pytest.Subtests) -> None:
             # 5. Make assertion
             assert result == expected_output, \
                 f"Expected {expected_output}, got {result}"
+
 ```
 
 ## Advanced Patterns
@@ -380,6 +409,7 @@ def test_with_multiple_contexts(self, subtests: pytest.Subtests) -> None:
             config = load_config()
             assert config.port == port
             assert Path(tmpdir).exists()
+
 ```
 
 ### Pattern 2: Nested Subtests
@@ -401,6 +431,7 @@ def test_handler_format_combinations(self, subtests: pytest.Subtests) -> None:
             ):
                 result = handler.format_output(data, format=fmt)
                 assert is_valid_format(result, fmt)
+
 ```
 
 ### Pattern 3: Subtests with Setup/Teardown
@@ -428,6 +459,7 @@ def test_database_operations(self, subtests: pytest.Subtests) -> None:
     finally:
         # Cleanup (runs once)
         conn.close()
+
 ```
 
 ### Pattern 4: Conditional Subtests
@@ -450,6 +482,7 @@ def test_platform_specific_features(self, subtests: pytest.Subtests) -> None:
 
             result = test_func()
             assert result.passed
+
 ```
 
 ### Pattern 5: Subtests with Fixtures
@@ -478,6 +511,7 @@ def test_handlers_with_files(
             assert handler.can_handle(str(test_file))
             result = handler.parse(str(test_file))
             assert result["key"] == "value"
+
 ```
 
 ## Best Practices
@@ -485,12 +519,15 @@ def test_handlers_with_files(
 ### 1. Write Descriptive Messages
 
 **❌ Poor:**
+
 ```python
 with subtests.test(msg=f"Test {i}"):
     assert validate(data[i])
+
 ```
 
 **✅ Good:**
+
 ```python
 with subtests.test(
     msg=f"Validate user input: {data[i]['username']}",
@@ -498,6 +535,7 @@ with subtests.test(
     index=i
 ):
     assert validate(data[i])
+
 ```
 
 ### 2. Include Context Variables
@@ -505,12 +543,15 @@ with subtests.test(
 Context variables appear in failure reports:
 
 **❌ Minimal context:**
+
 ```python
 with subtests.test(msg="Testing path"):
     assert validate(path)
+
 ```
 
 **✅ Rich context:**
+
 ```python
 with subtests.test(
     msg=f"Validating path: {path}",
@@ -519,6 +560,7 @@ with subtests.test(
     length=len(path)
 ):
     assert validate(path)
+
 ```
 
 ### 3. Keep Subtests Focused
@@ -526,6 +568,7 @@ with subtests.test(
 Each subtest should test one thing:
 
 **❌ Testing too much:**
+
 ```python
 with subtests.test(msg="User operations"):
     user = create_user("alice")
@@ -534,9 +577,11 @@ with subtests.test(msg="User operations"):
     assert user.is_active
     update_user(user.id, name="bob")
     assert get_user(user.id).name == "bob"
+
 ```
 
 **✅ Focused tests:**
+
 ```python
 with subtests.test(msg="Create user"):
     user = create_user("alice")
@@ -547,6 +592,7 @@ with subtests.test(msg="User has email"):
 
 with subtests.test(msg="User is active"):
     assert user.is_active
+
 ```
 
 ### 4. Use Type Hints
@@ -555,6 +601,7 @@ with subtests.test(msg="User is active"):
 def test_with_subtests(self, subtests: pytest.Subtests) -> None:
     """Always type-hint the subtests fixture."""
     # ...
+
 ```
 
 ### 5. Document Test Cases
@@ -564,13 +611,14 @@ def test_input_validation(self, subtests: pytest.Subtests) -> None:
     """Test input validation for various edge cases.
 
     Tests cover:
-    - Empty strings
-    - Whitespace-only strings
-    - Special characters
-    - Unicode characters
-    - Maximum length inputs
+    * Empty strings
+    * Whitespace-only strings
+    * Special characters
+    * Unicode characters
+    * Maximum length inputs
     """
     test_cases = [...]
+
 ```
 
 ### 6. Group Related Assertions
@@ -582,22 +630,27 @@ with subtests.test(msg=f"User validation: {username}", user=username):
     assert user is not None
     assert user.is_valid()
     assert user.has_permissions()
+
 ```
 
 ### 7. Use Meaningful Variable Names
 
 **❌ Unclear:**
+
 ```python
 for x, y in cases:
     with subtests.test(msg=f"{x}"):
         assert f(x) == y
+
 ```
 
 **✅ Clear:**
+
 ```python
 for input_value, expected_output in test_cases:
     with subtests.test(msg=f"Input: {input_value}", input=input_value):
         assert function(input_value) == expected_output
+
 ```
 
 ## Examples from Codebase
@@ -618,13 +671,15 @@ def test_path_traversal_unix(self, subtests: pytest.Subtests) -> None:
     for path in unix_paths:
         with subtests.test(msg=f"Unix path traversal: {path}", path=path):
             assert not InputValidator.validate_file_path(path)
+
 ```
 
 **Why this works:**
-- Clear test purpose (Unix path traversal)
-- Descriptive messages
-- Context variable (path) for debugging
-- All cases run independently
+
+* Clear test purpose (Unix path traversal)
+* Descriptive messages
+* Context variable (path) for debugging
+* All cases run independently
 
 ### Example 2: Handler Validation
 
@@ -652,13 +707,15 @@ def test_handlers_reject_absolute_paths(
             assert not handler.apply_change(
                 str(outside_file), "test content", 1, 1
             ), f"{handler.__class__.__name__} should reject absolute paths"
+
 ```
 
 **Why this works:**
-- Tests all handlers with same logic
-- Expensive fixture setup shared
-- Clear failure reporting per handler
-- All handlers tested even if one fails
+
+* Tests all handlers with same logic
+* Expensive fixture setup shared
+* Clear failure reporting per handler
+* All handlers tested even if one fails
 
 ### Example 3: Configuration Variants
 
@@ -676,49 +733,60 @@ def test_from_env_enable_rollback_true_variants(
         ):
             config = RuntimeConfig.from_env()
             assert config.enable_rollback is True
+
 ```
 
 **Why this works:**
-- Multiple context managers combined
-- Each variant tested independently
-- Easy to add new boolean values
-- Clear which variant failed
+
+* Multiple context managers combined
+* Each variant tested independently
+* Easy to add new boolean values
+* Clear which variant failed
 
 ## Common Pitfalls
 
 ### Pitfall 1: Forgetting the Fixture
 
 **❌ Error:**
+
 ```python
 def test_without_fixture(self) -> None:
     with subtests.test(msg="test"):  # NameError: subtests not defined
         assert True
+
 ```
 
 **✅ Fix:**
+
 ```python
 def test_with_fixture(self, subtests: pytest.Subtests) -> None:
     with subtests.test(msg="test"):
         assert True
+
 ```
 
 ### Pitfall 2: Not Providing Messages
 
 **❌ Poor debugging:**
+
 ```python
 with subtests.test():  # No context when it fails
     assert validate(path)
+
 ```
 
 **✅ Clear debugging:**
+
 ```python
 with subtests.test(msg=f"Validating: {path}", path=path):
     assert validate(path)
+
 ```
 
 ### Pitfall 3: Shared Mutable State
 
 **❌ State leaks between subtests:**
+
 ```python
 shared_list = []
 
@@ -726,19 +794,23 @@ for item in items:
     with subtests.test(msg=f"Item: {item}"):
         shared_list.append(item)  # Affects other subtests!
         assert len(shared_list) == 1  # Fails after first subtest
+
 ```
 
 **✅ Isolated state:**
+
 ```python
 for item in items:
     with subtests.test(msg=f"Item: {item}"):
         item_list = [item]  # Fresh list per subtest
         assert len(item_list) == 1
+
 ```
 
 ### Pitfall 4: Using Subtests for Unrelated Tests
 
 **❌ Unrelated logic:**
+
 ```python
 def test_everything(self, subtests: pytest.Subtests) -> None:
     with subtests.test("user"):
@@ -749,9 +821,11 @@ def test_everything(self, subtests: pytest.Subtests) -> None:
 
     with subtests.test("network"):
         assert ping("example.com")
+
 ```
 
 **✅ Separate tests:**
+
 ```python
 def test_user_creation(self) -> None:
     assert create_user("alice")
@@ -761,24 +835,29 @@ def test_file_exists(self) -> None:
 
 def test_network_connectivity(self) -> None:
     assert ping("example.com")
+
 ```
 
 ### Pitfall 5: Nested with Statements (Linter Violation)
 
 **❌ Ruff SIM117 violation:**
+
 ```python
 with subtests.test(msg="test"):
     with patch.dict(os.environ, {"KEY": "value"}):
         assert True
+
 ```
 
 **✅ Combined context managers:**
+
 ```python
 with (
     subtests.test(msg="test"),
     patch.dict(os.environ, {"KEY": "value"}),
 ):
     assert True
+
 ```
 
 ## Migration Guide
@@ -786,10 +865,11 @@ with (
 ### Step 1: Identify Candidates
 
 Look for:
-- Multiple test methods with similar names/logic
-- Tests with loops that don't use subtests
-- Tests with many similar assertions
-- Tests that could benefit from better failure reporting
+
+* Multiple test methods with similar names/logic
+* Tests with loops that don't use subtests
+* Tests with many similar assertions
+* Tests that could benefit from better failure reporting
 
 ### Step 2: Choose the Pattern
 
@@ -798,6 +878,7 @@ Use the decision tree to determine if subtests are appropriate.
 ### Step 3: Refactor
 
 **Before:**
+
 ```python
 def test_case_1(self) -> None:
     assert validate("input1")
@@ -807,9 +888,11 @@ def test_case_2(self) -> None:
 
 def test_case_3(self) -> None:
     assert validate("input3")
+
 ```
 
 **After:**
+
 ```python
 def test_validation_cases(self, subtests: pytest.Subtests) -> None:
     """Test validation with various inputs."""
@@ -818,6 +901,7 @@ def test_validation_cases(self, subtests: pytest.Subtests) -> None:
     for input_val in inputs:
         with subtests.test(msg=f"Validating: {input_val}", input=input_val):
             assert validate(input_val)
+
 ```
 
 ### Step 4: Add Context
@@ -841,14 +925,16 @@ def test_validation_cases(self, subtests: pytest.Subtests) -> None:
         ):
             result = validate(input_val)
             assert result is True
+
 ```
 
 ### Step 5: Test
 
 Run the migrated test to ensure:
-- All subtests pass
-- Failure messages are clear
-- No regressions introduced
+
+* All subtests pass
+* Failure messages are clear
+* No regressions introduced
 
 ### Step 6: Document
 
@@ -861,11 +947,12 @@ def test_validation_cases(self, subtests: pytest.Subtests) -> None:
     Each input is tested independently to ensure comprehensive
     coverage and clear failure reporting.
     """
+
 ```
 
 ## Related Documentation
 
-- [Testing Guide](TESTING.md) - Comprehensive testing documentation
-- [pytest 9.0 Migration Guide](PYTEST_9_MIGRATION.md) - Migration overview
-- [CONTRIBUTING.md](../../CONTRIBUTING.md) - Contribution guidelines
-- [pytest Documentation](https://docs.pytest.org/) - Official pytest docs
+* [Testing Guide](TESTING.md) - Comprehensive testing documentation
+* [pytest 9.0 Migration Guide](PYTEST_9_MIGRATION.md) - Migration overview
+* [CONTRIBUTING.md](../../CONTRIBUTING.md) - Contribution guidelines
+* [pytest Documentation](https://docs.pytest.org/) - Official pytest docs
