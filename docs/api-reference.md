@@ -707,7 +707,7 @@ strategy = PriorityStrategy(config={
 
 #### Methods
 
-##### `__init__(config: dict[str, Any] | None = None) -> None` (ResolutionStrategy)
+##### `__init__(config: dict[str, Any] | None = None) -> None`
 
 Initialize strategy with configuration.
 
