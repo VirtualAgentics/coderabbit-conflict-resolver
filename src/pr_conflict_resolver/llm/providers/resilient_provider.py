@@ -204,17 +204,23 @@ class ResilientProvider:
     def _check_budget(self, estimated_cost: float) -> None:
         """Check if request would exceed budget.
 
-        **PRECONDITIONS:**
-            - Caller MUST hold self._cost_lock before calling this method
-            - This method will NOT acquire the lock itself to avoid deadlocks
-            - Failure to hold the lock will result in race conditions
+        IMPORTANT: This method is NOT thread-safe. Caller MUST hold self._cost_lock
+        before calling this method to prevent race conditions. This method will NOT
+        acquire the lock itself to avoid deadlocks.
 
         Args:
-            estimated_cost: Estimated cost for request
+            estimated_cost: Estimated cost for request in USD.
+                THREAD-SAFETY REQUIREMENT: Caller must hold self._cost_lock before
+                calling this method. Failure to hold the lock will result in race
+                conditions when updating self._total_cost.
 
         Raises:
             CostBudgetExceededError: If budget would be exceeded
             AssertionError: (debug mode only) If called without holding lock
+
+        Note:
+            This is an internal method. External callers should use generate() which
+            handles locking automatically.
         """
         # Debug-mode verification: ensure caller holds the lock
         # Non-blocking check that only runs in debug mode (python -O disables)

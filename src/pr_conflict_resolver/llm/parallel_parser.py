@@ -7,13 +7,25 @@ This module provides ThreadPoolExecutor-based parallel parsing with:
 - Configurable worker count
 - Thread-safe result collection
 
+Timeout Behavior:
+    The timeout parameter in parse_comments() is applied per-comment, NOT as a total
+    batch timeout. Each comment gets the full timeout period independently. With
+    parallel execution, the wall-clock time is determined by the slowest comment.
+
+    Example: With 10 comments and timeout=60s:
+    - Each comment can take up to 60 seconds
+    - Total wall-clock time could be ~60s (if parallelized) or ~600s (if sequential)
+    - The timeout only limits how long we WAIT for the result
+    - The underlying LLM call may still be running and cannot be forcibly stopped
+
 Example:
     >>> from pr_conflict_resolver.llm.parallel_parser import ParallelCommentParser
     >>> from pr_conflict_resolver.llm.factory import create_provider
     >>>
     >>> provider = create_provider("openai", model="gpt-4o-mini")
     >>> parser = ParallelCommentParser(provider, max_workers=8)
-    >>> results = parser.parse_comments(comments)
+    >>> # Each comment gets 60 seconds, not 60 total
+    >>> results = parser.parse_comments(comments, timeout=60.0)
 """
 
 from __future__ import annotations

@@ -285,10 +285,22 @@ class MetricsAggregator:
             ...     tracker.record_tokens(1000, 500)
         """
         # Validate inputs before lock acquisition (fail fast)
-        if not isinstance(input_tokens, int) or input_tokens < 0:
-            raise ValueError(f"input_tokens must be non-negative integer, got: {input_tokens}")
-        if not isinstance(output_tokens, int) or output_tokens < 0:
-            raise ValueError(f"output_tokens must be non-negative integer, got: {output_tokens}")
+        # Separate type check from range check for clearer error messages
+        if not isinstance(input_tokens, int):
+            raise TypeError(
+                f"input_tokens must be an integer, "
+                f"got {type(input_tokens).__name__}: {input_tokens!r}"
+            )
+        if input_tokens < 0:
+            raise ValueError(f"input_tokens must be non-negative, got: {input_tokens}")
+
+        if not isinstance(output_tokens, int):
+            raise TypeError(
+                f"output_tokens must be an integer, "
+                f"got {type(output_tokens).__name__}: {output_tokens!r}"
+            )
+        if output_tokens < 0:
+            raise ValueError(f"output_tokens must be non-negative, got: {output_tokens}")
 
         provider = provider or getattr(self._thread_locals, "provider", None)
         model = model or getattr(self._thread_locals, "model", None)
@@ -322,10 +334,13 @@ class MetricsAggregator:
             ...     tracker.record_cost(0.015)
         """
         # Validate cost parameter before acquiring lock (fail fast)
+        # Separate type check from range check for clearer error messages
         if not isinstance(cost, (int, float)):
-            raise ValueError(f"cost must be a number (int or float), got: {type(cost).__name__}")
+            raise TypeError(
+                f"cost must be a number (int or float), got {type(cost).__name__}: {cost!r}"
+            )
         if cost < 0:
-            raise ValueError(f"cost must be a non-negative number, got: {cost}")
+            raise ValueError(f"cost must be non-negative, got: {cost}")
 
         provider = provider or getattr(self._thread_locals, "provider", None)
         model = model or getattr(self._thread_locals, "model", None)
