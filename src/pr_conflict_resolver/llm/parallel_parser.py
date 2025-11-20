@@ -30,11 +30,16 @@ Example:
 
 from __future__ import annotations
 
-import concurrent.futures
 import logging
 import threading
 from collections.abc import Callable
-from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
+from concurrent.futures import (
+    FIRST_COMPLETED,
+    Future,
+    ThreadPoolExecutor,
+    TimeoutError,
+    wait,
+)
 from dataclasses import dataclass
 from typing import TypedDict
 
@@ -154,7 +159,7 @@ class ParallelCommentParser:
 
         Raises:
             RuntimeError: If all comments fail to parse
-            concurrent.futures.TimeoutError: If any individual comment parsing
+            TimeoutError: If any individual comment parsing
                 exceeds the per-comment timeout
 
         Note:
@@ -250,9 +255,7 @@ class ParallelCommentParser:
                             self._failed_comments.append(
                                 (
                                     comment[:100],
-                                    concurrent.futures.TimeoutError(
-                                        f"Comment parsing exceeded {timeout}s timeout"
-                                    ),
+                                    TimeoutError(f"Comment parsing exceeded {timeout}s timeout"),
                                 )
                             )
                             progress.failed += 1
