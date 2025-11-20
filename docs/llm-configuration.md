@@ -225,9 +225,6 @@ cache_ttl = 7200  # 2 hours
 **Prevent cascading failures with automatic provider recovery:**
 
 ```bash
-# CLI flags
-pr-resolve apply 123 --circuit-breaker-enabled --circuit-breaker-threshold 5
-
 # Environment variables
 export CR_CIRCUIT_BREAKER_ENABLED="true"
 export CR_CIRCUIT_BREAKER_FAILURE_THRESHOLD="5"
