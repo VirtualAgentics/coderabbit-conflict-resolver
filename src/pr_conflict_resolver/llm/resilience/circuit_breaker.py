@@ -188,13 +188,18 @@ class CircuitBreaker:
         if success_threshold < 1:
             raise ValueError(f"success_threshold must be >= 1, got {success_threshold}")
 
-        self.config = CircuitBreakerConfig(
-            failure_threshold=failure_threshold,
-            recovery_timeout=recovery_timeout,
-            success_threshold=success_threshold,
-            expected_exception_types=expected_exception_types or (Exception,),
-            excluded_exception_types=excluded_exception_types or (),
-        )
+        # Build config kwargs - only pass non-None values to preserve dataclass defaults
+        config_kwargs: dict[str, Any] = {
+            "failure_threshold": failure_threshold,
+            "recovery_timeout": recovery_timeout,
+            "success_threshold": success_threshold,
+        }
+        if expected_exception_types is not None:
+            config_kwargs["expected_exception_types"] = expected_exception_types
+        if excluded_exception_types is not None:
+            config_kwargs["excluded_exception_types"] = excluded_exception_types
+
+        self.config = CircuitBreakerConfig(**config_kwargs)
 
         # State tracking
         self._state = CircuitState.CLOSED
@@ -357,6 +362,9 @@ class CircuitBreaker:
                     self._opened_at = None
                     self._half_open_in_progress = False  # Clear single-flight guard
                     logger.info("Circuit breaker CLOSED (recovery successful)")
+                else:
+                    # Clear guard to allow next test request after successful test
+                    self._half_open_in_progress = False
 
     def _on_failure(self) -> None:
         """Handle failed operation (internal)."""

@@ -140,6 +140,10 @@ class ResilientProvider:
             ...     fallback_chars_per_token=2.5  # More conservative for code
             ... )
         """
+        # Validate cost_budget_usd
+        if cost_budget_usd is not None and cost_budget_usd < 0:
+            raise ValueError(f"cost_budget_usd must be non-negative, got {cost_budget_usd}")
+
         self.provider = provider
         self.circuit_breaker = circuit_breaker
         self.metrics_aggregator = metrics_aggregator

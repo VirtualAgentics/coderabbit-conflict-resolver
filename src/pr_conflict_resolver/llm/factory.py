@@ -169,6 +169,13 @@ def create_provider(
     if timeout is not None and timeout <= 0:
         raise ValueError(f"timeout must be positive, got {timeout}")
 
+    # Validate shared_cache if provided
+    if shared_cache is not None and not isinstance(shared_cache, PromptCache):
+        raise TypeError(
+            f"shared_cache must be an instance of PromptCache, "
+            f"got {type(shared_cache).__name__}",
+        )
+
     # Get provider class from registry
     provider_class = PROVIDER_REGISTRY[provider]
 
@@ -224,7 +231,7 @@ def create_provider(
         return CachingProvider(
             provider=base_provider,
             cache=cache,
-            enabled=True,
+            enabled=cache_enabled,
             provider_name=provider,
             model_name=model,
         )
