@@ -22,15 +22,15 @@ This guide provides comprehensive strategies for optimizing the performance, cos
 ### For Development & Testing
 
 - [ ] Use free providers: `codex-cli-free` or `ollama-local`
-- [ ] Enable prompt caching: `--cache-enabled`
+- [ ] Enable prompt caching: Set `CR_LLM_CACHE_ENABLED=true` or use config file
 - [ ] Use small models: `llama3.2:1b` (Ollama) or `gpt-4o-mini` (OpenAI)
-- [ ] Set conservative cost budgets: `--cost-budget 1.0`
+- [ ] Set conservative cost budgets: Set `CR_LLM_COST_BUDGET=1.0` or use config file
 
 ### For Production
 
-- [ ] Enable all optimizations: `--parallel --cache-enabled`
-- [ ] Configure circuit breaker: `--circuit-breaker-threshold 5`
-- [ ] Set appropriate cost budgets: `--cost-budget 10.0`
+- [ ] Enable all optimizations: `--parallel` and set `CR_LLM_CACHE_ENABLED=true`
+- [ ] Configure circuit breaker: Set in config file (see resilience section)
+- [ ] Set appropriate cost budgets: Set `CR_LLM_COST_BUDGET=10.0` or use config file
 - [ ] Monitor metrics: Review costs and latencies after each run
 - [ ] Use balanced providers: Claude Haiku or GPT-4o-mini
 
@@ -113,13 +113,11 @@ optimization:
 
 ```bash
 # Enable caching (recommended)
-pr-resolve apply --pr 123 --cache-enabled
+# Set via environment variable
+export CR_LLM_CACHE_ENABLED=true
+pr-resolve apply --pr 123
 
-# Customize cache settings
-pr-resolve apply --pr 123 \
-  --cache-enabled
-
-# Config file (YAML)
+# Or use config file (YAML)
 llm:
   cache_enabled: true
 ```
@@ -236,7 +234,7 @@ See [cost-optimization.md](cost-optimization.md) for comprehensive cost strategi
 
 1. Use free providers when possible (Ollama, Codex CLI, Claude CLI)
 2. Enable prompt caching to avoid redundant API calls
-3. Set cost budgets to prevent overruns: `--cost-budget 10.0`
+3. Set cost budgets to prevent overruns: Set `CR_LLM_COST_BUDGET=10.0` or use config file
 4. Choose cost-effective models (GPT-4o-mini, Claude Haiku)
 5. Monitor costs with `--llm-metrics` flag
 
@@ -320,8 +318,13 @@ provider = OpenAIAPIProvider(
 #### Configuration
 
 ```bash
-# Set budget (recommended for production)
-pr-resolve apply --pr 123 --cost-budget 10.0
+# Set budget via environment variable (recommended for production)
+export CR_LLM_COST_BUDGET=10.0
+pr-resolve apply --pr 123
+
+# Or use config file
+resilience:
+  cost_budget: 10.0
 
 # Budget check before each request
 # Raises CostBudgetExceededError if exceeded
@@ -374,8 +377,11 @@ pr-resolve apply --pr 123 --llm-metrics
 
 1. **Limit cache size** if memory-constrained:
 
-   ```bash
-   --cache-max-size 500  # 500 entries (~2.5 MB)
+   ```yaml
+   # Config file (YAML)
+   llm:
+     cache:
+       max_size: 500  # 500 entries (~2.5 MB)
    ```
 
 2. **Use smaller models** (Ollama):
@@ -581,8 +587,8 @@ export CR_LLM_PROVIDER="anthropic"
 export CR_LLM_MODEL="claude-haiku-20240307"
 export CR_PARALLEL="true"
 export CR_MAX_WORKERS="8"
-export CR_CACHE_ENABLED="true"
-export CR_COST_BUDGET="100.0"
+export CR_LLM_CACHE_ENABLED="true"
+export CR_LLM_COST_BUDGET="100.0"
 ```
 
 ### 3. Health Checks
@@ -739,7 +745,7 @@ top -p $(pgrep -f pr-resolve)
 
 #### Solutions
 
-1. Reduce cache size: `--cache-max-size 500`
+1. Reduce cache size: Set `max_size: 500` in config file
 2. Use smaller model (Ollama): `llama3.2:1b`
 3. Reduce workers: `--max-workers 2`
 
@@ -756,9 +762,9 @@ pr-resolve apply --pr 123 --llm-metrics
 
 #### Solutions
 
-1. Enable caching: `--cache-enabled`
+1. Enable caching: Set `CR_LLM_CACHE_ENABLED=true` or use config file
 2. Switch to cheaper model: `gpt-4o-mini` or `claude-haiku`
-3. Set cost budget: `--cost-budget 10.0`
+3. Set cost budget: Set `CR_LLM_COST_BUDGET=10.0` or use config file
 4. Use free provider: Ollama or CLI-based
 
 ### Circuit Breaker Stuck Open

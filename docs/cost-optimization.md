@@ -221,10 +221,10 @@ pr-resolve apply --pr 123 --llm-preset openai-api-mini
 
 **Cost Optimization Tips**:
 
-1. **Enable caching**: `--cache-enabled` (saves 80%+)
+1. **Enable caching**: Set `CR_LLM_CACHE_ENABLED=true` or use config file (saves 80%+)
 2. **Use smaller context**: Limit PR comment history
 3. **Batch similar PRs**: Better cache hit rate
-4. **Set cost budgets**: `--cost-budget 50.0`
+4. **Set cost budgets**: Set `CR_LLM_COST_BUDGET=50.0` or use config file
 
 ### 2. Anthropic Claude Haiku 4.5 (Fast & Cheap)
 
@@ -282,15 +282,16 @@ Total: $0.38 (67% savings)
 #### 1. Enable Caching (Essential)
 
 ```bash
-# Always enable caching
-pr-resolve apply --pr 123 --cache-enabled
+# Set via environment variable
+export CR_LLM_CACHE_ENABLED=true
+pr-resolve apply --pr 123
 
 # Or in config file
-cache:
-  enabled: true
-  max_size: 5000
-  ttl: 3600  # 1 hour
-
+llm:
+  cache:
+    enabled: true
+    max_size: 5000
+    ttl: 3600  # 1 hour
 ```
 
 #### 2. Increase TTL for Stable Codebases
@@ -380,12 +381,16 @@ Annual savings: $1,710
 **Prevent Runaway Costs**:
 
 ```bash
-# Set daily budget
-pr-resolve apply --pr 123 --cost-budget 10.0
+# Set daily budget via environment variable
+export CR_LLM_COST_BUDGET=10.0
+pr-resolve apply --pr 123
+
+# Or use config file
+resilience:
+  cost_budget: 10.0
 
 # Budget exceeded? Error before API call
 Error: Request would exceed cost budget: $10.45 > $10.00
-
 ```
 
 **Budget Recommendations**:
@@ -687,7 +692,13 @@ Most expensive day: Friday ($3.80)
 1. ✅ **Enable Prompt Caching** - 60-90% cost reduction
 
    ```bash
-   --cache-enabled
+   # Set via environment variable
+   export CR_LLM_CACHE_ENABLED=true
+
+   # Or use config file
+   llm:
+     cache:
+       enabled: true
    ```
 
 2. ✅ **Use GPT-4o-mini Instead of GPT-4o** - 95% cost reduction
@@ -699,7 +710,12 @@ Most expensive day: Friday ($3.80)
 3. ✅ **Set Cost Budgets** - Prevent overruns
 
    ```bash
-   --cost-budget 10.0
+   # Set via environment variable
+   export CR_LLM_COST_BUDGET=10.0
+
+   # Or use config file
+   resilience:
+     cost_budget: 10.0
    ```
 
 4. ✅ **Switch to Ollama for Development** - 100% API cost reduction

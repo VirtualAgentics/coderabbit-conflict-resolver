@@ -99,10 +99,11 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --parallel --ma
 # Set $10 USD budget limit
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
   --llm-preset openai-api-mini \
-  --parallel \
-  --cache-enabled \
-  --circuit-breaker-enabled \
-  --cost-budget 10.0
+  --parallel
+
+# Or use environment variables for optimization and resilience features:
+# export CR_LLM_CACHE_ENABLED=true
+# export CR_LLM_COST_BUDGET=10.0
 
 # See docs/optimization-guide.md for benchmarks and optimization strategies
 
@@ -409,11 +410,8 @@ Configure the tool using environment variables (see [`.env.example`](.env.exampl
 | `CR_VALIDATE` | Enable pre-application validation | `true` |
 | `CR_PARALLEL` | Enable parallel processing | `false` |
 | `CR_MAX_WORKERS` | Number of parallel workers | `4` |
-| `CR_CACHE_ENABLED` | Enable prompt caching | `true` |
-| `CR_CACHE_MAX_SIZE` | Maximum cache entries | `1000` |
-| `CR_CACHE_TTL` | Cache TTL in seconds | `3600` |
-| `CR_CIRCUIT_BREAKER_ENABLED` | Enable circuit breaker for LLM resilience | `true` |
-| `CR_COST_BUDGET_USD` | Maximum cost budget (USD) | None |
+| `CR_LLM_CACHE_ENABLED` | Enable prompt caching | `true` |
+| `CR_LLM_COST_BUDGET` | Maximum cost budget in USD | None |
 | `CR_LOG_LEVEL` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) | `INFO` |
 | `CR_LOG_FILE` | Log file path (optional) | None |
 
