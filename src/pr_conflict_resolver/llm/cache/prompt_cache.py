@@ -18,6 +18,9 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Eviction target ratio: reduce cache to 90% of max size to minimize frequent evictions
+# Rationale: 10% buffer prevents cache thrashing (repeated evict→fill→evict cycles)
+# when cache size hovers near the limit. Evicting to 90% provides headroom for new
+# entries without immediately triggering another eviction, reducing I/O overhead.
 _EVICTION_TARGET_RATIO = 0.9
 
 

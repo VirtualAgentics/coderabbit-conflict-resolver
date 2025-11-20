@@ -463,6 +463,287 @@ pytest tests/ --cov=src --cov-report=term-missing
 
 The `--cov-report=term-missing` flag shows which lines are not covered by tests.
 
+### Phase 5: Production Readiness Patterns
+
+Phase 5 is the optimization and production readiness phase that transforms validated features into production-grade components. This phase focuses on performance, resilience, observability, and operational excellence.
+
+#### Core Patterns
+
+##### 1. Circuit Breakers
+
+* **What**: Prevent cascading failures by failing fast when services are degraded
+* **When**: API calls, external service integrations, expensive operations
+* **Implementation**: `src/pr_conflict_resolver/llm/resilience/circuit_breaker.py`
+* **Key features**:
+  * State transitions: CLOSED → OPEN → HALF_OPEN → CLOSED
+  * Configurable failure threshold and cooldown period
+  * Automatic recovery testing
+  * Thread-safe state management
+
+**Example:**
+
+```python
+from pr_conflict_resolver.llm.resilience.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
+
+config = CircuitBreakerConfig(
+    failure_threshold=5,  # Open after 5 failures
+    cooldown_seconds=60,  # Wait 60s before testing recovery
+    success_threshold=3   # 3 successes to close circuit
+)
+
+breaker = CircuitBreaker(config, name="llm-api")
+
+@breaker.call
+def call_api():
+    return expensive_api_call()
+
+```
+
+##### 2. Retry with Exponential Backoff
+
+* **What**: Automatically retry failed operations with increasing delays
+* **When**: Transient failures (timeouts, rate limits, network errors)
+* **Implementation**: `src/pr_conflict_resolver/llm/resilience/retry.py`
+* **Key features**:
+  * Exponential backoff with jitter
+  * Configurable retry count and max delay
+  * Per-exception retry policies
+  * Integration with circuit breakers
+
+**Example:**
+
+```python
+from pr_conflict_resolver.llm.resilience.retry import with_retry, RetryConfig
+
+config = RetryConfig(
+    max_attempts=3,
+    initial_delay_seconds=1.0,
+    max_delay_seconds=30.0,
+    exponential_base=2.0
+)
+
+@with_retry(config)
+def flaky_operation():
+    return api.call()
+
+```
+
+##### 3. Comprehensive Metrics
+
+* **What**: Track performance, costs, errors, and usage patterns
+* **When**: All production operations, especially expensive LLM calls
+* **Implementation**: `src/pr_conflict_resolver/llm/metrics/`
+* **Key metrics**:
+  * Token usage and costs (input/output separated)
+  * Latency percentiles (p50, p95, p99)
+  * Cache hit rates and savings
+  * Error rates by type
+  * Success rates by provider
+
+**Example:**
+
+```python
+from pr_conflict_resolver.llm.metrics.metrics_aggregator import MetricsAggregator
+
+metrics = MetricsAggregator()
+
+with metrics.track_request("anthropic", "claude-sonnet-4-5") as tracker:
+    response = provider.generate(prompt)
+    tracker.record_tokens(input_tokens=1000, output_tokens=500)
+    tracker.record_cost(0.015)
+
+# Get aggregated metrics
+summary = metrics.get_summary()
+print(f"Total cost: ${summary.total_cost:.4f}")
+print(f"Avg latency: {summary.avg_latency_ms:.2f}ms")
+print(f"Cache hit rate: {summary.cache_hit_rate:.1%}")
+
+```
+
+##### 4. LRU Caching with TTL
+
+* **What**: Cache expensive operations with size and time-based expiration
+* **When**: Repeated identical operations (LLM prompts, API responses)
+* **Implementation**: `src/pr_conflict_resolver/llm/cache/prompt_cache.py`
+* **Key features**:
+  * LRU eviction when size limit reached
+  * TTL-based expiration for stale data
+  * 90% eviction target ratio to prevent thrashing
+  * Thread-safe concurrent access
+  * Single-flight mechanism (N concurrent requests → 1 API call)
+
+**Example:**
+
+```python
+from pr_conflict_resolver.llm.cache.prompt_cache import PromptCache
+
+cache = PromptCache(
+    max_size_bytes=100 * 1024 * 1024,  # 100 MB
+    ttl_seconds=3600  # 1 hour
+)
+
+# Cache will deduplicate concurrent requests
+result = cache.get_or_compute(
+    key="my-prompt",
+    compute_fn=lambda: expensive_llm_call(),
+    cost_estimate=1500  # tokens
+)
+
+```
+
+##### 5. Parallel Processing with ThreadPoolExecutor
+
+* **What**: Process independent tasks concurrently to improve throughput
+* **When**: Batch operations on independent items (parsing multiple comments)
+* **Implementation**: `src/pr_conflict_resolver/llm/parallel_parser.py`
+* **Key features**:
+  * Configurable worker count (4-64 based on provider type)
+  * Progress tracking with callbacks
+  * Per-item timeout (not batch timeout)
+  * Thread-safe result aggregation
+  * Exception collection for partial failures
+
+**Example:**
+
+```python
+from pr_conflict_resolver.llm.parallel_parser import ParallelCommentParser
+
+parser = ParallelCommentParser(
+    provider=llm_provider,
+    max_workers=8,  # 8 concurrent workers
+    progress_callback=lambda p: print(p)  # Optional progress updates
+)
+
+# Each comment gets 60s timeout independently
+changes = parser.parse_comments(
+    comments=["Fix bug in X", "Update docs", "Add tests"],
+    timeout=60.0  # Per-comment timeout
+)
+
+```
+
+#### Design Principles
+
+##### 1. Fail Fast, Recover Gracefully
+
+* Detect failures quickly (circuit breakers)
+* Retry with exponential backoff for transient errors
+* Provide meaningful error messages with context
+* Never silently swallow exceptions
+
+##### 2. Observe Everything
+
+* Track metrics for all operations
+* Log at appropriate levels (DEBUG/INFO for success, WARNING/ERROR for issues)
+* Include contextual information in logs
+* Make metrics exportable for monitoring systems
+
+##### 3. Optimize for the Common Case
+
+* Cache aggressively (50-90% cost reduction typical)
+* Use parallel processing for batch operations
+* Fail fast on invalid inputs
+* Avoid defensive programming that masks bugs
+
+##### 4. Make Limits Explicit
+
+* Document all configurable limits (max_workers, cache size, timeouts)
+* Include rationale for default values
+* Validate limits at initialization time
+* Provide clear error messages when limits are exceeded
+
+##### 5. Thread Safety by Design
+
+* Use locks for shared mutable state
+* Document thread safety guarantees
+* Test concurrent access patterns
+* Use thread-local storage for per-request context
+
+#### Testing Patterns
+
+**Resilience testing:**
+
+```python
+@pytest.mark.parametrize("failure_count", [1, 5, 10])
+def test_circuit_breaker_opens_after_threshold(failure_count):
+    breaker = CircuitBreaker(config=CircuitBreakerConfig(failure_threshold=5))
+    # Test failure threshold behavior
+
+def test_retry_with_exponential_backoff(mock_time):
+    # Test backoff timing without actually sleeping
+    with patch("time.sleep"):
+        result = with_retry(config)(flaky_fn)()
+
+```
+
+**Metrics testing:**
+
+```python
+def test_metrics_aggregation_across_providers():
+    metrics = MetricsAggregator()
+    # Track requests from multiple providers
+    # Verify aggregation is correct
+
+def test_percentile_calculations_with_tolerance():
+    # Use tolerance ranges to avoid fragility
+    assert 40.0 <= summary.p50_latency_ms <= 50.0, (
+        f"p50={summary.p50_latency_ms} outside expected [40, 50]ms"
+    )
+
+```
+
+**Cache testing:**
+
+```python
+def test_cache_eviction_to_90_percent():
+    cache = PromptCache(max_size_bytes=1000)
+    # Fill cache to 100%
+    cache.evict_to_target()
+    # Verify size is ~90% of limit
+
+@pytest.mark.slow  # Mark tests that require sleep
+def test_cache_ttl_expiration():
+    time.sleep(1.5)  # Wait for TTL
+    assert cache.get(key) is None
+
+```
+
+**Parallel processing testing:**
+
+```python
+def test_concurrent_different_providers(subtests):
+    """Test thread safety with different providers."""
+    for provider_id in range(10):
+        with subtests.test(provider=provider_id):
+            # Verify no cross-contamination
+
+```
+
+#### Common Pitfalls
+
+* **Over-caching**: Don't cache errors or partial results
+* **Under-observing**: Missing metrics for critical operations
+* **Timeout confusion**: Per-item vs batch timeouts
+* **Thread safety assumptions**: Always test concurrent access
+* **Magic numbers**: Document rationale for all thresholds
+* **Silent failures**: Always propagate or log errors
+
+#### When to Apply Phase 5
+
+Apply Phase 5 patterns when:
+
+* Feature is validated and working (Phases 1-4 complete)
+* Performance optimization is needed
+* Production deployment is planned
+* Reliability requirements are critical
+* Cost optimization is important
+
+Do NOT apply Phase 5 prematurely:
+
+* During prototyping (Phases 1-2)
+* Before validating correctness (Phase 3)
+* Without baseline performance data
+
 ### Documentation
 
 * **Docstrings**: Use Google-style docstrings

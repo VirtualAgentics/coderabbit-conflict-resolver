@@ -250,10 +250,22 @@ class TestMetricsAggregatorSummary:
         summary = metrics.get_summary()
         # Use tolerance-based assertions to avoid fragility if percentile algorithm changes
         # p50 should be around median (45-50 range for values 0, 10, ..., 90)
-        assert 40.0 <= summary.p50_latency_ms <= 50.0, f"p50={summary.p50_latency_ms}"
+        assert 40.0 <= summary.p50_latency_ms <= 50.0, (
+            f"p50 latency {summary.p50_latency_ms}ms outside expected range [40.0, 50.0]ms. "
+            f"Dataset: 10 requests with latencies [0, 10, 20, ..., 90]ms. "
+            f"Expected p50 near median (45ms)."
+        )
         # p95 and p99 should be in upper range (85-90 for this dataset)
-        assert 85.0 <= summary.p95_latency_ms <= 90.0, f"p95={summary.p95_latency_ms}"
-        assert 85.0 <= summary.p99_latency_ms <= 90.0, f"p99={summary.p99_latency_ms}"
+        assert 85.0 <= summary.p95_latency_ms <= 90.0, (
+            f"p95 latency {summary.p95_latency_ms}ms outside expected range [85.0, 90.0]ms. "
+            f"Dataset: 10 requests with latencies [0, 10, 20, ..., 90]ms. "
+            f"Expected p95 near upper bound (90ms)."
+        )
+        assert 85.0 <= summary.p99_latency_ms <= 90.0, (
+            f"p99 latency {summary.p99_latency_ms}ms outside expected range [85.0, 90.0]ms. "
+            f"Dataset: 10 requests with latencies [0, 10, 20, ..., 90]ms. "
+            f"Expected p99 near maximum (90ms)."
+        )
 
     def test_summary_cost_by_provider(self) -> None:
         """Test cost breakdown by provider."""

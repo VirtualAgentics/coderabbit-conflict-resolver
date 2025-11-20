@@ -175,6 +175,8 @@ class ParallelCommentParser:
         # Submit all parsing tasks
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             # Create future for each comment
+            # Maps Future objects to their corresponding comment strings so we can
+            # identify which comment failed/succeeded when futures complete
             future_to_comment: dict[Future[list[ParsedChange]], str] = {
                 executor.submit(self._parse_single_comment, comment): comment
                 for comment in comments

@@ -221,6 +221,8 @@ def create_provider(
         cache_id = id(cache)
 
         # Only log detailed cache info once per unique cache instance
+        # Prevents log spam when the same cache is shared across multiple providers
+        # (common pattern: create_provider() called multiple times with shared_cache)
         # Use lock to make check-and-add atomic
         with _logged_cache_ids_lock:
             if cache_id not in _logged_cache_ids:
