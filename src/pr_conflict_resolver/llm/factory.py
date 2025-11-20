@@ -169,8 +169,9 @@ def create_provider(
             )
         if not api_key.strip():
             raise LLMConfigurationError(
-                f"API key cannot be empty for '{provider}' provider.",
-                details={"provider": provider},
+                f"API key cannot be empty for '{provider}' provider. "
+                f"Set CR_LLM_API_KEY environment variable or pass non-empty api_key parameter.",
+                details={"provider": provider, "env_var": "CR_LLM_API_KEY"},
             )
 
     # Validate timeout if provided

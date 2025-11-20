@@ -359,6 +359,9 @@ class CircuitBreaker:
                 if self._success_count >= self.config.success_threshold:
                     self._state = CircuitState.CLOSED
                     self._success_count = 0
+                    # Defensive: Reset _opened_at even though it should already be None
+                    # (circuit only opens from CLOSED->OPEN, where _opened_at is set)
+                    # This guards against future state transition bugs
                     self._opened_at = None
                     self._half_open_in_progress = False  # Clear single-flight guard
                     logger.info("Circuit breaker CLOSED (recovery successful)")

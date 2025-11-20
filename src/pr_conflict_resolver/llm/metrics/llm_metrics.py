@@ -189,7 +189,9 @@ class LLMMetrics:
         if cache_miss_cost < self.total_cost:
             computed_savings = cache_miss_cost - self.total_cost
             raise ValueError(
-                f"cache_miss_cost ({cache_miss_cost}) must be >= total_cost ({self.total_cost}). "
-                f"Computed cache savings would be negative: {computed_savings}"
+                f"cache_miss_cost ({cache_miss_cost:.4f}) < total_cost ({self.total_cost:.4f}), "
+                f"which would result in negative savings ({computed_savings:.4f}). "
+                f"Likely cause: Incorrect cache miss cost estimation. "
+                f"Fix: Ensure cache_miss_cost >= total cost of all API calls."
             )
         return cache_miss_cost - self.total_cost

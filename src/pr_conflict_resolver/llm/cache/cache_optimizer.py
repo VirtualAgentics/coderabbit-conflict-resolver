@@ -270,12 +270,17 @@ class CacheOptimizer:
 
     def batch_preload(
         self,
+        # Provider instance used to actually generate LLM responses
         provider: LLMProvider,
         prompts: list[str],
+        # Provider/model identification for cache key generation
+        # These strings should match the provider instance's actual provider/model
         provider_name: str,
         model_name: str,
+        # LLM request parameters
         max_workers: int = 4,
         max_tokens: int = 2000,
+        # Optional monitoring
         progress_callback: Callable[[WarmingProgress], None] | None = None,
     ) -> int:
         """Preload multiple prompts in parallel for faster cache warming.
@@ -286,8 +291,8 @@ class CacheOptimizer:
         Args:
             provider: LLM provider to generate responses
             prompts: List of prompts to preload
-            provider_name: Provider name for cache keys
-            model_name: Model name for cache keys
+            provider_name: Provider name for cache keys (must match provider instance)
+            model_name: Model name for cache keys (must match provider instance)
             max_workers: Maximum concurrent workers (default: 4, recommended: 4-8)
             max_tokens: Maximum tokens per request (default: 2000)
             progress_callback: Optional callback for progress updates

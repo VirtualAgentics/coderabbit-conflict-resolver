@@ -294,7 +294,7 @@ class TestLLMMetricsProperties:
         )
 
         # cache_miss_cost should be >= total_cost
-        with pytest.raises(ValueError, match="cache_miss_cost.*must be >= total_cost"):
+        with pytest.raises(ValueError, match="cache_miss_cost.*< total_cost"):
             metrics.calculate_savings(0.01)
 
 

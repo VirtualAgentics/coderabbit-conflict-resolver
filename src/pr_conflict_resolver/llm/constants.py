@@ -16,6 +16,16 @@ VALID_LLM_PROVIDERS: frozenset[str] = frozenset(
 
 # Maximum number of parallel workers for LLM operations
 # Used for parallel parsing, caching, and other concurrent operations
+#
+# Rationale for MAX_WORKERS=64:
+# - Balances parallelism vs. resource consumption (thread overhead, API rate limits)
+# - Typical usage: 4-8 workers for API providers, 2-4 for CLI providers
+# - Upper bound prevents runaway worker creation from misconfiguration
+# - Based on: ThreadPoolExecutor best practices + typical LLM API rate limits
+# - Recommendation: Most users should use 4-16; higher values only for:
+#   * Local models (Ollama) with powerful hardware
+#   * Batch processing with generous API rate limits
+#   * Benchmarked scenarios showing linear scaling
 MAX_WORKERS: int = 64
 
 # Maximum number of retry attempts when waiting for another thread's cache fetch

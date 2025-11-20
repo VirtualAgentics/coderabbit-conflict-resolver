@@ -132,6 +132,11 @@ class CachingProvider:
         self.enabled = enabled
 
         # Single-flight mechanism for concurrent cache misses
+        # Guarantees: If N threads request the same uncached prompt concurrently:
+        # - Exactly 1 thread calls the expensive LLM provider
+        # - Remaining N-1 threads wait for the result and reuse it
+        # - All N threads receive the same cached response
+        # - No duplicate API calls for identical prompts during concurrent access
         self._in_flight: dict[str, threading.Event] = {}
         self._in_flight_lock = threading.Lock()
 
@@ -370,11 +375,12 @@ class CachingProvider:
         Examples:
             >>> from pr_conflict_resolver.llm.cache.prompt_cache import DeleteStatus
             >>> cached = CachingProvider(provider, cache)
-            >>> cached.generate("Explain Python")  # Cached
+            >>> result1 = cached.generate("Explain Python")  # Cache miss, calls API
+            >>> result2 = cached.generate("Explain Python")  # Cache hit, instant
             >>> status = cached.invalidate_prompt("Explain Python")
             >>> if status == DeleteStatus.DELETED:
             ...     print("Successfully removed from cache")
-            >>> cached.generate("Explain Python")  # Cache miss, calls API again
+            >>> result3 = cached.generate("Explain Python")  # Cache miss, calls API again
         """
         cache_key = self.cache.compute_key(prompt, self.provider_name, self.model_name)
         status = self.cache.delete(cache_key)

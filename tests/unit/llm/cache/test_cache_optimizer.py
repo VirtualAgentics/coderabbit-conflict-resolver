@@ -429,7 +429,7 @@ class TestCacheOptimizerAnalyzeCache:
         # Should recommend warming cache
         assert any("low hit rate" in rec.lower() for rec in analysis.recommendations)
 
-    @pytest.mark.slow
+    @pytest.mark.slow  # Requires 1.5s sleep to test TTL expiration behavior
     def test_analyze_cache_detects_stale_entries(self, tmp_path: Path) -> None:
         """Test that analyze_cache detects and counts stale cache entries."""
         # Create cache with short TTL
