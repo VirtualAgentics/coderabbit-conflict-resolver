@@ -5,10 +5,36 @@ to any LLM provider without modifying provider code.
 """
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 from pr_conflict_resolver.llm.cache.prompt_cache import DeleteStatus, PromptCache
 from pr_conflict_resolver.llm.providers.caching_provider import CachingProvider
+
+
+def create_mock_provider(
+    class_name: str = "TestProvider", model: str = "test"
+) -> Any:  # noqa: ANN401
+    """Create a mock provider with proper class name configuration.
+
+    Args:
+        class_name: The __class__.__name__ value for the mock
+        model: The model attribute value
+
+    Returns:
+        Configured MagicMock instance with correct __class__.__name__
+
+    Note:
+        Dynamically creates a class with the specified name, then instantiates
+        a MagicMock using that class to ensure __class__.__name__ is properly set
+        without mutating the MagicMock class itself.
+    """
+    # Dynamically create a MagicMock subclass with the desired name
+    # This ensures each mock has its own class with the correct __name__
+    MockProviderClass = type(class_name, (MagicMock,), {})
+    mock = MockProviderClass()
+    mock.model = model
+    return mock
 
 
 class TestCachingProviderInitialization:
@@ -16,9 +42,7 @@ class TestCachingProviderInitialization:
 
     def test_init_with_provider_only(self) -> None:
         """Test initialization with provider only (creates default cache)."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "ClaudeCLIProvider"
-        mock_provider.model = "claude-sonnet-4-5"
+        mock_provider = create_mock_provider("ClaudeCLIProvider", "claude-sonnet-4-5")
 
         cached = CachingProvider(mock_provider)
 
@@ -30,9 +54,7 @@ class TestCachingProviderInitialization:
 
     def test_init_with_custom_cache(self) -> None:
         """Test initialization with custom PromptCache instance."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "OpenAIAPIProvider"
-        mock_provider.model = "gpt-4"
+        mock_provider = create_mock_provider("OpenAIAPIProvider", "gpt-4")
         custom_cache = PromptCache()
 
         cached = CachingProvider(mock_provider, cache=custom_cache)
@@ -41,8 +63,7 @@ class TestCachingProviderInitialization:
 
     def test_init_with_caching_disabled(self) -> None:
         """Test initialization with caching disabled."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "AnthropicAPIProvider"
+        mock_provider = create_mock_provider("AnthropicAPIProvider")
 
         cached = CachingProvider(mock_provider, enabled=False)
 
@@ -67,9 +88,7 @@ class TestCachingProviderNameDetection:
 
     def test_detect_claude_cli_provider(self) -> None:
         """Test detection of Claude CLI provider name."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "ClaudeCLIProvider"
-        mock_provider.model = "claude-sonnet-4-5"
+        mock_provider = create_mock_provider("ClaudeCLIProvider", "claude-sonnet-4-5")
 
         cached = CachingProvider(mock_provider)
 
@@ -77,8 +96,7 @@ class TestCachingProviderNameDetection:
 
     def test_detect_codex_cli_provider(self) -> None:
         """Test detection of Codex CLI provider name."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "CodexCLIProvider"
+        mock_provider = create_mock_provider("CodexCLIProvider")
         mock_provider.model = "codex-latest"
 
         cached = CachingProvider(mock_provider)
@@ -87,9 +105,7 @@ class TestCachingProviderNameDetection:
 
     def test_detect_openai_provider(self) -> None:
         """Test detection of OpenAI provider name."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "OpenAIAPIProvider"
-        mock_provider.model = "gpt-4"
+        mock_provider = create_mock_provider("OpenAIAPIProvider", "gpt-4")
 
         cached = CachingProvider(mock_provider)
 
@@ -97,8 +113,7 @@ class TestCachingProviderNameDetection:
 
     def test_detect_anthropic_provider(self) -> None:
         """Test detection of Anthropic provider name."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "AnthropicAPIProvider"
+        mock_provider = create_mock_provider("AnthropicAPIProvider")
         mock_provider.model = "claude-3-opus"
 
         cached = CachingProvider(mock_provider)
@@ -107,8 +122,7 @@ class TestCachingProviderNameDetection:
 
     def test_detect_ollama_provider(self) -> None:
         """Test detection of Ollama provider name."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "OllamaProvider"
+        mock_provider = create_mock_provider("OllamaProvider")
         mock_provider.model = "llama3.3:70b"
 
         cached = CachingProvider(mock_provider)
@@ -117,8 +131,7 @@ class TestCachingProviderNameDetection:
 
     def test_detect_unknown_provider_uses_class_name(self) -> None:
         """Test that unknown provider falls back to class name."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "CustomLLMProvider"
+        mock_provider = create_mock_provider("CustomLLMProvider")
         mock_provider.model = "custom-model"
 
         cached = CachingProvider(mock_provider)
@@ -127,8 +140,7 @@ class TestCachingProviderNameDetection:
 
     def test_detect_model_from_provider_attribute(self) -> None:
         """Test model name detection from provider.model attribute."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test-model-v2"
 
         cached = CachingProvider(mock_provider)
@@ -137,8 +149,7 @@ class TestCachingProviderNameDetection:
 
     def test_detect_model_fallback_unknown(self) -> None:
         """Test model name fallback when provider has no model attribute."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         del mock_provider.model  # Remove model attribute
 
         cached = CachingProvider(mock_provider)
@@ -151,8 +162,7 @@ class TestCachingProviderGenerate:
 
     def test_generate_cache_disabled_calls_provider(self) -> None:
         """Test that disabled cache passes through to provider."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test-model"
         mock_provider.generate.return_value = "Response from provider"
 
@@ -164,9 +174,7 @@ class TestCachingProviderGenerate:
 
     def test_generate_cache_miss_calls_provider_and_caches(self) -> None:
         """Test cache miss: calls provider and stores response."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "ClaudeCLIProvider"
-        mock_provider.model = "claude-sonnet-4-5"
+        mock_provider = create_mock_provider("ClaudeCLIProvider", "claude-sonnet-4-5")
         mock_provider.generate.return_value = "Fresh response"
 
         mock_cache = MagicMock(spec=PromptCache)
@@ -189,8 +197,7 @@ class TestCachingProviderGenerate:
 
     def test_generate_cache_hit_skips_provider(self) -> None:
         """Test cache hit: returns cached response without calling provider."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test-model"
 
         mock_cache = MagicMock(spec=PromptCache)
@@ -209,9 +216,7 @@ class TestCachingProviderGenerate:
 
     def test_generate_cache_key_includes_provider_and_model(self) -> None:
         """Test that cache key computation includes provider and model."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "ClaudeCLIProvider"
-        mock_provider.model = "claude-sonnet-4-5"
+        mock_provider = create_mock_provider("ClaudeCLIProvider", "claude-sonnet-4-5")
         mock_provider.generate.return_value = "Response"
 
         mock_cache = MagicMock(spec=PromptCache)
@@ -228,8 +233,7 @@ class TestCachingProviderGenerate:
 
     def test_generate_with_different_max_tokens(self) -> None:
         """Test generate with custom max_tokens parameter."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test"
         mock_provider.generate.return_value = "Response"
 
@@ -247,8 +251,7 @@ class TestCachingProviderCountTokens:
 
     def test_count_tokens_passes_through_to_provider(self) -> None:
         """Test that count_tokens is passed through without caching."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test"
         mock_provider.count_tokens.return_value = 42
 
@@ -260,8 +263,7 @@ class TestCachingProviderCountTokens:
 
     def test_count_tokens_not_cached(self) -> None:
         """Test that count_tokens does not use cache."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test"
         mock_provider.count_tokens.return_value = 10
 
@@ -282,8 +284,7 @@ class TestCachingProviderUtilities:
         """Test getting cache statistics."""
         from pr_conflict_resolver.llm.cache.prompt_cache import CacheStats
 
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
 
         mock_stats = CacheStats(
             hits=10,
@@ -305,8 +306,7 @@ class TestCachingProviderUtilities:
 
     def test_clear_cache(self) -> None:
         """Test clearing cache."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
 
         mock_cache = MagicMock(spec=PromptCache)
 
@@ -317,8 +317,7 @@ class TestCachingProviderUtilities:
 
     def test_invalidate_prompt_existing_entry(self, tmp_path: Path) -> None:
         """Test invalidating specific prompt (entry exists)."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test"
 
         # Use real cache with temp directory
@@ -340,8 +339,7 @@ class TestCachingProviderUtilities:
 
     def test_invalidate_prompt_nonexistent_entry(self, tmp_path: Path) -> None:
         """Test invalidating prompt that doesn't exist in cache."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
 
         cache = PromptCache(cache_dir=tmp_path)
         cached = CachingProvider(mock_provider, cache=cache)
@@ -352,8 +350,7 @@ class TestCachingProviderUtilities:
 
     def test_set_cache_enabled(self) -> None:
         """Test enabling/disabling cache at runtime."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test"
         mock_provider.generate.return_value = "Response"
 
@@ -369,9 +366,7 @@ class TestCachingProviderUtilities:
 
     def test_repr(self) -> None:
         """Test string representation."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "ClaudeCLIProvider"
-        mock_provider.model = "claude-sonnet-4-5"
+        mock_provider = create_mock_provider("ClaudeCLIProvider", "claude-sonnet-4-5")
 
         cached = CachingProvider(mock_provider)
         repr_str = repr(cached)
@@ -387,8 +382,7 @@ class TestCachingProviderIntegration:
 
     def test_full_cache_workflow(self, tmp_path: Path) -> None:
         """Test complete cache workflow: miss, cache, hit."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test-model"
         mock_provider.generate.return_value = "Generated response"
 
@@ -417,14 +411,10 @@ class TestCachingProviderIntegration:
 
     def test_cache_shared_across_providers(self, tmp_path: Path) -> None:
         """Test that shared cache works across multiple provider instances."""
-        mock_provider1 = MagicMock()
-        mock_provider1.__class__.__name__ = "Provider1"
-        mock_provider1.model = "model-a"
+        mock_provider1 = create_mock_provider("Provider1", "model-a")
         mock_provider1.generate.return_value = "Response from provider 1"
 
-        mock_provider2 = MagicMock()
-        mock_provider2.__class__.__name__ = "Provider2"
-        mock_provider2.model = "model-b"
+        mock_provider2 = create_mock_provider("Provider2", "model-b")
         mock_provider2.generate.return_value = "Response from provider 2"
 
         # Shared cache

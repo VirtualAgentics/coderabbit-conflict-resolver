@@ -4,6 +4,7 @@ This module tests the ResilientProvider wrapper that combines circuit breaker,
 metrics tracking, and cost budgeting.
 """
 
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -19,14 +20,37 @@ from pr_conflict_resolver.llm.resilience.circuit_breaker import (
 )
 
 
+def create_mock_provider(
+    class_name: str = "TestProvider", model: str = "test"
+) -> Any:  # noqa: ANN401
+    """Create a mock provider with proper class name configuration.
+
+    Args:
+        class_name: The __class__.__name__ value for the mock
+        model: The model attribute value
+
+    Returns:
+        Configured MagicMock instance with correct __class__.__name__
+
+    Note:
+        Dynamically creates a class with the specified name, then instantiates
+        a MagicMock using that class to ensure __class__.__name__ is properly set
+        without mutating the MagicMock class itself.
+    """
+    # Dynamically create a MagicMock subclass with the desired name
+    # This ensures each mock has its own class with the correct __name__
+    MockProviderClass = type(class_name, (MagicMock,), {})
+    mock = MockProviderClass()
+    mock.model = model
+    return mock
+
+
 class TestResilientProviderInitialization:
     """Test ResilientProvider initialization."""
 
     def test_init_with_provider_only(self) -> None:
         """Test initialization with provider only."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "ClaudeCLIProvider"
-        mock_provider.model = "claude-sonnet-4-5"
+        mock_provider = create_mock_provider("ClaudeCLIProvider", "claude-sonnet-4-5")
 
         resilient = ResilientProvider(mock_provider)
 
@@ -37,8 +61,7 @@ class TestResilientProviderInitialization:
 
     def test_init_with_circuit_breaker(self) -> None:
         """Test initialization with circuit breaker."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         breaker = CircuitBreaker()
 
         resilient = ResilientProvider(mock_provider, circuit_breaker=breaker)
@@ -47,8 +70,7 @@ class TestResilientProviderInitialization:
 
     def test_init_with_metrics(self) -> None:
         """Test initialization with metrics aggregator."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         metrics = MetricsAggregator()
 
         resilient = ResilientProvider(mock_provider, metrics_aggregator=metrics)
@@ -57,8 +79,7 @@ class TestResilientProviderInitialization:
 
     def test_init_with_cost_budget(self) -> None:
         """Test initialization with cost budget."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
 
         resilient = ResilientProvider(mock_provider, cost_budget_usd=10.0)
 
@@ -67,9 +88,7 @@ class TestResilientProviderInitialization:
 
     def test_init_auto_detects_provider_name(self) -> None:
         """Test auto-detection of provider name."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "ClaudeCLIProvider"
-        mock_provider.model = "test"
+        mock_provider = create_mock_provider("ClaudeCLIProvider")
 
         resilient = ResilientProvider(mock_provider)
 
@@ -77,8 +96,7 @@ class TestResilientProviderInitialization:
 
     def test_init_auto_detects_model_name(self) -> None:
         """Test auto-detection of model name."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test-model-v2"
 
         resilient = ResilientProvider(mock_provider)
@@ -91,8 +109,7 @@ class TestResilientProviderGenerate:
 
     def test_generate_without_resilience_features(self) -> None:
         """Test generate without any resilience features."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test"
         mock_provider.generate.return_value = "Response"
 
@@ -104,8 +121,7 @@ class TestResilientProviderGenerate:
 
     def test_generate_with_circuit_breaker(self) -> None:
         """Test generate with circuit breaker protection."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test"
         mock_provider.generate.return_value = "Response"
 
@@ -118,8 +134,7 @@ class TestResilientProviderGenerate:
 
     def test_generate_with_open_circuit(self) -> None:
         """Test generate fails when circuit is open."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test"
         mock_provider.generate.side_effect = RuntimeError("Error")
 
@@ -136,8 +151,7 @@ class TestResilientProviderGenerate:
 
     def test_generate_with_metrics_tracking(self) -> None:
         """Test generate tracks metrics."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test"
         mock_provider.generate.return_value = "Response"
 
@@ -158,8 +172,7 @@ class TestResilientProviderGenerate:
 
     def test_generate_with_cost_budget_enforcement(self) -> None:
         """Test generate enforces cost budget."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test"
         mock_provider.generate.return_value = "Response"
         # Configure count_tokens to return reasonable token counts
@@ -185,8 +198,7 @@ class TestResilientProviderCostTracking:
 
     def test_cost_estimation(self) -> None:
         """Test cost estimation for requests."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test"
         # Configure count_tokens to return token count (1 token per 4 chars)
         mock_provider.count_tokens.side_effect = lambda text: len(text) // 4
@@ -209,8 +221,7 @@ class TestResilientProviderCostTracking:
 
     def test_cost_estimation_without_costs_configured(self) -> None:
         """Test that cost tracking works even without configured costs."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.generate.return_value = "Test response"
 
         resilient = ResilientProvider(mock_provider)
@@ -221,8 +232,7 @@ class TestResilientProviderCostTracking:
 
     def test_budget_check_with_no_budget(self) -> None:
         """Test budget check when no budget is set."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.generate.return_value = "response"
         mock_provider.count_tokens.return_value = 100000  # Large token count
 
@@ -239,8 +249,7 @@ class TestResilientProviderCostTracking:
 
     def test_budget_check_within_budget(self) -> None:
         """Test budget check when within budget."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.generate.return_value = "response"
         # First call: 5000 tokens, second call: 2000 tokens
         mock_provider.count_tokens.side_effect = [5000, 2000]
@@ -262,8 +271,7 @@ class TestResilientProviderCostTracking:
 
     def test_budget_check_exceeds_budget(self) -> None:
         """Test budget check when budget would be exceeded."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.generate.return_value = "response"
         # First call: 9000 tokens, second call: 2000 tokens
         mock_provider.count_tokens.side_effect = [9000, 2000]
@@ -285,8 +293,7 @@ class TestResilientProviderCostTracking:
 
     def test_remaining_budget_calculation(self) -> None:
         """Test remaining budget calculation."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.generate.return_value = "response"
         mock_provider.count_tokens.return_value = 3500  # 3500 tokens
 
@@ -304,8 +311,7 @@ class TestResilientProviderCostTracking:
 
     def test_remaining_budget_with_no_budget(self) -> None:
         """Test remaining budget when no budget is set."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
 
         resilient = ResilientProvider(mock_provider)
 
@@ -313,8 +319,7 @@ class TestResilientProviderCostTracking:
 
     def test_total_cost_property(self) -> None:
         """Test total_cost property."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.generate.return_value = "response"
         mock_provider.count_tokens.return_value = 5500  # 5500 tokens
 
@@ -330,8 +335,7 @@ class TestResilientProviderCostTracking:
 
     def test_reset_cost_tracking(self) -> None:
         """Test resetting cost tracking."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.generate.return_value = "response"
         mock_provider.count_tokens.return_value = 10000  # 10000 tokens
 
@@ -355,8 +359,7 @@ class TestResilientProviderCountTokens:
 
     def test_count_tokens_passes_through(self) -> None:
         """Test that count_tokens passes through to provider."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.count_tokens.return_value = 42
 
         resilient = ResilientProvider(mock_provider)
@@ -371,8 +374,7 @@ class TestResilientProviderIntegration:
 
     def test_full_integration(self) -> None:
         """Test all features working together."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test-model"
         mock_provider.generate.return_value = "Response"
         # Configure count_tokens to return reasonable token counts
@@ -409,8 +411,7 @@ class TestResilientProviderIntegration:
 
     def test_integration_with_failures(self) -> None:
         """Test integration when provider fails."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test"
         mock_provider.generate.side_effect = RuntimeError("API Error")
 
@@ -448,8 +449,7 @@ class TestResilientProviderRepr:
 
     def test_repr_with_budget(self) -> None:
         """Test repr with budget set."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test"
 
         resilient = ResilientProvider(
@@ -468,8 +468,7 @@ class TestResilientProviderRepr:
 
     def test_repr_without_budget(self) -> None:
         """Test repr without budget."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "TestProvider"
+        mock_provider = create_mock_provider()
         mock_provider.model = "test"
 
         resilient = ResilientProvider(
