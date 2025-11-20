@@ -188,15 +188,20 @@ export CR_MAX_WORKERS="8"
 **Reduce LLM costs by 60-90% with intelligent caching:**
 
 ```bash
-# CLI flags
-pr-resolve apply 123 --cache-enabled --cache-max-size 5000 --cache-ttl 7200
-
 # Environment variables
-export CR_CACHE_ENABLED="true"
-export CR_CACHE_MAX_SIZE="5000"
-export CR_CACHE_TTL="7200"  # 2 hours
+export CR_LLM_CACHE_ENABLED="true"
 
-# Configuration file (see YAML/TOML examples above)
+# Configuration file (config.yaml)
+llm:
+  cache_enabled: true
+  cache_max_size: 5000
+  cache_ttl: 7200  # 2 hours
+
+# Or in TOML (config.toml)
+[llm]
+cache_enabled = true
+cache_max_size = 5000
+cache_ttl = 7200  # 2 hours
 ```
 
 **Features:**
@@ -251,13 +256,16 @@ export CR_CIRCUIT_BREAKER_RECOVERY_TIMEOUT="60"
 **Prevent runaway LLM expenses with hard limits:**
 
 ```bash
-# CLI flags
-pr-resolve apply 123 --cost-budget 10.0  # $10 USD limit
-
 # Environment variables
-export CR_COST_BUDGET_USD="10.0"
+export CR_LLM_COST_BUDGET="10.0"  # $10 USD limit
 
-# Configuration file (see YAML/TOML examples above)
+# Configuration file (config.yaml)
+llm:
+  cost_budget: 10.0  # USD
+
+# Or in TOML (config.toml)
+[llm]
+cost_budget = 10.0  # USD
 ```
 
 **Features:**
@@ -853,13 +861,18 @@ pr-resolve apply 123 --config team-config.yaml
 ### Example 4: Override Preset Settings
 
 ```bash
-# Start with preset, override specific settings
-pr-resolve apply 123 \
-  --llm-preset openai-api-mini \
-  --llm-model gpt-4 \
-  --llm-max-tokens 4000 \
-  --llm-cost-budget 10.0
+# Start with preset via env vars + config file to override settings
+export OPENAI_API_KEY="<your-key>"
+export CR_LLM_COST_BUDGET="10.0"
 
+# config.yaml
+llm:
+  preset: openai-api-mini
+  model: gpt-4  # Override preset model
+  max_tokens: 4000  # Override preset max tokens
+  cost_budget: 10.0  # From env var or set here
+
+pr-resolve apply 123 --llm-preset openai-api-mini --config config.yaml
 ```
 
 ### Example 5: Multi-Environment Setup

@@ -351,11 +351,17 @@ class CacheOptimizer:
         # Filter out already-cached prompts
         uncached_prompts = []
         for prompt in prompts:
-            cache_key = self.cache.compute_key(prompt, provider_name, model_name)
-            if self.cache.get(cache_key) is None:
-                uncached_prompts.append(prompt)
-            else:
-                cached += 1
+            try:
+                cache_key = self.cache.compute_key(prompt, provider_name, model_name)
+                if self.cache.get(cache_key) is None:
+                    uncached_prompts.append(prompt)
+                else:
+                    cached += 1
+            except ValueError as e:
+                # Skip invalid prompts (empty, invalid format, etc.)
+                logger.warning(f"Skipping invalid prompt during pre-filter: {e}")
+                failed += 1
+                continue
 
         if not uncached_prompts:
             logger.info(f"All {len(prompts)} prompts already cached")
