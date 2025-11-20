@@ -52,8 +52,7 @@ lint: ## Run all linters
 	mypy src/
 	@echo "Running Bandit..."
 	bandit -r src/ -f json -o bandit-report.json
-	@echo "Running Markdownlint..."
-	pre-commit run markdownlint-cli2 --all-files
+	@$(MAKE) lint-markdown
 	@echo "✅ Linting complete (dependency scanning handled by Renovate)"
 
 lint-markdown: ## Run markdown linting
