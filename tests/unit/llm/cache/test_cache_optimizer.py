@@ -3,6 +3,7 @@
 This module tests cache optimization, warming, batch preloading, and analysis.
 """
 
+import logging
 import os
 import time
 from pathlib import Path
@@ -314,8 +315,6 @@ class TestCacheOptimizerBatchPreload:
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test batch_preload validates and clamps max_workers parameter."""
-        import logging
-
         caplog.set_level(logging.WARNING)
         cache = PromptCache(cache_dir=tmp_path)
         optimizer = CacheOptimizer(cache)
@@ -430,10 +429,9 @@ class TestCacheOptimizerAnalyzeCache:
         # Should recommend warming cache
         assert any("low hit rate" in rec.lower() for rec in analysis.recommendations)
 
+    @pytest.mark.slow
     def test_analyze_cache_detects_stale_entries(self, tmp_path: Path) -> None:
         """Test that analyze_cache detects and counts stale cache entries."""
-        import time
-
         # Create cache with short TTL
         cache = PromptCache(cache_dir=tmp_path, ttl_seconds=1)
         optimizer = CacheOptimizer(cache)
@@ -479,9 +477,10 @@ class TestCacheOptimizerAnalyzeCache:
 
         analysis = optimizer.analyze_cache()
 
-        # Should warn about fragmentation
-        if analysis.fragmentation_ratio is not None and analysis.fragmentation_ratio > 0.9:
-            assert any("nearly full" in rec.lower() for rec in analysis.recommendations)
+        # Should warn about fragmentation when ratio > 0.9
+        assert analysis.fragmentation_ratio is not None
+        assert analysis.fragmentation_ratio > 0.9
+        assert any("nearly full" in rec.lower() for rec in analysis.recommendations)
 
 
 class TestCacheOptimizerEvictStaleEntries:
@@ -505,7 +504,7 @@ class TestCacheOptimizerEvictStaleEntries:
         cache_files = list(cache.cache_dir.glob("*.json"))
         old_time = time.time() - 85  # 85 seconds ago (85% of 100s TTL)
 
-        for _i, cache_file in enumerate(cache_files[:3]):
+        for cache_file in cache_files[:3]:
             # Make first 3 files old
             Path(cache_file).touch()
             os.utime(cache_file, (old_time, old_time))

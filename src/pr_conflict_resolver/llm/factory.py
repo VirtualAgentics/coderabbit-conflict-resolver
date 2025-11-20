@@ -152,6 +152,13 @@ def create_provider(
             details={"provider": provider, "valid_providers": list(VALID_LLM_PROVIDERS)},
         )
 
+    # Validate shared_cache if provided (fail fast before expensive operations)
+    if shared_cache is not None and not isinstance(shared_cache, PromptCache):
+        raise TypeError(
+            f"shared_cache must be an instance of PromptCache, "
+            f"got {type(shared_cache).__name__}",
+        )
+
     # Validate API key requirement for API-based providers
     if provider in _PROVIDERS_REQUIRING_API_KEY:
         if not api_key:
@@ -169,13 +176,6 @@ def create_provider(
     # Validate timeout if provided
     if timeout is not None and timeout <= 0:
         raise ValueError(f"timeout must be positive, got {timeout}")
-
-    # Validate shared_cache if provided
-    if shared_cache is not None and not isinstance(shared_cache, PromptCache):
-        raise TypeError(
-            f"shared_cache must be an instance of PromptCache, "
-            f"got {type(shared_cache).__name__}",
-        )
 
     # Get provider class from registry
     provider_class = PROVIDER_REGISTRY[provider]

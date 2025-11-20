@@ -95,10 +95,10 @@ class ParallelCommentParser:
             progress_callback: Optional callback function called with progress updates
 
         Raises:
-            ValueError: If max_workers < 1
+            TypeError: If max_workers < 1
         """
         if max_workers < 1:
-            raise ValueError(f"max_workers must be >= 1, got {max_workers}")
+            raise TypeError(f"max_workers must be >= 1, got {max_workers!r}")
 
         self.provider = provider
         self.max_workers = max_workers

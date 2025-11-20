@@ -5,7 +5,7 @@ prevention.
 """
 
 import time
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -167,17 +167,19 @@ class TestCircuitBreakerOpenState:
 
         assert breaker.state == CircuitState.OPEN
 
-        # Wait for recovery timeout
-        time.sleep(0.15)
+        # Mock time to simulate recovery timeout passing
+        with patch("time.monotonic") as mock_time:
+            # Simulate time advancing beyond recovery timeout
+            mock_time.return_value = time.monotonic() + 0.15
 
-        # Next call should transition to HALF_OPEN
-        mock_func.side_effect = None
-        mock_func.return_value = "success"
-        result = breaker.call(mock_func)
+            # Next call should transition to HALF_OPEN
+            mock_func.side_effect = None
+            mock_func.return_value = "success"
+            result = breaker.call(mock_func)
 
-        assert result == "success"
-        # After one success with success_threshold=2, should still be HALF_OPEN
-        assert breaker.state == CircuitState.HALF_OPEN  # type: ignore[comparison-overlap]
+            assert result == "success"
+            # After one success with success_threshold=2, should still be HALF_OPEN
+            assert breaker.state == CircuitState.HALF_OPEN  # type: ignore[comparison-overlap]
 
 
 class TestCircuitBreakerHalfOpenState:
@@ -197,18 +199,19 @@ class TestCircuitBreakerHalfOpenState:
         with pytest.raises(RuntimeError):
             breaker.call(mock_func)
 
-        # Wait for recovery
-        time.sleep(0.15)
+        # Mock time to simulate recovery timeout passing
+        with patch("time.monotonic") as mock_time:
+            mock_time.return_value = time.monotonic() + 0.15
 
-        # Successful recovery with 2 successes
-        mock_func.side_effect = None
-        mock_func.return_value = "success"
+            # Successful recovery with 2 successes
+            mock_func.side_effect = None
+            mock_func.return_value = "success"
 
-        breaker.call(mock_func)  # 1st success -> HALF_OPEN
-        assert breaker.state == CircuitState.HALF_OPEN
+            breaker.call(mock_func)  # 1st success -> HALF_OPEN
+            assert breaker.state == CircuitState.HALF_OPEN
 
-        breaker.call(mock_func)  # 2nd success -> CLOSED
-        assert breaker.state == CircuitState.CLOSED  # type: ignore[comparison-overlap]
+            breaker.call(mock_func)  # 2nd success -> CLOSED
+            assert breaker.state == CircuitState.CLOSED  # type: ignore[comparison-overlap]
 
     def test_half_open_failure_reopens_circuit(self) -> None:
         """Test that failure in HALF_OPEN reopens circuit."""
@@ -224,14 +227,15 @@ class TestCircuitBreakerHalfOpenState:
         with pytest.raises(RuntimeError):
             breaker.call(mock_func)
 
-        # Wait for recovery
-        time.sleep(0.15)
+        # Mock time to simulate recovery timeout passing
+        with patch("time.monotonic") as mock_time:
+            mock_time.return_value = time.monotonic() + 0.15
 
-        # Failed recovery attempt
-        with pytest.raises(RuntimeError):
-            breaker.call(mock_func)
+            # Failed recovery attempt
+            with pytest.raises(RuntimeError):
+                breaker.call(mock_func)
 
-        assert breaker.state == CircuitState.OPEN
+            assert breaker.state == CircuitState.OPEN
 
     def test_half_open_success_count_reset(self) -> None:
         """Test that success count resets properly in HALF_OPEN."""
@@ -247,23 +251,25 @@ class TestCircuitBreakerHalfOpenState:
         with pytest.raises(RuntimeError):
             breaker.call(mock_func)
 
-        time.sleep(0.15)
+        # Mock time to simulate recovery timeout passing
+        with patch("time.monotonic") as mock_time:
+            mock_time.return_value = time.monotonic() + 0.15
 
-        # Two successes
-        mock_func.side_effect = None
-        mock_func.return_value = "success"
-        breaker.call(mock_func)
-        breaker.call(mock_func)
+            # Two successes
+            mock_func.side_effect = None
+            mock_func.return_value = "success"
+            breaker.call(mock_func)
+            breaker.call(mock_func)
 
-        stats = breaker.get_stats()
-        assert stats.success_count == 2
-        assert breaker.state == CircuitState.HALF_OPEN
+            stats = breaker.get_stats()
+            assert stats.success_count == 2
+            assert breaker.state == CircuitState.HALF_OPEN
 
-        # Third success should close circuit
-        breaker.call(mock_func)
-        assert breaker.state == CircuitState.CLOSED  # type: ignore[comparison-overlap]
-        stats = breaker.get_stats()  # type: ignore[unreachable]
-        assert stats.success_count == 0  # Reset after closing  # type: ignore[unreachable]
+            # Third success should close circuit
+            breaker.call(mock_func)
+            assert breaker.state == CircuitState.CLOSED  # type: ignore[comparison-overlap]
+            stats = breaker.get_stats()  # type: ignore[unreachable]
+            assert stats.success_count == 0  # Reset after closing  # type: ignore[unreachable]
 
 
 class TestCircuitBreakerManualControl:
@@ -484,15 +490,10 @@ class TestCircuitBreakerThreadSafety:
         breaker = CircuitBreaker(failure_threshold=10)
         mock_func = MagicMock(return_value="success")
         results = []
-        exceptions = []
 
         def call_breaker() -> None:
-            try:
-                result = breaker.call(mock_func)
-                results.append(result)
-            except Exception as e:
-                # Track exceptions for visibility in test output
-                exceptions.append(e)
+            result = breaker.call(mock_func)
+            results.append(result)
 
         # Launch 20 concurrent calls
         threads = [threading.Thread(target=call_breaker) for _ in range(20)]
@@ -501,7 +502,7 @@ class TestCircuitBreakerThreadSafety:
         for t in threads:
             t.join()
 
-        # All calls should succeed
+        # All calls should succeed (no exceptions expected)
         assert len(results) == 20
         stats = breaker.get_stats()
         assert stats.total_requests == 20
