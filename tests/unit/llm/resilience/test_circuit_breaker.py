@@ -505,3 +505,33 @@ class TestCircuitBreakerThreadSafety:
         assert len(results) == 20
         stats = breaker.get_stats()
         assert stats.total_requests == 20
+
+    def test_concurrent_failures(self) -> None:
+        """Test that concurrent failures are handled correctly and circuit opens."""
+        import threading
+
+        breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60)
+        mock_func = MagicMock(side_effect=RuntimeError("Concurrent failure"))
+        exceptions = []
+
+        def call_breaker() -> None:
+            try:
+                breaker.call(mock_func)
+            except Exception as e:
+                exceptions.append(e)
+
+        # Launch 10 concurrent calls that will all fail
+        threads = [threading.Thread(target=call_breaker) for _ in range(10)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # All calls should fail
+        assert len(exceptions) == 10
+        stats = breaker.get_stats()
+        assert stats.total_requests == 10
+
+        # Circuit should be open due to exceeding failure threshold
+        assert stats.state == CircuitState.OPEN
+        assert stats.failure_count >= 5

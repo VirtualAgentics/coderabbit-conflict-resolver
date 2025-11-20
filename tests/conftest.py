@@ -235,7 +235,14 @@ def _reset_factory_logged_cache_ids() -> Generator[None, None, None]:
     """
     yield  # Run the test first
     # Clean up after test
-    from pr_conflict_resolver.llm import factory
+    try:
+        from pr_conflict_resolver.llm import factory
 
-    with factory._logged_cache_ids_lock:
-        factory._logged_cache_ids.clear()
+        with factory._logged_cache_ids_lock:
+            factory._logged_cache_ids.clear()
+    except Exception as e:
+        # Log cleanup errors but don't fail the test
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to reset factory logged cache IDs: {e}")

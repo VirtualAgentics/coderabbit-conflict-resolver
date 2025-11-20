@@ -131,6 +131,38 @@ class TestCacheOptimizerWarmCache:
 
         mock_provider.generate.assert_called_once_with("Test prompt", max_tokens=500)
 
+    def test_warm_cache_fail_fast_on_critical_exception(self, tmp_path: Path) -> None:
+        """Test warm_cache with fail_fast stops immediately on critical exceptions."""
+        cache = PromptCache(cache_dir=tmp_path)
+        optimizer = CacheOptimizer(cache)
+
+        mock_provider = MagicMock()
+        # First call succeeds, second raises critical error
+        mock_provider.generate.side_effect = [
+            "Response 1",
+            KeyboardInterrupt("User interrupted"),
+        ]
+
+        prompts = ["Prompt 1", "Prompt 2", "Prompt 3"]
+
+        # Should propagate critical exception immediately with fail_fast=True
+        with pytest.raises(KeyboardInterrupt):
+            optimizer.warm_cache(
+                mock_provider,
+                prompts,
+                "test",
+                "test-model",
+                fail_fast=True,
+            )
+
+        # Should have cached first prompt before critical error
+        key1 = cache.compute_key("Prompt 1", "test", "test-model")
+        assert cache.get(key1) is not None
+
+        # Should not have processed third prompt
+        key3 = cache.compute_key("Prompt 3", "test", "test-model")
+        assert cache.get(key3) is None
+
 
 class TestCacheOptimizerBatchPreload:
     """Test batch_preload() parallel preloading."""
@@ -278,6 +310,60 @@ class TestCacheOptimizerBatchPreload:
         # Should not call provider at all
         mock_provider.generate.assert_not_called()
 
+    def test_batch_preload_max_workers_validation(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test batch_preload validates and clamps max_workers parameter."""
+        import logging
+
+        caplog.set_level(logging.WARNING)
+        cache = PromptCache(cache_dir=tmp_path)
+        optimizer = CacheOptimizer(cache)
+        mock_provider = MagicMock()
+        mock_provider.generate.return_value = "Response"
+
+        # Test max_workers=0 gets clamped to 1 with warning
+        caplog.clear()
+        cached = optimizer.batch_preload(
+            mock_provider,
+            ["Prompt 1"],
+            "test",
+            "test-model",
+            max_workers=0,
+        )
+        assert cached == 1
+        assert any(
+            "max_workers must be >= 1, clamping from 0 to 1" in record.message
+            for record in caplog.records
+        )
+
+        # Test max_workers=-1 gets clamped to 1 with warning
+        caplog.clear()
+        cached = optimizer.batch_preload(
+            mock_provider,
+            ["Prompt 2"],
+            "test",
+            "test-model",
+            max_workers=-1,
+        )
+        assert cached == 1
+        assert any(
+            "max_workers must be >= 1, clamping from -1 to 1" in record.message
+            for record in caplog.records
+        )
+
+        # Test max_workers=1 is valid and doesn't warn
+        caplog.clear()
+        cached = optimizer.batch_preload(
+            mock_provider,
+            ["Prompt 3"],
+            "test",
+            "test-model",
+            max_workers=1,
+        )
+        assert cached == 1
+        assert not any("max_workers" in record.message for record in caplog.records)
+
 
 class TestCacheOptimizerAnalyzeCache:
     """Test analyze_cache() health check."""
@@ -343,6 +429,38 @@ class TestCacheOptimizerAnalyzeCache:
 
         # Should recommend warming cache
         assert any("low hit rate" in rec.lower() for rec in analysis.recommendations)
+
+    def test_analyze_cache_detects_stale_entries(self, tmp_path: Path) -> None:
+        """Test that analyze_cache detects and counts stale cache entries."""
+        import time
+
+        # Create cache with short TTL
+        cache = PromptCache(cache_dir=tmp_path, ttl_seconds=1)
+        optimizer = CacheOptimizer(cache)
+
+        # Add entries
+        for i in range(3):
+            key = cache.compute_key(f"Prompt {i}", "test", "model")
+            cache.set(
+                key,
+                f"Response {i}",
+                {"prompt": f"Prompt {i}", "provider": "test", "model": "model"},
+            )
+
+        # Immediately analyze - no stale entries
+        analysis_fresh = optimizer.analyze_cache()
+        assert analysis_fresh.stale_entries == 0
+        assert analysis_fresh.total_entries == 3
+
+        # Wait for TTL to expire
+        time.sleep(1.5)
+
+        # Analyze again - all entries should be stale
+        analysis_stale = optimizer.analyze_cache()
+        assert analysis_stale.stale_entries == 3
+        assert analysis_stale.total_entries == 3
+        # Should recommend cleanup
+        assert any("stale" in rec.lower() for rec in analysis_stale.recommendations)
 
     def test_analyze_cache_high_fragmentation_recommendation(self, tmp_path: Path) -> None:
         """Test recommendation for high fragmentation."""
