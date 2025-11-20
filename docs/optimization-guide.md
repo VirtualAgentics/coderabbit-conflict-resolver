@@ -71,8 +71,8 @@ pr-resolve apply --pr 123 --parallel
 pr-resolve apply --pr 123 --parallel --max-workers 8
 
 # Config file (YAML)
-llm:
-  parallel_llm_parsing: true
+optimization:
+  parallel: true
   max_workers: 8
 ```
 
@@ -261,21 +261,17 @@ See [cost-optimization.md](cost-optimization.md) for comprehensive cost strategi
 #### Configuration
 
 ```bash
-# Enable with defaults (5 failures, 60s timeout)
-pr-resolve apply --pr 123 --circuit-breaker-enabled
-
-# Customize thresholds
-pr-resolve apply --pr 123 \
-  --circuit-breaker-enabled \
-  --circuit-breaker-threshold 3 \
-  --circuit-breaker-timeout 30
+# Environment variables
+export CR_CIRCUIT_BREAKER_ENABLED="true"
+export CR_CIRCUIT_BREAKER_FAILURE_THRESHOLD="3"
+export CR_CIRCUIT_BREAKER_RECOVERY_TIMEOUT="30"
 
 # Config file (YAML)
-circuit_breaker:
-  enabled: true
-  failure_threshold: 3
-  recovery_timeout: 30
-  success_threshold: 2
+resilience:
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 3
+    recovery_timeout: 30
 ```
 
 #### When Circuit Opens
