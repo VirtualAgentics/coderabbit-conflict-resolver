@@ -563,8 +563,9 @@ class CacheOptimizer:
             >>> evicted = optimizer.evict_stale_entries(age_threshold_ratio=0.5)
 
         Note:
-            - Does not evict entries within TTL (not expired)
-            - Useful for proactive cache cleanup
+            - Evicts entries older than TTL * age_threshold_ratio
+            - Entries may still be within TTL (not expired) when evicted
+            - Useful for proactive cache cleanup to remove stale but not-yet-expired entries
             - Stale threshold: TTL * age_threshold_ratio
         """
         if not (0.0 < age_threshold_ratio <= 1.0):

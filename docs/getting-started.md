@@ -85,7 +85,7 @@ Anthropic provides the best balance of cost and performance with prompt caching:
 # 2. Set environment variables
 export CR_LLM_ENABLED="true"
 export CR_LLM_PROVIDER="anthropic"
-export CR_LLM_API_KEY="sk-ant-..."
+export CR_LLM_API_KEY="your-anthropic-api-key-here"
 export CR_LLM_MODEL="claude-sonnet-4-5"  # Optional, uses default if not set
 
 # 3. Verify setup

@@ -144,7 +144,7 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
 # Option 5: Anthropic API (balanced cost/performance)
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
   --llm-preset anthropic-api-balanced \
-  --llm-api-key sk-ant-...
+  --llm-api-key your-anthropic-api-key-here
 
 **Available presets**: `codex-cli-free`, `ollama-local` 🔒, `claude-cli-sonnet`, `openai-api-mini`, `anthropic-api-balanced`
 
@@ -156,7 +156,7 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
 # Anthropic (recommended - 50-90% cost savings with caching)
 export CR_LLM_ENABLED="true"
 export CR_LLM_PROVIDER="anthropic"
-export CR_LLM_API_KEY="sk-ant-..."  # Get from https://console.anthropic.com/
+export CR_LLM_API_KEY="your-anthropic-api-key-here"  # Get from https://console.anthropic.com/
 
 # OpenAI
 export CR_LLM_ENABLED="true"

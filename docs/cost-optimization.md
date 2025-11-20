@@ -237,7 +237,7 @@ pr-resolve apply --pr 123 --llm-preset openai-api-mini
 **Setup**:
 
 ```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
+export ANTHROPIC_API_KEY="your-anthropic-api-key-here"
 pr-resolve apply --pr 123 --llm-preset anthropic-api-balanced
 
 ```

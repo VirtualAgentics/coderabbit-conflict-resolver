@@ -627,7 +627,7 @@ Configure LLM providers using these environment variables:
 export CR_LLM_ENABLED="true"
 export CR_LLM_PROVIDER="openai"
 export CR_LLM_MODEL="gpt-4"  # Optional, defaults to gpt-4
-export CR_LLM_API_KEY="sk-..."  # Get from https://platform.openai.com/api-keys
+export CR_LLM_API_KEY="your-openai-api-key-here"  # Get from https://platform.openai.com/api-keys
 
 # Run resolver with OpenAI
 pr-resolve apply --pr 123 --owner myorg --repo myrepo
@@ -648,7 +648,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo
 export CR_LLM_ENABLED="true"
 export CR_LLM_PROVIDER="anthropic"
 export CR_LLM_MODEL="claude-sonnet-4-5"  # Optional
-export CR_LLM_API_KEY="sk-ant-..."  # Get from https://console.anthropic.com/
+export CR_LLM_API_KEY="your-anthropic-api-key-here"  # Get from https://console.anthropic.com/
 
 # Run resolver with Anthropic
 pr-resolve apply --pr 123 --owner myorg --repo myrepo
@@ -807,7 +807,7 @@ from pr_conflict_resolver.llm.config import LLMConfig
 provider = create_provider(
     provider="anthropic",
     model="claude-sonnet-4-5",
-    api_key="sk-ant-...",
+    api_key="your-anthropic-api-key-here",
     timeout=30
 )
 

@@ -177,7 +177,7 @@ AuthenticationError: x-api-key header is invalid
 
    ```bash
    echo $CR_LLM_API_KEY
-   # Should start with sk-ant-
+   # Should match your-anthropic-api-key-here format (example)
 
    ```
 
@@ -191,7 +191,7 @@ AuthenticationError: x-api-key header is invalid
    ```bash
    export CR_LLM_ENABLED="true"
    export CR_LLM_PROVIDER="anthropic"
-   export CR_LLM_API_KEY="sk-ant-..."
+   export CR_LLM_API_KEY="your-anthropic-api-key-here"
 
    ```
 

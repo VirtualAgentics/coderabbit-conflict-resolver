@@ -272,7 +272,7 @@ CR_LLM_PROVIDER=claude-cli  # or openai-api, anthropic-api, codex-cli, ollama
 CR_LLM_MODEL=claude-sonnet-4-5
 
 # Optional: API-based providers
-CR_LLM_API_KEY=sk-...  # For openai-api, anthropic-api
+CR_LLM_API_KEY=your-openai-api-key-here  # For openai-api, anthropic-api (example placeholder)
 
 # Optional: Cost control
 CR_LLM_MAX_COST=10.0  # Max USD per PR
@@ -372,7 +372,7 @@ CR_LLM_CLI_PATH=/usr/local/bin/codex  # Optional
 CR_LLM_ENABLED=true
 CR_LLM_PROVIDER=openai-api
 CR_LLM_MODEL=gpt-5-mini
-CR_LLM_API_KEY=sk-proj-...  # Get from <https://platform.openai.com>
+CR_LLM_API_KEY=your-openai-api-key-here  # Get from <https://platform.openai.com>
 CR_LLM_MAX_COST=5.0  # Set budget limit
 
 ```
@@ -384,7 +384,7 @@ CR_LLM_MAX_COST=5.0  # Set budget limit
 CR_LLM_ENABLED=true
 CR_LLM_PROVIDER=anthropic-api
 CR_LLM_MODEL=claude-sonnet-4-5
-CR_LLM_API_KEY=sk-ant-...  # Get from <https://console.anthropic.com>
+CR_LLM_API_KEY=your-anthropic-api-key-here  # Get from <https://console.anthropic.com>
 CR_LLM_CACHE=true  # Enable prompt caching (50-90% cost reduction)
 
 ```

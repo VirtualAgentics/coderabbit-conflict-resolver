@@ -41,7 +41,7 @@ llm:
   enabled: true
   provider: anthropic
   model: claude-sonnet-4-5
-  api_key: ${ANTHROPIC_API_KEY}  # Environment variable reference
+  api_key: ${ANTHROPIC_API_KEY}  # Environment variable reference (e.g., your-anthropic-api-key-here)
   fallback_to_regex: true
   max_tokens: 2000
 
@@ -347,11 +347,11 @@ export OPENAI_API_KEY="sk-..."
 pr-resolve apply 123 --llm-preset openai-api-mini
 
 # Anthropic (balanced, with caching)
-export ANTHROPIC_API_KEY="sk-ant-..."
+export ANTHROPIC_API_KEY="your-anthropic-api-key-here"
 pr-resolve apply 123 --llm-preset anthropic-api-balanced
 
 # Or pass API key via CLI flag
-pr-resolve apply 123 --llm-preset openai-api-mini --llm-api-key sk-...
+pr-resolve apply 123 --llm-preset openai-api-mini --llm-api-key your-openai-api-key-here
 
 ```
 
@@ -529,7 +529,7 @@ llm:
 ```bash
 export LLM_PROVIDER="openai"
 export LLM_MODEL="gpt-4o-mini"
-export OPENAI_API_KEY="sk-..."
+export OPENAI_API_KEY="your-openai-api-key-here"
 
 pr-resolve apply 123 --config config.yaml
 
@@ -584,7 +584,7 @@ export CR_LLM_MAX_TOKENS=4000
 pr-resolve apply 123 \
   --llm-preset openai-api-mini \
   --llm-model gpt-4o \
-  --llm-api-key sk-...
+  --llm-api-key your-openai-api-key-here
 
 # Result
 # - provider: openai (from preset)
@@ -632,13 +632,13 @@ api_key = "${OPENAI_API_KEY}"  # ✅ Valid
 
 ```yaml
 llm:
-  api_key: sk-ant-real-key-12345  # ❌ REJECTED
+  api_key: your-real-anthropic-key  # ❌ REJECTED (direct keys not allowed)
 
 ```
 
 ```toml
 [llm]
-api_key = "sk-openai-real-key"  # ❌ REJECTED
+api_key = "your-real-openai-key"  # ❌ REJECTED (direct keys not allowed)
 
 ```
 
@@ -663,8 +663,8 @@ Supported environment variables:
 
    ```bash
    # .env (add to .gitignore)
-   OPENAI_API_KEY=sk-...
-   ANTHROPIC_API_KEY=sk-ant-...
+   OPENAI_API_KEY=your-openai-api-key-here
+   ANTHROPIC_API_KEY=your-anthropic-api-key-here
 
    ```
 
@@ -805,7 +805,7 @@ llm:
 **.env**:
 
 ```bash
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=your-openai-api-key-here
 
 ```
 
@@ -838,7 +838,7 @@ llm:
 
 ```bash
 # Set personal API key
-export ANTHROPIC_API_KEY="sk-ant-..."
+export ANTHROPIC_API_KEY="your-anthropic-api-key-here"
 
 # Use team config
 pr-resolve apply 123 --config team-config.yaml
@@ -907,11 +907,11 @@ llm:
 pr-resolve apply 123 --config dev.yaml
 
 # Staging
-export STAGING_API_KEY="sk-ant-staging-..."
+export STAGING_API_KEY="your-anthropic-staging-key-here"
 pr-resolve apply 123 --config staging.yaml
 
 # Production
-export PROD_API_KEY="sk-ant-prod-..."
+export PROD_API_KEY="your-anthropic-prod-key-here"
 pr-resolve apply 123 --config prod.yaml
 
 ```
@@ -931,7 +931,7 @@ pr-resolve apply 123 --config prod.yaml
 echo $ANTHROPIC_API_KEY
 
 # Set the variable
-export ANTHROPIC_API_KEY="sk-ant-..."
+export ANTHROPIC_API_KEY="your-anthropic-api-key-here"
 
 # Verify
 pr-resolve apply 123 --config config.yaml --dry-run
@@ -952,9 +952,9 @@ ConfigError: SECURITY: API keys must NOT be stored in configuration files
 **Solution**:
 
 ```yaml
-# ❌ Wrong
+# ❌ Wrong (example - don't use real keys)
 llm:
-  api_key: sk-ant-real-key
+  api_key: your-real-anthropic-key-12345
 
 # ✅ Correct
 llm:
@@ -1001,7 +1001,7 @@ pr-resolve config show-presets
 pr-resolve config show
 
 # Ensure API key is set
-export OPENAI_API_KEY="sk-..."
+export OPENAI_API_KEY="your-openai-api-key-here"
 
 # Or use CLI-based preset (no API key needed)
 pr-resolve apply 123 --llm-preset codex-cli-free

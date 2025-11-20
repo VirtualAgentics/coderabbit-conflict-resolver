@@ -2025,8 +2025,8 @@ def test_anthropic_provider_real_api():
 
 ```bash
 # Test each provider (requires keys/installations)
-export ANTHROPIC_API_KEY=sk-ant-...
-export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=your-anthropic-api-key-here
+export OPENAI_API_KEY=your-openai-api-key-here
 
 pr-resolve analyze --pr 8 --llm --llm-provider anthropic-api
 pr-resolve analyze --pr 8 --llm --llm-provider openai

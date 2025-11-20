@@ -14,10 +14,10 @@ Metrics Tracked:
 Usage Examples:
     Track LLM operation:
         >>> metrics = MetricsAggregator()
-        >>> with metrics.track_request("anthropic", "claude-sonnet-4-5"):
+        >>> with metrics.track_request("anthropic", "claude-sonnet-4-5") as tracker:
         ...     response = provider.generate("prompt")
-        >>> metrics.record_tokens(1000, 500)
-        >>> metrics.record_cost(0.015)
+        ...     tracker.record_tokens(1000, 500)
+        ...     tracker.record_cost(0.015)
 
     Get metrics summary:
         >>> summary = metrics.get_summary()
