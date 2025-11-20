@@ -240,8 +240,10 @@ def _reset_factory_logged_cache_ids() -> Generator[None, None, None]:
 
         with factory._logged_cache_ids_lock:
             factory._logged_cache_ids.clear()
-    except Exception as e:
+    except (AttributeError, ImportError) as e:
         # Log cleanup errors but don't fail the test
+        # AttributeError: module doesn't have expected attributes
+        # ImportError: module failed to import
         import logging
 
         logger = logging.getLogger(__name__)
