@@ -76,7 +76,9 @@ class TestRuntimeConfigLLMMaxWorkersValidation:
         assert config.llm_max_workers == 64
         # Check for warning in logs with specific content
         assert any(
-            rec.levelname == "WARNING" and "llm_max_workers" in rec.message and "64" in rec.message
+            rec.levelname == "WARNING"
+            and "llm_max_workers" in rec.getMessage()
+            and "64" in rec.getMessage()
             for rec in caplog.records
         )
 

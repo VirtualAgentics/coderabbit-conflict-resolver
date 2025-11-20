@@ -637,7 +637,7 @@ Most expensive day: Friday ($3.80)
 
 - No caching: $750/month
 - Native caching (50% reduction): $375/month
-- - App caching (75% reduction): $93.75/month
+- App caching (75% reduction): $93.75/month
 - **Total: $93.75/month**
 
 **ROI of Dual Caching**: $656.25/month savings ($7,875/year)
