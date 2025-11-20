@@ -414,6 +414,7 @@ class CircuitBreaker:
             self._failure_count = 0
             self._success_count = 0
             self._opened_at = None
+            self._half_open_in_progress = False  # Clear single-flight guard
             logger.info("Circuit breaker manually reset (CLOSED)")
 
     def get_stats(self) -> CircuitBreakerStats:

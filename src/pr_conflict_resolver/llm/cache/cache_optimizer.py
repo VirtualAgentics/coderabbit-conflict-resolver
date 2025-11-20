@@ -24,9 +24,10 @@ Usage Examples:
 
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+from pathlib import Path
 
 from pr_conflict_resolver.llm.cache.prompt_cache import PromptCache
 from pr_conflict_resolver.llm.constants import MAX_WORKERS
@@ -403,10 +404,28 @@ class CacheOptimizer:
 
             # Process completions
             for i, future in enumerate(as_completed(future_to_prompt), 1):
-                success = future.result()
-                if success:
-                    cached += 1
-                else:
+                try:
+                    success = future.result()
+                    if success:
+                        cached += 1
+                    else:
+                        failed += 1
+                except (LLMAuthenticationError, LLMRateLimitError) as critical_error:
+                    # Critical errors: cancel remaining futures and re-raise
+                    logger.error(
+                        f"Critical error during batch preload: "
+                        f"{critical_error.__class__.__name__}: {critical_error}"
+                    )
+                    # Cancel any outstanding futures
+                    for pending_future in future_to_prompt:
+                        if not pending_future.done():
+                            pending_future.cancel()
+                    raise
+                except Exception as e:
+                    # Non-critical errors: log and continue processing other prompts
+                    logger.exception(
+                        f"Failed to cache prompt in batch: {e.__class__.__name__}: {e}"
+                    )
                     failed += 1
 
                 # Report progress
@@ -542,34 +561,49 @@ class CacheOptimizer:
 
         age_threshold = self.cache.ttl_seconds * age_threshold_ratio
         evicted = 0
-        current_time = time.time()
 
         logger.info(
             f"Evicting entries older than {age_threshold:.0f}s "
             f"({age_threshold_ratio * 100:.0f}% of TTL)"
         )
 
-        # Scan all cache files
-        for cache_file in self.cache.cache_dir.glob("*.json"):
-            try:
-                # Check file modification time
-                mtime = cache_file.stat().st_mtime
-                age = current_time - mtime
-
-                if age > age_threshold:
+        # Scan all cache files using centralized iterator
+        for cache_file, age in self._iter_cache_files_with_age():
+            if age > age_threshold:
+                try:
                     cache_file.unlink()
                     evicted += 1
                     logger.debug(f"Evicted stale entry {cache_file.stem[:8]}... (age={age:.0f}s)")
-
-            except OSError as e:
-                logger.debug(
-                    f"Failed to evict cache file {cache_file.name}: {e.__class__.__name__}: {e}. "
-                    "File may have been deleted or is inaccessible, skipping."
-                )
-                continue  # File may have been deleted, skip it
+                except OSError as e:
+                    logger.debug(
+                        f"Failed to evict cache file {cache_file.name}: "
+                        f"{e.__class__.__name__}: {e}. "
+                        "File may have been deleted or is inaccessible, skipping."
+                    )
+                    continue  # File may have been deleted, skip it
 
         logger.info(f"Evicted {evicted} stale entries")
         return evicted
+
+    def _iter_cache_files_with_age(self) -> "Generator[tuple[Path, float], None, None]":
+        """Iterate cache files with their age in seconds (internal helper).
+
+        Yields (cache_file, age_seconds) for each cache file, logging and skipping
+        files that can't be accessed due to OSError.
+
+        Yields:
+            Tuple of (cache_file Path, age in seconds)
+        """
+        current_time = time.time()
+
+        for cache_file in self.cache.cache_dir.glob("*.json"):
+            try:
+                mtime = cache_file.stat().st_mtime
+                age = current_time - mtime
+                yield (cache_file, age)
+            except OSError as e:
+                logger.debug(f"Failed to stat cache file {cache_file}: {e.__class__.__name__}: {e}")
+                continue  # File may have been deleted or inaccessible, skip it
 
     def _count_stale_entries(self, age_threshold: float) -> int:
         """Count entries older than age threshold (internal helper).
@@ -581,16 +615,9 @@ class CacheOptimizer:
             Number of stale entries
         """
         stale = 0
-        current_time = time.time()
 
-        for cache_file in self.cache.cache_dir.glob("*.json"):
-            try:
-                mtime = cache_file.stat().st_mtime
-                age = current_time - mtime
-                if age > age_threshold:
-                    stale += 1
-            except OSError as e:
-                logger.debug(f"Failed to stat cache file {cache_file}: {e.__class__.__name__}: {e}")
-                continue  # File may have been deleted or inaccessible, skip it
+        for _cache_file, age in self._iter_cache_files_with_age():
+            if age > age_threshold:
+                stale += 1
 
         return stale

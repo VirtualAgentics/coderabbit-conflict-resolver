@@ -141,13 +141,13 @@ class TestCacheOptimizerWarmCache:
         # First call succeeds, second raises critical error
         mock_provider.generate.side_effect = [
             "Response 1",
-            KeyboardInterrupt("User interrupted"),
+            RuntimeError("Provider failed"),
         ]
 
         prompts = ["Prompt 1", "Prompt 2", "Prompt 3"]
 
         # Should propagate critical exception immediately with fail_fast=True
-        with pytest.raises(KeyboardInterrupt):
+        with pytest.raises(RuntimeError):
             optimizer.warm_cache(
                 mock_provider,
                 prompts,

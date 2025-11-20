@@ -282,6 +282,8 @@ class TestParallelCommentParser:
         concurrent_count = 0
         max_concurrent = 0
         lock = threading.Lock()
+        # Barrier to force concurrent execution
+        barrier = threading.Barrier(4)  # Wait for all 4 tasks to start
 
         def track_concurrency(*args: object, **kwargs: object) -> list[ParsedChange]:
             nonlocal concurrent_count, max_concurrent
@@ -289,7 +291,8 @@ class TestParallelCommentParser:
                 concurrent_count += 1
                 max_concurrent = max(max_concurrent, concurrent_count)
 
-            time.sleep(0.1)  # Simulate work (increased to guarantee overlap)
+            # Wait for all tasks to be running (deterministic concurrency)
+            barrier.wait()
 
             with lock:
                 concurrent_count -= 1
