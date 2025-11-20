@@ -199,8 +199,10 @@ class ResilientProvider:
     def _check_budget(self, estimated_cost: float) -> None:
         """Check if request would exceed budget.
 
-        IMPORTANT: This method assumes the caller already holds self._cost_lock.
-        Do not call this method without holding the lock to avoid race conditions.
+        **PRECONDITIONS:**
+            - Caller MUST hold self._cost_lock before calling this method
+            - This method will NOT acquire the lock itself to avoid deadlocks
+            - Failure to hold the lock will result in race conditions
 
         Args:
             estimated_cost: Estimated cost for request

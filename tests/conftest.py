@@ -224,3 +224,18 @@ settings.register_profile(
 
 # Load profile from environment or use "dev" as default
 settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "dev"))
+
+
+@pytest.fixture(autouse=True)
+def _reset_factory_logged_cache_ids() -> Generator[None, None, None]:
+    """Reset factory module's logged cache IDs after each test to prevent state leakage.
+
+    This fixture runs automatically after every test to ensure the module-level
+    _logged_cache_ids set in factory.py is cleared, preventing test isolation issues.
+    """
+    yield  # Run the test first
+    # Clean up after test
+    from pr_conflict_resolver.llm import factory
+
+    with factory._logged_cache_ids_lock:
+        factory._logged_cache_ids.clear()

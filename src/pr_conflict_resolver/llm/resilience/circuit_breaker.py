@@ -79,8 +79,10 @@ class CircuitBreakerConfig:
     failure_threshold: int = 5
     recovery_timeout: float = 60.0
     success_threshold: int = 2
+    # Default: all exceptions except system interrupts (KeyboardInterrupt, SystemExit)
+    # Callers should override expected_exception_types in production for narrower scope
     expected_exception_types: tuple[type[Exception], ...] = (Exception,)
-    excluded_exception_types: tuple[type[Exception], ...] = ()
+    excluded_exception_types: tuple[type[BaseException], ...] = (KeyboardInterrupt, SystemExit)
 
 
 @dataclass(frozen=True)
@@ -161,7 +163,7 @@ class CircuitBreaker:
         recovery_timeout: float = 60.0,
         success_threshold: int = 2,
         expected_exception_types: tuple[type[Exception], ...] | None = None,
-        excluded_exception_types: tuple[type[Exception], ...] | None = None,
+        excluded_exception_types: tuple[type[BaseException], ...] | None = None,
     ) -> None:
         """Initialize circuit breaker.
 
@@ -200,6 +202,7 @@ class CircuitBreaker:
         self._success_count = 0
         self._last_failure_time: float | None = None
         self._opened_at: float | None = None
+        self._half_open_in_progress = False  # Single-flight guard for HALF_OPEN test
 
         # Statistics
         self._total_requests = 0
@@ -207,9 +210,9 @@ class CircuitBreaker:
         self._total_successes = 0
         self._total_rejected = 0
 
-        # Thread safety - using RLock for future-proofing even though current
-        # code paths don't require reentrancy
-        self._lock = threading.RLock()
+        # Thread safety - Lock is sufficient as methods don't call each other
+        # while holding the lock (no reentrancy needed)
+        self._lock = threading.Lock()
 
         logger.debug(
             f"Initialized CircuitBreaker: failure_threshold={failure_threshold}, "
@@ -258,6 +261,7 @@ class CircuitBreaker:
                 if self._should_attempt_recovery():
                     self._state = CircuitState.HALF_OPEN
                     self._success_count = 0
+                    # Don't set flag here - let first request proceed
                     logger.info("Circuit breaker entering HALF_OPEN state for recovery test")
                 else:
                     self._total_rejected += 1
@@ -280,6 +284,20 @@ class CircuitBreaker:
                             "opened_at": self._opened_at,
                         },
                     )
+
+            # Reject concurrent attempts during HALF_OPEN test
+            if self._state == CircuitState.HALF_OPEN:
+                if self._half_open_in_progress:
+                    # Another thread is already testing, reject this one
+                    self._total_rejected += 1
+                    raise CircuitBreakerError(
+                        "Circuit breaker is in HALF_OPEN state with test request "
+                        "already in progress. Only one test request is allowed at a time.",
+                        details={"state": "half_open", "test_in_progress": True},
+                    )
+                else:
+                    # First thread to attempt test, mark it
+                    self._half_open_in_progress = True
 
         # Execute the function
         try:
@@ -337,6 +355,7 @@ class CircuitBreaker:
                     self._state = CircuitState.CLOSED
                     self._success_count = 0
                     self._opened_at = None
+                    self._half_open_in_progress = False  # Clear single-flight guard
                     logger.info("Circuit breaker CLOSED (recovery successful)")
 
     def _on_failure(self) -> None:
@@ -351,6 +370,7 @@ class CircuitBreaker:
                 self._state = CircuitState.OPEN
                 self._opened_at = time.monotonic()
                 self._success_count = 0
+                self._half_open_in_progress = False  # Clear single-flight guard
                 logger.warning(
                     f"Circuit breaker failed during recovery, reopening "
                     f"(failures: {self._failure_count})"

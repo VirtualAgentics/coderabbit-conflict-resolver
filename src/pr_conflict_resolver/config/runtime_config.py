@@ -717,7 +717,11 @@ class RuntimeConfig:
             llm_cache_enabled = llm_config.get("cache_enabled", defaults.llm_cache_enabled)
             llm_max_tokens = llm_config.get("max_tokens", defaults.llm_max_tokens)
             llm_cost_budget = llm_config.get("cost_budget", defaults.llm_cost_budget)
-            parallel_llm_parsing = llm_config.get("parallel_parsing", defaults.parallel_llm_parsing)
+            # Support both new key and old key for backward compatibility
+            parallel_llm_parsing = llm_config.get(
+                "parallel_llm_parsing",
+                llm_config.get("parallel_parsing", defaults.parallel_llm_parsing),
+            )
             llm_max_workers = llm_config.get("max_workers", defaults.llm_max_workers)
 
             # SECURITY: Reject API keys in configuration files
