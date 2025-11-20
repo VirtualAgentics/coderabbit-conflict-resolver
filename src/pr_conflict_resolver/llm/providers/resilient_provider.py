@@ -213,7 +213,18 @@ class ResilientProvider:
 
         Raises:
             CostBudgetExceededError: If budget would be exceeded
+            AssertionError: (debug mode only) If called without holding lock
         """
+        # Debug-mode verification: ensure caller holds the lock
+        # Non-blocking check that only runs in debug mode (python -O disables)
+        # Try to acquire lock non-blocking - if we get it, caller didn't hold it
+        if __debug__ and self._cost_lock.acquire(blocking=False):
+            self._cost_lock.release()  # Release immediately to avoid side effects
+            raise AssertionError(
+                "_check_budget called without holding self._cost_lock. "
+                "Caller must acquire lock before calling this method."
+            )
+
         if self.cost_budget_usd is None:
             return  # No budget limit
 

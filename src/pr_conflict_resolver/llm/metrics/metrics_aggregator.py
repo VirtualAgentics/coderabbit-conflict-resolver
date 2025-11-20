@@ -510,8 +510,10 @@ class MetricsAggregator:
             raise ValueError("p must be between 0.0 and 1.0")
 
         idx = n * p
-        if idx == int(idx):  # Exact integer, use it directly (0-indexed)
-            return int(idx)
+        # Use robust is_integer() check instead of fragile float equality
+        if idx.is_integer():  # Exact integer case
+            # Clamp to valid range to prevent returning n when p == 1.0
+            return min(n - 1, int(idx))
         else:  # Not exact, round up
             return min(n - 1, math.ceil(idx) - 1)
 

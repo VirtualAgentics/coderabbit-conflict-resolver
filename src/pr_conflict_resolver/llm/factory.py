@@ -60,6 +60,7 @@ PROVIDER_REGISTRY: dict[str, type[Any]] = {
 _PROVIDERS_REQUIRING_API_KEY: frozenset[str] = frozenset({"openai", "anthropic"})
 
 # Deduplication set for cache logging (log each unique cache instance only once)
+# This module-level state is thread-safe and cleared by tests via conftest.py fixture
 _logged_cache_ids: set[int] = set()
 _logged_cache_ids_lock = threading.Lock()  # Protects _logged_cache_ids access
 
