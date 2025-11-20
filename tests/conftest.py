@@ -6,7 +6,7 @@ import os
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 from click import Context
@@ -190,6 +190,31 @@ def mock_param() -> Mock:
     param = Mock()
     param.name = "test"
     return param
+
+
+def create_mock_provider(
+    class_name: str = "TestProvider", model: str = "test"
+) -> Any:  # noqa: ANN401
+    """Create a mock provider with proper class name configuration.
+
+    Args:
+        class_name: The __class__.__name__ value for the mock
+        model: The model attribute value
+
+    Returns:
+        Configured MagicMock instance with correct __class__.__name__
+
+    Note:
+        Dynamically creates a class with the specified name, then instantiates
+        a MagicMock using that class to ensure __class__.__name__ is properly set
+        without mutating the MagicMock class itself.
+    """
+    # Dynamically create a MagicMock subclass with the desired name
+    # This ensures each mock has its own class with the correct __name__
+    MockProviderClass = type(class_name, (MagicMock,), {})
+    mock = MockProviderClass()
+    mock.model = model
+    return mock
 
 
 # ============================================================================

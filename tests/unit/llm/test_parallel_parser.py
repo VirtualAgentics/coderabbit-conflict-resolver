@@ -25,19 +25,13 @@ class TestParallelCommentParserInitialization:
 
         assert parser.max_workers == 1
 
-    def test_init_with_zero_max_workers_raises_error(self) -> None:
-        """Test that max_workers=0 raises ValueError."""
+    @pytest.mark.parametrize("invalid_value", [0, -1, -5])
+    def test_init_with_invalid_max_workers_raises_error(self, invalid_value: int) -> None:
+        """Test that invalid max_workers values raise ValueError."""
         mock_provider = MagicMock()
 
         with pytest.raises(ValueError, match="max_workers must be >= 1"):
-            ParallelCommentParser(mock_provider, max_workers=0)
-
-    def test_init_with_negative_max_workers_raises_error(self) -> None:
-        """Test that negative max_workers raises ValueError."""
-        mock_provider = MagicMock()
-
-        with pytest.raises(ValueError, match="max_workers must be >= 1"):
-            ParallelCommentParser(mock_provider, max_workers=-1)
+            ParallelCommentParser(mock_provider, max_workers=invalid_value)
 
     def test_init_with_default_max_workers(self) -> None:
         """Test initialization with default max_workers value."""

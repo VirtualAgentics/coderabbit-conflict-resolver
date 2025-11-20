@@ -4,10 +4,8 @@ This module tests the ResilientProvider wrapper that combines circuit breaker,
 metrics tracking, and cost budgeting.
 """
 
-from typing import Any
-from unittest.mock import MagicMock
-
 import pytest
+from conftest import create_mock_provider
 
 from pr_conflict_resolver.llm.metrics.metrics_aggregator import MetricsAggregator
 from pr_conflict_resolver.llm.providers.resilient_provider import (
@@ -18,31 +16,6 @@ from pr_conflict_resolver.llm.resilience.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerError,
 )
-
-
-def create_mock_provider(
-    class_name: str = "TestProvider", model: str = "test"
-) -> Any:  # noqa: ANN401
-    """Create a mock provider with proper class name configuration.
-
-    Args:
-        class_name: The __class__.__name__ value for the mock
-        model: The model attribute value
-
-    Returns:
-        Configured MagicMock instance with correct __class__.__name__
-
-    Note:
-        Dynamically creates a class with the specified name, then instantiates
-        a MagicMock using that class to ensure __class__.__name__ is properly set
-        without mutating the MagicMock class itself.
-    """
-    # Dynamically create a MagicMock subclass with the desired name
-    # This ensures each mock has its own class with the correct __name__
-    MockProviderClass = type(class_name, (MagicMock,), {})
-    mock = MockProviderClass()
-    mock.model = model
-    return mock
 
 
 class TestResilientProviderInitialization:

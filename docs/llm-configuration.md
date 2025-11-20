@@ -45,7 +45,9 @@ llm:
   fallback_to_regex: true
   max_tokens: 2000
 
-# Phase 5: Optimization & Resilience Features
+# Phase 5: Optimization & Resilience Features (FUTURE - NOT YET IMPLEMENTED)
+# WARNING: This configuration structure is planned for a future release.
+# These features exist but use different configuration keys (see individual feature sections below).
 optimization:
   parallel: true              # Enable concurrent LLM calls
   max_workers: 4              # Number of parallel workers
@@ -192,16 +194,13 @@ export CR_MAX_WORKERS="8"
 export CR_LLM_CACHE_ENABLED="true"
 
 # Configuration file (config.yaml)
-llm:
-  cache_enabled: true
-  cache_max_size: 5000
-  cache_ttl: 7200  # 2 hours
+optimization:
+  cache:
+    enabled: true
 
 # Or in TOML (config.toml)
-[llm]
-cache_enabled = true
-cache_max_size = 5000
-cache_ttl = 7200  # 2 hours
+[optimization.cache]
+enabled = true
 ```
 
 **Features:**
@@ -225,11 +224,6 @@ cache_ttl = 7200  # 2 hours
 **Prevent cascading failures with automatic provider recovery:**
 
 ```bash
-# Environment variables
-export CR_CIRCUIT_BREAKER_ENABLED="true"
-export CR_CIRCUIT_BREAKER_FAILURE_THRESHOLD="5"
-export CR_CIRCUIT_BREAKER_RECOVERY_TIMEOUT="60"
-
 # Configuration file (see YAML/TOML examples above)
 ```
 
@@ -284,17 +278,13 @@ cost_budget = 10.0  # USD
 
 **Track performance and costs across all providers:**
 
-```bash
-# Enabled by default, disable with:
-export CR_METRICS_ENABLED="false"
+Metrics are tracked automatically:
 
-# Metrics tracked automatically:
-# - Total requests, successes, failures
-# - Latency (P50, P95, P99 percentiles)
-# - Token usage (input/output per provider)
-# - Costs (per provider, per model)
-# - Error rates and types
-```
+* Total requests, successes, failures
+* Latency (P50, P95, P99 percentiles)
+* Token usage (input/output per provider)
+* Costs (per provider, per model)
+* Error rates and types
 
 **Metrics available:**
 
@@ -867,6 +857,8 @@ llm:
   preset: openai-api-mini
   model: gpt-4  # Override preset model
   max_tokens: 4000  # Override preset max tokens
+
+resilience:
   cost_budget: 10.0  # From env var or set here
 
 pr-resolve apply 123 --llm-preset openai-api-mini --config config.yaml

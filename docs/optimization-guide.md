@@ -107,7 +107,7 @@ optimization:
 - ✅ **Always** - No downside, significant benefits
 - ✅ Repeated runs on same PR
 - ✅ Multiple PRs with similar comments
-- ✅ Testing and development workflows
+- ✅ Development and testing (avoids redundant LLM calls during iteration)
 
 #### Configuration
 
@@ -117,15 +117,11 @@ pr-resolve apply --pr 123 --cache-enabled
 
 # Customize cache settings
 pr-resolve apply --pr 123 \
-  --cache-enabled \
-  --cache-max-size 5000 \
-  --cache-ttl 7200  # 2 hours
+  --cache-enabled
 
 # Config file (YAML)
 llm:
   cache_enabled: true
-  cache_max_size: 5000
-  cache_ttl: 7200
 ```
 
 #### Cache Hit Rate Optimization
@@ -261,11 +257,6 @@ See [cost-optimization.md](cost-optimization.md) for comprehensive cost strategi
 #### Configuration
 
 ```bash
-# Environment variables
-export CR_CIRCUIT_BREAKER_ENABLED="true"
-export CR_CIRCUIT_BREAKER_FAILURE_THRESHOLD="3"
-export CR_CIRCUIT_BREAKER_RECOVERY_TIMEOUT="30"
-
 # Config file (YAML)
 resilience:
   circuit_breaker:

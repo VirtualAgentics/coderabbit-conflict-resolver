@@ -36,7 +36,7 @@ import threading
 from collections.abc import Callable
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
-from typing import Any
+from typing import TypedDict
 
 # Import for type checking and runtime (needed for instantiation)
 from pr_conflict_resolver.llm.base import ParsedChange
@@ -77,6 +77,20 @@ class ParsingProgress:
             f"{self.failed} failed, {self.changes_found} changes found "
             f"({self.percent_complete:.1f}%)"
         )
+
+
+class ParsingStatistics(TypedDict):
+    """Type definition for parsing statistics returned by the statistics property.
+
+    Attributes:
+        total_changes: Total number of changes parsed
+        failed_count: Number of failed comments
+        max_workers: Configured worker count
+    """
+
+    total_changes: int
+    failed_count: int
+    max_workers: int
 
 
 class ParallelCommentParser:
@@ -333,7 +347,7 @@ class ParallelCommentParser:
         return "\n".join(lines)
 
     @property
-    def statistics(self) -> dict[str, Any]:
+    def statistics(self) -> ParsingStatistics:
         """Get parsing statistics.
 
         Returns:

@@ -5,36 +5,12 @@ to any LLM provider without modifying provider code.
 """
 
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock
+
+from conftest import create_mock_provider
 
 from pr_conflict_resolver.llm.cache.prompt_cache import DeleteStatus, PromptCache
 from pr_conflict_resolver.llm.providers.caching_provider import CachingProvider
-
-
-def create_mock_provider(
-    class_name: str = "TestProvider", model: str = "test"
-) -> Any:  # noqa: ANN401
-    """Create a mock provider with proper class name configuration.
-
-    Args:
-        class_name: The __class__.__name__ value for the mock
-        model: The model attribute value
-
-    Returns:
-        Configured MagicMock instance with correct __class__.__name__
-
-    Note:
-        Dynamically creates a class with the specified name, then instantiates
-        a MagicMock using that class to ensure __class__.__name__ is properly set
-        without mutating the MagicMock class itself.
-    """
-    # Dynamically create a MagicMock subclass with the desired name
-    # This ensures each mock has its own class with the correct __name__
-    MockProviderClass = type(class_name, (MagicMock,), {})
-    mock = MockProviderClass()
-    mock.model = model
-    return mock
 
 
 class TestCachingProviderInitialization:
@@ -221,7 +197,7 @@ class TestCachingProviderGenerate:
 
         mock_cache = MagicMock(spec=PromptCache)
         mock_cache.get.return_value = None
-        mock_cache.compute_key.return_value = "computed_key_123"
+        mock_cache.compute_key.return_value = "test_cache_key_123"
 
         cached = CachingProvider(mock_provider, cache=mock_cache)
         cached.generate("Test prompt")
