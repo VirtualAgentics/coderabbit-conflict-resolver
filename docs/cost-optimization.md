@@ -1,6 +1,6 @@
 # Cost Optimization Guide
 
-**Last Updated**: November 19, 2025
+**Last Updated**: November 20, 2025
 **Applies To**: v2.0+ with LLM-powered comment parsing
 
 This guide provides comprehensive strategies for minimizing the cost of using LLM providers while maintaining quality and performance.
@@ -31,7 +31,7 @@ This guide provides comprehensive strategies for minimizing the cost of using LL
 | Claude CLI | claude-sonnet-4 | $0* | $0* | **$0*** | Requires Claude Pro ($20/mo) |
 | **Paid API Options** | | | | | |
 | OpenAI | gpt-4o-mini | $0.15 | $0.60 | **$0.75** | Best value API |
-| Anthropic | claude-haiku | $0.25 | $1.25 | **$1.50** | Fast & cheap |
+| Anthropic | claude-haiku (4.5) | $1.00 | $5.00 | **$6.00** | Fast & cheap |
 | OpenAI | gpt-4o | $2.50 | $10.00 | **$12.50** | High quality |
 | Anthropic | claude-sonnet-4 | $3.00 | $15.00 | **$18.00** | Best quality |
 
@@ -46,7 +46,7 @@ This guide provides comprehensive strategies for minimizing the cost of using LL
 | Ollama (local) | $0.00 | $0.00 | $0.00 |
 | Codex/Claude CLI | $0.00* | $0.00* | $0.00* |
 | GPT-4o-mini | $0.38 | $0.08 | $4.00 |
-| Claude Haiku | $0.75 | $0.15 | $7.50 |
+| Claude Haiku (4.5) | $3.00 | $0.60 | $30.00 |
 | GPT-4o | $6.25 | $1.25 | $62.50 |
 | Claude Sonnet | $9.00 | $1.80 | $90.00 |
 
@@ -226,9 +226,9 @@ pr-resolve apply --pr 123 --llm-preset openai-api-mini
 3. **Batch similar PRs**: Better cache hit rate
 4. **Set cost budgets**: `--cost-budget 50.0`
 
-### 2. Anthropic Claude Haiku (Fast & Cheap)
+### 2. Anthropic Claude Haiku 4.5 (Fast & Cheap)
 
-**Cost**: $0.25/1M input + $1.25/1M output = **$1.50/1M total**
+**Cost**: $1.00/1M input + $5.00/1M output = **$6.00/1M total**
 
 **Best For**: High-volume production, speed-critical applications
 
@@ -246,10 +246,10 @@ pr-resolve apply --pr 123 --llm-preset anthropic-api-balanced
 
 | PRs/Month | Base Cost/PR | With Caching | With App Cache | Total Savings |
 | ----------- | -------------- | -------------- | ---------------- | --------------- |
-| 10 | $0.75 | $0.15 | $0.03 | 96% |
-| 50 | $0.75 | $0.15 | $0.03 | 96% |
-| 100 | $0.75 | $0.15 | $0.03 | 96% |
-| 500 | $0.75 | $0.15 | $0.03 | 96% |
+| 10 | $3.00 | $0.60 | $0.12 | 96% |
+| 50 | $3.00 | $0.60 | $0.12 | 96% |
+| 100 | $3.00 | $0.60 | $0.12 | 96% |
+| 500 | $3.00 | $0.60 | $0.12 | 96% |
 
 **Unique Benefits**:
 

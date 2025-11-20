@@ -27,7 +27,10 @@ from pr_conflict_resolver.llm.cache.prompt_cache import (
     DeleteStatus,
     PromptCache,
 )
-from pr_conflict_resolver.llm.constants import MAX_CACHE_WAIT_RETRIES
+from pr_conflict_resolver.llm.constants import (
+    MAX_CACHE_WAIT_RETRIES,
+    MAX_CACHE_WAIT_TIMEOUT,
+)
 from pr_conflict_resolver.llm.providers.base import LLMProvider
 
 logger = logging.getLogger(__name__)
@@ -246,7 +249,16 @@ class CachingProvider:
                 break
 
             retry_count += 1
-            wait_event.wait()
+            # Wait with timeout to prevent infinite blocking
+            signaled = wait_event.wait(timeout=MAX_CACHE_WAIT_TIMEOUT)
+
+            if not signaled:
+                # Timeout occurred - other thread didn't signal
+                logger.warning(
+                    f"Wait timeout ({MAX_CACHE_WAIT_TIMEOUT}s) for {cache_key[:16]}..., "
+                    "other thread may have failed without signaling"
+                )
+                # Continue to retry logic below
 
             # Re-check cache after waiting
             cached_response = self.cache.get(cache_key)
@@ -272,6 +284,7 @@ class CachingProvider:
                     wait_event = None
 
         # This thread is responsible for fetching
+        # Wrap in try/finally to ensure event is always cleaned up, even on exceptions
         try:
             logger.debug(f"Cache MISS for {self.provider_name}/{self.model_name}, calling provider")
             response = self.provider.generate(prompt, max_tokens=max_tokens)
@@ -288,7 +301,8 @@ class CachingProvider:
             return response
 
         finally:
-            # Signal waiting threads and cleanup
+            # Always signal waiting threads and cleanup, even on exception
+            # This prevents event leaks that would cause waiting threads to hang
             with self._in_flight_lock:
                 event = self._in_flight.pop(cache_key, None)
                 if event:

@@ -449,39 +449,64 @@ class MetricsAggregator:
         sorted_latencies = sorted(latencies)
         n = len(sorted_latencies)
 
-        # Use a modified nearest-rank method for percentiles
-        # This implementation is optimized for latency metrics and SLA reporting,
-        # prioritizing consistency over strict statistical conformity:
-        #
-        # - When n*p is an exact integer (e.g., 10*0.5=5.0), we use that index directly,
-        #   returning the value at position 5 (6th element) instead of averaging indices 4 and 5.
-        #   This biases toward higher values but avoids interpolation complexity.
-        #
-        # - When n*p is not exact, we round up using ceil(n*p) - 1 to get the next rank.
-        #
-        # Example: For 10 values [0,10,20,30,40,50,60,70,80,90]:
-        #   - p50: n*p = 10*0.5 = 5.0 (exact) → index 5 → value 50
-        #   - p95: n*p = 10*0.95 = 9.5 → ceil(9.5)-1 = 9 → value 90
-        #
-        # This method is consistent with the percentile reporting used throughout the metrics
-        # system and ensures latency SLAs are conservatively estimated.
-        def percentile_index(p: float) -> int:
-            """Calculate 0-based index for percentile p (0-1 range)."""
-            idx = n * p
-            if idx == int(idx):  # Exact integer, use it directly (0-indexed)
-                return min(n - 1, int(idx))
-            else:  # Not exact, round up
-                return min(n - 1, math.ceil(idx) - 1)
-
-        p50_idx = percentile_index(0.50)
-        p95_idx = percentile_index(0.95)
-        p99_idx = percentile_index(0.99)
+        # Use helper to compute percentile indices
+        p50_idx = self._percentile_index(n, 0.50)
+        p95_idx = self._percentile_index(n, 0.95)
+        p99_idx = self._percentile_index(n, 0.99)
 
         p50 = sorted_latencies[p50_idx]
         p95 = sorted_latencies[p95_idx]
         p99 = sorted_latencies[p99_idx]
 
         return (p50, p95, p99)
+
+    def _percentile_index(self, n: int, p: float) -> int:
+        """Calculate 0-based index for percentile p using modified nearest-rank method.
+
+        This implementation is optimized for latency metrics and SLA reporting,
+        prioritizing consistency over strict statistical conformity.
+
+        Method Details:
+            - When n*p is an exact integer (e.g., 10*0.5=5.0), we use that index
+              directly, returning the value at position 5 (6th element) instead of
+              averaging indices 4 and 5. This biases toward higher values but avoids
+              interpolation complexity.
+
+            - When n*p is not exact, we round up using ceil(n*p) - 1 to get the
+              next rank.
+
+        Examples:
+            For 10 values [0,10,20,30,40,50,60,70,80,90]:
+                >>> _percentile_index(10, 0.50)
+                5  # p50: n*p = 10*0.5 = 5.0 (exact) → index 5 → value 50
+
+                >>> _percentile_index(10, 0.95)
+                9  # p95: n*p = 10*0.95 = 9.5 → ceil(9.5)-1 = 9 → value 90
+
+        This method is consistent with the percentile reporting used throughout
+        the metrics system and ensures latency SLAs are conservatively estimated.
+
+        Args:
+            n: Total number of values in the dataset (must be positive)
+            p: Percentile to calculate (0.0 to 1.0 inclusive)
+
+        Returns:
+            0-based index for the percentile value
+
+        Raises:
+            ValueError: If n is not positive or p is not in range [0.0, 1.0]
+        """
+        # Input validation
+        if n <= 0:
+            raise ValueError("n must be a positive integer")
+        if not 0.0 <= p <= 1.0:
+            raise ValueError("p must be between 0.0 and 1.0")
+
+        idx = n * p
+        if idx == int(idx):  # Exact integer, use it directly (0-indexed)
+            return min(n - 1, int(idx))
+        else:  # Not exact, round up
+            return min(n - 1, math.ceil(idx) - 1)
 
     def get_provider_metrics(self, provider: str, model: str) -> ProviderMetrics | None:
         """Get metrics for specific provider/model.

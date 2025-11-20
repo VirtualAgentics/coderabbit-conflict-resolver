@@ -21,3 +21,7 @@ MAX_WORKERS: int = 64
 # Maximum number of retry attempts when waiting for another thread's cache fetch
 # Used in CachingProvider to prevent infinite wait loops in edge cases
 MAX_CACHE_WAIT_RETRIES: int = 3
+
+# Timeout in seconds for waiting on another thread's cache fetch
+# Prevents deadlocks when waiting threads don't receive event signal
+MAX_CACHE_WAIT_TIMEOUT: float = 30.0

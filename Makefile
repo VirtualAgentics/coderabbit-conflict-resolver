@@ -58,11 +58,7 @@ lint: ## Run all linters
 
 lint-markdown: ## Run markdown linting
 	@echo "Running Markdownlint..."
-	@if [ -d .venv ]; then \
-		. .venv/bin/activate && pre-commit run markdownlint-cli2 --all-files; \
-	else \
-		pre-commit run markdownlint-cli2 --all-files; \
-	fi
+	pre-commit run markdownlint-cli2 --all-files
 
 format: ## Auto-format code with Black and Ruff
 	black src/ tests/

@@ -31,6 +31,7 @@ Usage Examples:
 """
 
 import logging
+import threading
 from typing import Any
 
 from pr_conflict_resolver.llm.cache.prompt_cache import PromptCache
@@ -60,6 +61,7 @@ _PROVIDERS_REQUIRING_API_KEY: frozenset[str] = frozenset({"openai", "anthropic"}
 
 # Deduplication set for cache logging (log each unique cache instance only once)
 _logged_cache_ids: set[int] = set()
+_logged_cache_ids_lock = threading.Lock()  # Protects _logged_cache_ids access
 
 
 def create_provider(
@@ -210,13 +212,15 @@ def create_provider(
         cache_id = id(cache)
 
         # Only log detailed cache info once per unique cache instance
-        if cache_id not in _logged_cache_ids:
-            logger.debug(
-                f"Wrapping {provider} provider with CachingProvider "
-                f"(shared_cache={'yes' if shared_cache else 'no'}, "
-                f"cache_id={cache_id}, max_size={max_size}B, ttl={ttl}s)"
-            )
-            _logged_cache_ids.add(cache_id)
+        # Use lock to make check-and-add atomic
+        with _logged_cache_ids_lock:
+            if cache_id not in _logged_cache_ids:
+                logger.debug(
+                    f"Wrapping {provider} provider with CachingProvider "
+                    f"(shared_cache={'yes' if shared_cache else 'no'}, "
+                    f"cache_id={cache_id}, max_size={max_size}B, ttl={ttl}s)"
+                )
+                _logged_cache_ids.add(cache_id)
         return CachingProvider(
             provider=base_provider,
             cache=cache,

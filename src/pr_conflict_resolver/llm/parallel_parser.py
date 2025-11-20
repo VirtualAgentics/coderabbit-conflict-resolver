@@ -193,15 +193,16 @@ class ParallelCommentParser:
 
                 except concurrent.futures.TimeoutError as e:
                     # Handle timeout separately from other exceptions
-                    future.cancel()  # Cancel the timed-out future
+                    # Note: Timeout only limits how long we wait for the result.
+                    # The underlying LLM call may still be running and cannot be forcibly stopped.
                     with self._lock:
                         self._failed_comments.append((comment[:100], e))
                         progress.failed += 1
                         progress.in_progress -= 1
 
                     logger.error(
-                        f"Timeout after {timeout}s waiting for comment parsing. "
-                        f"Future cancelled: {future.cancelled()}"
+                        f"Timeout after {timeout}s waiting for comment parsing result. "
+                        f"Note: Underlying LLM call may still be running."
                     )
 
                 except Exception as e:

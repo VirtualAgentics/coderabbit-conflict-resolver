@@ -289,7 +289,7 @@ class TestParallelCommentParser:
                 concurrent_count += 1
                 max_concurrent = max(max_concurrent, concurrent_count)
 
-            time.sleep(0.05)  # Simulate work
+            time.sleep(0.1)  # Simulate work (increased to guarantee overlap)
 
             with lock:
                 concurrent_count -= 1
@@ -305,8 +305,8 @@ class TestParallelCommentParser:
             parser = ParallelCommentParser(mock_provider, max_workers=2)
             parser.parse_comments(["c1", "c2", "c3", "c4"])
 
-        # Verify concurrency was limited to max_workers=2
-        assert max_concurrent <= 2
+        # Verify exactly 2 tasks ran concurrently (confirms parallelism occurred)
+        assert max_concurrent == 2
 
     def test_statistics_property(self, mock_provider: MockLLMProvider) -> None:
         """Test statistics property returns expected data."""
