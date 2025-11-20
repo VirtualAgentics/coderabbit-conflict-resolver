@@ -210,7 +210,16 @@ def create_provider(
         base_provider = provider_class(**provider_kwargs)
     except Exception as e:
         logger.error(f"Failed to create {provider} provider: {e}")
-        raise
+        # Wrap exception with provider-specific context for better debugging
+        raise LLMConfigurationError(
+            f"Failed to initialize '{provider}' provider with model '{model}': {e}",
+            details={
+                "provider": provider,
+                "model": model,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        ) from e
 
     # Wrap with caching if enabled
     if cache_enabled:
