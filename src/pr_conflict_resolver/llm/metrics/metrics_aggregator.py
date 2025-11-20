@@ -171,8 +171,8 @@ class MetricsAggregator:
         Manual tracking:
             >>> metrics.increment_requests("openai", "gpt-4")
             >>> metrics.record_success("openai", "gpt-4", latency_ms=250)
-            >>> metrics.record_tokens(2000, 1000)
-            >>> metrics.record_cost(0.06)
+            >>> metrics.record_tokens(2000, 1000, "openai", "gpt-4")
+            >>> metrics.record_cost(0.06, "openai", "gpt-4")
 
         Get summary:
             >>> summary = metrics.get_summary()

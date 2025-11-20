@@ -9,9 +9,9 @@ This module provides ThreadPoolExecutor-based parallel parsing with:
 
 Example:
     >>> from pr_conflict_resolver.llm.parallel_parser import ParallelCommentParser
-    >>> from pr_conflict_resolver.llm.factory import LLMProviderFactory
+    >>> from pr_conflict_resolver.llm.factory import create_provider
     >>>
-    >>> provider = LLMProviderFactory.create_provider("openai-api-mini")
+    >>> provider = create_provider("openai", model="gpt-4o-mini")
     >>> parser = ParallelCommentParser(provider, max_workers=8)
     >>> results = parser.parse_comments(comments)
 """

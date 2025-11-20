@@ -96,8 +96,8 @@ def create_provider(
         cache_enabled: Enable response caching to reduce costs (default: True).
             When enabled, wraps provider with CachingProvider for transparent caching.
         shared_cache: Optional PromptCache instance to share across multiple providers.
-            If None, creates a new cache instance. Use shared cache to enable cross-
-            provider cache hits (e.g., same prompt to different providers).
+            If None, creates a new cache instance. Sharing a cache enables consolidated
+            cache management (single size limit, unified statistics) across providers.
         **kwargs: Provider-specific parameters passed through to provider constructor.
             Examples: base_url for Ollama, custom headers for API providers.
 

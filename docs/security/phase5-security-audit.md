@@ -88,7 +88,7 @@ A comprehensive security audit was conducted on all Phase 5 code additions, incl
 
 - **Memory**: LRU cache eviction prevents unbounded growth
 - **Threads**: ThreadPoolExecutor explicitly cleaned up with context managers
-- **File Handles**: No file operations in Phase 5 code
+- **File Handles**: Cache uses file-based storage with secure permissions (0600 for files, 0700 for directories, user-only access)
 - **Network**: All network operations in existing provider code (previously audited)
 
 **Vulnerabilities Found**: None

@@ -642,6 +642,9 @@ class PromptCache:
             - NOT_FOUND: Entry did not exist
             - ERROR: Entry existed but deletion failed (permission error, etc.)
 
+        Raises:
+            ValueError: If key is empty
+
         Examples:
             >>> cache = PromptCache()
             >>> key = cache.compute_key("prompt", "anthropic", "claude-sonnet-4-5")
@@ -652,6 +655,8 @@ class PromptCache:
         Note:
             Thread-safe operation.
         """
+        if not key:
+            raise ValueError("Cache key cannot be empty")
         with self._lock:
             return self._delete_unlocked(key)
 

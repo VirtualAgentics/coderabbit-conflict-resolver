@@ -93,12 +93,17 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --mode dry-run
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 --parallel --max-workers 8
 
 # 🚀 NEW: Phase 5 Optimizations - Production-ready performance & cost controls
+# Concurrent LLM calls (up to 3-4x faster on large batches)
+# Prompt caching (up to 60-90% cost reduction with cache hits)
+# Automatic failure recovery with circuit breaker
+# Set $10 USD budget limit
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123 \
   --llm-preset openai-api-mini \
-  --parallel \                      # Concurrent LLM calls (up to 3-4x faster on large batches)
-  --cache-enabled \                 # Prompt caching (up to 60-90% cost reduction with cache hits)
-  --circuit-breaker-enabled \       # Automatic failure recovery
-  --cost-budget 10.0                # Set $10 USD budget limit
+  --parallel \
+  --cache-enabled \
+  --circuit-breaker-enabled \
+  --cost-budget 10.0
+
 # See docs/optimization-guide.md for benchmarks and optimization strategies
 
 # Load configuration from file
@@ -455,7 +460,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 - Inspired by the sophisticated code review capabilities of [CodeRabbit AI](https://coderabbit.ai)
-- Built with experience from [ContextForge Memory](https://github.com/VirtualAgentics/ConextForge_memory) project
+- Built with experience from [ContextForge Memory](https://github.com/VirtualAgentics/ContextForge_memory) project
 - Community feedback and contributions
 
 ## Project Status

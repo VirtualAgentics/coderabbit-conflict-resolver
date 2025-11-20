@@ -558,17 +558,35 @@ with open('cost-report.json', 'w') as f:
 {
   "summary": {
     "total_requests": 100,
+    "total_successful": 95,
+    "total_failed": 5,
+    "total_tokens": 125000,
     "total_cost": 38.50,
+    "avg_latency_ms": 450.0,
+    "p50_latency_ms": 420.0,
+    "p95_latency_ms": 890.0,
+    "p99_latency_ms": 1200.0,
+    "success_rate": 0.95,
     "cost_by_provider": {
       "openai": 38.50
+    },
+    "requests_by_provider": {
+      "openai": 100
     }
   },
   "by_provider": {
     "openai/gpt-4o-mini": {
       "total_requests": 100,
+      "successful_requests": 95,
+      "failed_requests": 5,
+      "total_tokens": 125000,
       "total_cost": 38.50,
-      "avg_cost_per_request": 0.385,
-      "total_tokens": 125000
+      "avg_latency_ms": 450.0,
+      "success_rate": 0.95,
+      "errors": {
+        "LLMRateLimitError": 3,
+        "LLMTimeoutError": 2
+      }
     }
   }
 }

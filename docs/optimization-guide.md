@@ -71,8 +71,9 @@ pr-resolve apply --pr 123 --parallel
 pr-resolve apply --pr 123 --parallel --max-workers 8
 
 # Config file (YAML)
-parallel: true
-max_workers: 8
+llm:
+  parallel_llm_parsing: true
+  max_workers: 8
 ```
 
 #### Performance Impact
@@ -121,10 +122,10 @@ pr-resolve apply --pr 123 \
   --cache-ttl 7200  # 2 hours
 
 # Config file (YAML)
-cache:
-  enabled: true
-  max_size: 5000
-  ttl: 7200
+llm:
+  cache_enabled: true
+  cache_max_size: 5000
+  cache_ttl: 7200
 ```
 
 #### Cache Hit Rate Optimization
