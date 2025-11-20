@@ -64,6 +64,18 @@ _logged_cache_ids: set[int] = set()
 _logged_cache_ids_lock = threading.Lock()  # Protects _logged_cache_ids access
 
 
+def _reset_logged_cache_ids() -> None:
+    """Reset logged cache IDs set - TEST USE ONLY.
+
+    This function is intended for test teardown to prevent state leakage
+    across tests. Production code should never call this function.
+
+    Thread-safe: Acquires lock before clearing the set.
+    """
+    with _logged_cache_ids_lock:
+        _logged_cache_ids.clear()
+
+
 def create_provider(
     provider: str,
     model: str | None = None,

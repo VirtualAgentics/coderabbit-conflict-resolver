@@ -112,7 +112,8 @@ class CachingProvider:
         # (isinstance doesn't work with Mock objects, so we need both checks)
         if not isinstance(provider, LLMProvider):
             # isinstance failed - check if it's a mock/test object or genuinely missing methods
-            missing_methods = []  # type: ignore[unreachable]  # Reachable with Mock objects
+            # Note: mypy thinks this is unreachable, but it's reachable with Mock/duck-typed objects
+            missing_methods = []  # type: ignore[unreachable]
             if not callable(getattr(provider, "generate", None)):
                 missing_methods.append("generate")
             if not callable(getattr(provider, "count_tokens", None)):

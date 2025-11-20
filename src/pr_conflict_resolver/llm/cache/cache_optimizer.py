@@ -294,6 +294,14 @@ class CacheOptimizer:
         Returns:
             Number of prompts successfully cached
 
+        Raises:
+            LLMAuthenticationError: Authentication failure - batch terminates immediately
+            LLMRateLimitError: Rate limit exceeded - batch terminates immediately
+            Note: Other transient errors (LLMTimeoutError, LLMAPIError) are logged
+                  and skipped, allowing the batch to continue processing remaining prompts.
+                  Callers should catch authentication and rate-limit errors if they want
+                  to handle or retry batch termination.
+
         Examples:
             >>> def show_progress(p: WarmingProgress) -> None:
             ...     pct = (p.completed / p.total) * 100
@@ -530,9 +538,7 @@ class CacheOptimizer:
             - Stale threshold: TTL * age_threshold_ratio
         """
         if not (0.0 < age_threshold_ratio <= 1.0):
-            raise ValueError(
-                f"age_threshold_ratio must be between 0 and 1, got {age_threshold_ratio}"
-            )
+            raise ValueError(f"age_threshold_ratio must be in (0, 1], got {age_threshold_ratio}")
 
         age_threshold = self.cache.ttl_seconds * age_threshold_ratio
         evicted = 0

@@ -407,10 +407,10 @@ class TestCacheOptimizerEvictStaleEntries:
         cache = PromptCache(cache_dir=tmp_path)
         optimizer = CacheOptimizer(cache)
 
-        with pytest.raises(ValueError, match="must be between 0 and 1"):
+        with pytest.raises(ValueError, match="must be in \\(0, 1\\]"):
             optimizer.evict_stale_entries(age_threshold_ratio=1.5)
 
-        with pytest.raises(ValueError, match="must be between 0 and 1"):
+        with pytest.raises(ValueError, match="must be in \\(0, 1\\]"):
             optimizer.evict_stale_entries(age_threshold_ratio=0.0)
 
     def test_evict_stale_entries_no_stale(self, tmp_path: Path) -> None:

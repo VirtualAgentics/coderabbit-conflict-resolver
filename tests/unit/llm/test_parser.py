@@ -583,10 +583,14 @@ class TestUniversalLLMParserParallelParsing:
             side_effect=RuntimeError("Parallel parsing failed"),
         ):
             comments = ["Comment 1", "Comment 2"]
-            results = parser.parse_comments_parallel(comments)
+            # Spy on parse_comment to verify sequential fallback was invoked
+            with patch.object(parser, "parse_comment", wraps=parser.parse_comment) as spy:
+                results = parser.parse_comments_parallel(comments)
 
-            # Should fall back to sequential and succeed
-            assert isinstance(results, list)
+                # Should fall back to sequential and succeed
+                assert isinstance(results, list)
+                # Verify parse_comment was called for each comment (sequential fallback)
+                assert spy.call_count == len(comments)
 
     def test_parse_comments_parallel_custom_workers(self) -> None:
         """Test parallel parsing with custom worker count."""

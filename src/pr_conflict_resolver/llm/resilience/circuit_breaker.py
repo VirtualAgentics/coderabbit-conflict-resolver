@@ -207,7 +207,8 @@ class CircuitBreaker:
         self._total_successes = 0
         self._total_rejected = 0
 
-        # Thread safety - use RLock for reentrant locking to prevent deadlocks
+        # Thread safety - using RLock for future-proofing even though current
+        # code paths don't require reentrancy
         self._lock = threading.RLock()
 
         logger.debug(

@@ -41,6 +41,11 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Maximum number of latency samples to retain per provider/model
+# Limits memory usage while providing accurate percentile calculations
+# Can be overridden via ProviderMetrics constructor if needed
+DEFAULT_MAX_LATENCY_SAMPLES = 10000
+
 
 @dataclass
 class ProviderMetrics:
@@ -74,7 +79,9 @@ class ProviderMetrics:
     total_output_tokens: int = 0
     total_cost: float = 0.0
     total_latency_ms: float = 0.0
-    latencies_ms: deque[float] = field(default_factory=lambda: deque(maxlen=10000))
+    latencies_ms: deque[float] = field(
+        default_factory=lambda: deque(maxlen=DEFAULT_MAX_LATENCY_SAMPLES)
+    )
     errors: dict[str, int] = field(default_factory=dict)
 
     @property
@@ -504,7 +511,7 @@ class MetricsAggregator:
 
         idx = n * p
         if idx == int(idx):  # Exact integer, use it directly (0-indexed)
-            return min(n - 1, int(idx))
+            return int(idx)
         else:  # Not exact, round up
             return min(n - 1, math.ceil(idx) - 1)
 
