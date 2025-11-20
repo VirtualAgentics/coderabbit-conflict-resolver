@@ -34,7 +34,7 @@ import concurrent.futures
 import logging
 import threading
 from collections.abc import Callable
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from typing import Any
 
@@ -187,50 +187,71 @@ class ParallelCommentParser:
                 progress.in_progress = len(future_to_comment)
             self._report_progress(progress)
 
-            # Collect results as they complete
-            for future in as_completed(future_to_comment):
-                comment = future_to_comment[future]
+            # Collect results as they complete with per-comment timeout enforcement
+            # Use wait() with timeout to enforce per-comment timeouts properly
+            pending = set(future_to_comment.keys())
 
-                try:
-                    changes = (
-                        future.result(timeout=timeout) if timeout is not None else future.result()
-                    )
+            while pending:
+                # Wait for any futures to complete, with timeout for the fastest one
+                done, pending = wait(pending, timeout=timeout, return_when=FIRST_COMPLETED)
 
-                    # Thread-safe result aggregation
-                    with self._lock:
-                        self._all_changes.extend(changes)
-                        progress.completed += 1
-                        progress.in_progress -= 1
-                        progress.changes_found = len(self._all_changes)
+                # Process completed futures
+                for future in done:
+                    comment = future_to_comment[future]
 
-                    logger.debug(f"Successfully parsed comment ({len(changes)} changes found)")
+                    try:
+                        # Get result without additional timeout since wait() already enforced it
+                        changes = future.result()
 
-                except concurrent.futures.TimeoutError as e:
-                    # Handle timeout separately from other exceptions
-                    # Note: Timeout only limits how long we wait for the result.
-                    # The underlying LLM call may still be running and cannot be forcibly stopped.
-                    with self._lock:
-                        self._failed_comments.append((comment[:100], e))
-                        progress.failed += 1
-                        progress.in_progress -= 1
+                        # Thread-safe result aggregation
+                        with self._lock:
+                            self._all_changes.extend(changes)
+                            progress.completed += 1
+                            progress.in_progress -= 1
+                            progress.changes_found = len(self._all_changes)
 
-                    logger.error(
-                        f"Timeout after {timeout}s waiting for comment parsing result. "
-                        f"Note: Underlying LLM call may still be running."
-                    )
+                        logger.debug(f"Successfully parsed comment ({len(changes)} changes found)")
 
-                except Exception as e:
-                    # Record failure
-                    with self._lock:
-                        self._failed_comments.append((comment[:100], e))
-                        progress.failed += 1
-                        progress.in_progress -= 1
+                    except Exception as e:
+                        # Record failure (including any exceptions raised during parsing)
+                        with self._lock:
+                            self._failed_comments.append((comment[:100], e))
+                            progress.failed += 1
+                            progress.in_progress -= 1
 
-                    logger.warning(f"Failed to parse comment: {e.__class__.__name__}: {e}")
+                        logger.warning(f"Failed to parse comment: {e.__class__.__name__}: {e}")
 
-                finally:
-                    # Report progress after each completion
-                    self._report_progress(progress)
+                    finally:
+                        # Report progress after each completion
+                        self._report_progress(progress)
+
+                # Handle timeouts: if no futures completed within timeout period
+                if not done and pending and timeout is not None:
+                    # Cancel all pending futures and mark them as timed out
+                    for future in pending:
+                        comment = future_to_comment[future]
+                        future.cancel()  # Attempt to cancel (may not work if already running)
+
+                        with self._lock:
+                            self._failed_comments.append(
+                                (
+                                    comment[:100],
+                                    concurrent.futures.TimeoutError(
+                                        f"Comment parsing exceeded {timeout}s timeout"
+                                    ),
+                                )
+                            )
+                            progress.failed += 1
+                            progress.in_progress -= 1
+
+                        logger.error(
+                            f"Timeout after {timeout}s waiting for comment parsing result. "
+                            f"Note: Underlying LLM call may still be running."
+                        )
+                        self._report_progress(progress)
+
+                    # Clear pending since we've handled all timeouts
+                    pending.clear()
 
         # Log final statistics
         logger.info(
