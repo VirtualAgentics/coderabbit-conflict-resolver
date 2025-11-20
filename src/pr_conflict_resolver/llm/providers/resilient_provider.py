@@ -159,6 +159,7 @@ class ResilientProvider:
         self.fallback_chars_per_token = fallback_chars_per_token
         self._total_cost = 0.0
         self._cost_lock = threading.Lock()  # Thread-safe cost tracking
+        self._fallback_warning_logged = False  # Log fallback warning only once
 
         logger.info(
             f"Initialized ResilientProvider: provider={self.provider_name}, "
@@ -272,11 +273,15 @@ class ResilientProvider:
             # This is imprecise and varies by language, content type, and tokenizer.
             # For accurate cost tracking, implement provider.count_tokens() method.
             estimated_input_tokens = math.ceil(len(prompt) / self.fallback_chars_per_token)
-            logger.warning(
-                f"Using fallback token estimation for {self.provider_name}/{self.model_name}: "
-                f"{estimated_input_tokens} tokens (~{self.fallback_chars_per_token} chars/token). "
-                f"Implement count_tokens() for accurate cost accounting."
-            )
+            # Log warning only once to avoid log spam
+            if not self._fallback_warning_logged:
+                logger.warning(
+                    f"Using fallback token estimation for {self.provider_name}/{self.model_name}: "
+                    f"{estimated_input_tokens} tokens "
+                    f"(~{self.fallback_chars_per_token} chars/token). "
+                    f"Implement count_tokens() for accurate cost accounting."
+                )
+                self._fallback_warning_logged = True
 
         estimated_output_tokens = max_tokens
 

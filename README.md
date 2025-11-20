@@ -404,7 +404,7 @@ Configure the tool using environment variables (see [`.env.example`](.env.exampl
 | `CR_VALIDATE` | Enable pre-application validation | `true` |
 | `CR_PARALLEL` | Enable parallel processing | `false` |
 | `CR_MAX_WORKERS` | Number of parallel workers | `4` |
-| `CR_CACHE_ENABLED` | Enable prompt caching (Phase 5) | `true` |
+| `CR_CACHE_ENABLED` | Enable prompt caching | `true` |
 | `CR_CACHE_MAX_SIZE` | Maximum cache entries | `1000` |
 | `CR_CACHE_TTL` | Cache TTL in seconds | `3600` |
 | `CR_CIRCUIT_BREAKER_ENABLED` | Enable circuit breaker for LLM resilience | `true` |

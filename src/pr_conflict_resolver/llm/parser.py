@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -286,14 +287,29 @@ class UniversalLLMParser(LLMParser):
         except Exception as e:
             logger.error(f"Parallel parsing failed: {e}. Falling back to sequential parsing.")
 
-            # Fallback to sequential parsing (best-effort, no per-comment timeouts)
+            # Fallback to sequential parsing with overall timeout
             all_changes = []
             successful_parses = 0
             failed_parses = 0
             last_error: Exception | None = None
 
-            # Parse comments sequentially without timeout enforcement
+            # Calculate fallback timeout budget (timeout per comment * number of comments)
+            fallback_start = time.time()
+            fallback_timeout = timeout * len(comments) if timeout else None
+
+            # Parse comments sequentially with overall timeout check
             for comment in comments:
+                # Check if overall fallback timeout has been exceeded
+                if fallback_timeout is not None:
+                    elapsed = time.time() - fallback_start
+                    if elapsed > fallback_timeout:
+                        logger.warning(
+                            f"Sequential fallback timeout exceeded after {elapsed:.1f}s "
+                            f"(limit: {fallback_timeout:.1f}s). "
+                            f"Processed {successful_parses} of {len(comments)} comments."
+                        )
+                        break
+
                 try:
                     changes = self.parse_comment(comment)
                     all_changes.extend(changes)
