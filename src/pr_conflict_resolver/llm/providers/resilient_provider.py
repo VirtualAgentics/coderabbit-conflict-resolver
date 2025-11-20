@@ -101,6 +101,7 @@ class ResilientProvider:
         model_name: str | None = None,
         cost_per_1k_input_tokens: float | None = None,
         cost_per_1k_output_tokens: float | None = None,
+        fallback_chars_per_token: float = 3.0,
     ) -> None:
         """Initialize resilient provider wrapper.
 
@@ -113,6 +114,14 @@ class ResilientProvider:
             model_name: Model name for metrics (auto-detected if None)
             cost_per_1k_input_tokens: Input token cost for budget calculation
             cost_per_1k_output_tokens: Output token cost for budget calculation
+            fallback_chars_per_token: Characters per token ratio for fallback
+                token estimation when provider.count_tokens() is unavailable.
+                Default: 3.0 (conservative estimate for English text).
+                Typical ranges:
+                - English text: 3.5-4.5 chars/token
+                - Python code: 2.5-3.5 chars/token
+                - Non-ASCII text: varies widely (1.5-6.0)
+                Lower values = more conservative (higher cost estimates).
 
         Examples:
             >>> resilient = ResilientProvider(
@@ -122,6 +131,13 @@ class ResilientProvider:
             ...     cost_budget_usd=10.0,
             ...     cost_per_1k_input_tokens=0.003,
             ...     cost_per_1k_output_tokens=0.015
+            ... )
+
+            >>> # Custom fallback ratio for code-heavy prompts
+            >>> resilient = ResilientProvider(
+            ...     provider,
+            ...     cost_budget_usd=5.0,
+            ...     fallback_chars_per_token=2.5  # More conservative for code
             ... )
         """
         self.provider = provider
@@ -136,6 +152,7 @@ class ResilientProvider:
         # Cost tracking
         self.cost_per_1k_input_tokens = cost_per_1k_input_tokens
         self.cost_per_1k_output_tokens = cost_per_1k_output_tokens
+        self.fallback_chars_per_token = fallback_chars_per_token
         self._total_cost = 0.0
         self._cost_lock = threading.Lock()  # Thread-safe cost tracking
 
@@ -182,6 +199,9 @@ class ResilientProvider:
     def _check_budget(self, estimated_cost: float) -> None:
         """Check if request would exceed budget.
 
+        IMPORTANT: This method assumes the caller already holds self._cost_lock.
+        Do not call this method without holding the lock to avoid race conditions.
+
         Args:
             estimated_cost: Estimated cost for request
 
@@ -191,22 +211,23 @@ class ResilientProvider:
         if self.cost_budget_usd is None:
             return  # No budget limit
 
-        with self._cost_lock:
-            projected_cost = self._total_cost + estimated_cost
+        # NOTE: Lock is held by caller (generate method)
+        # Do NOT acquire lock here - would cause deadlock
+        projected_cost = self._total_cost + estimated_cost
 
-            if projected_cost > self.cost_budget_usd:
-                raise CostBudgetExceededError(
-                    f"Request would exceed cost budget: "
-                    f"${projected_cost:.4f} > ${self.cost_budget_usd:.2f}. "
-                    f"Current cost: ${self._total_cost:.4f}, "
-                    f"estimated request cost: ${estimated_cost:.4f}",
-                    details={
-                        "current_cost": self._total_cost,
-                        "estimated_cost": estimated_cost,
-                        "budget": self.cost_budget_usd,
-                        "projected_cost": projected_cost,
-                    },
-                )
+        if projected_cost > self.cost_budget_usd:
+            raise CostBudgetExceededError(
+                f"Request would exceed cost budget: "
+                f"${projected_cost:.4f} > ${self.cost_budget_usd:.2f}. "
+                f"Current cost: ${self._total_cost:.4f}, "
+                f"estimated request cost: ${estimated_cost:.4f}",
+                details={
+                    "current_cost": self._total_cost,
+                    "estimated_cost": estimated_cost,
+                    "budget": self.cost_budget_usd,
+                    "projected_cost": projected_cost,
+                },
+            )
 
     def _estimate_cost(self, prompt: str, max_tokens: int) -> float:
         """Estimate cost for a request (rough estimate).
@@ -226,19 +247,19 @@ class ResilientProvider:
             return 0.0  # Can't estimate without costs configured
 
         # Token estimation: Try provider's count_tokens if available,
-        # else use conservative heuristic
+        # else use configurable heuristic fallback
         try:
             estimated_input_tokens = self.provider.count_tokens(prompt)
         except (AttributeError, NotImplementedError):
-            # Fallback: Conservative token estimation using 1 token ≈ 3 characters
-            # NOTE: This is a rough approximation that varies by language and content:
-            # - English text: ~4 chars/token (this uses 3 to slightly overestimate)
-            # - Code: ~2-5 chars/token depending on language and density
-            # - Non-ASCII languages: ratio varies significantly
-            # This heuristic may underestimate costs for some models/languages.
-            # For accurate cost tracking, providers should implement count_tokens()
-            # or make this ratio configurable per provider/model.
-            estimated_input_tokens = math.ceil(len(prompt) / 3)
+            # Fallback: Use configurable chars-per-token ratio
+            # This is imprecise and varies by language, content type, and tokenizer.
+            # For accurate cost tracking, implement provider.count_tokens() method.
+            estimated_input_tokens = math.ceil(len(prompt) / self.fallback_chars_per_token)
+            logger.warning(
+                f"Using fallback token estimation for {self.provider_name}/{self.model_name}: "
+                f"{estimated_input_tokens} tokens (~{self.fallback_chars_per_token} chars/token). "
+                f"Implement count_tokens() for accurate cost accounting."
+            )
 
         estimated_output_tokens = max_tokens
 
@@ -266,33 +287,34 @@ class ResilientProvider:
             >>> resilient = ResilientProvider(provider, cost_budget_usd=10.0)
             >>> response = resilient.generate("Explain Python")
         """
-        # Check budget before making request
+        # Atomic budget check and cost reservation to prevent race conditions
+        # Multiple threads could pass budget check simultaneously if not atomic
         estimated_cost = self._estimate_cost(prompt, max_tokens)
-        self._check_budget(estimated_cost)
 
-        # Track with metrics if available
+        # Lock to make check-and-reserve atomic: prevents concurrent requests
+        # from passing budget check and then all incrementing cost afterward
+        with self._cost_lock:
+            self._check_budget(estimated_cost)
+            # Reserve cost immediately BEFORE making request (conservative approach)
+            # Don't roll back on failure - failed requests still consume resources
+            if estimated_cost > 0:
+                self._total_cost += estimated_cost
+
+        # Track with metrics if available (outside lock to minimize contention)
         if self.metrics_aggregator:
             with self.metrics_aggregator.track_request(
                 self.provider_name, self.model_name
             ) as tracker:
                 response = self._generate_with_breaker(prompt, max_tokens)
 
-                # Record estimated cost (actual cost tracking would need provider-specific logic)
+                # Record estimated cost for metrics
                 if estimated_cost > 0:
                     tracker.record_cost(estimated_cost)
-                    with self._cost_lock:
-                        self._total_cost += estimated_cost
 
                 return response
         else:
             # No metrics, just use circuit breaker if available
             response = self._generate_with_breaker(prompt, max_tokens)
-
-            # Track cost even without metrics aggregator
-            if estimated_cost > 0:
-                with self._cost_lock:
-                    self._total_cost += estimated_cost
-
             return response
 
     def _generate_with_breaker(self, prompt: str, max_tokens: int) -> str:

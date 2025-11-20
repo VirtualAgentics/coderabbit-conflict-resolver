@@ -58,6 +58,9 @@ PROVIDER_REGISTRY: dict[str, type[Any]] = {
 # Providers that require API keys
 _PROVIDERS_REQUIRING_API_KEY: frozenset[str] = frozenset({"openai", "anthropic"})
 
+# Deduplication set for cache logging (log each unique cache instance only once)
+_logged_cache_ids: set[int] = set()
+
 
 def create_provider(
     provider: str,
@@ -206,11 +209,14 @@ def create_provider(
         ttl = getattr(cache, "ttl_seconds", "unknown")
         cache_id = id(cache)
 
-        logger.info(
-            f"Wrapping {provider} provider with CachingProvider "
-            f"(shared_cache={'yes' if shared_cache else 'no'}, "
-            f"cache_id={cache_id}, max_size={max_size}B, ttl={ttl}s)"
-        )
+        # Only log detailed cache info once per unique cache instance
+        if cache_id not in _logged_cache_ids:
+            logger.debug(
+                f"Wrapping {provider} provider with CachingProvider "
+                f"(shared_cache={'yes' if shared_cache else 'no'}, "
+                f"cache_id={cache_id}, max_size={max_size}B, ttl={ttl}s)"
+            )
+            _logged_cache_ids.add(cache_id)
         return CachingProvider(
             provider=base_provider,
             cache=cache,

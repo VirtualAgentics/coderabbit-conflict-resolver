@@ -16,4 +16,8 @@ VALID_LLM_PROVIDERS: frozenset[str] = frozenset(
 
 # Maximum number of parallel workers for LLM operations
 # Used for parallel parsing, caching, and other concurrent operations
-MAX_WORKERS = 64
+MAX_WORKERS: int = 64
+
+# Maximum number of retry attempts when waiting for another thread's cache fetch
+# Used in CachingProvider to prevent infinite wait loops in edge cases
+MAX_CACHE_WAIT_RETRIES: int = 3

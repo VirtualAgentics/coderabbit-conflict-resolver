@@ -18,6 +18,7 @@ Example:
 
 from __future__ import annotations
 
+import concurrent.futures
 import logging
 import threading
 from collections.abc import Callable
@@ -117,21 +118,31 @@ class ParallelCommentParser:
 
         Args:
             comments: List of comment bodies to parse
-            timeout: Maximum time in seconds for each comment parsing operation
-                (default: 60.0). This is the timeout for waiting for each individual
-                comment's LLM call and processing to complete. Set to None for no timeout.
+            timeout: Maximum time in seconds for EACH comment's parsing operation.
+                This is a per-future timeout applied to each comment individually,
+                NOT a total batch timeout. Each comment gets the full timeout period.
+                Set to None for no per-comment timeout (default: 60.0).
 
         Returns:
             List of ParsedChange objects extracted from all comments
 
         Raises:
             RuntimeError: If all comments fail to parse
-            TimeoutError: If any comment parsing exceeds timeout
+            concurrent.futures.TimeoutError: If any individual comment parsing
+                exceeds the per-comment timeout
+
+        Note:
+            The timeout is applied independently to each comment. If you have 10
+            comments and timeout=60, each comment can take up to 60 seconds, so
+            the total time could be much longer than 60 seconds if they run
+            sequentially. However, with parallel execution, the wall-clock time
+            will be determined by the slowest comment.
 
         Example:
             >>> parser = ParallelCommentParser(provider, max_workers=8)
             >>> comments = ["Fix bug in X", "Update documentation"]
-            >>> changes = parser.parse_comments(comments)
+            >>> # Each comment gets 60 seconds, not 60 total
+            >>> changes = parser.parse_comments(comments, timeout=60.0)
             >>> print(f"Found {len(changes)} changes")
         """
         if not comments:
@@ -179,6 +190,19 @@ class ParallelCommentParser:
                         progress.changes_found = len(self._all_changes)
 
                     logger.debug(f"Successfully parsed comment ({len(changes)} changes found)")
+
+                except concurrent.futures.TimeoutError as e:
+                    # Handle timeout separately from other exceptions
+                    future.cancel()  # Cancel the timed-out future
+                    with self._lock:
+                        self._failed_comments.append((comment[:100], e))
+                        progress.failed += 1
+                        progress.in_progress -= 1
+
+                    logger.error(
+                        f"Timeout after {timeout}s waiting for comment parsing. "
+                        f"Future cancelled: {future.cancelled()}"
+                    )
 
                 except Exception as e:
                     # Record failure

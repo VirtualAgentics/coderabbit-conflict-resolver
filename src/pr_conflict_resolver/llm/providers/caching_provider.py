@@ -27,6 +27,7 @@ from pr_conflict_resolver.llm.cache.prompt_cache import (
     DeleteStatus,
     PromptCache,
 )
+from pr_conflict_resolver.llm.constants import MAX_CACHE_WAIT_RETRIES
 from pr_conflict_resolver.llm.providers.base import LLMProvider
 
 logger = logging.getLogger(__name__)
@@ -229,8 +230,22 @@ class CachingProvider:
                 # This thread will fetch - create event for others to wait on
                 self._in_flight[cache_key] = threading.Event()
 
-        # If another thread is fetching, wait in a retry loop
+        # If another thread is fetching, wait in a retry loop with limit
+        retry_count = 0
+
         while wait_event is not None:
+            # Check retry limit before waiting
+            if retry_count >= MAX_CACHE_WAIT_RETRIES:
+                logger.warning(
+                    f"Exceeded {MAX_CACHE_WAIT_RETRIES} wait retries for {cache_key[:16]}..., "
+                    "giving up on waiting and fetching directly"
+                )
+                # Register ourself and break out to fetch
+                with self._in_flight_lock:
+                    self._in_flight[cache_key] = threading.Event()
+                break
+
+            retry_count += 1
             wait_event.wait()
 
             # Re-check cache after waiting
