@@ -423,7 +423,9 @@ class TestCircuitBreakerReset:
         assert breaker.state == CircuitState.OPEN
         assert breaker.failure_count == 1
 
-        # Reset
+        # Reset - mypy narrows state to Literal[OPEN] after the assert above,
+        # so it thinks CLOSED comparison is impossible and subsequent code unreachable.
+        # The state does change via reset(), this is a mypy type-narrowing limitation.
         breaker.reset()
         assert breaker.state == CircuitState.CLOSED  # type: ignore[comparison-overlap]
         assert breaker.failure_count == 0  # type: ignore[unreachable]
