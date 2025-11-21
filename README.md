@@ -390,7 +390,7 @@ pre-commit install
 
 ### Running Tests
 
-This project uses **pytest 9.0** with native subtests support for comprehensive testing. We maintain **>80% test coverage** with 1,394 tests including unit, integration, security, and property-based fuzzing tests.
+This project uses **pytest 9.0** with native subtests support for comprehensive testing. We maintain **>80% test coverage** with 1,445 tests including unit, integration, security, and property-based fuzzing tests.
 
 ```bash
 # Run standard tests with coverage
@@ -474,18 +474,18 @@ MIT License - see [LICENSE](LICENSE) for details.
   - ✅ Enhanced error messages with actionable resolution steps
   - ✅ Support for YAML/TOML configuration files
   - ✅ Security: API keys must use ${VAR} syntax in config files
-- 🔄 **V2.0 Phase 4: Local Model Support (IN PROGRESS)** - 50% complete (3/6 sub-issues)
+- ✅ **V2.0 Phase 4: Local Model Support (COMPLETE)** - Closed Nov 2025
   - ✅ Ollama provider with GPU acceleration (NVIDIA, AMD ROCm, Apple Metal)
   - ✅ Automatic GPU detection and hardware info display
   - ✅ HTTP connection pooling for concurrent requests
   - ✅ Model auto-download feature
-  - 📅 Performance benchmarking (local vs API models) - Issue #170
+  - ✅ Performance benchmarking (local vs API models) - Issue #170
   - ✅ Privacy documentation (local LLM operation guide) - Issue #171
-  - 📅 Integration tests with privacy verification - Issue #172
-- 📅 **V2.0 Phase 5: Optimization & Production Readiness** - Not started
-- 📅 **V2.0 Phase 6: Documentation & Migration** - 50% complete
+  - ✅ Integration tests with privacy verification - Issue #172
+- 🔄 **V2.0 Phase 5: Optimization & Production Readiness (IN PROGRESS)** - Not started
+- 🔄 **V2.0 Phase 6: Documentation & Migration (IN PROGRESS)** - ~50% complete
 
-**V2.0 Milestone Progress**: 57% complete (Phases 0-3 closed, Phase 4 at 50%)
+**V2.0 Milestone Progress**: ~71% complete (Phases 0-4 closed, Phases 5-6 in progress)
 
 ### Security Highlights
 
@@ -497,7 +497,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🚀 LLM Features (v2.0 Architecture)
 
-> **✅ Core v2.0 LLM features are production-ready!** Phases 0-3 complete (57% of v2.0 milestone). All 5 LLM providers fully functional. See [Roadmap](#-project-status) for current status.
+> **✅ Core v2.0 LLM features are production-ready!** Phases 0-4 complete (~71% of v2.0 milestone). All 5 LLM providers fully functional. See [Roadmap](#-project-status) for current status.
 
 **Vision**: Major architecture upgrade to parse **95%+** of CodeRabbit comments (up from 20%)
 

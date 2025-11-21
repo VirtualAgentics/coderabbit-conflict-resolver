@@ -906,6 +906,213 @@ class CustomStrategy:
 
 ```
 
+## LLM Module (v2.0)
+
+The LLM module provides AI-powered parsing of CodeRabbit review comments. This enables parsing of all comment formats (diff blocks, suggestion blocks, natural language) with 95%+ coverage.
+
+### LLMProvider Protocol
+
+Protocol defining the interface for all LLM providers. All 5 providers implement this protocol.
+
+```python
+from pr_conflict_resolver.llm.providers.base import LLMProvider
+
+```
+
+#### Methods
+
+##### `generate(prompt: str, max_tokens: int = 2000) -> str`
+
+Generate text completion from prompt.
+
+**Parameters:**
+
+* `prompt` (str): Input prompt text for generation
+* `max_tokens` (int): Maximum tokens to generate (default: 2000)
+
+**Returns:**
+
+* `str`: Generated text from the LLM
+
+**Raises:**
+
+* `RuntimeError`: If generation fails after retries
+* `LLMAuthenticationError`: If API credentials are invalid
+
+##### `count_tokens(text: str) -> int`
+
+Count tokens in text using provider's tokenizer.
+
+**Parameters:**
+
+* `text` (str): Text to tokenize and count
+
+**Returns:**
+
+* `int`: Number of tokens
+
+### Available Providers
+
+All 5 providers are production-ready:
+
+| Provider | Class | Cost | Requires |
+|----------|-------|------|----------|
+| OpenAI API | `OpenAIAPIProvider` | Pay-per-token | `OPENAI_API_KEY` |
+| Anthropic API | `AnthropicAPIProvider` | Pay-per-token | `ANTHROPIC_API_KEY` |
+| Claude CLI | `ClaudeCLIProvider` | $0 (subscription) | `claude` CLI installed |
+| Codex CLI | `CodexCLIProvider` | $0 (subscription) | `codex` CLI installed |
+| Ollama | `OllamaProvider` | $0 (local) | Ollama running |
+
+**Example:**
+
+```python
+from pr_conflict_resolver.llm.providers.ollama import OllamaProvider
+
+provider = OllamaProvider(
+    model="llama3.3:70b",
+    base_url="http://localhost:11434"
+)
+response = provider.generate("Explain Python decorators", max_tokens=500)
+
+```
+
+### ParsedChange
+
+Intermediate representation of a change parsed by an LLM.
+
+```python
+from pr_conflict_resolver.llm.base import ParsedChange
+
+@dataclass
+class ParsedChange:
+    file_path: str       # Path to file to be modified
+    start_line: int      # Starting line (1-indexed)
+    end_line: int        # Ending line (inclusive)
+    new_content: str     # New content to apply
+    change_type: str     # "addition", "modification", "deletion"
+    confidence: float    # LLM confidence (0.0-1.0)
+    rationale: str       # Why this change was suggested
+    risk_level: str      # "low", "medium", "high"
+
+```
+
+**Example:**
+
+```python
+change = ParsedChange(
+    file_path="src/example.py",
+    start_line=10,
+    end_line=12,
+    new_content="def new_function():\n    pass",
+    change_type="modification",
+    confidence=0.95,
+    rationale="Replace deprecated function with new API",
+    risk_level="low"
+)
+
+```
+
+### LLMParser ABC
+
+Abstract base class for LLM-powered comment parsers.
+
+```python
+from pr_conflict_resolver.llm.base import LLMParser
+
+```
+
+#### Methods
+
+##### `parse_comment(body: str, file_path: str | None, line_number: int | None) -> list[ParsedChange]`
+
+Parse a GitHub comment using the LLM provider.
+
+**Parameters:**
+
+* `body` (str): Raw comment text from GitHub
+* `file_path` (str, optional): File path for context
+* `line_number` (int, optional): Line number for context
+
+**Returns:**
+
+* `list[ParsedChange]`: List of extracted changes
+
+### Provider Factory
+
+Create providers using the factory function:
+
+```python
+from pr_conflict_resolver.llm.factory import create_provider
+
+# Create Ollama provider
+provider = create_provider({
+    "llm_provider": "ollama",
+    "llm_model": "llama3.3:70b"
+})
+
+# Create Anthropic provider
+provider = create_provider({
+    "llm_provider": "anthropic-api",
+    "llm_model": "claude-sonnet-4-20250514",
+    "llm_api_key": "sk-ant-..."
+})
+
+```
+
+### Prompt Cache
+
+File-based caching system for LLM responses to reduce costs.
+
+```python
+from pr_conflict_resolver.llm.cache.prompt_cache import PromptCache
+
+cache = PromptCache(
+    cache_dir=".llm-cache",
+    ttl_seconds=604800,  # 7 days
+    max_size_mb=100
+)
+
+# Check cache
+response = cache.get(prompt="...", provider="anthropic", model="claude-sonnet-4")
+if response is None:
+    response = provider.generate(prompt)
+    cache.set(prompt="...", provider="anthropic", model="claude-sonnet-4", response=response)
+
+```
+
+**Features:**
+
+* SHA256 cache keys for collision-free lookups
+* TTL-based expiration (default: 7 days)
+* LRU eviction when size limit exceeded
+* Thread-safe for concurrent access
+* Secure file permissions (0600)
+
+### Change Dataclass (v2.0 Fields)
+
+The `Change` dataclass includes additional LLM metadata fields in v2.0:
+
+```python
+@dataclass
+class Change:
+    # Core fields (v1.x)
+    path: str
+    start_line: int
+    end_line: int
+    content: str
+    metadata: dict[str, Any]
+    fingerprint: str
+    file_type: FileType
+
+    # LLM metadata fields (v2.0)
+    llm_confidence: float | None = None    # 0.0-1.0 confidence score
+    llm_provider: str | None = None        # Provider used ("anthropic", "ollama", etc.)
+    parsing_method: str = "regex"          # "regex" or "llm"
+    change_rationale: str | None = None    # Why this change was suggested
+    risk_level: str | None = None          # "low", "medium", "high"
+
+```
+
 ## Error Handling
 
 All operations may raise standard Python exceptions:
@@ -931,5 +1138,7 @@ def example_function(data: Dict[str, Any]) -> List[str]:
 
 * [Getting Started](getting-started.md) - Installation and basic usage
 * [Configuration](configuration.md) - Configuration options
+* [LLM Configuration](llm-configuration.md) - LLM provider setup and presets
 * [Conflict Types](conflict-types.md) - Understanding conflicts
 * [Resolution Strategies](resolution-strategies.md) - Strategy details
+* [Privacy Architecture](privacy-architecture.md) - Local LLM privacy guarantees
