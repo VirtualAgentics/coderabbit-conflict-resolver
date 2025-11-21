@@ -348,6 +348,7 @@ class TestCreateProviderFromConfig:
             provider="anthropic",
             model="claude-sonnet-4",
             api_key="sk-ant-test",
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"anthropic": mock_provider_class}):
@@ -370,6 +371,7 @@ class TestCreateProviderFromConfig:
             provider="openai",
             model="gpt-4",
             api_key="sk-test-123",
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"openai": mock_provider_class}):
@@ -391,6 +393,7 @@ class TestCreateProviderFromConfig:
             enabled=True,
             provider="claude-cli",
             model="claude-sonnet-4-5",
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"claude-cli": mock_provider_class}):
@@ -411,6 +414,7 @@ class TestCreateProviderFromConfig:
             enabled=True,
             provider="codex-cli",
             model="codex-latest",
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"codex-cli": mock_provider_class}):
@@ -431,6 +435,7 @@ class TestCreateProviderFromConfig:
             enabled=True,
             provider="ollama",
             model="llama3.3:70b",
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"ollama": mock_provider_class}):
@@ -452,6 +457,7 @@ class TestCreateProviderFromConfig:
             provider="claude-cli",
             model="custom-model",
             api_key=None,  # CLI doesn't need API key
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"claude-cli": mock_provider_class}):
@@ -473,6 +479,7 @@ class TestCreateProviderFromConfig:
             provider="anthropic",
             model="claude-3",
             api_key="test-key-123",
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"anthropic": mock_provider_class}):
@@ -494,6 +501,7 @@ class TestCreateProviderFromConfig:
             provider="claude-cli",
             model="claude-sonnet-4-5",
             api_key=None,
+            cache_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"claude-cli": mock_provider_class}):
@@ -513,3 +521,27 @@ class TestCreateProviderFromConfig:
                 provider="invalid-provider",  # Will fail LLMConfig validation
             )
             create_provider_from_config(config)
+
+    def test_create_from_config_with_cache_enabled(self) -> None:
+        """Test that cache_enabled=True wraps provider with CachingProvider."""
+        from pr_conflict_resolver.llm.providers.caching_provider import CachingProvider
+
+        mock_provider_class = MagicMock()
+        mock_instance = MagicMock()
+        mock_instance.model = "claude-sonnet-4"
+        mock_provider_class.return_value = mock_instance
+
+        config = LLMConfig(
+            enabled=True,
+            provider="anthropic",
+            model="claude-sonnet-4",
+            api_key="sk-ant-test",
+            cache_enabled=True,  # Enable caching
+        )
+
+        with patch.dict(PROVIDER_REGISTRY, {"anthropic": mock_provider_class}):
+            result = create_provider_from_config(config)
+
+        # Should return a CachingProvider wrapper
+        assert isinstance(result, CachingProvider)
+        assert result.provider == mock_instance
