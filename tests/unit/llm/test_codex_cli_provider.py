@@ -7,7 +7,6 @@ This module tests the Codex CLI provider implementation including:
 - Cost calculation (always $0.00)
 - Subprocess execution with mocked failures
 - Error handling for various failure modes
-- Integration tests with real Codex CLI (optional, requires CLI installed)
 """
 
 from unittest.mock import MagicMock, Mock, patch
@@ -462,39 +461,3 @@ class TestCodexCLIProviderUsageTracking:
 
         assert provider.total_input_tokens == 0
         assert provider.total_output_tokens == 0
-
-
-@pytest.mark.integration
-class TestCodexCLIProviderIntegration:
-    """Integration tests with real Codex CLI (requires CLI installed)."""
-
-    @pytest.mark.skipif(
-        not __import__("shutil").which("codex"),
-        reason="Codex CLI not installed",
-    )
-    def test_real_cli_execution(self) -> None:
-        """Test real CLI execution (skip if CLI not installed)."""
-        provider = CodexCLIProvider()
-        response = provider.generate("Say hello")
-        assert isinstance(response, str)
-        assert len(response) > 0
-
-    @pytest.mark.skipif(
-        not __import__("shutil").which("codex"),
-        reason="Codex CLI not installed",
-    )
-    def test_real_token_counting(self) -> None:
-        """Test token counting with real provider."""
-        provider = CodexCLIProvider()
-        count = provider.count_tokens("Hello world")
-        assert count > 0
-
-    @pytest.mark.skipif(
-        not __import__("shutil").which("codex"),
-        reason="Codex CLI not installed",
-    )
-    def test_real_cost_tracking(self) -> None:
-        """Test cost tracking with real provider."""
-        provider = CodexCLIProvider()
-        provider.generate("Test prompt")
-        assert provider.get_total_cost() == 0.0

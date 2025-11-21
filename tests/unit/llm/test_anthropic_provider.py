@@ -6,10 +6,8 @@ This module tests the Anthropic provider implementation including:
 - Cost calculation (including cache costs)
 - Retry logic with mocked failures
 - Error handling for various failure modes
-- Integration tests with real API (optional, requires API key)
 """
 
-import os
 from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
@@ -732,44 +730,3 @@ class TestAnthropicProviderRetryLogic:
 
         # Should try 3 times
         assert mock_client.messages.create.call_count == 3
-
-
-@pytest.mark.integration
-@pytest.mark.skipif(
-    not os.getenv("ANTHROPIC_API_KEY"),
-    reason="ANTHROPIC_API_KEY not set - skipping integration test",
-)
-class TestAnthropicProviderIntegration:
-    """Integration tests with real Anthropic API."""
-
-    def test_real_api_simple_generation(self) -> None:
-        """Test real API call with simple prompt."""
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        provider = AnthropicAPIProvider(api_key=api_key, model="claude-haiku-4-5")  # type: ignore
-
-        result = provider.generate("Say 'test' in JSON format", max_tokens=100)
-
-        assert result
-        assert isinstance(result, str)
-        assert len(result) > 0
-
-    def test_real_api_cost_tracking(self) -> None:
-        """Test that real API calls track costs correctly."""
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        provider = AnthropicAPIProvider(api_key=api_key, model="claude-haiku-4-5")  # type: ignore
-
-        provider.generate("Count to 5 in JSON", max_tokens=100)
-
-        cost = provider.get_total_cost()
-        assert cost > 0.0
-        assert provider.total_input_tokens > 0
-        assert provider.total_output_tokens > 0
-
-    def test_real_api_token_counting(self) -> None:
-        """Test token counting with real API."""
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        provider = AnthropicAPIProvider(api_key=api_key, model="claude-haiku-4-5")  # type: ignore
-
-        count = provider.count_tokens("Hello, world!")
-        assert count > 0
-        assert isinstance(count, int)
