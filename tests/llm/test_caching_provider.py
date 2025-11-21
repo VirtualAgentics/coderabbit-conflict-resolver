@@ -265,6 +265,59 @@ class TestCachingProviderProxyMethods:
             # Should not raise
             cached.reset_usage_tracking()
 
+    def test_get_total_cost_handles_numeric_attribute(self) -> None:
+        """Test get_total_cost() handles numeric attribute instead of method."""
+        mock_provider = Mock(spec=[])
+        mock_provider.model = "test-model"
+        mock_provider.get_total_cost = 1.5  # Numeric attribute, not callable
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            cached = CachingProvider(mock_provider, cache)
+
+            result = cached.get_total_cost()
+            assert result == 1.5
+
+    def test_get_total_cost_handles_int_attribute(self) -> None:
+        """Test get_total_cost() handles int attribute."""
+        mock_provider = Mock(spec=[])
+        mock_provider.model = "test-model"
+        mock_provider.get_total_cost = 5  # Int attribute
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            cached = CachingProvider(mock_provider, cache)
+
+            result = cached.get_total_cost()
+            assert result == 5.0
+            assert isinstance(result, float)
+
+    def test_get_total_cost_handles_non_numeric_attribute(self) -> None:
+        """Test get_total_cost() returns 0.0 for non-numeric, non-callable attribute."""
+        mock_provider = Mock(spec=[])
+        mock_provider.model = "test-model"
+        mock_provider.get_total_cost = "not a number"  # String attribute
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            cached = CachingProvider(mock_provider, cache)
+
+            result = cached.get_total_cost()
+            assert result == 0.0
+
+    def test_reset_usage_tracking_handles_non_callable_attribute(self) -> None:
+        """Test reset_usage_tracking() ignores non-callable attribute."""
+        mock_provider = Mock(spec=[])
+        mock_provider.model = "test-model"
+        mock_provider.reset_usage_tracking = "not a function"  # Non-callable
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            cached = CachingProvider(mock_provider, cache)
+
+            # Should not raise, should be no-op
+            cached.reset_usage_tracking()
+
 
 class TestCachingProviderStatistics:
     """Tests for cache statistics."""

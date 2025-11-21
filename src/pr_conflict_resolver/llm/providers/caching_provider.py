@@ -196,8 +196,11 @@ class CachingProvider:
             >>> cached.generate("expensive prompt")
             >>> print(f"Cost: ${cached.get_total_cost():.4f}")
         """
-        if hasattr(self.provider, "get_total_cost"):
-            return float(self.provider.get_total_cost())
+        val = getattr(self.provider, "get_total_cost", None)
+        if callable(val):
+            return float(val())
+        elif isinstance(val, (int, float)):
+            return float(val)
         return 0.0
 
     def reset_usage_tracking(self) -> None:
@@ -212,8 +215,9 @@ class CachingProvider:
             >>> cached.reset_usage_tracking()
             >>> assert cached.get_total_cost() == 0.0
         """
-        if hasattr(self.provider, "reset_usage_tracking"):
-            self.provider.reset_usage_tracking()
+        fn = getattr(self.provider, "reset_usage_tracking", None)
+        if callable(fn):
+            fn()
 
     def get_cache_stats(self) -> CacheStats:
         """Get cache statistics.
