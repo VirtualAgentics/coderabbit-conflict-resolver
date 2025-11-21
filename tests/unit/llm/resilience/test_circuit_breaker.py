@@ -293,12 +293,15 @@ class TestCircuitBreakerHalfOpen:
         assert breaker.state == CircuitState.HALF_OPEN
 
         # Probe raises excluded exception
+        def raise_excluded() -> str:
+            raise ValueError("excluded")
+
         probe_errors: list[Exception] = []
         lock = threading.Lock()
 
         def probe_with_excluded_exception() -> None:
             try:
-                breaker.call(lambda: (_ for _ in ()).throw(ValueError("excluded")))
+                breaker.call(raise_excluded)
             except ValueError as e:
                 with lock:
                     probe_errors.append(e)
@@ -337,12 +340,15 @@ class TestCircuitBreakerHalfOpen:
         class TestBaseException(BaseException):
             pass
 
+        def raise_base() -> str:
+            raise TestBaseException("test")
+
         probe_errors: list[BaseException] = []
         lock = threading.Lock()
 
         def probe_with_base_exception() -> None:
             try:
-                breaker.call(lambda: (_ for _ in ()).throw(TestBaseException("test")))
+                breaker.call(raise_base)
             except TestBaseException as e:
                 with lock:
                     probe_errors.append(e)
