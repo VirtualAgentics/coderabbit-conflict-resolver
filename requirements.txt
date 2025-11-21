@@ -3,9 +3,9 @@
 annotated-types==0.7.0 \
     --hash=sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53
     # via pydantic
-anthropic==0.74.0 \
-    --hash=sha256:114ec10cb394b6764e199da06335da4747b019c5629e53add33572f66964ad99 \
-    --hash=sha256:df29b8dfcdbd2751fa31177f643d8d8f66c5315fe06bdc42f9139e9f00d181d5
+anthropic==0.74.1 \
+    --hash=sha256:04c087b2751385c524f6d332d066a913870e4de8b3e335fb0a0c595f1f88dc6e \
+    --hash=sha256:b07b998d1cee7f41d9f02530597d7411672b362cc2417760a40c0167b81c6e65
     # via -r requirements.in
 anyio==4.11.0 \
     --hash=sha256:0287e96f4d26d4149305414d4e3bc32f0dcd0862365a4bddea19d7a1ec38c4fc \
