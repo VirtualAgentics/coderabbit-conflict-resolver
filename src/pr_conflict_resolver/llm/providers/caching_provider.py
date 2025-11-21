@@ -67,6 +67,7 @@ class CachingProvider:
 
         Raises:
             AttributeError: If provider doesn't have required `model` attribute
+                or if `model` is empty/falsy
 
         Examples:
             >>> provider = AnthropicAPIProvider(api_key="sk-...")
@@ -81,8 +82,18 @@ class CachingProvider:
         class_name = provider.__class__.__name__.lower()
         self.provider_name = class_name.removesuffix("provider").removesuffix("api")
 
-        # Get model from provider (all providers have this attribute)
-        self.model: str = getattr(provider, "model", "unknown")
+        # Validate and get model from provider - required for cache key integrity
+        if not hasattr(provider, "model"):
+            raise AttributeError(
+                f"Provider {provider.__class__.__name__} must have a 'model' attribute"
+            )
+        model = provider.model
+        if not model or not isinstance(model, str) or not model.strip():
+            raise AttributeError(
+                f"Provider {provider.__class__.__name__} has invalid 'model' attribute: "
+                f"expected non-empty string, got {model!r}"
+            )
+        self.model: str = model
 
         logger.debug(f"Initialized CachingProvider for {self.provider_name}/{self.model}")
 

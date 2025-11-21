@@ -333,14 +333,17 @@ class TestCachingProviderThreadSafety:
             cache = PromptCache(cache_dir=Path(tmpdir))
             cached = CachingProvider(mock_provider, cache)
 
-            results: list[str] = []
+            # Track results with their prompts for consistency verification
+            results_by_prompt: dict[str, list[str]] = {f"prompt-{i}": [] for i in range(5)}
+            results_lock = threading.Lock()
             errors: list[Exception] = []
 
             def worker(prompt: str) -> None:
                 try:
                     for _ in range(10):
                         result = cached.generate(prompt)
-                        results.append(result)
+                        with results_lock:
+                            results_by_prompt[prompt].append(result)
                 except Exception as e:
                     errors.append(e)
 
@@ -357,8 +360,22 @@ class TestCachingProviderThreadSafety:
             # No errors should have occurred
             assert len(errors) == 0
 
-            # Each prompt should have consistent results
-            assert len(results) == 50  # 5 threads * 10 iterations
+            # Verify total result count
+            total_results = sum(len(r) for r in results_by_prompt.values())
+            assert total_results == 50  # 5 threads * 10 iterations
+
+            # Verify each prompt produced exactly 10 responses
+            for prompt, responses in results_by_prompt.items():
+                assert (
+                    len(responses) == 10
+                ), f"Expected 10 responses for {prompt}, got {len(responses)}"
+
+            # Verify all responses for each prompt are identical (cache consistency)
+            for prompt, responses in results_by_prompt.items():
+                expected_response = f"response for {prompt}"
+                assert all(
+                    r == expected_response for r in responses
+                ), f"Inconsistent responses for {prompt}: {set(responses)}"
 
 
 class TestCachingProviderProviderName:
@@ -399,6 +416,69 @@ class TestCachingProviderProviderName:
             cached = CachingProvider(mock_provider, cache)
 
             assert cached.provider_name == "ollama"
+
+
+class TestCachingProviderModelValidation:
+    """Tests for model attribute validation."""
+
+    def test_missing_model_attribute_raises(self) -> None:
+        """Test that missing model attribute raises AttributeError."""
+        mock_provider = Mock(spec=[])  # No attributes
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            with pytest.raises(AttributeError, match="must have a 'model' attribute"):
+                CachingProvider(mock_provider, cache)
+
+    def test_none_model_raises(self) -> None:
+        """Test that None model raises AttributeError."""
+        mock_provider = Mock()
+        mock_provider.model = None
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            with pytest.raises(AttributeError, match="invalid 'model' attribute"):
+                CachingProvider(mock_provider, cache)
+
+    def test_empty_string_model_raises(self) -> None:
+        """Test that empty string model raises AttributeError."""
+        mock_provider = Mock()
+        mock_provider.model = ""
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            with pytest.raises(AttributeError, match="invalid 'model' attribute"):
+                CachingProvider(mock_provider, cache)
+
+    def test_whitespace_only_model_raises(self) -> None:
+        """Test that whitespace-only model raises AttributeError."""
+        mock_provider = Mock()
+        mock_provider.model = "   "
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            with pytest.raises(AttributeError, match="invalid 'model' attribute"):
+                CachingProvider(mock_provider, cache)
+
+    def test_non_string_model_raises(self) -> None:
+        """Test that non-string model raises AttributeError."""
+        mock_provider = Mock()
+        mock_provider.model = 123  # Not a string
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            with pytest.raises(AttributeError, match="invalid 'model' attribute"):
+                CachingProvider(mock_provider, cache)
+
+    def test_valid_model_succeeds(self) -> None:
+        """Test that valid model string is accepted."""
+        mock_provider = Mock()
+        mock_provider.model = "claude-sonnet-4"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            cached = CachingProvider(mock_provider, cache)
+            assert cached.model == "claude-sonnet-4"
 
 
 class TestCachingProviderEviction:
