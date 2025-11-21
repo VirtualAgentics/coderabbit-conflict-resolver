@@ -239,12 +239,16 @@ def create_provider_from_config(config: LLMConfig) -> Any:  # noqa: ANN401
     and delegates to create_provider(). This simplifies provider creation when
     configuration is managed via LLMConfig (e.g., from environment variables).
 
+    If config.cache_enabled is True, the provider is wrapped with CachingProvider
+    for transparent response caching to reduce API costs.
+
     Args:
         config: LLMConfig instance with provider settings. Must have valid provider,
             model, and api_key (if required) fields.
 
     Returns:
-        Configured provider instance created from config values.
+        Configured provider instance created from config values. If caching is
+        enabled, returns a CachingProvider wrapper around the actual provider.
 
     Raises:
         LLMConfigurationError: If config contains invalid provider settings or
@@ -269,12 +273,29 @@ def create_provider_from_config(config: LLMConfig) -> Any:  # noqa: ANN401
             ...     api_key="sk-ant-..."
             ... )
             >>> provider = create_provider_from_config(config)
-    """
-    logger.info(f"Creating provider from config: provider={config.provider}, model={config.model}")
 
-    return create_provider(
+        Create with caching enabled:
+            >>> config = LLMConfig(enabled=True, cache_enabled=True)
+            >>> provider = create_provider_from_config(config)
+            >>> # provider is now a CachingProvider wrapper
+    """
+    logger.info(
+        f"Creating provider from config: provider={config.provider}, "
+        f"model={config.model}, cache_enabled={config.cache_enabled}"
+    )
+
+    provider = create_provider(
         provider=config.provider,
         model=config.model,
         api_key=config.api_key,
         # Don't specify timeout - let providers use their own defaults
     )
+
+    # Wrap with caching if enabled
+    if config.cache_enabled:
+        from pr_conflict_resolver.llm.providers.caching_provider import CachingProvider
+
+        provider = CachingProvider(provider)
+        logger.info(f"Cache enabled for {config.provider} provider")
+
+    return provider
