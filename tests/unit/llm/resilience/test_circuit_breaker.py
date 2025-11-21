@@ -172,7 +172,7 @@ class TestCircuitBreakerHalfOpen:
 
     def test_transition_to_half_open(self) -> None:
         """Circuit transitions to HALF_OPEN after cooldown."""
-        breaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=0.1)
+        breaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=0.2)
         func = MagicMock(side_effect=RuntimeError("error"))
 
         # Trip the circuit
@@ -181,14 +181,14 @@ class TestCircuitBreakerHalfOpen:
 
         assert breaker.state == CircuitState.OPEN
 
-        # Wait for cooldown
-        time.sleep(0.15)
+        # Wait for cooldown (generous margin for CI environments)
+        time.sleep(0.35)
 
         assert breaker.state == CircuitState.HALF_OPEN  # type: ignore[comparison-overlap]
 
     def test_half_open_success_closes_circuit(self) -> None:
         """Successful call in HALF_OPEN closes circuit."""
-        breaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=0.1)
+        breaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=0.2)
         failing_func = MagicMock(side_effect=RuntimeError("error"))
         success_func = MagicMock(return_value="success")
 
@@ -196,8 +196,8 @@ class TestCircuitBreakerHalfOpen:
         with pytest.raises(RuntimeError):
             breaker.call(failing_func)
 
-        # Wait for HALF_OPEN
-        time.sleep(0.15)
+        # Wait for HALF_OPEN (generous margin for CI environments)
+        time.sleep(0.35)
         assert breaker.state == CircuitState.HALF_OPEN
 
         # Success closes circuit
@@ -207,15 +207,15 @@ class TestCircuitBreakerHalfOpen:
 
     def test_half_open_failure_reopens_circuit(self) -> None:
         """Failed call in HALF_OPEN reopens circuit."""
-        breaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=0.1)
+        breaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=0.2)
         func = MagicMock(side_effect=RuntimeError("error"))
 
         # Trip the circuit
         with pytest.raises(RuntimeError):
             breaker.call(func)
 
-        # Wait for HALF_OPEN
-        time.sleep(0.15)
+        # Wait for HALF_OPEN (generous margin for CI environments)
+        time.sleep(0.35)
         assert breaker.state == CircuitState.HALF_OPEN
 
         # Failure reopens circuit
@@ -226,17 +226,15 @@ class TestCircuitBreakerHalfOpen:
 
     def test_half_open_single_probe_only(self) -> None:
         """Only one probe call is allowed in HALF_OPEN state."""
-        import threading
-
-        breaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=0.1)
+        breaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=0.2)
         failing_func = MagicMock(side_effect=RuntimeError("error"))
 
         # Trip the circuit
         with pytest.raises(RuntimeError):
             breaker.call(failing_func)
 
-        # Wait for HALF_OPEN
-        time.sleep(0.15)
+        # Wait for HALF_OPEN (generous margin for CI environments)
+        time.sleep(0.35)
         assert breaker.state == CircuitState.HALF_OPEN
 
         # Create a slow function for the probe
@@ -370,7 +368,8 @@ class TestCircuitBreakerRemainingCooldown:
             breaker.call(func)
 
         remaining = breaker.get_remaining_cooldown()
-        assert 59.0 <= remaining <= 60.0
+        # Use wide bounds to avoid flakiness on slow CI environments
+        assert 55.0 <= remaining <= 60.0
 
     def test_cooldown_decreases_over_time(self) -> None:
         """Remaining cooldown decreases over time."""

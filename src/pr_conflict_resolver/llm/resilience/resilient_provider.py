@@ -18,7 +18,7 @@ from pr_conflict_resolver.llm.resilience.circuit_breaker import (
 logger = logging.getLogger(__name__)
 
 
-class ResilientLLMProvider:
+class ResilientLLMProvider(LLMProvider):
     """Transparent resilient wrapper for any LLMProvider.
 
     Adds circuit breaker protection to LLM provider calls. When the wrapped
@@ -134,7 +134,7 @@ class ResilientLLMProvider:
         """Current consecutive failure count."""
         return self.circuit_breaker.failure_count
 
-    def generate(self, prompt: str, max_tokens: int = 2000) -> str | None:
+    def generate(self, prompt: str, max_tokens: int = 2000) -> str:
         """Generate text completion with circuit breaker protection.
 
         Checks circuit state before calling the wrapped provider. If the
@@ -147,7 +147,7 @@ class ResilientLLMProvider:
             max_tokens: Maximum tokens to generate in response (default: 2000)
 
         Returns:
-            Generated text from provider, or None if provider returns None
+            Generated text from provider
 
         Raises:
             CircuitBreakerOpen: If circuit is open and cooldown hasn't elapsed

@@ -26,9 +26,11 @@ class DummyProvider:
         self._call_count = 0
         self._total_cost = 0.0
         self._return_none: bool = False
+        self._lock = threading.Lock()
 
     def generate(self, prompt: str, max_tokens: int = 2000) -> str:
-        self._call_count += 1
+        with self._lock:
+            self._call_count += 1
         if self._generate_error:
             raise self._generate_error
         if self._return_none:
@@ -317,7 +319,7 @@ class TestResilientLLMProviderThreadSafety:
         """Concurrent successful calls work correctly."""
         provider = DummyProvider()
         resilient = ResilientLLMProvider(provider)
-        results: list[str | None] = []
+        results: list[str] = []
         lock = threading.Lock()
 
         def worker() -> None:
