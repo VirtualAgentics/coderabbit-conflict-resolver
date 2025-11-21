@@ -67,7 +67,7 @@ def _is_budget_error(exc: BaseException) -> bool:
         return True
 
     text = _error_text(exc)
-    if any(
+    return any(
         token in text
         for token in (
             "rate limit",
@@ -77,12 +77,7 @@ def _is_budget_error(exc: BaseException) -> bool:
             "limit exceeded",
             "429",
         )
-    ):
-        return True
-
-    response = getattr(exc, "response", None)
-    status_code = getattr(exc, "status_code", None) or getattr(response, "status_code", None)
-    return status_code == 429
+    )
 
 
 def handle_provider_exception(exc: BaseException, provider_name: str) -> None:

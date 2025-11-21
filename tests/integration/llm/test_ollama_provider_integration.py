@@ -53,17 +53,21 @@ class TestOllamaProviderIntegration:
     def test_real_generation(self, ollama_provider: OllamaProvider) -> None:
         """Model generates a non-empty response."""
         prompt = "Respond with just the word 'success'"
+        initial_input = ollama_provider.total_input_tokens
+        initial_output = ollama_provider.total_output_tokens
         result = guarded_call("Ollama", lambda: ollama_provider.generate(prompt, max_tokens=50))
 
         assert result
         assert len(result) > 0
-        assert ollama_provider.total_input_tokens > 0
-        assert ollama_provider.total_output_tokens > 0
+        assert ollama_provider.total_input_tokens > initial_input
+        assert ollama_provider.total_output_tokens > initial_output
 
     def test_real_cost_tracking(self, ollama_provider: OllamaProvider) -> None:
         """Cost stays zero while token counters increase."""
+        initial_input = ollama_provider.total_input_tokens
+        initial_output = ollama_provider.total_output_tokens
         guarded_call("Ollama", lambda: ollama_provider.generate("Test prompt", max_tokens=50))
 
         assert ollama_provider.get_total_cost() == 0.0
-        assert ollama_provider.total_input_tokens > 0
-        assert ollama_provider.total_output_tokens > 0
+        assert ollama_provider.total_input_tokens > initial_input
+        assert ollama_provider.total_output_tokens > initial_output
