@@ -27,6 +27,9 @@ class LLMConfig:
         cache_enabled: Cache LLM responses to reduce cost (default: True)
         max_tokens: Maximum tokens per LLM request (default: 2000)
         cost_budget: Maximum cost per run in USD (None = unlimited)
+        circuit_breaker_enabled: Enable circuit breaker for provider protection (default: True)
+        circuit_breaker_threshold: Consecutive failures before circuit opens (default: 5)
+        circuit_breaker_cooldown: Seconds to wait before recovery attempt (default: 60.0)
 
     Example:
         >>> config = LLMConfig.from_defaults()
@@ -48,6 +51,9 @@ class LLMConfig:
     cache_enabled: bool = True
     max_tokens: int = 2000
     cost_budget: float | None = None
+    circuit_breaker_enabled: bool = True
+    circuit_breaker_threshold: int = 5
+    circuit_breaker_cooldown: float = 60.0
 
     def __post_init__(self) -> None:
         """Validate LLMConfig fields after initialization.
@@ -65,6 +71,16 @@ class LLMConfig:
 
         if self.cost_budget is not None and self.cost_budget <= 0:
             raise ValueError(f"cost_budget must be positive, got {self.cost_budget}")
+
+        if self.circuit_breaker_threshold < 1:
+            raise ValueError(
+                f"circuit_breaker_threshold must be >= 1, got {self.circuit_breaker_threshold}"
+            )
+
+        if self.circuit_breaker_cooldown <= 0:
+            raise ValueError(
+                f"circuit_breaker_cooldown must be > 0, got {self.circuit_breaker_cooldown}"
+            )
 
         # Validate that API-based providers have an API key if enabled
         if self.enabled and self.provider in {"openai", "anthropic"} and not self.api_key:
@@ -99,6 +115,9 @@ class LLMConfig:
         - CR_LLM_CACHE_ENABLED: "true"/"false"
         - CR_LLM_MAX_TOKENS: Integer value
         - CR_LLM_COST_BUDGET: Float value in USD
+        - CR_LLM_CIRCUIT_BREAKER_ENABLED: "true"/"false"
+        - CR_LLM_CIRCUIT_BREAKER_THRESHOLD: Integer value (minimum 1)
+        - CR_LLM_CIRCUIT_BREAKER_COOLDOWN: Float value in seconds
 
         Returns:
             LLMConfig with values from environment, falling back to defaults
@@ -134,6 +153,28 @@ class LLMConfig:
                     f"CR_LLM_COST_BUDGET must be a valid float, got '{cost_budget_str}'"
                 ) from e
 
+        circuit_breaker_enabled = (
+            os.getenv("CR_LLM_CIRCUIT_BREAKER_ENABLED", "true").lower() == "true"
+        )
+
+        circuit_breaker_threshold_str = os.getenv("CR_LLM_CIRCUIT_BREAKER_THRESHOLD", "5")
+        try:
+            circuit_breaker_threshold = int(circuit_breaker_threshold_str)
+        except ValueError as e:
+            raise ConfigError(
+                f"CR_LLM_CIRCUIT_BREAKER_THRESHOLD must be a valid integer, "
+                f"got '{circuit_breaker_threshold_str}'"
+            ) from e
+
+        circuit_breaker_cooldown_str = os.getenv("CR_LLM_CIRCUIT_BREAKER_COOLDOWN", "60.0")
+        try:
+            circuit_breaker_cooldown = float(circuit_breaker_cooldown_str)
+        except ValueError as e:
+            raise ConfigError(
+                f"CR_LLM_CIRCUIT_BREAKER_COOLDOWN must be a valid float, "
+                f"got '{circuit_breaker_cooldown_str}'"
+            ) from e
+
         return cls(
             enabled=enabled,
             provider=provider,
@@ -143,4 +184,7 @@ class LLMConfig:
             cache_enabled=cache_enabled,
             max_tokens=max_tokens,
             cost_budget=cost_budget,
+            circuit_breaker_enabled=circuit_breaker_enabled,
+            circuit_breaker_threshold=circuit_breaker_threshold,
+            circuit_breaker_cooldown=circuit_breaker_cooldown,
         )

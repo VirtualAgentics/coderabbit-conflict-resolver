@@ -242,6 +242,12 @@ def create_provider_from_config(config: LLMConfig) -> Any:  # noqa: ANN401
     If config.cache_enabled is True, the provider is wrapped with CachingProvider
     for transparent response caching to reduce API costs.
 
+    If config.circuit_breaker_enabled is True, the provider is wrapped with
+    ResilientLLMProvider for circuit breaker protection against cascading failures.
+
+    Wrapper order: base -> circuit breaker -> cache. This ensures cache hits don't
+    affect circuit breaker state.
+
     Args:
         config: LLMConfig instance with provider settings. Must have valid provider,
             model, and api_key (if required) fields.
@@ -281,7 +287,8 @@ def create_provider_from_config(config: LLMConfig) -> Any:  # noqa: ANN401
     """
     logger.info(
         f"Creating provider from config: provider={config.provider}, "
-        f"model={config.model}, cache_enabled={config.cache_enabled}"
+        f"model={config.model}, cache_enabled={config.cache_enabled}, "
+        f"circuit_breaker_enabled={config.circuit_breaker_enabled}"
     )
 
     provider = create_provider(
@@ -291,7 +298,22 @@ def create_provider_from_config(config: LLMConfig) -> Any:  # noqa: ANN401
         # Don't specify timeout - let providers use their own defaults
     )
 
-    # Wrap with caching if enabled
+    # Wrap with circuit breaker if enabled (inner wrapper)
+    if config.circuit_breaker_enabled:
+        from pr_conflict_resolver.llm.resilience import ResilientLLMProvider
+
+        provider = ResilientLLMProvider(
+            provider,
+            failure_threshold=config.circuit_breaker_threshold,
+            cooldown_seconds=config.circuit_breaker_cooldown,
+        )
+        logger.info(
+            f"Circuit breaker enabled for {config.provider} provider: "
+            f"threshold={config.circuit_breaker_threshold}, "
+            f"cooldown={config.circuit_breaker_cooldown}s"
+        )
+
+    # Wrap with caching if enabled (outer wrapper)
     if config.cache_enabled:
         from pr_conflict_resolver.llm.providers.caching_provider import CachingProvider
 
