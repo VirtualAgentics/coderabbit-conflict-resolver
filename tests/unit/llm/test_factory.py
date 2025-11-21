@@ -349,6 +349,7 @@ class TestCreateProviderFromConfig:
             model="claude-sonnet-4",
             api_key="sk-ant-test",
             cache_enabled=False,
+            circuit_breaker_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"anthropic": mock_provider_class}):
@@ -372,6 +373,7 @@ class TestCreateProviderFromConfig:
             model="gpt-4",
             api_key="sk-test-123",
             cache_enabled=False,
+            circuit_breaker_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"openai": mock_provider_class}):
@@ -394,6 +396,7 @@ class TestCreateProviderFromConfig:
             provider="claude-cli",
             model="claude-sonnet-4-5",
             cache_enabled=False,
+            circuit_breaker_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"claude-cli": mock_provider_class}):
@@ -415,6 +418,7 @@ class TestCreateProviderFromConfig:
             provider="codex-cli",
             model="codex-latest",
             cache_enabled=False,
+            circuit_breaker_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"codex-cli": mock_provider_class}):
@@ -436,6 +440,7 @@ class TestCreateProviderFromConfig:
             provider="ollama",
             model="llama3.3:70b",
             cache_enabled=False,
+            circuit_breaker_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"ollama": mock_provider_class}):
@@ -458,6 +463,7 @@ class TestCreateProviderFromConfig:
             model="custom-model",
             api_key=None,  # CLI doesn't need API key
             cache_enabled=False,
+            circuit_breaker_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"claude-cli": mock_provider_class}):
@@ -480,6 +486,7 @@ class TestCreateProviderFromConfig:
             model="claude-3",
             api_key="test-key-123",
             cache_enabled=False,
+            circuit_breaker_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"anthropic": mock_provider_class}):
@@ -502,6 +509,7 @@ class TestCreateProviderFromConfig:
             model="claude-sonnet-4-5",
             api_key=None,
             cache_enabled=False,
+            circuit_breaker_enabled=False,
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"claude-cli": mock_provider_class}):
@@ -536,7 +544,8 @@ class TestCreateProviderFromConfig:
             provider="anthropic",
             model="claude-sonnet-4",
             api_key="sk-ant-test",
-            cache_enabled=True,  # Enable caching
+            cache_enabled=True,
+            circuit_breaker_enabled=False,  # Only test cache wrapping
         )
 
         with patch.dict(PROVIDER_REGISTRY, {"anthropic": mock_provider_class}):
@@ -545,3 +554,88 @@ class TestCreateProviderFromConfig:
         # Should return a CachingProvider wrapper
         assert isinstance(result, CachingProvider)
         assert result.provider == mock_instance
+
+    def test_create_from_config_with_circuit_breaker_enabled(self) -> None:
+        """Test that circuit_breaker_enabled=True wraps provider with ResilientLLMProvider."""
+        from pr_conflict_resolver.llm.resilience import ResilientLLMProvider
+
+        mock_provider_class = MagicMock()
+        mock_instance = MagicMock()
+        mock_instance.model = "claude-sonnet-4"
+        mock_provider_class.return_value = mock_instance
+
+        config = LLMConfig(
+            enabled=True,
+            provider="anthropic",
+            model="claude-sonnet-4",
+            api_key="sk-ant-test",
+            cache_enabled=False,
+            circuit_breaker_enabled=True,  # Enable circuit breaker
+            circuit_breaker_threshold=3,
+            circuit_breaker_cooldown=30.0,
+        )
+
+        with patch.dict(PROVIDER_REGISTRY, {"anthropic": mock_provider_class}):
+            result = create_provider_from_config(config)
+
+        # Should return a ResilientLLMProvider wrapper
+        assert isinstance(result, ResilientLLMProvider)
+        assert result.provider == mock_instance
+        assert result.circuit_breaker.failure_threshold == 3
+        assert result.circuit_breaker.cooldown_seconds == 30.0
+
+    def test_create_from_config_with_circuit_breaker_defaults(self) -> None:
+        """Test circuit breaker wrapping uses correct default values."""
+        from pr_conflict_resolver.llm.resilience import ResilientLLMProvider
+
+        mock_provider_class = MagicMock()
+        mock_instance = MagicMock()
+        mock_instance.model = "claude-sonnet-4"
+        mock_provider_class.return_value = mock_instance
+
+        config = LLMConfig(
+            enabled=True,
+            provider="anthropic",
+            model="claude-sonnet-4",
+            api_key="sk-ant-test",
+            cache_enabled=False,
+            circuit_breaker_enabled=True,
+            # Use defaults: threshold=5, cooldown=60.0
+        )
+
+        with patch.dict(PROVIDER_REGISTRY, {"anthropic": mock_provider_class}):
+            result = create_provider_from_config(config)
+
+        assert isinstance(result, ResilientLLMProvider)
+        assert result.circuit_breaker.failure_threshold == 5
+        assert result.circuit_breaker.cooldown_seconds == 60.0
+
+    def test_create_from_config_with_both_wrappers(self) -> None:
+        """Test that both cache and circuit breaker can be enabled together."""
+        from pr_conflict_resolver.llm.providers.caching_provider import CachingProvider
+        from pr_conflict_resolver.llm.resilience import ResilientLLMProvider
+
+        mock_provider_class = MagicMock()
+        mock_instance = MagicMock()
+        mock_instance.model = "claude-sonnet-4"
+        mock_provider_class.return_value = mock_instance
+
+        config = LLMConfig(
+            enabled=True,
+            provider="anthropic",
+            model="claude-sonnet-4",
+            api_key="sk-ant-test",
+            cache_enabled=True,
+            circuit_breaker_enabled=True,
+        )
+
+        with patch.dict(PROVIDER_REGISTRY, {"anthropic": mock_provider_class}):
+            result = create_provider_from_config(config)
+
+        # Should return CachingProvider wrapping ResilientLLMProvider
+        assert isinstance(result, CachingProvider)
+        assert isinstance(result.provider, ResilientLLMProvider)
+        assert result.provider.provider == mock_instance
+        # Verify circuit breaker defaults
+        assert result.provider.circuit_breaker.failure_threshold == 5
+        assert result.provider.circuit_breaker.cooldown_seconds == 60.0

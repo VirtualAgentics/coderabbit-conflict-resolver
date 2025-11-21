@@ -1,0 +1,23 @@
+"""Resilience patterns for LLM providers.
+
+This package provides resilience patterns to handle transient failures and protect
+against cascading failures when interacting with LLM services.
+
+Available modules:
+- circuit_breaker.py (Phase 5 - Issue #222): Circuit breaker pattern implementation
+- resilient_provider.py (Phase 5 - Issue #222): Resilient LLM provider wrapper
+"""
+
+from pr_conflict_resolver.llm.resilience.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerOpen,
+    CircuitState,
+)
+from pr_conflict_resolver.llm.resilience.resilient_provider import ResilientLLMProvider
+
+__all__: list[str] = [
+    "CircuitBreaker",
+    "CircuitBreakerOpen",
+    "CircuitState",
+    "ResilientLLMProvider",
+]
