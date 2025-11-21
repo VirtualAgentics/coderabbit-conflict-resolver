@@ -78,9 +78,18 @@ class CachingProvider:
         self.cache = cache if cache is not None else PromptCache(cache_dir=cache_dir)
 
         # Extract provider name from class name (e.g., "AnthropicAPIProvider" -> "anthropic")
-        # Use removesuffix for order-independent, robust extraction
+        # Iteratively remove known suffixes until none match for order-independent extraction
         class_name = provider.__class__.__name__.lower()
-        self.provider_name = class_name.removesuffix("provider").removesuffix("api")
+        suffixes = ("provider", "api")
+        while True:
+            for suffix in suffixes:
+                if class_name.endswith(suffix):
+                    class_name = class_name.removesuffix(suffix)
+                    break
+            else:
+                # No suffix matched, we're done
+                break
+        self.provider_name = class_name
 
         # Validate and get model from provider - required for cache key integrity
         if not hasattr(provider, "model"):

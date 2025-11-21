@@ -9,7 +9,7 @@ Phase 5 - Issue #221: Cache Integration with LLM Providers
 import tempfile
 import threading
 from pathlib import Path
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
 import pytest
 
@@ -335,17 +335,19 @@ class TestCachingProviderThreadSafety:
 
             # Track results with their prompts for consistency verification
             results_by_prompt: dict[str, list[str]] = {f"prompt-{i}": [] for i in range(5)}
-            results_lock = threading.Lock()
             errors: list[Exception] = []
+            # Single lock for all shared state (results and errors)
+            state_lock = threading.Lock()
 
             def worker(prompt: str) -> None:
                 try:
                     for _ in range(10):
                         result = cached.generate(prompt)
-                        with results_lock:
+                        with state_lock:
                             results_by_prompt[prompt].append(result)
                 except Exception as e:
-                    errors.append(e)
+                    with state_lock:
+                        errors.append(e)
 
             # Launch multiple threads with different prompts
             threads = []
@@ -357,7 +359,7 @@ class TestCachingProviderThreadSafety:
             for t in threads:
                 t.join()
 
-            # No errors should have occurred
+            # No errors should have occurred (safe to read after all threads joined)
             assert len(errors) == 0
 
             # Verify total result count
@@ -383,39 +385,105 @@ class TestCachingProviderProviderName:
 
     def test_provider_name_extraction_anthropic(self) -> None:
         """Test provider name is extracted correctly for Anthropic."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "AnthropicAPIProvider"
-        mock_provider.model = "claude-sonnet-4"
+
+        # Use a real class to avoid mutating MagicMock's class name
+        class AnthropicAPIProvider:
+            def __init__(self) -> None:
+                self.model = "claude-sonnet-4"
+
+            def generate(self, prompt: str, max_tokens: int = 2000) -> str:
+                return "response"
+
+            def count_tokens(self, text: str) -> int:
+                return len(text)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCache(cache_dir=Path(tmpdir))
-            cached = CachingProvider(mock_provider, cache)
+            provider = AnthropicAPIProvider()
+            cached = CachingProvider(provider, cache)
 
             assert cached.provider_name == "anthropic"
 
     def test_provider_name_extraction_openai(self) -> None:
         """Test provider name is extracted correctly for OpenAI."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "OpenAIAPIProvider"
-        mock_provider.model = "gpt-4"
+
+        class OpenAIAPIProvider:
+            def __init__(self) -> None:
+                self.model = "gpt-4"
+
+            def generate(self, prompt: str, max_tokens: int = 2000) -> str:
+                return "response"
+
+            def count_tokens(self, text: str) -> int:
+                return len(text)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCache(cache_dir=Path(tmpdir))
-            cached = CachingProvider(mock_provider, cache)
+            provider = OpenAIAPIProvider()
+            cached = CachingProvider(provider, cache)
 
             assert cached.provider_name == "openai"
 
     def test_provider_name_extraction_ollama(self) -> None:
         """Test provider name is extracted correctly for Ollama."""
-        mock_provider = MagicMock()
-        mock_provider.__class__.__name__ = "OllamaProvider"
-        mock_provider.model = "llama3"
+
+        class OllamaProvider:
+            def __init__(self) -> None:
+                self.model = "llama3"
+
+            def generate(self, prompt: str, max_tokens: int = 2000) -> str:
+                return "response"
+
+            def count_tokens(self, text: str) -> int:
+                return len(text)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCache(cache_dir=Path(tmpdir))
-            cached = CachingProvider(mock_provider, cache)
+            provider = OllamaProvider()
+            cached = CachingProvider(provider, cache)
 
             assert cached.provider_name == "ollama"
+
+    def test_provider_name_extraction_api_suffix_only(self) -> None:
+        """Test provider name extraction handles APIProvider suffix."""
+
+        class SomeAPI:
+            def __init__(self) -> None:
+                self.model = "test"
+
+            def generate(self, prompt: str, max_tokens: int = 2000) -> str:
+                return "response"
+
+            def count_tokens(self, text: str) -> int:
+                return len(text)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            provider = SomeAPI()
+            cached = CachingProvider(provider, cache)
+
+            assert cached.provider_name == "some"
+
+    def test_provider_name_extraction_provider_api_order(self) -> None:
+        """Test provider name extraction handles ProviderAPI suffix order."""
+
+        class TestProviderAPI:
+            def __init__(self) -> None:
+                self.model = "test"
+
+            def generate(self, prompt: str, max_tokens: int = 2000) -> str:
+                return "response"
+
+            def count_tokens(self, text: str) -> int:
+                return len(text)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            provider = TestProviderAPI()
+            cached = CachingProvider(provider, cache)
+
+            # Should strip "api" first, then "provider"
+            assert cached.provider_name == "test"
 
 
 class TestCachingProviderModelValidation:
