@@ -65,7 +65,7 @@ class CircuitBreakerOpen(Exception):
             remaining_cooldown: Seconds remaining until recovery attempt
         """
         super().__init__(message)
-        self.remaining_cooldown = remaining_cooldown
+        self.remaining_cooldown: float = remaining_cooldown
 
 
 class CircuitBreaker:
