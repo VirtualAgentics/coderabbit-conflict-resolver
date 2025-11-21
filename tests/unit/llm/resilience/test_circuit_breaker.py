@@ -277,6 +277,94 @@ class TestCircuitBreakerHalfOpen:
         assert results[0] == "success"
         assert breaker.state == CircuitState.CLOSED  # type: ignore[comparison-overlap]
 
+    def test_half_open_probe_excluded_exception_clears_flag(self) -> None:
+        """Excluded exception in HALF_OPEN probe clears flag and keeps HALF_OPEN."""
+        breaker = CircuitBreaker(
+            failure_threshold=1, cooldown_seconds=0.2, excluded_exceptions=(ValueError,)
+        )
+        failing_func = MagicMock(side_effect=RuntimeError("error"))
+
+        # Trip the circuit
+        with pytest.raises(RuntimeError):
+            breaker.call(failing_func)
+
+        # Wait for HALF_OPEN (generous margin for CI environments)
+        time.sleep(0.35)
+        assert breaker.state == CircuitState.HALF_OPEN
+
+        # Probe raises excluded exception
+        probe_errors: list[Exception] = []
+        lock = threading.Lock()
+
+        def probe_with_excluded_exception() -> None:
+            try:
+                breaker.call(lambda: (_ for _ in ()).throw(ValueError("excluded")))
+            except ValueError as e:
+                with lock:
+                    probe_errors.append(e)
+
+        t = threading.Thread(target=probe_with_excluded_exception)
+        t.start()
+        t.join(timeout=5.0)
+
+        # Excluded exception should have been raised
+        assert len(probe_errors) == 1
+        assert isinstance(probe_errors[0], ValueError)
+
+        # Flag should be cleared (subsequent probe should be allowed)
+        # State remains HALF_OPEN since excluded exceptions don't record failure
+        assert breaker.state == CircuitState.HALF_OPEN
+
+        # Verify flag is cleared by attempting another probe (should not raise CircuitBreakerOpen)
+        success_result = breaker.call(lambda: "success")
+        assert success_result == "success"
+        assert breaker.state == CircuitState.CLOSED  # type: ignore[comparison-overlap]
+
+    def test_half_open_probe_base_exception_clears_flag(self) -> None:
+        """BaseException in HALF_OPEN probe clears flag via finally block."""
+        breaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=0.2)
+        failing_func = MagicMock(side_effect=RuntimeError("error"))
+
+        # Trip the circuit
+        with pytest.raises(RuntimeError):
+            breaker.call(failing_func)
+
+        # Wait for HALF_OPEN (generous margin for CI environments)
+        time.sleep(0.35)
+        assert breaker.state == CircuitState.HALF_OPEN
+
+        # Custom BaseException subclass for testing (avoids KeyboardInterrupt side effects)
+        class TestBaseException(BaseException):
+            pass
+
+        probe_errors: list[BaseException] = []
+        lock = threading.Lock()
+
+        def probe_with_base_exception() -> None:
+            try:
+                breaker.call(lambda: (_ for _ in ()).throw(TestBaseException("test")))
+            except TestBaseException as e:
+                with lock:
+                    probe_errors.append(e)
+
+        t = threading.Thread(target=probe_with_base_exception)
+        t.start()
+        t.join(timeout=5.0)
+
+        # BaseException should have been raised
+        assert len(probe_errors) == 1
+        assert isinstance(probe_errors[0], TestBaseException)
+
+        # Flag should be cleared via finally block
+        # BaseException escapes the except Exception block, so _record_failure() is NOT called
+        # The circuit remains in HALF_OPEN state (no failure recorded)
+        assert breaker.state == CircuitState.HALF_OPEN
+
+        # Verify flag is cleared by attempting another probe (should not raise CircuitBreakerOpen)
+        success_result = breaker.call(lambda: "recovered")
+        assert success_result == "recovered"
+        assert breaker.state == CircuitState.CLOSED  # type: ignore[comparison-overlap]
+
 
 class TestCircuitBreakerExcludedExceptions:
     """Tests for excluded exceptions."""
