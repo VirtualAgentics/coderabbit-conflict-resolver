@@ -106,7 +106,7 @@ class CachingProvider:
 
         logger.debug(f"Initialized CachingProvider for {self.provider_name}/{self.model}")
 
-    def generate(self, prompt: str, max_tokens: int = 2000) -> str:
+    def generate(self, prompt: str, max_tokens: int = 2000) -> str | None:
         """Generate text completion with caching.
 
         Checks cache first using a key derived from the prompt, provider name,
@@ -119,8 +119,9 @@ class CachingProvider:
             max_tokens: Maximum tokens to generate in response (default: 2000)
 
         Returns:
-            Generated text from cache or provider. Format depends on prompt
-            design (e.g., JSON for structured output).
+            Generated text from cache or provider, or None if the provider
+            returns None. Format depends on prompt design (e.g., JSON for
+            structured output).
 
         Raises:
             RuntimeError: If generation fails after retries (from wrapped provider)
@@ -131,6 +132,11 @@ class CachingProvider:
         Note:
             Cache hits do not increment the provider's token usage or cost
             tracking. Only actual API calls affect those metrics.
+
+            Empty or None responses from the wrapped provider are not cached.
+            This treats empty responses as transient failures that may succeed
+            on retry. Prompts that consistently return empty responses will
+            trigger repeated provider calls.
 
         Examples:
             >>> cached = CachingProvider(provider)
@@ -151,16 +157,17 @@ class CachingProvider:
         logger.debug(f"Cache miss for {self.provider_name}/{self.model}, calling provider")
         response = self.provider.generate(prompt, max_tokens)
 
-        # Store in cache for future requests
-        self.cache.set(
-            cache_key,
-            response,
-            {
-                "prompt": prompt,
-                "provider": self.provider_name,
-                "model": self.model,
-            },
-        )
+        # Store in cache for future requests (skip empty responses)
+        if response:
+            self.cache.set(
+                cache_key,
+                response,
+                {
+                    "prompt": prompt,
+                    "provider": self.provider_name,
+                    "model": self.model,
+                },
+            )
 
         return response
 

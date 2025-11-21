@@ -142,6 +142,87 @@ class TestCachingProviderCacheMiss:
             assert stats.hits == 0
 
 
+class TestCachingProviderEmptyResponse:
+    """Tests for empty response handling."""
+
+    def test_generate_handles_empty_string_response(self) -> None:
+        """Test generate() returns empty string without raising."""
+        mock_provider = Mock()
+        mock_provider.model = "test-model"
+        mock_provider.generate.return_value = ""
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            cached = CachingProvider(mock_provider, cache)
+
+            # Should not raise, should return empty string
+            result = cached.generate("test prompt")
+            assert result == ""
+            mock_provider.generate.assert_called_once()
+
+    def test_generate_handles_none_response(self) -> None:
+        """Test generate() returns None without raising."""
+        mock_provider = Mock()
+        mock_provider.model = "test-model"
+        mock_provider.generate.return_value = None
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            cached = CachingProvider(mock_provider, cache)
+
+            # Should not raise, should return None
+            result = cached.generate("test prompt")
+            assert result is None
+            mock_provider.generate.assert_called_once()
+
+    def test_empty_response_not_cached(self) -> None:
+        """Test empty responses are not stored in cache."""
+        mock_provider = Mock()
+        mock_provider.model = "test-model"
+        mock_provider.generate.return_value = ""
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            cached = CachingProvider(mock_provider, cache)
+
+            # Generate with empty response
+            cached.generate("test prompt")
+
+            # Cache should have no entries
+            stats = cached.get_cache_stats()
+            assert stats.entry_count == 0
+
+            # Second call should still call provider (not cached)
+            cached.generate("test prompt")
+            assert mock_provider.generate.call_count == 2
+
+    def test_empty_response_then_valid_response(self) -> None:
+        """Test that valid response after empty is cached."""
+        mock_provider = Mock()
+        mock_provider.model = "test-model"
+        # First call returns empty, second returns valid
+        mock_provider.generate.side_effect = ["", "valid response"]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            cached = CachingProvider(mock_provider, cache)
+
+            # First call - empty response, not cached
+            result1 = cached.generate("test prompt")
+            assert result1 == ""
+
+            # Second call - valid response, gets cached
+            result2 = cached.generate("test prompt")
+            assert result2 == "valid response"
+
+            # Third call - should hit cache
+            mock_provider.generate.side_effect = None
+            mock_provider.generate.return_value = "should not be called"
+            result3 = cached.generate("test prompt")
+            assert result3 == "valid response"
+            assert mock_provider.generate.call_count == 2  # Only 2 provider calls
+
+
 class TestCachingProviderCacheKey:
     """Tests for cache key generation."""
 
@@ -387,7 +468,7 @@ class TestCachingProviderThreadSafety:
             cached = CachingProvider(mock_provider, cache)
 
             # Track results with their prompts for consistency verification
-            results_by_prompt: dict[str, list[str]] = {f"prompt-{i}": [] for i in range(5)}
+            results_by_prompt: dict[str, list[str | None]] = {f"prompt-{i}": [] for i in range(5)}
             errors: list[Exception] = []
             # Single lock for all shared state (results and errors)
             state_lock = threading.Lock()
