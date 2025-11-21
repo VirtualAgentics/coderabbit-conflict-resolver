@@ -137,6 +137,7 @@ class CircuitBreaker:
         self._failure_count = 0
         self._last_failure_time: float | None = None
         self._lock = threading.Lock()
+        self._half_open_in_flight: bool = False
 
         logger.debug(
             f"CircuitBreaker initialized: threshold={failure_threshold}, "
@@ -226,7 +227,10 @@ class CircuitBreaker:
         with self._lock:
             self._check_state_transition()
 
-            if self._state == CircuitState.OPEN:
+            # Block if OPEN, or if HALF_OPEN with a probe already in flight
+            if self._state == CircuitState.OPEN or (
+                self._state == CircuitState.HALF_OPEN and self._half_open_in_flight
+            ):
                 remaining = 0.0
                 if self._last_failure_time is not None:
                     elapsed = time.monotonic() - self._last_failure_time
@@ -236,18 +240,30 @@ class CircuitBreaker:
                     remaining_cooldown=remaining,
                 )
 
+            # Track if this is the single probe call in HALF_OPEN state
+            is_half_open_probe = self._state == CircuitState.HALF_OPEN
+            if is_half_open_probe:
+                self._half_open_in_flight = True
+
         # Execute outside lock to allow concurrent calls in CLOSED state
         try:
             result = func(*args, **kwargs)
             with self._lock:
                 self._record_success()
+                if is_half_open_probe:
+                    self._half_open_in_flight = False
             return result
         except Exception as e:
             # Check if exception should be excluded from failure tracking
             if isinstance(e, self._excluded_exceptions):
+                with self._lock:
+                    if is_half_open_probe:
+                        self._half_open_in_flight = False
                 raise
             with self._lock:
                 self._record_failure()
+                if is_half_open_probe:
+                    self._half_open_in_flight = False
             raise
 
     def reset(self) -> None:
@@ -264,6 +280,7 @@ class CircuitBreaker:
             self._state = CircuitState.CLOSED
             self._failure_count = 0
             self._last_failure_time = None
+            self._half_open_in_flight = False
             logger.info("Circuit breaker reset to CLOSED")
 
     def get_remaining_cooldown(self) -> float:

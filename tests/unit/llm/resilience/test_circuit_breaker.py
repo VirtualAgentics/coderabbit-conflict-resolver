@@ -224,6 +224,61 @@ class TestCircuitBreakerHalfOpen:
 
         assert breaker.state == CircuitState.OPEN  # type: ignore[comparison-overlap]
 
+    def test_half_open_single_probe_only(self) -> None:
+        """Only one probe call is allowed in HALF_OPEN state."""
+        import threading
+
+        breaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=0.1)
+        failing_func = MagicMock(side_effect=RuntimeError("error"))
+
+        # Trip the circuit
+        with pytest.raises(RuntimeError):
+            breaker.call(failing_func)
+
+        # Wait for HALF_OPEN
+        time.sleep(0.15)
+        assert breaker.state == CircuitState.HALF_OPEN
+
+        # Create a slow function for the probe
+        probe_started = threading.Event()
+        probe_continue = threading.Event()
+
+        def slow_probe() -> str:
+            probe_started.set()
+            probe_continue.wait(timeout=5.0)
+            return "success"
+
+        results: list[str] = []
+        errors: list[Exception] = []
+        lock = threading.Lock()
+
+        def call_probe() -> None:
+            try:
+                result = breaker.call(slow_probe)
+                with lock:
+                    results.append(result)
+            except CircuitBreakerOpen as e:
+                with lock:
+                    errors.append(e)
+
+        # Start first probe (will block in slow_probe)
+        t1 = threading.Thread(target=call_probe)
+        t1.start()
+        probe_started.wait(timeout=5.0)
+
+        # Second call should be blocked while probe is in flight
+        with pytest.raises(CircuitBreakerOpen):
+            breaker.call(lambda: "blocked")
+
+        # Let the probe complete
+        probe_continue.set()
+        t1.join(timeout=5.0)
+
+        # First probe should have succeeded
+        assert len(results) == 1
+        assert results[0] == "success"
+        assert breaker.state == CircuitState.CLOSED  # type: ignore[comparison-overlap]
+
 
 class TestCircuitBreakerExcludedExceptions:
     """Tests for excluded exceptions."""
