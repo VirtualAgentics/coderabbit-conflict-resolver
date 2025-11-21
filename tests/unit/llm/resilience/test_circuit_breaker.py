@@ -452,5 +452,6 @@ class TestCircuitBreakerThreadSafety:
         for t in threads:
             t.join()
 
-        # All failures should be tracked (up to threshold)
-        assert breaker.failure_count <= 100
+        # Verify failures were actually recorded
+        assert len(errors) > 0, "Expected some RuntimeError exceptions to be captured"
+        assert 1 <= breaker.failure_count <= 100

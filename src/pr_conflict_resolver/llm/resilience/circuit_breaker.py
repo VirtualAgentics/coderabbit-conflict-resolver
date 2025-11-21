@@ -247,25 +247,24 @@ class CircuitBreaker:
                 self._half_open_in_flight = True
 
         # Execute outside lock to allow concurrent calls in CLOSED state
+        # Use try/finally to ensure _half_open_in_flight is always cleared,
+        # even if a BaseException (e.g., KeyboardInterrupt) escapes
         try:
             result = func(*args, **kwargs)
             with self._lock:
                 self._record_success()
-                if is_half_open_probe:
-                    self._half_open_in_flight = False
             return result
         except Exception as e:
             # Check if exception should be excluded from failure tracking
             if isinstance(e, self._excluded_exceptions):
-                with self._lock:
-                    if is_half_open_probe:
-                        self._half_open_in_flight = False
                 raise
             with self._lock:
                 self._record_failure()
-                if is_half_open_probe:
-                    self._half_open_in_flight = False
             raise
+        finally:
+            if is_half_open_probe:
+                with self._lock:
+                    self._half_open_in_flight = False
 
     def reset(self) -> None:
         """Reset circuit breaker to initial closed state.
