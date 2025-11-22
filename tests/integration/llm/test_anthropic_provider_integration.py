@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from pr_conflict_resolver.llm.providers.anthropic_api import AnthropicAPIProvider
@@ -15,7 +17,8 @@ pytestmark = pytest.mark.integration
 def anthropic_provider() -> AnthropicAPIProvider:
     """Create a real Anthropic provider instance or skip when unavailable."""
     api_key = require_env_var("ANTHROPIC_API_KEY", "Anthropic")
-    provider = AnthropicAPIProvider(api_key=api_key, model="claude-haiku-4-5")
+    model = os.getenv("ANTHROPIC_MODEL", "claude-3-5-haiku-20241022")
+    provider = AnthropicAPIProvider(api_key=api_key, model=model)
 
     # Sanity check credentials and budget with a cheap call.
     guarded_call("Anthropic", lambda: provider.count_tokens("ping"))

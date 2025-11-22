@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import shutil
 from collections.abc import Callable
+from typing import TypeVar
 
 import pytest
 
@@ -28,8 +29,13 @@ def require_cli(binary: str, provider_name: str) -> None:
 def _error_text(exc: BaseException) -> str:
     """Collect error text including chained causes for matching."""
     cause = getattr(exc, "__cause__", None)
-    cause_text = f" {cause}" if cause else ""
-    return f"{exc}{cause_text}".lower()
+    context = getattr(exc, "__context__", None)
+    parts = [str(exc)]
+    if cause:
+        parts.append(str(cause))
+    if context:
+        parts.append(str(context))
+    return " ".join(parts).lower()
 
 
 def _is_auth_error(exc: BaseException) -> bool:
@@ -89,10 +95,13 @@ def handle_provider_exception(exc: BaseException, provider_name: str) -> None:
     raise exc
 
 
-def guarded_call[T](provider_name: str, func: Callable[[], T]) -> T:
+T = TypeVar("T")
+
+
+def guarded_call(provider_name: str, func: Callable[[], T]) -> T:  # noqa: UP047
     """Run a provider call and skip integration tests on auth/quota failures."""
     try:
         return func()
-    except BaseException as exc:
+    except Exception as exc:
         handle_provider_exception(exc, provider_name)
         raise

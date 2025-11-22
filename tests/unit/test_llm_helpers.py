@@ -6,6 +6,10 @@ from types import SimpleNamespace
 
 import pytest
 
+from pr_conflict_resolver.llm.exceptions import (
+    LLMAuthenticationError,
+    LLMRateLimitError,
+)
 from tests.integration.llm._helpers import (
     _is_auth_error,
     _is_budget_error,
@@ -16,10 +20,7 @@ from tests.integration.llm._helpers import (
 def test_is_auth_error_by_type() -> None:
     """Authentication error type triggers auth detection."""
 
-    class AuthExc(Exception):
-        """Auth exception."""
-
-    auth_exc = AuthExc("invalid api key")
+    auth_exc = LLMAuthenticationError("invalid api key")
     assert _is_auth_error(auth_exc)
 
 
@@ -37,10 +38,7 @@ def test_is_auth_error_by_status_code() -> None:
 def test_is_budget_error_by_type() -> None:
     """Rate limit error type triggers budget detection."""
 
-    class RateLimitExc(Exception):
-        """Rate limit exception."""
-
-    rate_exc = RateLimitExc("rate limit exceeded")
+    rate_exc = LLMRateLimitError("rate limit exceeded")
     assert _is_budget_error(rate_exc)
 
 
