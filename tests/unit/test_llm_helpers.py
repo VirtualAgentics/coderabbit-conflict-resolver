@@ -150,16 +150,27 @@ def test_handle_provider_exception_reraises_other_errors() -> None:
 
 def test_guarded_call_re_raises_unhandled() -> None:
     """guarded_call should propagate unexpected exceptions."""
+
+    def raise_runtime() -> None:
+        raise RuntimeError("boom")
+
     with pytest.raises(RuntimeError):
-        guarded_call("TestProvider", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+        guarded_call("TestProvider", raise_runtime)
 
 
 def test_guarded_call_skips_auth_and_budget() -> None:
     """guarded_call should skip on auth/budget exceptions."""
+
+    def raise_auth() -> None:
+        raise LLMAuthenticationError("auth")
+
+    def raise_rate() -> None:
+        raise LLMRateLimitError("rate limit")
+
     with pytest.raises(pytest.skip.Exception):
-        guarded_call("TestProvider", lambda: (_ for _ in ()).throw(LLMAuthenticationError("auth")))
+        guarded_call("TestProvider", raise_auth)
     with pytest.raises(pytest.skip.Exception):
-        guarded_call("TestProvider", lambda: (_ for _ in ()).throw(LLMRateLimitError("rate limit")))
+        guarded_call("TestProvider", raise_rate)
 
 
 def test_require_env_var_present(monkeypatch: pytest.MonkeyPatch) -> None:
