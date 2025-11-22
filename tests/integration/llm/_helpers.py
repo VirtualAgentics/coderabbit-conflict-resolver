@@ -104,5 +104,5 @@ def guarded_call(provider_name: str, func: Callable[[], T]) -> T:  # noqa: UP047
         return func()
     except Exception as exc:
         handle_provider_exception(exc, provider_name)
-        # Defensive: handle_provider_exception should always skip or raise.
+        # Defensive: handle_provider_exception never returns normally.
         raise AssertionError("handle_provider_exception should not return") from exc
