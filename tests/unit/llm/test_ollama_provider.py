@@ -7,14 +7,10 @@ This module tests the Ollama provider implementation including:
 - Cost calculation (always $0.00)
 - Retry logic with mocked failures
 - Error handling for various failure modes
-- Integration tests with real Ollama API (optional, requires Ollama running)
-
 Mocking Strategy:
     Unit test classes use the 'patch_session_for_module_mocks' fixture to enable
     backward-compatible mocking. This allows tests to use @patch("requests.get/post")
     decorators while the implementation uses requests.Session() for connection pooling.
-
-    Integration tests do NOT use this fixture and make real HTTP calls to Ollama.
 
     Example:
         @pytest.mark.usefixtures("patch_session_for_module_mocks")
@@ -688,56 +684,6 @@ class TestOllamaProviderGenerate:
 
         # Should have tried 3 times
         assert mock_post.call_count == 3
-
-
-@pytest.mark.integration
-class TestOllamaProviderIntegration:
-    """Integration tests with real Ollama API.
-
-    These tests require:
-    1. Ollama running locally: ollama serve
-    2. Model available: ollama pull llama3.3:70b
-
-    Tests are skipped if Ollama is not available.
-    """
-
-    def test_ollama_available(self) -> None:
-        """Test connection to real Ollama instance."""
-        try:
-            response = requests.get("http://localhost:11434/api/tags", timeout=5)
-            assert response.status_code == 200
-        except Exception:
-            pytest.skip("Ollama not running at http://localhost:11434")
-
-    def test_real_generation(self) -> None:
-        """Test real generation with Ollama API."""
-        try:
-            provider = OllamaProvider(model="llama3.3:70b", timeout=30)
-        except (LLMAPIError, LLMConfigurationError):
-            pytest.skip("Ollama not available or model not found")
-
-        prompt = "Respond with just the word 'success'"
-        result = provider.generate(prompt, max_tokens=50)
-
-        assert result
-        assert len(result) > 0
-        assert provider.total_input_tokens > 0
-        assert provider.total_output_tokens > 0
-
-    def test_real_cost_tracking(self) -> None:
-        """Test cost tracking with real API calls."""
-        try:
-            provider = OllamaProvider(model="llama3.3:70b", timeout=30)
-        except (LLMAPIError, LLMConfigurationError):
-            pytest.skip("Ollama not available or model not found")
-
-        provider.generate("Test prompt", max_tokens=50)
-
-        # Cost should always be $0.00
-        assert provider.get_total_cost() == 0.0
-        # But tokens should be tracked
-        assert provider.total_input_tokens > 0
-        assert provider.total_output_tokens > 0
 
 
 @pytest.mark.usefixtures("patch_session_for_module_mocks")

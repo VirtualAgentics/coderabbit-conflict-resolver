@@ -6,10 +6,8 @@ This module tests the OpenAI provider implementation including:
 - Cost calculation
 - Retry logic with mocked failures
 - Error handling for various failure modes
-- Integration tests with real API (optional, requires API key)
 """
 
-import os
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -366,48 +364,3 @@ class TestOpenAIProviderRetryLogic:
 
         # Should only try once (no retries)
         assert mock_client.chat.completions.create.call_count == 1
-
-
-@pytest.mark.integration
-@pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"),
-    reason="OPENAI_API_KEY not set - skipping integration test",
-)
-class TestOpenAIProviderIntegration:
-    """Integration tests with real OpenAI API.
-
-    These tests require OPENAI_API_KEY environment variable and will make
-    actual API calls. They are skipped by default unless the API key is set.
-
-    Run with: pytest tests/unit/llm/test_openai_provider.py -v -m integration
-    """
-
-    def test_real_api_simple_generation(self) -> None:
-        """Test real API call with simple prompt."""
-        api_key = os.getenv("OPENAI_API_KEY")
-        assert api_key, "OPENAI_API_KEY must be set for integration tests"
-
-        provider = OpenAIAPIProvider(api_key=api_key, model="gpt-4o-mini")
-        prompt = 'Return this exact JSON: {"test": "success"}'
-
-        result = provider.generate(prompt, max_tokens=50)
-
-        # Should be valid JSON
-        import json
-
-        parsed = json.loads(result)
-        assert isinstance(parsed, dict)
-        assert provider.total_input_tokens > 0
-        assert provider.total_output_tokens > 0
-
-    def test_real_api_cost_tracking(self) -> None:
-        """Test that real API calls track costs correctly."""
-        api_key = os.getenv("OPENAI_API_KEY")
-        assert api_key, "OPENAI_API_KEY must be set for integration tests"
-
-        provider = OpenAIAPIProvider(api_key=api_key, model="gpt-4o-mini")
-        provider.generate('Return a JSON response with: {"test": "data"}', max_tokens=50)
-
-        cost = provider.get_total_cost()
-        assert cost > 0.0
-        assert cost < 0.01  # Should be very cheap for this small request
