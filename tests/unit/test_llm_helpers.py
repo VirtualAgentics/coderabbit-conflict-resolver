@@ -14,6 +14,8 @@ from tests.integration.llm._helpers import (
     _is_auth_error,
     _is_budget_error,
     handle_provider_exception,
+    require_cli,
+    require_env_var,
 )
 
 
@@ -133,3 +135,27 @@ def test_handle_provider_exception_reraises_other_errors() -> None:
     other_exc = RuntimeError("unexpected failure")
     with pytest.raises(RuntimeError):
         handle_provider_exception(other_exc, "TestProvider")
+
+
+def test_require_env_var_present(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Return env value when present."""
+    monkeypatch.setenv("TEST_KEY", "value")
+    assert require_env_var("TEST_KEY", "Test") == "value"
+
+
+def test_require_env_var_missing_or_empty_skips(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Skip when env missing or empty."""
+    monkeypatch.delenv("MISSING_KEY", raising=False)
+    with pytest.raises(pytest.skip.Exception):
+        require_env_var("MISSING_KEY", "Test")
+
+    monkeypatch.setenv("EMPTY_KEY", "")
+    with pytest.raises(pytest.skip.Exception):
+        require_env_var("EMPTY_KEY", "Test")
+
+
+def test_require_cli_skips_when_binary_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Skip when CLI binary is unavailable."""
+    monkeypatch.setenv("PATH", "")  # ensure lookup fails
+    with pytest.raises(pytest.skip.Exception):
+        require_cli("nonexistent-binary", "Test CLI")
