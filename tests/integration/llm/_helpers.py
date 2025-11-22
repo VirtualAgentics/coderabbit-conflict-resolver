@@ -64,7 +64,7 @@ def _is_auth_error(exc: BaseException) -> bool:
 
 def _is_budget_error(exc: BaseException) -> bool:
     """Detect rate limit or exhausted budget errors."""
-    if isinstance(exc, (LLMRateLimitError,)):
+    if isinstance(exc, LLMRateLimitError):
         return True
 
     status_code = getattr(exc, "status_code", None)
