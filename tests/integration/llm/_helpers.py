@@ -86,7 +86,7 @@ def _is_budget_error(exc: BaseException) -> bool:
     )
 
 
-def handle_provider_exception(exc: BaseException, provider_name: str) -> None:
+def handle_provider_exception(exc: Exception, provider_name: str) -> None:
     """Skip integration tests for auth/quota failures, otherwise re-raise."""
     if _is_auth_error(exc):
         pytest.skip(f"{provider_name} credentials invalid or expired")

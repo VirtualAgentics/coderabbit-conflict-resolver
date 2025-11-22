@@ -35,6 +35,39 @@ def test_is_auth_error_by_status_code() -> None:
     assert _is_auth_error(resp_exc)
 
 
+def test_is_auth_error_by_message_only() -> None:
+    """Auth text matches should trigger even without types or status codes."""
+    exc = Exception("authentication failed for user")
+    assert _is_auth_error(exc)
+
+
+def test_is_auth_error_combined_signals() -> None:
+    """Type or status or message combinations trigger auth detection."""
+    typed = LLMAuthenticationError("auth failed")
+    typed.status_code = 500  # type: ignore[attr-defined]
+    assert _is_auth_error(typed)
+
+    status_only = Exception("temporary issue")
+    status_only.status_code = 401  # type: ignore[attr-defined]
+    assert _is_auth_error(status_only)
+
+    response_status = Exception("forbidden response")
+    response_status.response = SimpleNamespace(status_code=403)  # type: ignore[attr-defined]
+    assert _is_auth_error(response_status)
+
+
+def test_is_auth_error_chained_exceptions() -> None:
+    """Chained cause/context containing auth cues should trigger detection."""
+    inner = Exception("authentication failed")
+    outer = Exception("outer wrapper")
+    outer.__cause__ = inner
+    assert _is_auth_error(outer)
+
+    context_exc = Exception("outer wrapper")
+    context_exc.__context__ = Exception("forbidden")
+    assert _is_auth_error(context_exc)
+
+
 def test_is_budget_error_by_type() -> None:
     """Rate limit error type triggers budget detection."""
 
@@ -51,6 +84,35 @@ def test_is_budget_error_by_status_code() -> None:
     resp_exc = Exception("quota")
     resp_exc.response = SimpleNamespace(status_code=402)  # type: ignore[attr-defined]
     assert _is_budget_error(resp_exc)
+
+
+def test_is_budget_error_by_message_only() -> None:
+    """Budget text matches should trigger even without types or status codes."""
+    exc = Exception("rate limit exceeded on request")
+    assert _is_budget_error(exc)
+
+
+def test_is_budget_error_chained_exceptions() -> None:
+    """Chained cause/context containing budget cues should trigger detection."""
+    inner = Exception("quota exceeded")
+    outer = Exception("outer")
+    outer.__cause__ = inner
+    assert _is_budget_error(outer)
+
+    context_exc = Exception("outer")
+    context_exc.__context__ = Exception("rate limit hit")
+    assert _is_budget_error(context_exc)
+
+
+def test_is_budget_error_combined_status_signals() -> None:
+    """Status codes on exc or response should trigger budget detection."""
+    status_only = Exception("ok")
+    status_only.status_code = 429  # type: ignore[attr-defined]
+    assert _is_budget_error(status_only)
+
+    resp_status_only = Exception("ok")
+    resp_status_only.response = SimpleNamespace(status_code=402)  # type: ignore[attr-defined]
+    assert _is_budget_error(resp_status_only)
 
 
 def test_handle_provider_exception_skips_on_auth_or_budget() -> None:
