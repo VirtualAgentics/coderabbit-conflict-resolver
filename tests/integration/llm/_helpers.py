@@ -57,6 +57,8 @@ def _is_auth_error(exc: Exception) -> bool:
             "invalid api key",
             "expired",
             "forbidden",
+            "permission denied",
+            "access denied",
             "401",
         )
     )
@@ -98,7 +100,9 @@ def handle_provider_exception(exc: Exception, provider_name: str) -> None:
 T = TypeVar("T")
 
 
-def guarded_call(provider_name: str, func: Callable[[], T]) -> T:  # noqa: UP047
+def guarded_call(  # noqa: UP047 - TypeVar style kept for Python 3.11 compatibility
+    provider_name: str, func: Callable[[], T]
+) -> T:
     """Run a provider call and skip integration tests on auth/quota failures."""
     try:
         return func()
