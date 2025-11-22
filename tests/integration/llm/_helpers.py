@@ -26,7 +26,7 @@ def require_cli(binary: str, provider_name: str) -> None:
         pytest.skip(f"{provider_name} CLI not installed ({binary})")
 
 
-def _error_text(exc: BaseException) -> str:
+def _error_text(exc: Exception) -> str:
     """Collect error text including chained causes for matching."""
     cause = getattr(exc, "__cause__", None)
     context = getattr(exc, "__context__", None)
@@ -38,7 +38,7 @@ def _error_text(exc: BaseException) -> str:
     return " ".join(parts).lower()
 
 
-def _is_auth_error(exc: BaseException) -> bool:
+def _is_auth_error(exc: Exception) -> bool:
     """Detect authentication/authorization failures."""
     if isinstance(exc, LLMAuthenticationError):
         return True
@@ -62,7 +62,7 @@ def _is_auth_error(exc: BaseException) -> bool:
     )
 
 
-def _is_budget_error(exc: BaseException) -> bool:
+def _is_budget_error(exc: Exception) -> bool:
     """Detect rate limit or exhausted budget errors."""
     if isinstance(exc, LLMRateLimitError):
         return True
@@ -104,4 +104,5 @@ def guarded_call(provider_name: str, func: Callable[[], T]) -> T:  # noqa: UP047
         return func()
     except Exception as exc:
         handle_provider_exception(exc, provider_name)
-        raise
+        # Defensive: handle_provider_exception should always skip or raise.
+        raise AssertionError("handle_provider_exception should not return") from exc
