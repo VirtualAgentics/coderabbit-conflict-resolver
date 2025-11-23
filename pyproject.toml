@@ -161,6 +161,9 @@ ignore = [
 "src/pr_conflict_resolver/llm/providers/base.py" = [
     "PIE790",  # pass is necessary to satisfy CodeQL py/ineffectual-statement
 ]
+"src/pr_conflict_resolver/llm/parallel_parser.py" = [
+    "RUF100",  # Allow noqa: B018 comments for CodeQL suppression (B018 is Bandit rule, not Ruff)
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
