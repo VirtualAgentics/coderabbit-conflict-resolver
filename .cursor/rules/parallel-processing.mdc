@@ -7,6 +7,9 @@ alwaysApply: false
 
 # Parallel Processing Guidelines
 
+> **Implementation Status**: This rule documents parallel file processing, which is implemented (`_apply_changes_parallel()` in `resolver.py`). Parallel LLM comment parsing is NOT yet implemented (Issue #223).
+
+
 ## ThreadPoolExecutor Patterns
 
 ### Basic Pattern

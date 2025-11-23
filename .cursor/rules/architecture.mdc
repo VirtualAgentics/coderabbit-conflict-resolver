@@ -170,7 +170,7 @@ src/pr_conflict_resolver/llm/
 │   ├── openai_api.py   # OpenAI API provider
 │   ├── anthropic_api.py # Anthropic API provider
 │   ├── ollama.py        # Ollama local provider
-│   └── claude_cli.py    # Claude CLI provider (planned)
+│   └── claude_cli.py    # Claude CLI provider (IMPLEMENTED)
 ├── cache/               # Prompt caching
 │   └── prompt_cache.py  # File-based cache with TTL
 └── prompts/             # Prompt templates

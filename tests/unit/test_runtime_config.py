@@ -388,20 +388,18 @@ class TestRuntimeConfigValidation:
                 log_file=None,
             )
 
-    def test_max_workers_very_high_warns(self, caplog: pytest.LogCaptureFixture) -> None:
-        """Test that very high max_workers triggers a warning."""
-        config = RuntimeConfig(
-            mode=ApplicationMode.ALL,
-            enable_rollback=True,
-            validate_before_apply=True,
-            parallel_processing=False,
-            max_workers=64,
-            log_level="INFO",
-            log_file=None,
-        )
-        assert config.max_workers == 64
-        # Check that warning was logged
-        assert any("very high" in record.message.lower() for record in caplog.records)
+    def test_max_workers_very_high_raises_error(self) -> None:
+        """Test that max_workers > 32 raises ConfigError."""
+        with pytest.raises(ConfigError, match="max_workers should be <= 32"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=True,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=64,
+                log_level="INFO",
+                log_file=None,
+            )
 
 
 class TestRuntimeConfigMergeWithCLI:

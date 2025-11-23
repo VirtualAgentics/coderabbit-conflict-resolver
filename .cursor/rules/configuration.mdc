@@ -20,10 +20,12 @@ Configuration must follow this strict precedence order (highest to lowest):
 ### Implementation Pattern
 
 ```python
+from dataclasses import dataclass, replace
+
 @dataclass(frozen=True, slots=True)
 class RuntimeConfig:
     @classmethod
-    def from_sources(
+    def merge_with_cli(
         cls,
         config_file: Path | None = None,
         preset: str | None = None,
@@ -35,20 +37,20 @@ class RuntimeConfig:
         # 2. Apply preset if specified
         if preset:
             preset_config = PresetConfig.get_preset(preset)
-            config = config.merge(preset_config)
+            config = replace(config, **preset_config.to_dict())
 
         # 3. Load from config file
         if config_file:
             file_config = cls.from_file(config_file)
-            config = config.merge(file_config)
+            config = replace(config, **file_config.to_dict())
 
         # 4. Apply environment variables
         env_config = cls.from_env()
-        config = config.merge(env_config)
+        config = replace(config, **env_config.to_dict())
 
         # 5. Apply CLI overrides (highest priority)
         if cli_overrides:
-            config = config.merge(cli_overrides)
+            config = replace(config, **cli_overrides)
 
         return config
 ```
@@ -144,6 +146,8 @@ def __post_init__(self) -> None:
 Use frozen dataclasses for immutability:
 
 ```python
+from dataclasses import dataclass, replace
+
 @dataclass(frozen=True, slots=True)
 class RuntimeConfig:
     mode: ApplicationMode

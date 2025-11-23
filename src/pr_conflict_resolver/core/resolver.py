@@ -11,6 +11,7 @@ import logging
 import os
 import stat
 import threading
+from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from os import PathLike
 from pathlib import Path
@@ -30,6 +31,7 @@ from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
 from pr_conflict_resolver.integrations.github import GitHubCommentExtractor
 from pr_conflict_resolver.llm.base import LLMParser, ParsedChange
 from pr_conflict_resolver.llm.metrics import LLMMetrics
+from pr_conflict_resolver.llm.parallel_parser import CommentInput, ParallelLLMParser
 from pr_conflict_resolver.security.input_validator import InputValidator
 from pr_conflict_resolver.strategies.priority_strategy import PriorityStrategy
 from pr_conflict_resolver.utils.path_utils import resolve_file_path
@@ -139,7 +141,13 @@ class ConflictResolver:
         content_str = f"{path}:{start}:{end}:{normalized}"
         return hashlib.sha256(content_str.encode()).hexdigest()[:16]
 
-    def extract_changes_from_comments(self, comments: list[dict[str, Any]]) -> list[Change]:
+    def extract_changes_from_comments(
+        self,
+        comments: list[dict[str, Any]],
+        parallel_parsing: bool = False,
+        max_workers: int = 4,
+        progress_callback: Callable[[int, int], None] | None = None,
+    ) -> list[Change]:
         """Extracts suggested code changes from GitHub PR comment bodies.
 
         When an LLM parser is configured, attempts LLM-powered parsing first to extract
@@ -147,24 +155,54 @@ class ConflictResolver:
         parsing yields no results or no parser is configured, falls back to regex-based
         extraction of standard suggestion blocks.
 
+        Supports parallel parsing for large PRs (5+ comments) when using ParallelLLMParser
+        and parallel_parsing=True. Parallel parsing provides significant speedup (4x+)
+        for PRs with many comments.
+
         Returns Change objects with complete metadata (author, URL, source), computed
         fingerprints for deduplication, and detected file types.
 
         Args:
-            comments (list[dict[str, Any]]): List of GitHub comment dictionaries. Each
-                comment may contain keys used by this function:
-                  - "path": repository file path the comment targets (required to extract).
-                  - "body": comment text (used to parse suggestion code blocks).
-                  - "start_line" or "original_start_line": optional starting line of the suggestion.
-                  - "line" or "original_line": ending line of the suggestion (required).
-                  - "html_url": URL of the comment.
-                  - "user": dict containing "login" for author username.
+            comments: List of GitHub comment dictionaries. Each comment may contain keys:
+                - "path": repository file path the comment targets (required to extract).
+                - "body": comment text (used to parse suggestion code blocks).
+                - "start_line" or "original_start_line": optional starting line of the suggestion.
+                - "line" or "original_line": ending line of the suggestion (required).
+                - "html_url": URL of the comment.
+                - "user": dict containing "login" for author username.
+            parallel_parsing: If True and parser is ParallelLLMParser, use parallel parsing
+                for 5+ comments. Default: False.
+            max_workers: Maximum number of worker threads for parallel parsing (default: 4).
+                Only used if parallel_parsing=True and parser supports it.
+            progress_callback: Optional callback(completed, total) for progress updates.
+                Only used with parallel parsing.
 
         Returns:
             list[Change]: A list of Change objects representing parsed suggestions. Each
             Change contains path, start_line, end_line, content, metadata (url, author,
             source, parsing_method), fingerprint, file_type, and LLM metadata (if parsed
             via LLM).
+        """
+        # Use parallel parsing if enabled and parser supports it
+        if (
+            parallel_parsing
+            and self.llm_parser
+            and isinstance(self.llm_parser, ParallelLLMParser)
+            and len(comments) >= 5
+        ):
+            return self._extract_changes_parallel(comments, max_workers, progress_callback)
+
+        # Use sequential parsing (existing logic)
+        return self._extract_changes_sequential(comments)
+
+    def _extract_changes_sequential(self, comments: list[dict[str, Any]]) -> list[Change]:
+        """Extract changes from comments sequentially (original implementation).
+
+        Args:
+            comments: List of GitHub comment dictionaries.
+
+        Returns:
+            list[Change]: List of Change objects extracted from comments.
         """
         changes = []
 
@@ -212,6 +250,182 @@ class ConflictResolver:
                     parsing_method="regex",  # Mark as regex-parsed for tracking
                 )
                 changes.append(change)
+
+        return changes
+
+    def _extract_changes_parallel(
+        self,
+        comments: list[dict[str, Any]],
+        max_workers: int = 4,
+        progress_callback: Callable[[int, int], None] | None = None,
+    ) -> list[Change]:
+        """Extract changes using parallel LLM parsing.
+
+        Uses ParallelLLMParser to process multiple comments concurrently, providing
+        significant speedup for large PRs. Falls back to regex parsing for comments
+        that don't have required fields or fail LLM parsing.
+
+        Args:
+            comments: List of GitHub comment dictionaries.
+            max_workers: Maximum number of worker threads. If provided, overrides the
+                parser's configured max_workers setting for this call only.
+            progress_callback: Optional callback(completed, total) for progress updates.
+
+        Returns:
+            list[Change]: List of Change objects extracted from comments.
+        """
+        if not isinstance(self.llm_parser, ParallelLLMParser):
+            self.logger.warning(
+                "Parallel parsing requested but parser is not ParallelLLMParser, "
+                "falling back to sequential"
+            )
+            return self._extract_changes_sequential(comments)
+
+        # Override parser's max_workers if provided (runtime override)
+        original_max_workers = self.llm_parser.max_workers
+        should_restore = False
+
+        try:
+            if max_workers is not None and max_workers != original_max_workers:
+                if max_workers < 1:
+                    self.logger.warning(
+                        f"Invalid max_workers={max_workers}, "
+                        f"using parser default={original_max_workers}"
+                    )
+                else:
+                    self.llm_parser.max_workers = max_workers
+                    should_restore = True
+                    self.logger.debug(
+                        f"Overriding parser max_workers: {original_max_workers} -> {max_workers}"
+                    )
+
+            # Filter comments to those with required fields for LLM parsing
+            valid_comments: list[CommentInput] = []
+            comment_indices: list[int] = []  # Track original indices for regex fallback
+
+            for idx, comment in enumerate(comments):
+                path = comment.get("path")
+                body = comment.get("body", "")
+                line = comment.get("line") or comment.get("original_line")
+
+                if path and body and line:
+                    valid_comments.append(
+                        CommentInput(
+                            body=body,
+                            file_path=path,
+                            line_number=line,
+                        )
+                    )
+                    comment_indices.append(idx)
+
+            if not valid_comments:
+                self.logger.warning("No valid comments for parallel LLM parsing, using sequential")
+                return self._extract_changes_sequential(comments)
+
+            self.logger.info(
+                f"Parsing {len(valid_comments)}/{len(comments)} comments in parallel "
+                f"(max_workers={self.llm_parser.max_workers})"
+            )
+
+            # Parse comments in parallel
+            parsed_results = self.llm_parser.parse_comments(valid_comments, progress_callback)
+
+            # Convert ParsedChange lists to Change objects
+            changes: list[Change] = []
+            for idx, parsed_changes in enumerate(parsed_results):
+                original_comment_idx = comment_indices[idx]
+                original_comment = comments[original_comment_idx]
+
+                if parsed_changes:
+                    # Convert ParsedChange objects to Change objects
+                    for parsed_change in parsed_changes:
+                        change = self._convert_parsed_change_to_change(
+                            parsed_change=parsed_change,
+                            comment=original_comment,
+                        )
+                        changes.append(change)
+                else:
+                    # LLM parsing failed or returned no results, fall back to regex
+                    self.logger.debug(
+                        f"LLM parsing returned no results for comment {idx+1}, "
+                        "falling back to regex"
+                    )
+                    regex_changes = self._extract_changes_with_regex_fallback(original_comment)
+                    changes.extend(regex_changes)
+
+            # Also process comments that didn't have required fields for LLM parsing
+            # Convert to set for O(1) lookup
+            comment_indices_set = set(comment_indices)
+            for idx, comment in enumerate(comments):
+                if idx not in comment_indices_set:
+                    # These comments didn't have required fields, try regex parsing
+                    regex_changes = self._extract_changes_with_regex_fallback(comment)
+                    changes.extend(regex_changes)
+
+            self.logger.info(f"Parallel parsing complete: extracted {len(changes)} changes")
+            return changes
+
+        finally:
+            # Always restore original max_workers if it was overridden
+            if should_restore:
+                self.llm_parser.max_workers = original_max_workers
+                self.logger.debug(f"Restored parser max_workers to {original_max_workers}")
+
+    def _extract_changes_with_regex_fallback(self, comment: dict[str, Any]) -> list[Change]:
+        """Extract changes from comment using regex fallback parsing.
+
+        This helper method extracts changes from suggestion blocks in a comment
+        when LLM parsing is not available or has failed. Used as fallback in
+        both sequential and parallel parsing paths.
+
+        Args:
+            comment: GitHub comment dictionary containing:
+                - "body": comment text to parse
+                - "path": target file path
+                - "start_line" or "original_start_line": optional starting line
+                - "line" or "original_line": ending line number
+                - "html_url": comment URL
+                - "user": dict with "login" for author
+
+        Returns:
+            list[Change]: List of Change objects extracted via regex, or empty list
+                if comment doesn't have required fields or no suggestions found.
+        """
+        path = comment.get("path")
+        if not path:
+            return []
+
+        suggestion_blocks = self._parse_comment_suggestions(comment.get("body", ""))
+
+        changes = []
+        for block in suggestion_blocks:
+            start_line = comment.get("start_line") or comment.get("original_start_line")
+            end_line = comment.get("line") or comment.get("original_line")
+
+            if not end_line:
+                continue
+            if start_line is None:
+                start_line = end_line
+
+            file_type = self.detect_file_type(path)
+            fingerprint = self.generate_fingerprint(path, start_line, end_line, block["content"])
+
+            change = Change(
+                path=path,
+                start_line=int(start_line),
+                end_line=int(end_line),
+                content=block["content"],
+                metadata={
+                    "url": comment.get("html_url", ""),
+                    "author": (comment.get("user") or {}).get("login", ""),
+                    "source": "suggestion",
+                    "option_label": block.get("option_label"),
+                },
+                fingerprint=fingerprint,
+                file_type=file_type,
+                parsing_method="regex",
+            )
+            changes.append(change)
 
         return changes
 

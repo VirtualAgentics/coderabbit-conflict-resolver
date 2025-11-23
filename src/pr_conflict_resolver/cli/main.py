@@ -7,6 +7,7 @@ import re
 import click
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 from rich.table import Table
 
 from pr_conflict_resolver.cli.config_loader import load_runtime_config
@@ -16,6 +17,7 @@ from pr_conflict_resolver.config.runtime_config import (
     ApplicationMode,
 )
 from pr_conflict_resolver.core.resolver import ConflictResolver
+from pr_conflict_resolver.llm.base import LLMParser
 from pr_conflict_resolver.llm.exceptions import LLMError
 from pr_conflict_resolver.llm.metrics import LLMMetrics
 from pr_conflict_resolver.llm.presets import LLMPresetConfig
@@ -345,6 +347,21 @@ def _display_llm_metrics(metrics: LLMMetrics) -> None:
     ),
 )
 @click.option(
+    "--llm-parallel-parsing/--no-llm-parallel-parsing",
+    default=None,
+    help="Enable/disable parallel comment parsing for large PRs (default: disabled)",
+)
+@click.option(
+    "--llm-parallel-workers",
+    type=int,
+    help="Maximum worker threads for parallel comment parsing (default: 4)",
+)
+@click.option(
+    "--llm-rate-limit",
+    type=float,
+    help="Maximum requests per second for parallel parsing (default: 10.0)",
+)
+@click.option(
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
     help="Logging level (default: INFO)",
@@ -364,6 +381,9 @@ def analyze(
     llm_model: str | None,
     llm_preset: str | None,
     llm_api_key: str | None,
+    llm_parallel_parsing: bool | None,
+    llm_parallel_workers: int | None,
+    llm_rate_limit: float | None,
     log_level: str | None,
     log_file: str | None,
 ) -> None:
@@ -383,6 +403,9 @@ def analyze(
         llm_model: LLM model identifier (e.g., claude-sonnet-4-5, gpt-4).
         llm_preset: LLM configuration preset for zero-config setup.
         llm_api_key: API key for API-based providers (OpenAI, Anthropic).
+        llm_parallel_parsing: Enable (True) or disable (False) parallel comment parsing.
+        llm_parallel_workers: Maximum worker threads for parallel comment parsing.
+        llm_rate_limit: Maximum requests per second for parallel comment parsing.
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Path to log file for output.
 
@@ -402,6 +425,9 @@ def analyze(
             "llm_cache_enabled": "CR_LLM_CACHE_ENABLED",
             "llm_max_tokens": "CR_LLM_MAX_TOKENS",
             "llm_cost_budget": "CR_LLM_COST_BUDGET",
+            "llm_parallel_parsing": "CR_LLM_PARALLEL_PARSING",
+            "llm_parallel_max_workers": "CR_LLM_PARALLEL_WORKERS",
+            "llm_rate_limit": "CR_LLM_RATE_LIMIT",
         }
 
         cli_overrides = {
@@ -411,6 +437,9 @@ def analyze(
             "llm_provider": llm_provider,
             "llm_model": llm_model,
             "llm_api_key": llm_api_key,  # API key from CLI (highest priority)
+            "llm_parallel_parsing": llm_parallel_parsing,
+            "llm_parallel_max_workers": llm_parallel_workers,
+            "llm_rate_limit": llm_rate_limit,
         }
 
         runtime_config, preset_name = load_runtime_config(
@@ -457,10 +486,11 @@ def analyze(
         config_preset = PresetConfig.BALANCED
 
     # Initialize LLM parser if enabled
-    llm_parser = None
+    llm_parser: LLMParser | None = None
     if runtime_config.llm_enabled:
         try:
             from pr_conflict_resolver.llm.factory import create_provider
+            from pr_conflict_resolver.llm.parallel_parser import ParallelLLMParser
             from pr_conflict_resolver.llm.parser import UniversalLLMParser
 
             # Create provider from RuntimeConfig
@@ -470,18 +500,33 @@ def analyze(
                 api_key=runtime_config.llm_api_key,
             )
 
-            # Create parser with provider
-            llm_parser = UniversalLLMParser(
-                provider=provider,
-                fallback_to_regex=runtime_config.llm_fallback_to_regex,
-                confidence_threshold=0.5,  # Default confidence threshold
-                max_tokens=runtime_config.llm_max_tokens,
-            )
-
-            console.print(
-                f"[dim]✓ LLM parser initialized: {runtime_config.llm_provider} "
-                f"({runtime_config.llm_model})[/dim]"
-            )
+            # Create parser with provider (use ParallelLLMParser if parallel parsing enabled)
+            if runtime_config.llm_parallel_parsing:
+                llm_parser = ParallelLLMParser(
+                    provider=provider,
+                    max_workers=runtime_config.llm_parallel_max_workers,
+                    rate_limit=runtime_config.llm_rate_limit,
+                    fallback_to_regex=runtime_config.llm_fallback_to_regex,
+                    confidence_threshold=0.5,  # Default confidence threshold
+                    max_tokens=runtime_config.llm_max_tokens,
+                )
+                console.print(
+                    f"[dim]✓ Parallel LLM parser initialized: "
+                    f"{runtime_config.llm_provider} ({runtime_config.llm_model}, "
+                    f"{runtime_config.llm_parallel_max_workers} workers, "
+                    f"{runtime_config.llm_rate_limit} req/s)[/dim]"
+                )
+            else:
+                llm_parser = UniversalLLMParser(
+                    provider=provider,
+                    fallback_to_regex=runtime_config.llm_fallback_to_regex,
+                    confidence_threshold=0.5,  # Default confidence threshold
+                    max_tokens=runtime_config.llm_max_tokens,
+                )
+                console.print(
+                    f"[dim]✓ LLM parser initialized: {runtime_config.llm_provider} "
+                    f"({runtime_config.llm_model})[/dim]"
+                )
 
         except Exception as e:
             console.print(f"[yellow]⚠ Warning: Failed to initialize LLM parser: {e}[/yellow]")
@@ -524,7 +569,36 @@ def analyze(
             if runtime_config.llm_enabled and llm_parser:
                 # Extract all changes to compute metrics
                 comments = resolver._fetch_comments_with_error_context(owner, repo, pr)
-                changes = resolver.extract_changes_from_comments(comments)
+
+                # Use parallel parsing if enabled and parser supports it
+                if runtime_config.llm_parallel_parsing and isinstance(
+                    llm_parser, ParallelLLMParser
+                ):
+                    # Create progress callback for Rich progress bar
+                    progress = Progress(
+                        SpinnerColumn(),
+                        TextColumn("[progress.description]{task.description}"),
+                        BarColumn(),
+                        TaskProgressColumn(),
+                        console=console,
+                    )
+
+                    with progress:
+                        task_id = progress.add_task("Parsing comments...", total=len(comments))
+
+                        def progress_callback(completed: int, total: int) -> None:
+                            """Update progress bar."""
+                            progress.update(task_id, completed=completed)
+
+                        changes = resolver.extract_changes_from_comments(
+                            comments,
+                            parallel_parsing=True,
+                            max_workers=runtime_config.llm_parallel_max_workers,
+                            progress_callback=progress_callback,
+                        )
+                else:
+                    changes = resolver.extract_changes_from_comments(comments)
+
                 llm_metrics = resolver._aggregate_llm_metrics(changes)
 
                 if llm_metrics:
@@ -619,6 +693,21 @@ def analyze(
     ),
 )
 @click.option(
+    "--llm-parallel-parsing/--no-llm-parallel-parsing",
+    default=None,
+    help="Enable/disable parallel comment parsing for large PRs (default: disabled)",
+)
+@click.option(
+    "--llm-parallel-workers",
+    type=int,
+    help="Maximum worker threads for parallel comment parsing (default: 4)",
+)
+@click.option(
+    "--llm-rate-limit",
+    type=float,
+    help="Maximum requests per second for parallel parsing (default: 10.0)",
+)
+@click.option(
     "--config",
     type=str,
     help=(
@@ -652,6 +741,9 @@ def apply(
     llm_model: str | None,
     llm_preset: str | None,
     llm_api_key: str | None,
+    llm_parallel_parsing: bool | None,
+    llm_parallel_workers: int | None,
+    llm_rate_limit: float | None,
     config: str | None,
     log_level: str | None,
     log_file: str | None,
@@ -683,6 +775,9 @@ def apply(
             (codex-cli-free, ollama-local, claude-cli-sonnet, openai-api-mini,
             anthropic-api-balanced).
         llm_api_key: API key for API-based providers (OpenAI, Anthropic).
+        llm_parallel_parsing: Enable parallel LLM comment parsing for large PRs.
+        llm_parallel_workers: Maximum worker threads for parallel LLM parsing (1-32).
+        llm_rate_limit: Rate limit for LLM API calls (requests/second, minimum 0.1).
         config: Configuration preset name or path to configuration file (YAML or TOML).
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Path to log file for output.
@@ -742,6 +837,9 @@ def apply(
             "llm_cache_enabled": "CR_LLM_CACHE_ENABLED",
             "llm_max_tokens": "CR_LLM_MAX_TOKENS",
             "llm_cost_budget": "CR_LLM_COST_BUDGET",
+            "llm_parallel_parsing": "CR_LLM_PARALLEL_PARSING",
+            "llm_parallel_max_workers": "CR_LLM_PARALLEL_WORKERS",
+            "llm_rate_limit": "CR_LLM_RATE_LIMIT",
         }
 
         cli_overrides = {
@@ -756,6 +854,9 @@ def apply(
             "llm_provider": llm_provider,
             "llm_model": llm_model,
             "llm_api_key": llm_api_key,  # API key from CLI (highest priority)
+            "llm_parallel_parsing": llm_parallel_parsing,
+            "llm_parallel_max_workers": llm_parallel_workers,
+            "llm_rate_limit": llm_rate_limit,
         }
 
         runtime_config, preset_name = load_runtime_config(
@@ -818,10 +919,11 @@ def apply(
         config_preset = PresetConfig.BALANCED
 
     # Initialize LLM parser if enabled
-    llm_parser = None
+    llm_parser: LLMParser | None = None
     if runtime_config.llm_enabled:
         try:
             from pr_conflict_resolver.llm.factory import create_provider
+            from pr_conflict_resolver.llm.parallel_parser import ParallelLLMParser
             from pr_conflict_resolver.llm.parser import UniversalLLMParser
 
             # Create provider from RuntimeConfig
@@ -831,18 +933,33 @@ def apply(
                 api_key=runtime_config.llm_api_key,
             )
 
-            # Create parser with provider
-            llm_parser = UniversalLLMParser(
-                provider=provider,
-                fallback_to_regex=runtime_config.llm_fallback_to_regex,
-                confidence_threshold=0.5,  # Default confidence threshold
-                max_tokens=runtime_config.llm_max_tokens,
-            )
-
-            console.print(
-                f"[dim]✓ LLM parser initialized: {runtime_config.llm_provider} "
-                f"({runtime_config.llm_model})[/dim]"
-            )
+            # Create parser with provider (use ParallelLLMParser if parallel parsing enabled)
+            if runtime_config.llm_parallel_parsing:
+                llm_parser = ParallelLLMParser(
+                    provider=provider,
+                    max_workers=runtime_config.llm_parallel_max_workers,
+                    rate_limit=runtime_config.llm_rate_limit,
+                    fallback_to_regex=runtime_config.llm_fallback_to_regex,
+                    confidence_threshold=0.5,  # Default confidence threshold
+                    max_tokens=runtime_config.llm_max_tokens,
+                )
+                console.print(
+                    f"[dim]✓ Parallel LLM parser initialized: "
+                    f"{runtime_config.llm_provider} ({runtime_config.llm_model}, "
+                    f"{runtime_config.llm_parallel_max_workers} workers, "
+                    f"{runtime_config.llm_rate_limit} req/s)[/dim]"
+                )
+            else:
+                llm_parser = UniversalLLMParser(
+                    provider=provider,
+                    fallback_to_regex=runtime_config.llm_fallback_to_regex,
+                    confidence_threshold=0.5,  # Default confidence threshold
+                    max_tokens=runtime_config.llm_max_tokens,
+                )
+                console.print(
+                    f"[dim]✓ LLM parser initialized: {runtime_config.llm_provider} "
+                    f"({runtime_config.llm_model})[/dim]"
+                )
 
         except Exception as e:
             console.print(f"[yellow]⚠ Warning: Failed to initialize LLM parser: {e}[/yellow]")

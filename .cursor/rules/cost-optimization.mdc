@@ -172,6 +172,9 @@ def export_metrics(self, output_path: Path) -> None:
 
 ## Budget Limits and Alerts
 
+> **Implementation Status**: The `cost_budget` configuration exists and can be set in `LLMConfig` and `RuntimeConfig`. However, budget enforcement (hard stop) and budget warnings at 80% are NOT yet implemented (Issue #225). The code examples below are for future implementation.
+
+
 ### Budget Enforcement
 
 Enforce cost budgets before API calls:

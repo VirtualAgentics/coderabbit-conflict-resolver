@@ -20,9 +20,11 @@ The Review Bot Automator supports parallel processing to significantly speed up 
 
 ## Overview
 
-Parallel processing enables the resolver to apply changes to multiple files concurrently, leveraging multiple CPU cores to dramatically reduce processing time for large PRs.
+Parallel processing enables the resolver to apply changes to multiple files concurrently, leveraging multiple CPU cores to dramatically reduce processing time for large PRs. Additionally, parallel comment parsing enables concurrent LLM processing of multiple comments, providing significant speedup for large PRs with many review comments.
 
 ### Key Features
+
+**File-Level Parallelization:**
 
 * **File-Level Parallelization**: Processes different files concurrently
 * **Sequential Per-File Processing**: Changes to the same file applied sequentially (prevents race conditions)
@@ -30,6 +32,15 @@ Parallel processing enables the resolver to apply changes to multiple files conc
 * **Configurable Workers**: Adjust worker count based on workload
 * **Exception Handling**: Propagates exceptions from worker threads
 * **Compatible with Rollback**: Works seamlessly with rollback system
+
+**Comment Parsing Parallelization (LLM):**
+
+* **Parallel Comment Parsing**: Processes multiple comments concurrently using ThreadPoolExecutor
+* **Rate Limiting**: Prevents API throttling with configurable requests per second
+* **Progress Tracking**: Real-time progress updates via Rich progress bar
+* **Circuit Breaker Integration**: Automatically falls back to sequential when circuit breaker is open
+* **Partial Failure Handling**: Individual comment failures don't stop other comments
+* **Order Preservation**: Results returned in same order as input comments
 
 ### Performance Improvements
 
@@ -44,9 +55,46 @@ Parallel processing provides significant speedup for large PRs:
 
 **Note**: Actual performance depends on system resources, file sizes, and change complexity.
 
+### Parallel Comment Parsing Performance
+
+Parallel comment parsing provides significant speedup for large PRs with many review comments:
+
+| Comment Count | Sequential | Parallel (4 workers) | Speedup |
+| ------------- | ---------- | -------------------- | ------- |
+| 5 comments    | 10s        | 10s                  | 1.0x    |
+| 10 comments   | 20s        | 6s                   | 3.3x    |
+| 20 comments   | 40s        | 12s                  | 3.3x    |
+| 50 comments   | 100s       | 25s                  | 4.0x    |
+
+**Note**: Parallel comment parsing requires LLM parsing to be enabled and is only used for PRs with 5+ comments. Rate limiting prevents API throttling but may reduce speedup for very high comment counts.
+
 ## How It Works
 
-### Processing Model
+### Parallel Comment Parsing (LLM)
+
+When LLM parsing is enabled and parallel comment parsing is configured, the system processes multiple comments concurrently:
+
+1. **Check Circuit Breaker**: Verify circuit breaker is not open (falls back to sequential if open)
+2. **Create Worker Pool**: ThreadPoolExecutor with configurable workers (default: 4)
+3. **Submit Comment Tasks**: Each comment submitted as separate task
+4. **Apply Rate Limiting**: Rate limiter ensures requests don't exceed API limits
+5. **Process Comments in Parallel**: Multiple comments parsed concurrently
+6. **Collect Results**: Results collected in completion order, then reordered to match input
+7. **Handle Failures**: Individual comment failures don't stop other comments
+
+**Rate Limiting:**
+
+* Configurable requests per second (default: 10.0 req/s)
+* Thread-safe rate limiter prevents API throttling
+* Sleeps between requests to maintain rate limit
+
+**Progress Tracking:**
+
+* Real-time progress updates via callback
+* Rich progress bar in CLI shows completion status
+* Thread-safe progress counter
+
+### File-Level Parallelization
 
 The parallel processing system uses a **file-level parallelization** model:
 
@@ -138,7 +186,7 @@ The parallel processing system uses a **file-level parallelization** model:
 
 ### CLI Usage
 
-#### Enable Parallel Processing
+#### Enable Parallel File Processing
 
 ```bash
 # Enable with default 4 workers
@@ -157,6 +205,30 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo \
 
 ```
 
+#### Enable Parallel Comment Parsing (LLM)
+
+```bash
+# Enable parallel comment parsing with LLM
+pr-resolve apply --pr 123 --owner myorg --repo myrepo \
+  --llm \
+  --llm-parallel-parsing \
+  --llm-parallel-workers 4 \
+  --llm-rate-limit 10.0
+
+# Enable with custom rate limit (for high-volume APIs)
+pr-resolve apply --pr 123 --owner myorg --repo myrepo \
+  --llm \
+  --llm-parallel-parsing \
+  --llm-parallel-workers 8 \
+  --llm-rate-limit 20.0
+
+# Combine with file-level parallel processing
+pr-resolve apply --pr 123 --owner myorg --repo myrepo \
+  --parallel --max-workers 8 \
+  --llm --llm-parallel-parsing --llm-parallel-workers 4
+
+```
+
 #### Disable Parallel Processing (Default)
 
 ```bash
@@ -171,9 +243,15 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo --max-workers 1
 ### Environment Variables
 
 ```bash
-# Enable parallel processing
+# Enable parallel file processing
 export CR_PARALLEL="true"
 export CR_MAX_WORKERS="8"
+
+# Enable parallel comment parsing (LLM)
+export CR_LLM_ENABLED="true"
+export CR_LLM_PARALLEL_PARSING="true"
+export CR_LLM_PARALLEL_WORKERS="4"
+export CR_LLM_RATE_LIMIT="10.0"
 
 pr-resolve apply --pr 123 --owner myorg --repo myrepo
 
@@ -189,6 +267,12 @@ parallel:
   enabled: true
   max_workers: 8
 
+llm:
+  enabled: true
+  parallel_parsing: true
+  parallel_max_workers: 4
+  rate_limit: 10.0
+
 ```
 
 **TOML:**
@@ -198,6 +282,12 @@ parallel:
 [parallel]
 enabled = true
 max_workers = 8
+
+[llm]
+enabled = true
+parallel_parsing = true
+parallel_max_workers = 4
+rate_limit = 10.0
 
 ```
 
@@ -265,10 +355,20 @@ Configuration sources (highest to lowest priority):
 
 ### Configuration Options
 
+**File Processing:**
+
 | Option | Type | CLI | Environment | Config File | Default |
 | -------- | ------ | ----- | ------------- | ------------- | --------- |
 | Enable | boolean | `--parallel` | `CR_PARALLEL` | `parallel.enabled` | `false` |
 | Workers | integer | `--max-workers N` | `CR_MAX_WORKERS` | `parallel.max_workers` | `4` |
+
+**Comment Parsing (LLM):**
+
+| Option | Type | CLI | Environment | Config File | Default |
+| -------- | ------ | ----- | ------------- | ------------- | --------- |
+| Enable | boolean | `--llm-parallel-parsing` | `CR_LLM_PARALLEL_PARSING` | `llm.parallel_parsing` | `false` |
+| Workers | integer | `--llm-parallel-workers N` | `CR_LLM_PARALLEL_WORKERS` | `llm.parallel_max_workers` | `4` |
+| Rate Limit | float | `--llm-rate-limit N` | `CR_LLM_RATE_LIMIT` | `llm.rate_limit` | `10.0` |
 
 ### Worker Count Guidelines
 
