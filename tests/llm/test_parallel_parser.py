@@ -183,11 +183,19 @@ class TestParallelLLMParser:
         mock_provider: MagicMock,
     ) -> None:
         """Test results are returned in same order as input."""
-        # Return different file paths to verify order
-        counter = itertools.count()
 
+        # Extract index from comment body to avoid dependency on call order
         def mock_generate(prompt: str, max_tokens: int = 2000) -> str:
-            idx = next(counter)
+            # Extract index from comment body in prompt (stable input data)
+            import re
+
+            match = re.search(r"Comment (\d+)", prompt)
+            if match:
+                idx = int(match.group(1))
+            else:
+                # Fallback: try to extract from file_path in prompt
+                match = re.search(r"test(\d+)\.py", prompt)
+                idx = int(match.group(1)) if match else 0
             return (
                 f'[{{"file_path": "test{idx}.py", "start_line": 1, "end_line": 1, '
                 f'"new_content": "code", "change_type": "modification", '
@@ -203,7 +211,7 @@ class TestParallelLLMParser:
         results = parser.parse_comments(comments)
 
         assert len(results) == 5
-        # Verify order is preserved
+        # Verify order is preserved (independent of provider call order)
         for i, result in enumerate(results):
             assert len(result) == 1
             assert result[0].file_path == f"test{i}.py"
@@ -306,3 +314,89 @@ class TestParallelLLMParser:
         assert len(results) == 3
         # Verify generate was called (sequential parsing)
         assert mock_provider.generate.call_count == 3
+
+    def test_parse_comments_future_result_exception(
+        self,
+        parser: ParallelLLMParser,
+        mock_provider: MagicMock,
+        sample_parsed_change_json: str,
+    ) -> None:
+        """Test exception handling when future.result() raises in as_completed loop."""
+        # Simulate exception from future.result() (e.g., thread cancellation)
+        mock_provider.generate.side_effect = [
+            sample_parsed_change_json,  # First succeeds
+            RuntimeError("Future cancelled"),  # Second fails in future.result()
+            sample_parsed_change_json,  # Third succeeds
+        ]
+
+        comments = [
+            CommentInput(body=f"Comment {i}", file_path=f"test{i}.py", line_number=i)
+            for i in range(3)
+        ]
+        results = parser.parse_comments(comments)
+
+        # Should handle exception gracefully
+        assert len(results) == 3
+        assert len(results[0]) == 1  # First succeeds
+        assert len(results[1]) == 0  # Second fails (exception caught in as_completed)
+        assert len(results[2]) == 1  # Third succeeds
+
+    def test_parse_sequential_exception_handling(
+        self,
+        mock_provider: MagicMock,
+        sample_parsed_change_json: str,
+    ) -> None:
+        """Test exception handling in _parse_sequential."""
+        # Create parser with fallback_to_regex=True (default)
+        parser = ParallelLLMParser(provider=mock_provider, fallback_to_regex=True)
+
+        # First comment succeeds, second fails, third succeeds
+        mock_provider.generate.side_effect = [
+            sample_parsed_change_json,
+            RuntimeError("LLM API error"),
+            sample_parsed_change_json,
+        ]
+
+        # Mock circuit breaker to force sequential parsing
+        mock_provider.circuit_state = CircuitState.OPEN
+        mock_provider.circuit_breaker = MagicMock()
+
+        comments = [
+            CommentInput(body=f"Comment {i}", file_path=f"test{i}.py", line_number=i)
+            for i in range(3)
+        ]
+        results = parser.parse_comments(comments)
+
+        # Should handle exceptions and return empty list for failed comment
+        assert len(results) == 3
+        assert len(results[0]) == 1  # First succeeds
+        assert len(results[1]) == 0  # Second fails (exception caught)
+        assert len(results[2]) == 1  # Third succeeds
+
+    def test_parse_sequential_no_fallback_raises(
+        self,
+        mock_provider: MagicMock,
+        sample_parsed_change_json: str,
+    ) -> None:
+        """Test that _parse_sequential re-raises when fallback_to_regex=False."""
+        # Create parser with fallback_to_regex=False
+        parser = ParallelLLMParser(provider=mock_provider, fallback_to_regex=False)
+
+        # First comment succeeds, second fails
+        mock_provider.generate.side_effect = [
+            sample_parsed_change_json,
+            RuntimeError("LLM API error"),
+        ]
+
+        # Mock circuit breaker to force sequential parsing
+        mock_provider.circuit_state = CircuitState.OPEN
+        mock_provider.circuit_breaker = MagicMock()
+
+        comments = [
+            CommentInput(body=f"Comment {i}", file_path=f"test{i}.py", line_number=i)
+            for i in range(2)
+        ]
+
+        # Should re-raise exception when fallback_to_regex=False
+        with pytest.raises(RuntimeError, match="LLM API error"):
+            parser.parse_comments(comments)

@@ -217,39 +217,9 @@ class ConflictResolver:
                 changes.extend(llm_changes)
                 continue  # Skip regex parsing if LLM succeeded
 
-            # Fall back to regex parsing
-            suggestion_blocks = self._parse_comment_suggestions(comment.get("body", ""))
-
-            for block in suggestion_blocks:
-                start_line = comment.get("start_line") or comment.get("original_start_line")
-                end_line = comment.get("line") or comment.get("original_line")
-
-                if not end_line:
-                    continue
-                if start_line is None:
-                    start_line = end_line
-
-                file_type = self.detect_file_type(path)
-                fingerprint = self.generate_fingerprint(
-                    path, start_line, end_line, block["content"]
-                )
-
-                change = Change(
-                    path=path,
-                    start_line=int(start_line),
-                    end_line=int(end_line),
-                    content=block["content"],
-                    metadata={
-                        "url": comment.get("html_url", ""),
-                        "author": (comment.get("user") or {}).get("login", ""),
-                        "source": "suggestion",
-                        "option_label": block.get("option_label"),
-                    },
-                    fingerprint=fingerprint,
-                    file_type=file_type,
-                    parsing_method="regex",  # Mark as regex-parsed for tracking
-                )
-                changes.append(change)
+            # Fall back to regex parsing (shared implementation)
+            regex_changes = self._extract_changes_with_regex_fallback(comment)
+            changes.extend(regex_changes)
 
         return changes
 

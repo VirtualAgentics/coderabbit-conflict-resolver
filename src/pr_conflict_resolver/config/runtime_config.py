@@ -405,6 +405,9 @@ class RuntimeConfig:
         - CR_LLM_CACHE_ENABLED: Enable response caching (default: "true")
         - CR_LLM_MAX_TOKENS: Max tokens per request (default: "2000")
         - CR_LLM_COST_BUDGET: Max cost per run in USD (default: None)
+        - CR_LLM_PARALLEL_PARSING: Enable parallel LLM comment parsing (default: "false")
+        - CR_LLM_PARALLEL_WORKERS: Max worker threads for LLM parsing (default: "4")
+        - CR_LLM_RATE_LIMIT: Max LLM requests per second (default: "10.0")
 
         Returns:
             RuntimeConfig loaded from environment variables.
@@ -783,6 +786,13 @@ class RuntimeConfig:
             llm_parallel_max_workers = defaults.llm_parallel_max_workers
             llm_rate_limit = defaults.llm_rate_limit
 
+        # Validate and convert numeric LLM parallel config values
+        try:
+            parallel_workers = int(llm_parallel_max_workers)
+            rate_limit = float(llm_rate_limit)
+        except (TypeError, ValueError) as e:
+            raise ConfigError(f"Invalid LLM parallel config in {source}: {e}") from e
+
         return cls(
             mode=mode,
             enable_rollback=bool(enable_rollback),
@@ -800,8 +810,8 @@ class RuntimeConfig:
             llm_max_tokens=int(llm_max_tokens),
             llm_cost_budget=float(llm_cost_budget) if llm_cost_budget else None,
             llm_parallel_parsing=bool(llm_parallel_parsing),
-            llm_parallel_max_workers=int(llm_parallel_max_workers),
-            llm_rate_limit=float(llm_rate_limit),
+            llm_parallel_max_workers=parallel_workers,
+            llm_rate_limit=rate_limit,
         )
 
     def merge_with_cli(self, **overrides: Any) -> "RuntimeConfig":  # noqa: ANN401

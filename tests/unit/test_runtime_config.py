@@ -401,6 +401,48 @@ class TestRuntimeConfigValidation:
                 log_file=None,
             )
 
+    def test_llm_parallel_max_workers_too_high_raises_error(self) -> None:
+        """Test that llm_parallel_max_workers > 32 raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_parallel_max_workers should be <= 32"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=True,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_parallel_max_workers=64,
+            )
+
+    def test_llm_parallel_max_workers_too_low_raises_error(self) -> None:
+        """Test that llm_parallel_max_workers < 1 raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_parallel_max_workers must be >= 1"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=True,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_parallel_max_workers=0,
+            )
+
+    def test_llm_rate_limit_too_low_raises_error(self) -> None:
+        """Test that llm_rate_limit < 0.1 raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_rate_limit must be >= 0.1"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=True,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_rate_limit=0.05,
+            )
+
 
 class TestRuntimeConfigMergeWithCLI:
     """Test RuntimeConfig.merge_with_cli() for CLI overrides."""
@@ -754,6 +796,146 @@ class TestRuntimeConfigLLMFields:
         monkeypatch.setenv("CR_LLM_COST_BUDGET", "not-a-number")
         with pytest.raises(ConfigError, match="Invalid CR_LLM_COST_BUDGET"):
             RuntimeConfig.from_env()
+
+    def test_from_env_llm_parallel_parsing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test from_env() with LLM parallel parsing environment variables."""
+        monkeypatch.setenv("CR_LLM_PARALLEL_PARSING", "true")
+        monkeypatch.setenv("CR_LLM_PARALLEL_WORKERS", "8")
+        monkeypatch.setenv("CR_LLM_RATE_LIMIT", "20.0")
+
+        config = RuntimeConfig.from_env()
+
+        assert config.llm_parallel_parsing is True
+        assert config.llm_parallel_max_workers == 8
+        assert config.llm_rate_limit == 20.0
+
+    def test_from_env_invalid_llm_parallel_workers_raises(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that invalid CR_LLM_PARALLEL_WORKERS raises ConfigError."""
+        monkeypatch.setenv("CR_LLM_PARALLEL_WORKERS", "invalid")
+        with pytest.raises(ConfigError, match="Invalid CR_LLM_PARALLEL_WORKERS"):
+            RuntimeConfig.from_env()
+
+    def test_from_env_llm_parallel_workers_zero_raises(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that CR_LLM_PARALLEL_WORKERS=0 raises ConfigError."""
+        monkeypatch.setenv("CR_LLM_PARALLEL_WORKERS", "0")
+        with pytest.raises(ConfigError, match="must be >= 1"):
+            RuntimeConfig.from_env()
+
+    def test_from_env_llm_parallel_workers_too_high_raises(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that CR_LLM_PARALLEL_WORKERS > 32 raises ConfigError."""
+        monkeypatch.setenv("CR_LLM_PARALLEL_WORKERS", "64")
+        with pytest.raises(ConfigError, match="llm_parallel_max_workers should be <= 32"):
+            RuntimeConfig.from_env()
+
+    def test_from_env_invalid_llm_rate_limit_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that invalid CR_LLM_RATE_LIMIT raises ConfigError."""
+        monkeypatch.setenv("CR_LLM_RATE_LIMIT", "not-a-number")
+        with pytest.raises(ConfigError, match="Invalid CR_LLM_RATE_LIMIT"):
+            RuntimeConfig.from_env()
+
+    def test_from_env_llm_rate_limit_too_low_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that CR_LLM_RATE_LIMIT < 0.1 raises ConfigError."""
+        monkeypatch.setenv("CR_LLM_RATE_LIMIT", "0.05")
+        with pytest.raises(ConfigError, match="CR_LLM_RATE_LIMIT=0.05 must be >= 0.1"):
+            RuntimeConfig.from_env()
+
+
+class TestRuntimeConfigFromFileErrorHandling:
+    """Test error handling in RuntimeConfig.from_file for LLM parallel config."""
+
+    def test_from_file_invalid_llm_parallel_workers_type(self, tmp_path: Path) -> None:
+        """Test that invalid type for llm.parallel_max_workers raises ConfigError."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            """
+llm:
+  enabled: true
+  provider: claude-cli
+  parallel_parsing: true
+  parallel_max_workers: "not-a-number"
+  rate_limit: 10.0
+"""
+        )
+
+        with pytest.raises(ConfigError, match="Invalid LLM parallel config"):
+            RuntimeConfig.from_file(config_file)
+
+    def test_from_file_invalid_llm_rate_limit_type(self, tmp_path: Path) -> None:
+        """Test that invalid type for llm.rate_limit raises ConfigError."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            """
+llm:
+  enabled: true
+  provider: claude-cli
+  parallel_parsing: true
+  parallel_max_workers: 4
+  rate_limit: "invalid"
+"""
+        )
+
+        with pytest.raises(ConfigError, match="Invalid LLM parallel config"):
+            RuntimeConfig.from_file(config_file)
+
+    def test_from_file_llm_parallel_workers_list_type(self, tmp_path: Path) -> None:
+        """Test that list type for llm.parallel_max_workers raises ConfigError."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            """
+llm:
+  enabled: true
+  provider: claude-cli
+  parallel_parsing: true
+  parallel_max_workers: [4, 8]
+  rate_limit: 10.0
+"""
+        )
+
+        with pytest.raises(ConfigError, match="Invalid LLM parallel config"):
+            RuntimeConfig.from_file(config_file)
+
+    def test_from_file_llm_rate_limit_dict_type(self, tmp_path: Path) -> None:
+        """Test that dict type for llm.rate_limit raises ConfigError."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            """
+llm:
+  enabled: true
+  provider: claude-cli
+  parallel_parsing: true
+  parallel_max_workers: 4
+  rate_limit: {value: 10.0}
+"""
+        )
+
+        with pytest.raises(ConfigError, match="Invalid LLM parallel config"):
+            RuntimeConfig.from_file(config_file)
+
+    def test_from_file_valid_llm_parallel_config(self, tmp_path: Path) -> None:
+        """Test that valid LLM parallel config values are accepted."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            """
+llm:
+  enabled: true
+  provider: claude-cli
+  parallel_parsing: true
+  parallel_max_workers: 8
+  rate_limit: 20.5
+"""
+        )
+
+        config = RuntimeConfig.from_file(config_file)
+
+        assert config.llm_parallel_parsing is True
+        assert config.llm_parallel_max_workers == 8
+        assert config.llm_rate_limit == 20.5
 
     def test_merge_with_cli_llm_overrides(self) -> None:
         """Test merge_with_cli() with LLM overrides."""

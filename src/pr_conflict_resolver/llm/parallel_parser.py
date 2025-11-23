@@ -47,12 +47,12 @@ class SupportsCircuitBreaker(Protocol):
     @property
     def circuit_state(self) -> CircuitState:
         """Get current circuit breaker state."""
-        ...
+        ...  # Required for Protocol definition
 
     @property
     def circuit_breaker(self) -> object:
         """Get circuit breaker instance."""
-        ...
+        ...  # Required for Protocol definition
 
 
 class RateLimiter:
@@ -233,16 +233,19 @@ class ParallelLLMParser(UniversalLLMParser):
                     line_number=comment.line_number,
                 )
 
-                # Update progress
+                # Update progress (minimize lock hold time)
                 with completed_lock:
                     completed_count += 1
-                    if progress_callback:
-                        try:
-                            progress_callback(completed_count, total)
-                        except Exception as e:
-                            logger.warning(
-                                f"Progress callback raised exception: {type(e).__name__}: {e}"
-                            )
+                    local_count = completed_count
+
+                # Call progress callback outside lock to avoid blocking
+                if progress_callback:
+                    try:
+                        progress_callback(local_count, total)
+                    except Exception as e:
+                        logger.warning(
+                            f"Progress callback raised exception: {type(e).__name__}: {e}"
+                        )
 
                 logger.debug(
                     f"Comment {idx+1}/{total} parsed: {len(parsed_changes)} changes extracted"
@@ -253,16 +256,19 @@ class ParallelLLMParser(UniversalLLMParser):
             except Exception as e:
                 logger.error(f"Comment {idx+1}/{total} parsing failed: {type(e).__name__}: {e}")
 
-                # Update progress even on failure
+                # Update progress even on failure (minimize lock hold time)
                 with completed_lock:
                     completed_count += 1
-                    if progress_callback:
-                        try:
-                            progress_callback(completed_count, total)
-                        except Exception as e2:
-                            logger.warning(
-                                f"Progress callback raised exception: {type(e2).__name__}: {e2}"
-                            )
+                    local_count = completed_count
+
+                # Call progress callback outside lock to avoid blocking
+                if progress_callback:
+                    try:
+                        progress_callback(local_count, total)
+                    except Exception as e2:
+                        logger.warning(
+                            f"Progress callback raised exception: {type(e2).__name__}: {e2}"
+                        )
 
                 # Return empty list for failed comment
                 return (idx, [])
@@ -313,12 +319,20 @@ class ParallelLLMParser(UniversalLLMParser):
     ) -> list[list[ParsedChange]]:
         """Parse comments sequentially (fallback when circuit breaker is open).
 
+        Preserves the error semantics of parse_comment: when fallback_to_regex=False,
+        exceptions are re-raised; when True, exceptions are caught and empty list
+        is returned to enable fallback behavior.
+
         Args:
             comments: List of comment inputs to parse
             progress_callback: Optional progress callback
 
         Returns:
             List of ParsedChange lists, one per input comment
+
+        Raises:
+            RuntimeError: If parse_comment raises and fallback_to_regex=False
+            ValueError: If parse_comment raises and fallback_to_regex=False
         """
         results: list[list[ParsedChange]] = []
         total = len(comments)
@@ -343,7 +357,20 @@ class ParallelLLMParser(UniversalLLMParser):
                         )
 
             except Exception as e:
-                logger.error(f"Sequential parsing failed for comment {idx+1}: {e}")
+                # Preserve parse_comment error semantics
+                # If fallback_to_regex is False, parse_comment would have raised,
+                # so we should re-raise here to maintain behavior parity
+                if not self.fallback_to_regex:
+                    logger.error(
+                        f"Sequential parsing failed for comment {idx+1} "
+                        f"(fallback_to_regex=False): {type(e).__name__}: {e}"
+                    )
+                    raise
+
+                # fallback_to_regex=True: convert exception to empty list for fallback
+                logger.error(
+                    f"Sequential parsing failed for comment {idx+1}: {type(e).__name__}: {e}"
+                )
                 results.append([])
 
                 if progress_callback:

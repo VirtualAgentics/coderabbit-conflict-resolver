@@ -15,11 +15,14 @@ from pr_conflict_resolver.cli.llm_error_handler import handle_llm_errors
 from pr_conflict_resolver.config.presets import PresetConfig
 from pr_conflict_resolver.config.runtime_config import (
     ApplicationMode,
+    RuntimeConfig,
 )
 from pr_conflict_resolver.core.resolver import ConflictResolver
 from pr_conflict_resolver.llm.base import LLMParser
 from pr_conflict_resolver.llm.exceptions import LLMError
 from pr_conflict_resolver.llm.metrics import LLMMetrics
+from pr_conflict_resolver.llm.parallel_parser import ParallelLLMParser
+from pr_conflict_resolver.llm.parser import UniversalLLMParser
 from pr_conflict_resolver.llm.presets import LLMPresetConfig
 
 console = Console()
@@ -43,6 +46,68 @@ MAX_GITHUB_REPO_LENGTH = 100
 
 # Compiled pattern for detecting control characters only.
 _INJECTION_PATTERN = re.compile(r"[\x00-\x1f\x7f]")  # Control chars only
+
+
+def _create_llm_parser(runtime_config: RuntimeConfig) -> LLMParser | None:
+    """Create LLM parser from runtime configuration.
+
+    Creates either ParallelLLMParser or UniversalLLMParser based on configuration.
+    Returns None if LLM is disabled or initialization fails.
+
+    Args:
+        runtime_config: Runtime configuration containing LLM settings.
+
+    Returns:
+        LLMParser instance or None if LLM is disabled or initialization fails.
+    """
+    if not runtime_config.llm_enabled:
+        return None
+
+    try:
+        from pr_conflict_resolver.llm.factory import create_provider
+
+        # Create provider from RuntimeConfig
+        provider = create_provider(
+            provider=runtime_config.llm_provider,
+            model=runtime_config.llm_model,
+            api_key=runtime_config.llm_api_key,
+        )
+
+        # Create parser with provider (use ParallelLLMParser if parallel parsing enabled)
+        llm_parser: LLMParser
+        if runtime_config.llm_parallel_parsing:
+            llm_parser = ParallelLLMParser(
+                provider=provider,
+                max_workers=runtime_config.llm_parallel_max_workers,
+                rate_limit=runtime_config.llm_rate_limit,
+                fallback_to_regex=runtime_config.llm_fallback_to_regex,
+                confidence_threshold=0.5,  # Default confidence threshold
+                max_tokens=runtime_config.llm_max_tokens,
+            )
+            console.print(
+                f"[dim]✓ Parallel LLM parser initialized: "
+                f"{runtime_config.llm_provider} ({runtime_config.llm_model}, "
+                f"{runtime_config.llm_parallel_max_workers} workers, "
+                f"{runtime_config.llm_rate_limit} req/s)[/dim]"
+            )
+        else:
+            llm_parser = UniversalLLMParser(
+                provider=provider,
+                fallback_to_regex=runtime_config.llm_fallback_to_regex,
+                confidence_threshold=0.5,  # Default confidence threshold
+                max_tokens=runtime_config.llm_max_tokens,
+            )
+            console.print(
+                f"[dim]✓ LLM parser initialized: {runtime_config.llm_provider} "
+                f"({runtime_config.llm_model})[/dim]"
+            )
+
+        return llm_parser
+
+    except Exception as e:
+        console.print(f"[yellow]⚠ Warning: Failed to initialize LLM parser: {e}[/yellow]")
+        console.print("[dim]Falling back to regex-only parsing[/dim]")
+        return None
 
 
 def sanitize_for_output(value: str) -> str:
@@ -486,52 +551,7 @@ def analyze(
         config_preset = PresetConfig.BALANCED
 
     # Initialize LLM parser if enabled
-    llm_parser: LLMParser | None = None
-    if runtime_config.llm_enabled:
-        try:
-            from pr_conflict_resolver.llm.factory import create_provider
-            from pr_conflict_resolver.llm.parallel_parser import ParallelLLMParser
-            from pr_conflict_resolver.llm.parser import UniversalLLMParser
-
-            # Create provider from RuntimeConfig
-            provider = create_provider(
-                provider=runtime_config.llm_provider,
-                model=runtime_config.llm_model,
-                api_key=runtime_config.llm_api_key,
-            )
-
-            # Create parser with provider (use ParallelLLMParser if parallel parsing enabled)
-            if runtime_config.llm_parallel_parsing:
-                llm_parser = ParallelLLMParser(
-                    provider=provider,
-                    max_workers=runtime_config.llm_parallel_max_workers,
-                    rate_limit=runtime_config.llm_rate_limit,
-                    fallback_to_regex=runtime_config.llm_fallback_to_regex,
-                    confidence_threshold=0.5,  # Default confidence threshold
-                    max_tokens=runtime_config.llm_max_tokens,
-                )
-                console.print(
-                    f"[dim]✓ Parallel LLM parser initialized: "
-                    f"{runtime_config.llm_provider} ({runtime_config.llm_model}, "
-                    f"{runtime_config.llm_parallel_max_workers} workers, "
-                    f"{runtime_config.llm_rate_limit} req/s)[/dim]"
-                )
-            else:
-                llm_parser = UniversalLLMParser(
-                    provider=provider,
-                    fallback_to_regex=runtime_config.llm_fallback_to_regex,
-                    confidence_threshold=0.5,  # Default confidence threshold
-                    max_tokens=runtime_config.llm_max_tokens,
-                )
-                console.print(
-                    f"[dim]✓ LLM parser initialized: {runtime_config.llm_provider} "
-                    f"({runtime_config.llm_model})[/dim]"
-                )
-
-        except Exception as e:
-            console.print(f"[yellow]⚠ Warning: Failed to initialize LLM parser: {e}[/yellow]")
-            console.print("[dim]Falling back to regex-only parsing[/dim]")
-            llm_parser = None
+    llm_parser = _create_llm_parser(runtime_config)
 
     # Initialize resolver with LLM parser
     resolver = ConflictResolver(config_preset, llm_parser=llm_parser)
@@ -919,52 +939,7 @@ def apply(
         config_preset = PresetConfig.BALANCED
 
     # Initialize LLM parser if enabled
-    llm_parser: LLMParser | None = None
-    if runtime_config.llm_enabled:
-        try:
-            from pr_conflict_resolver.llm.factory import create_provider
-            from pr_conflict_resolver.llm.parallel_parser import ParallelLLMParser
-            from pr_conflict_resolver.llm.parser import UniversalLLMParser
-
-            # Create provider from RuntimeConfig
-            provider = create_provider(
-                provider=runtime_config.llm_provider,
-                model=runtime_config.llm_model,
-                api_key=runtime_config.llm_api_key,
-            )
-
-            # Create parser with provider (use ParallelLLMParser if parallel parsing enabled)
-            if runtime_config.llm_parallel_parsing:
-                llm_parser = ParallelLLMParser(
-                    provider=provider,
-                    max_workers=runtime_config.llm_parallel_max_workers,
-                    rate_limit=runtime_config.llm_rate_limit,
-                    fallback_to_regex=runtime_config.llm_fallback_to_regex,
-                    confidence_threshold=0.5,  # Default confidence threshold
-                    max_tokens=runtime_config.llm_max_tokens,
-                )
-                console.print(
-                    f"[dim]✓ Parallel LLM parser initialized: "
-                    f"{runtime_config.llm_provider} ({runtime_config.llm_model}, "
-                    f"{runtime_config.llm_parallel_max_workers} workers, "
-                    f"{runtime_config.llm_rate_limit} req/s)[/dim]"
-                )
-            else:
-                llm_parser = UniversalLLMParser(
-                    provider=provider,
-                    fallback_to_regex=runtime_config.llm_fallback_to_regex,
-                    confidence_threshold=0.5,  # Default confidence threshold
-                    max_tokens=runtime_config.llm_max_tokens,
-                )
-                console.print(
-                    f"[dim]✓ LLM parser initialized: {runtime_config.llm_provider} "
-                    f"({runtime_config.llm_model})[/dim]"
-                )
-
-        except Exception as e:
-            console.print(f"[yellow]⚠ Warning: Failed to initialize LLM parser: {e}[/yellow]")
-            console.print("[dim]Falling back to regex-only parsing[/dim]")
-            llm_parser = None
+    llm_parser = _create_llm_parser(runtime_config)
 
     # Initialize resolver with LLM parser
     resolver = ConflictResolver(config_preset, llm_parser=llm_parser)

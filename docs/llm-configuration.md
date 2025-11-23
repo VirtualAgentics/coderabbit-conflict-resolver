@@ -96,7 +96,7 @@ pr-resolve apply 123 --config config.toml
 | `llm.fallback_to_regex` | boolean | `true` | Fall back to regex parsing if LLM fails |
 | `llm.cache_enabled` | boolean | `true` | Enable response caching |
 | `llm.max_tokens` | integer | `2000` | Maximum tokens per LLM request |
-| `llm.cost_budget` | float | `null` | Cost budget configuration (advisory only, not currently enforced). This field allows users to express intended spending limits and serves as a placeholder for future enforcement/alerts (see [Sub-Issue #225](../planning/ROADMAP.md#sub-issue-225-cost-budgeting--alerts)). |
+| `llm.cost_budget` | float | `null` | Cost budget configuration (advisory only, not currently enforced). This field allows users to express intended spending limits and serves as a placeholder for future enforcement/alerts (see [Sub-Issue #225](../planning/ROADMAP.md)). |
 | `llm.ollama_base_url` | string | `http://localhost:11434` | Ollama server URL (Ollama only) |
 
 ## LLM Presets

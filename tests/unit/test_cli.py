@@ -1,11 +1,12 @@
 """Unit tests for CLI commands in pr_conflict_resolver.cli.main."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from click.testing import CliRunner
 
 from pr_conflict_resolver import Change, Conflict, FileType, Resolution, ResolutionResult
-from pr_conflict_resolver.cli.main import cli
+from pr_conflict_resolver.cli.main import _create_llm_parser, cli
+from pr_conflict_resolver.config.runtime_config import RuntimeConfig
 
 
 def _sample_conflict(file_path: str = "test.json", severity: str = "low") -> Conflict:
@@ -166,3 +167,104 @@ def test_cli_apply_handles_error(mock_resolver: Mock) -> None:
 
     assert result.exit_code != 0
     assert "Error applying suggestions" in result.output
+
+
+class TestCreateLLMParser:
+    """Test _create_llm_parser helper function."""
+
+    def test_create_llm_parser_disabled(self) -> None:
+        """Test _create_llm_parser returns None when LLM is disabled."""
+        config = RuntimeConfig.from_defaults()
+        config = config.merge_with_cli(llm_enabled=False)
+
+        parser = _create_llm_parser(config)
+
+        assert parser is None
+
+    @patch("pr_conflict_resolver.llm.factory.create_provider")
+    @patch("pr_conflict_resolver.cli.main.ParallelLLMParser")
+    def test_create_llm_parser_parallel_enabled(
+        self, mock_parallel_parser: Mock, mock_create_provider: Mock
+    ) -> None:
+        """Test _create_llm_parser creates ParallelLLMParser when parallel parsing enabled."""
+        mock_provider = MagicMock()
+        mock_create_provider.return_value = mock_provider
+        mock_parser_instance = MagicMock()
+        mock_parallel_parser.return_value = mock_parser_instance
+
+        config = RuntimeConfig.from_defaults()
+        config = config.merge_with_cli(
+            llm_enabled=True,
+            llm_provider="claude-cli",
+            llm_model="claude-sonnet-4-5",
+            llm_parallel_parsing=True,
+            llm_parallel_max_workers=8,
+            llm_rate_limit=20.0,
+        )
+
+        parser = _create_llm_parser(config)
+
+        assert parser is not None
+        mock_parallel_parser.assert_called_once()
+        call_kwargs = mock_parallel_parser.call_args[1]
+        assert call_kwargs["max_workers"] == 8
+        assert call_kwargs["rate_limit"] == 20.0
+
+    @patch("pr_conflict_resolver.llm.factory.create_provider")
+    @patch("pr_conflict_resolver.cli.main.UniversalLLMParser")
+    def test_create_llm_parser_parallel_disabled(
+        self, mock_universal_parser: Mock, mock_create_provider: Mock
+    ) -> None:
+        """Test _create_llm_parser creates UniversalLLMParser when parallel parsing disabled."""
+        mock_provider = MagicMock()
+        mock_create_provider.return_value = mock_provider
+        mock_parser_instance = MagicMock()
+        mock_universal_parser.return_value = mock_parser_instance
+
+        config = RuntimeConfig.from_defaults()
+        config = config.merge_with_cli(
+            llm_enabled=True,
+            llm_provider="claude-cli",
+            llm_model="claude-sonnet-4-5",
+            llm_parallel_parsing=False,
+        )
+
+        parser = _create_llm_parser(config)
+
+        assert parser is not None
+        mock_universal_parser.assert_called_once()
+
+    @patch("pr_conflict_resolver.llm.factory.create_provider")
+    def test_create_llm_parser_provider_error(self, mock_create_provider: Mock) -> None:
+        """Test _create_llm_parser returns None when provider creation fails."""
+        mock_create_provider.side_effect = RuntimeError("Provider initialization failed")
+
+        config = RuntimeConfig.from_defaults()
+        config = config.merge_with_cli(
+            llm_enabled=True,
+            llm_provider="claude-cli",  # Use valid provider, but creation will fail
+        )
+
+        parser = _create_llm_parser(config)
+
+        assert parser is None
+
+    @patch("pr_conflict_resolver.llm.factory.create_provider")
+    @patch("pr_conflict_resolver.cli.main.ParallelLLMParser")
+    def test_create_llm_parser_parser_error(
+        self, mock_parallel_parser: Mock, mock_create_provider: Mock
+    ) -> None:
+        """Test _create_llm_parser returns None when parser creation fails."""
+        mock_provider = MagicMock()
+        mock_create_provider.return_value = mock_provider
+        mock_parallel_parser.side_effect = ValueError("Invalid parser configuration")
+
+        config = RuntimeConfig.from_defaults()
+        config = config.merge_with_cli(
+            llm_enabled=True,
+            llm_parallel_parsing=True,
+        )
+
+        parser = _create_llm_parser(config)
+
+        assert parser is None

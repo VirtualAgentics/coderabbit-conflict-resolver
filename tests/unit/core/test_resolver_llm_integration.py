@@ -13,6 +13,7 @@ from unittest.mock import MagicMock
 from pr_conflict_resolver.core.models import FileType
 from pr_conflict_resolver.core.resolver import ConflictResolver
 from pr_conflict_resolver.llm.base import LLMParser, ParsedChange
+from pr_conflict_resolver.llm.parallel_parser import ParallelLLMParser
 
 
 class TestResolverWithoutLLM:
@@ -387,3 +388,256 @@ class TestParsedChangeConversion:
 
         # Different content should produce different fingerprints
         assert change1.fingerprint != change2.fingerprint
+
+
+class TestResolverParallelParsing:
+    """Test ConflictResolver with ParallelLLMParser integration."""
+
+    def test_parallel_parsing_with_valid_comments(self, tmp_path: Path) -> None:
+        """Test parallel parsing extracts changes from multiple comments."""
+        mock_provider = MagicMock()
+        # Use proper JSON without literal newlines
+        mock_provider.generate.return_value = (
+            '[{"file_path": "test.py", "start_line": 10, "end_line": 12, '
+            '"new_content": "def fixed():\\n    return True", "change_type": "modification", '
+            '"confidence": 0.9, "rationale": "Fixed function", "risk_level": "low"}]'
+        )
+
+        parallel_parser = ParallelLLMParser(provider=mock_provider, max_workers=2)
+        resolver = ConflictResolver(workspace_root=tmp_path, llm_parser=parallel_parser)
+
+        # Need 5+ comments to trigger parallel parsing
+        comments = [
+            {
+                "path": "test.py",
+                "line": 10 + i,
+                "body": f"Fix this function {i}",
+                "html_url": f"https://github.com/test/{i}",
+                "user": {"login": f"user{i}"},
+            }
+            for i in range(5)
+        ]
+
+        changes = resolver.extract_changes_from_comments(comments, parallel_parsing=True)
+
+        # Should parse all comments in parallel
+        assert len(changes) == 5
+        assert all(c.parsing_method == "llm" for c in changes)
+        assert mock_provider.generate.call_count == 5
+
+    def test_parallel_parsing_with_missing_fields(self, tmp_path: Path) -> None:
+        """Test parallel parsing handles comments without required fields."""
+        mock_provider = MagicMock()
+        # Use proper JSON without literal newlines
+        mock_provider.generate.return_value = (
+            '[{"file_path": "test.py", "start_line": 10, "end_line": 10, '
+            '"new_content": "fixed", "change_type": "modification", '
+            '"confidence": 0.9, "rationale": "Fixed", "risk_level": "low"}]'
+        )
+
+        parallel_parser = ParallelLLMParser(provider=mock_provider, max_workers=2)
+        resolver = ConflictResolver(workspace_root=tmp_path, llm_parser=parallel_parser)
+
+        # Need 5+ comments total, but some missing required fields
+        comments = [
+            {
+                "path": "test.py",
+                "line": 10 + i,
+                "body": f"Fix this {i}",
+                "html_url": f"https://github.com/test/{i}",
+                "user": {"login": f"user{i}"},
+            }
+            for i in range(4)
+        ] + [
+            {
+                # Missing 'line' field - should use regex fallback
+                "path": "test2.py",
+                "body": "```suggestion\nregex_parsed\n```",
+                "html_url": "https://github.com/test/5",
+                "user": {"login": "user5"},
+            },
+        ]
+
+        changes = resolver.extract_changes_from_comments(comments, parallel_parsing=True)
+
+        # First 4 parsed by LLM, last comment missing 'line' field so not parsed
+        assert len(changes) == 4
+        assert sum(1 for c in changes if c.parsing_method == "llm") == 4
+        # Last comment missing 'line' field, so not eligible for regex parsing either
+        # Only 4 LLM calls (for valid comments)
+        assert mock_provider.generate.call_count == 4
+
+    def test_parallel_parsing_no_valid_comments(self, tmp_path: Path) -> None:
+        """Test parallel parsing falls back to sequential when no valid comments."""
+        mock_provider = MagicMock()
+        parallel_parser = ParallelLLMParser(provider=mock_provider, max_workers=2)
+        resolver = ConflictResolver(workspace_root=tmp_path, llm_parser=parallel_parser)
+
+        comments = [
+            {
+                # Missing 'line' field - not eligible for LLM parsing
+                # Regex also needs 'line', so no changes will be extracted
+                "path": "test.py",
+                "body": "```suggestion\nregex_only\n```",
+                "html_url": "https://github.com/test/1",
+                "user": {"login": "user1"},
+            },
+        ]
+
+        changes = resolver.extract_changes_from_comments(comments, parallel_parsing=True)
+
+        # Should fall back to sequential, but no changes extracted
+        # because comment is missing 'line' field (required for both LLM and regex)
+        assert len(changes) == 0
+        # No LLM calls since comment missing required fields
+        assert mock_provider.generate.call_count == 0
+
+    def test_parallel_parsing_with_max_workers_override(self, tmp_path: Path) -> None:
+        """Test parallel parsing respects max_workers override."""
+        mock_provider = MagicMock()
+        mock_provider.generate.return_value = (
+            '[{"file_path": "test.py", "start_line": 10, "end_line": 10, '
+            '"new_content": "fixed", "change_type": "modification", '
+            '"confidence": 0.9, "rationale": "Fixed", "risk_level": "low"}]'
+        )
+
+        parallel_parser = ParallelLLMParser(provider=mock_provider, max_workers=4)
+        resolver = ConflictResolver(workspace_root=tmp_path, llm_parser=parallel_parser)
+
+        comments = [
+            {
+                "path": "test.py",
+                "line": 10,
+                "body": "Fix this",
+                "html_url": "https://github.com/test/1",
+                "user": {"login": "user1"},
+            }
+        ]
+
+        # Override max_workers to 2
+        changes = resolver.extract_changes_from_comments(
+            comments, parallel_parsing=True, max_workers=2
+        )
+
+        assert len(changes) == 1
+        # Verify max_workers was restored
+        assert parallel_parser.max_workers == 4
+
+    def test_parallel_parsing_with_llm_failure_fallback(self, tmp_path: Path) -> None:
+        """Test parallel parsing falls back to regex when LLM returns empty results."""
+        mock_provider = MagicMock()
+        # Some comments succeed, some return empty
+        # Use proper JSON strings without literal newlines
+        llm_result1 = (
+            '[{"file_path": "test.py", "start_line": 10, "end_line": 10, '
+            '"new_content": "llm_parsed", "change_type": "modification", '
+            '"confidence": 0.9, "rationale": "Fixed", "risk_level": "low"}]'
+        )
+        llm_result2 = (
+            '[{"file_path": "test.py", "start_line": 30, "end_line": 30, '
+            '"new_content": "llm_parsed2", "change_type": "modification", '
+            '"confidence": 0.9, "rationale": "Fixed", "risk_level": "low"}]'
+        )
+        mock_provider.generate.side_effect = [
+            llm_result1,
+            "[]",  # Empty result for second comment
+            llm_result2,
+            "[]",  # Empty result for fourth comment
+            "[]",  # Empty result for fifth comment
+        ]
+
+        parallel_parser = ParallelLLMParser(provider=mock_provider, max_workers=2)
+        resolver = ConflictResolver(workspace_root=tmp_path, llm_parser=parallel_parser)
+
+        comments = [
+            {
+                "path": "test.py",
+                "line": 10 + i * 10,
+                "body": (
+                    f"```suggestion\nregex_fallback_{i}\n```" if i in [1, 3, 4] else f"Fix this {i}"
+                ),
+                "html_url": f"https://github.com/test/{i}",
+                "user": {"login": f"user{i}"},
+            }
+            for i in range(5)
+        ]
+
+        changes = resolver.extract_changes_from_comments(comments, parallel_parsing=True)
+
+        # Some parsed by LLM, some fall back to regex
+        assert len(changes) >= 2
+        llm_changes = [c for c in changes if c.parsing_method == "llm"]
+        regex_changes = [c for c in changes if c.parsing_method == "regex"]
+        assert len(llm_changes) == 2  # Two successful LLM parses
+        assert len(regex_changes) >= 3  # Three regex fallbacks
+
+    def test_parallel_parsing_with_progress_callback(self, tmp_path: Path) -> None:
+        """Test parallel parsing invokes progress callback."""
+        mock_provider = MagicMock()
+        mock_provider.generate.return_value = (
+            '[{"file_path": "test.py", "start_line": 10, "end_line": 10, '
+            '"new_content": "fixed", "change_type": "modification", '
+            '"confidence": 0.9, "rationale": "Fixed", "risk_level": "low"}]'
+        )
+
+        parallel_parser = ParallelLLMParser(provider=mock_provider, max_workers=2)
+        resolver = ConflictResolver(workspace_root=tmp_path, llm_parser=parallel_parser)
+
+        progress_calls: list[tuple[int, int]] = []
+
+        def progress_callback(completed: int, total: int) -> None:
+            progress_calls.append((completed, total))
+
+        # Need 5+ comments to trigger parallel parsing
+        comments = [
+            {
+                "path": "test.py",
+                "line": 10 + i,
+                "body": f"Fix this {i}",
+                "html_url": f"https://github.com/test/{i}",
+                "user": {"login": f"user{i}"},
+            }
+            for i in range(5)
+        ]
+
+        changes = resolver.extract_changes_from_comments(
+            comments, parallel_parsing=True, progress_callback=progress_callback
+        )
+
+        assert len(changes) == 5
+        # Progress callback should be called for each comment
+        assert len(progress_calls) == 5
+        assert progress_calls[-1] == (5, 5)
+
+    def test_parallel_parsing_invalid_max_workers_warning(self, tmp_path: Path) -> None:
+        """Test parallel parsing warns on invalid max_workers override."""
+        mock_provider = MagicMock()
+        mock_provider.generate.return_value = (
+            '[{"file_path": "test.py", "start_line": 10, "end_line": 10, '
+            '"new_content": "fixed", "change_type": "modification", '
+            '"confidence": 0.9, "rationale": "Fixed", "risk_level": "low"}]'
+        )
+
+        parallel_parser = ParallelLLMParser(provider=mock_provider, max_workers=4)
+        resolver = ConflictResolver(workspace_root=tmp_path, llm_parser=parallel_parser)
+
+        # Need 5+ comments to trigger parallel parsing
+        comments = [
+            {
+                "path": "test.py",
+                "line": 10 + i,
+                "body": f"Fix this {i}",
+                "html_url": f"https://github.com/test/{i}",
+                "user": {"login": f"user{i}"},
+            }
+            for i in range(5)
+        ]
+
+        # Override with invalid max_workers (< 1)
+        changes = resolver.extract_changes_from_comments(
+            comments, parallel_parsing=True, max_workers=0
+        )
+
+        assert len(changes) == 5
+        # Verify max_workers was not changed (should remain 4)
+        assert parallel_parser.max_workers == 4

@@ -74,6 +74,8 @@ Parallel comment parsing provides significant speedup for large PRs with many re
 
 When LLM parsing is enabled and parallel comment parsing is configured, the system processes multiple comments concurrently:
 
+**Flag Relationship:** The `--llm` flag alone enables LLM comment parsing in sequential mode (default). The `--llm-parallel-parsing` flag is an opt-in modifier that requires `--llm` to be set and switches parsing to parallel mode; it will be ignored if `--llm` is not provided. For future simplification, consider consolidating to a single `--llm` flag with `--llm-mode {sequential|parallel}`.
+
 1. **Check Circuit Breaker**: Verify circuit breaker is not open (falls back to sequential if open)
 2. **Create Worker Pool**: ThreadPoolExecutor with configurable workers (default: 4)
 3. **Submit Comment Tasks**: Each comment submitted as separate task

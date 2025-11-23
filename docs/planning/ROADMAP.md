@@ -102,10 +102,15 @@ Transform the Review Bot Automator into a production-ready, professional system 
 
 * Issue #119: Phase 5 - Optimization & Production Readiness (OPEN - 0/4 sub-issues complete)
   * Depends on: Phase 4 completion
-  * Sub-Issue #223: Parallel Comment Parsing (OPEN)
-  * Sub-Issue #224: Metrics Aggregation & Export (OPEN)
-  * Sub-Issue #225: Cost Budgeting & Alerts (OPEN)
-  * Sub-Issue #226: Security Audit & Documentation (OPEN)
+
+### Sub-Issue #223: Parallel Comment Parsing (OPEN)
+
+### Sub-Issue #224: Metrics Aggregation & Export (OPEN)
+
+### Sub-Issue #225: Cost Budgeting & Alerts (OPEN)
+
+### Sub-Issue #226: Security Audit & Documentation (OPEN)
+
 * Issue #120: Phase 6 - Documentation & Migration (IN PROGRESS - 50% complete)
   * Core LLM docs complete, remaining: provider selection guide, cost analysis, troubleshooting
 * Issue #13: Security Configuration, Testing & Scanning (INTEGRATED into v2.0)
