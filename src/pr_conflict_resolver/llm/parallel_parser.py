@@ -47,12 +47,12 @@ class SupportsCircuitBreaker(Protocol):
     @property
     def circuit_state(self) -> CircuitState:
         """Get current circuit breaker state."""
-        ...  # noqa: B018  # Required for Protocol definition
+        pass  # Required for Protocol definition (CodeQL compatibility)
 
     @property
     def circuit_breaker(self) -> object:
         """Get circuit breaker instance."""
-        ...  # noqa: B018  # Required for Protocol definition
+        pass  # Required for Protocol definition (CodeQL compatibility)
 
 
 class RateLimiter:
