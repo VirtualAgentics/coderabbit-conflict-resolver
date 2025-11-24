@@ -4,7 +4,6 @@ Tests for ParallelLLMParser including rate limiting, progress tracking,
 circuit breaker integration, and error handling.
 """
 
-import time
 from collections.abc import Callable, Iterable
 from types import TracebackType
 from typing import Any
@@ -56,30 +55,58 @@ class TestRateLimiter:
         with pytest.raises(ValueError, match="rate must be positive"):
             RateLimiter(rate=-1.0)
 
-    def test_rate_limiter_enforces_rate(self) -> None:
+    def test_rate_limiter_enforces_rate(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test rate limiter enforces minimum interval between calls."""
         limiter = RateLimiter(rate=10.0)  # 0.1s between calls
 
-        start = time.monotonic()
+        fake_time = 1.0
+
+        def fake_monotonic() -> float:
+            return fake_time
+
+        def fake_sleep(dt: float) -> None:
+            nonlocal fake_time
+            fake_time += dt
+
+        monkeypatch.setattr(
+            "pr_conflict_resolver.llm.parallel_parser.time.monotonic", fake_monotonic
+        )
+        monkeypatch.setattr("pr_conflict_resolver.llm.parallel_parser.time.sleep", fake_sleep)
+
         limiter.wait_if_needed()
         limiter.wait_if_needed()
-        elapsed = time.monotonic() - start
+        elapsed = fake_time - 1.0
 
-        # Should take at least 0.1s (with some tolerance for CI)
-        assert elapsed >= 0.08, f"Expected >= 0.08s, got {elapsed:.3f}s"
+        # Should advance by exactly the enforced interval (0.1s)
+        assert elapsed == pytest.approx(0.1, rel=1e-6)
 
-    def test_rate_limiter_thread_safe(self) -> None:
+    def test_rate_limiter_thread_safe(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test rate limiter is thread-safe and serializes calls."""
         import threading
 
         limiter = RateLimiter(rate=10.0)  # 0.1s between calls
-        timestamps: list[float] = []
+        fake_time = 1.0
         lock = threading.Lock()
+
+        def fake_monotonic() -> float:
+            return fake_time
+
+        def fake_sleep(dt: float) -> None:
+            nonlocal fake_time
+            with lock:
+                fake_time += dt
+
+        monkeypatch.setattr(
+            "pr_conflict_resolver.llm.parallel_parser.time.monotonic", fake_monotonic
+        )
+        monkeypatch.setattr("pr_conflict_resolver.llm.parallel_parser.time.sleep", fake_sleep)
+
+        timestamps: list[float] = []
 
         def worker() -> None:
             limiter.wait_if_needed()
             with lock:
-                timestamps.append(time.monotonic())
+                timestamps.append(fake_time - 1.0)
 
         threads = [threading.Thread(target=worker) for _ in range(5)]
         for t in threads:
@@ -87,17 +114,12 @@ class TestRateLimiter:
         for t in threads:
             t.join()
 
-        # All calls should complete without errors
         assert len(timestamps) == 5
 
-        # Verify calls are serialized: consecutive differences should be >= 80% of interval
         timestamps_sorted = sorted(timestamps)
-        min_interval = 0.1 * 0.8  # 80% of 0.1s interval
         for i in range(1, len(timestamps_sorted)):
             diff = timestamps_sorted[i] - timestamps_sorted[i - 1]
-            assert (
-                diff >= min_interval
-            ), f"Call {i} too close to previous: {diff:.3f}s < {min_interval:.3f}s"
+            assert diff == pytest.approx(0.1, rel=1e-6)
 
     def test_rate_limiter_reserves_future_slot(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test rate limiter updates last-call timestamp before sleeping."""
@@ -516,35 +538,74 @@ class TestParallelLLMParser:
 
     def test_parse_comments_future_result_exception(
         self,
-        parser: ParallelLLMParser,
         mock_provider: MagicMock,
         sample_parsed_change_json: str,
     ) -> None:
         """Test exception handling when future.result() raises in as_completed loop."""
+        from concurrent.futures import Future
 
-        # Simulate exception from future.result() (e.g., thread cancellation)
-        def mock_generate(prompt: str, max_tokens: int = 2000) -> str:
-            import re
+        parser = ParallelLLMParser(provider=mock_provider, fallback_to_regex=True)
+        mock_provider.generate.return_value = sample_parsed_change_json
 
-            match = re.search(r"Comment (\d+)", prompt)
-            idx = int(match.group(1)) if match else -1
-            if idx == 1:
-                raise RuntimeError("Future cancelled")
-            return sample_parsed_change_json
+        FutureResult = Future[tuple[int, list[ParsedChange]]]
 
-        mock_provider.generate.side_effect = mock_generate
+        class DummyExecutor:
+            def __init__(self, max_workers: int) -> None:
+                self.futures: list[FutureResult] = []
+
+            def __enter__(self) -> "DummyExecutor":
+                return self
+
+            def __exit__(
+                self,
+                exc_type: type[BaseException] | None,
+                exc: BaseException | None,
+                tb: TracebackType | None,
+            ) -> None:
+                return None
+
+            def submit(
+                self,
+                fn: Callable[[int, CommentInput], tuple[int, list[ParsedChange]]],
+                idx: int,
+                comment: CommentInput,
+            ) -> FutureResult:
+                future: FutureResult = Future()
+                if idx == 1:
+                    future.set_exception(RuntimeError("Future cancelled"))
+                else:
+                    result = fn(idx, comment)
+                    future.set_result(result)
+                self.futures.append(future)
+                return future
+
+        def fake_executor_factory(max_workers: int) -> DummyExecutor:
+            return DummyExecutor(max_workers)
+
+        def fake_as_completed(
+            futures: Iterable[FutureResult] | dict[Any, FutureResult],
+        ) -> list[FutureResult]:
+            if isinstance(futures, dict):
+                return list(futures.keys())
+            return list(futures)
 
         comments = [
             CommentInput(body=f"Comment {i}", file_path=f"test{i}.py", line_number=i)
             for i in range(3)
         ]
-        results = parser.parse_comments(comments)
 
-        # Should handle exception gracefully
+        with (
+            patch(
+                "pr_conflict_resolver.llm.parallel_parser.ThreadPoolExecutor", fake_executor_factory
+            ),
+            patch("pr_conflict_resolver.llm.parallel_parser.as_completed", fake_as_completed),
+        ):
+            results = parser.parse_comments(comments)
+
         assert len(results) == 3
-        assert len(results[0]) == 1  # First succeeds
-        assert len(results[1]) == 0  # Second fails (exception caught in as_completed)
-        assert len(results[2]) == 1  # Third succeeds
+        assert len(results[0]) == 1
+        assert len(results[1]) == 0
+        assert len(results[2]) == 1
 
     def test_parse_comments_failure_no_fallback_raises(
         self,
