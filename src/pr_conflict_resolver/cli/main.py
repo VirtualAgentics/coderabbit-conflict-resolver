@@ -81,7 +81,7 @@ def _create_llm_parser(runtime_config: RuntimeConfig) -> LLMParser | None:
                 max_workers=runtime_config.llm_parallel_max_workers,
                 rate_limit=runtime_config.llm_rate_limit,
                 fallback_to_regex=runtime_config.llm_fallback_to_regex,
-                confidence_threshold=0.5,  # Default confidence threshold
+                confidence_threshold=runtime_config.llm_confidence_threshold,
                 max_tokens=runtime_config.llm_max_tokens,
             )
             console.print(
@@ -94,7 +94,7 @@ def _create_llm_parser(runtime_config: RuntimeConfig) -> LLMParser | None:
             llm_parser = UniversalLLMParser(
                 provider=provider,
                 fallback_to_regex=runtime_config.llm_fallback_to_regex,
-                confidence_threshold=0.5,  # Default confidence threshold
+                confidence_threshold=runtime_config.llm_confidence_threshold,
                 max_tokens=runtime_config.llm_max_tokens,
             )
             console.print(
@@ -428,6 +428,16 @@ def _display_llm_metrics(metrics: LLMMetrics) -> None:
     help="Maximum requests per second for parallel parsing (default: 10.0)",
 )
 @click.option(
+    "--llm-confidence-threshold",
+    type=float,
+    help="Minimum LLM confidence (0.0-1.0) required to accept changes (default: 0.5)",
+)
+@click.option(
+    "--llm-confidence-threshold",
+    type=float,
+    help="Minimum LLM confidence (0.0-1.0) required to accept changes (default: 0.5)",
+)
+@click.option(
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
     help="Logging level (default: INFO)",
@@ -450,6 +460,7 @@ def analyze(
     llm_parallel_parsing: bool | None,
     llm_parallel_workers: int | None,
     llm_rate_limit: float | None,
+    llm_confidence_threshold: float | None,
     log_level: str | None,
     log_file: str | None,
 ) -> None:
@@ -472,6 +483,7 @@ def analyze(
         llm_parallel_parsing: Enable (True) or disable (False) parallel comment parsing.
         llm_parallel_workers: Maximum worker threads for parallel comment parsing.
         llm_rate_limit: Maximum requests per second for parallel comment parsing.
+        llm_confidence_threshold: Minimum LLM confidence (0.0-1.0) required to accept changes.
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Path to log file for output.
 
@@ -494,6 +506,7 @@ def analyze(
             "llm_parallel_parsing": "CR_LLM_PARALLEL_PARSING",
             "llm_parallel_max_workers": "CR_LLM_PARALLEL_WORKERS",
             "llm_rate_limit": "CR_LLM_RATE_LIMIT",
+            "llm_confidence_threshold": "CR_LLM_CONFIDENCE_THRESHOLD",
         }
 
         cli_overrides = {
@@ -506,6 +519,7 @@ def analyze(
             "llm_parallel_parsing": llm_parallel_parsing,
             "llm_parallel_max_workers": llm_parallel_workers,
             "llm_rate_limit": llm_rate_limit,
+            "llm_confidence_threshold": llm_confidence_threshold,
         }
 
         runtime_config, preset_name = load_runtime_config(
@@ -765,6 +779,7 @@ def apply(
     llm_parallel_parsing: bool | None,
     llm_parallel_workers: int | None,
     llm_rate_limit: float | None,
+    llm_confidence_threshold: float | None,
     config: str | None,
     log_level: str | None,
     log_file: str | None,
@@ -799,6 +814,7 @@ def apply(
         llm_parallel_parsing: Enable parallel LLM comment parsing for large PRs.
         llm_parallel_workers: Maximum worker threads for parallel LLM parsing (1-32).
         llm_rate_limit: Rate limit for LLM API calls (requests/second, minimum 0.1).
+        llm_confidence_threshold: Minimum LLM confidence (0.0-1.0) required to accept changes.
         config: Configuration preset name or path to configuration file (YAML or TOML).
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Path to log file for output.
@@ -861,6 +877,7 @@ def apply(
             "llm_parallel_parsing": "CR_LLM_PARALLEL_PARSING",
             "llm_parallel_max_workers": "CR_LLM_PARALLEL_WORKERS",
             "llm_rate_limit": "CR_LLM_RATE_LIMIT",
+            "llm_confidence_threshold": "CR_LLM_CONFIDENCE_THRESHOLD",
         }
 
         cli_overrides = {
@@ -878,6 +895,7 @@ def apply(
             "llm_parallel_parsing": llm_parallel_parsing,
             "llm_parallel_max_workers": llm_parallel_workers,
             "llm_rate_limit": llm_rate_limit,
+            "llm_confidence_threshold": llm_confidence_threshold,
         }
 
         runtime_config, preset_name = load_runtime_config(

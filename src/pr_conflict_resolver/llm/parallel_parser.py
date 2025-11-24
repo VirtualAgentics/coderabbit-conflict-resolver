@@ -97,14 +97,13 @@ class RateLimiter:
         This method is thread-safe and ensures that consecutive calls
         are spaced at least min_interval seconds apart.
         """
-        while True:
-            with self._lock:
-                now = time.monotonic()
-                elapsed = now - self._last_call_time
-                delay = max(0.0, self.min_interval - elapsed)
-                if delay <= 0.0:
-                    self._last_call_time = now
-                    return
+        with self._lock:
+            now = time.monotonic()
+            elapsed = now - self._last_call_time
+            delay = max(0.0, self.min_interval - elapsed)
+            self._last_call_time = now + delay
+
+        if delay > 0.0:
             time.sleep(delay)
 
 

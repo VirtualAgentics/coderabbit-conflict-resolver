@@ -73,6 +73,10 @@ class TestRuntimeConfigDefaults:
         config = RuntimeConfig.from_defaults()
         assert config.log_file is None
 
+    def test_from_defaults_llm_confidence_threshold(self) -> None:
+        config = RuntimeConfig.from_defaults()
+        assert config.llm_confidence_threshold == 0.5
+
 
 class TestRuntimeConfigFromEnv:
     """Test RuntimeConfig.from_env() with environment variables."""
@@ -185,6 +189,25 @@ class TestRuntimeConfigFromEnv:
         ):
             RuntimeConfig.from_env()
 
+    def test_from_env_llm_confidence_threshold(self) -> None:
+        with patch.dict(os.environ, {"CR_LLM_CONFIDENCE_THRESHOLD": "0.75"}):
+            config = RuntimeConfig.from_env()
+            assert config.llm_confidence_threshold == 0.75
+
+    def test_from_env_llm_confidence_threshold_too_low(self) -> None:
+        with (
+            patch.dict(os.environ, {"CR_LLM_CONFIDENCE_THRESHOLD": "-0.1"}),
+            pytest.raises(ConfigError, match="must be >= 0.0"),
+        ):
+            RuntimeConfig.from_env()
+
+    def test_from_env_llm_confidence_threshold_too_high(self) -> None:
+        with (
+            patch.dict(os.environ, {"CR_LLM_CONFIDENCE_THRESHOLD": "1.5"}),
+            pytest.raises(ConfigError, match="must be <= 1.0"),
+        ):
+            RuntimeConfig.from_env()
+
 
 class TestRuntimeConfigFromFile:
     """Test RuntimeConfig.from_file() with YAML/TOML files."""
@@ -268,6 +291,7 @@ llm:
   fallback_to_regex: false
   cache_enabled: true
   max_tokens: 4000
+  confidence_threshold: 0.65
   cost_budget: 50.0
 """
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
@@ -284,6 +308,7 @@ llm:
                 assert config.llm_fallback_to_regex is False
                 assert config.llm_cache_enabled is True
                 assert config.llm_max_tokens == 4000
+                assert config.llm_confidence_threshold == 0.65
                 assert config.llm_cost_budget == 50.0
                 # Non-LLM fields from YAML
                 assert config.mode == ApplicationMode.ALL
@@ -441,6 +466,34 @@ class TestRuntimeConfigValidation:
                 log_level="INFO",
                 log_file=None,
                 llm_rate_limit=0.05,
+            )
+
+    def test_llm_confidence_threshold_too_low_raises_error(self) -> None:
+        """Test that llm_confidence_threshold < 0 raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_confidence_threshold"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=True,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_confidence_threshold=-0.1,
+            )
+
+    def test_llm_confidence_threshold_too_high_raises_error(self) -> None:
+        """Test that llm_confidence_threshold > 1 raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_confidence_threshold"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=True,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_confidence_threshold=1.2,
             )
 
 

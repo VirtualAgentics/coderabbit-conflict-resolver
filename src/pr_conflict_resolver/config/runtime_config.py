@@ -90,6 +90,7 @@ class RuntimeConfig:
     llm_fallback_to_regex: bool = True
     llm_cache_enabled: bool = True
     llm_max_tokens: int = 2000
+    llm_confidence_threshold: float = 0.5
     llm_cost_budget: float | None = None
     llm_parallel_parsing: bool = False
     llm_parallel_max_workers: int = 4
@@ -131,6 +132,12 @@ class RuntimeConfig:
 
         if self.llm_max_tokens <= 0:
             raise ConfigError(f"llm_max_tokens must be positive, got {self.llm_max_tokens}")
+
+        if not 0.0 <= self.llm_confidence_threshold <= 1.0:
+            raise ConfigError(
+                "llm_confidence_threshold must be between 0.0 and 1.0 "
+                f"(got {self.llm_confidence_threshold})"
+            )
 
         if self.llm_cost_budget is not None and self.llm_cost_budget <= 0:
             raise ConfigError(f"llm_cost_budget must be positive, got {self.llm_cost_budget}")
@@ -187,6 +194,7 @@ class RuntimeConfig:
             llm_fallback_to_regex=True,
             llm_cache_enabled=True,
             llm_max_tokens=2000,
+            llm_confidence_threshold=0.5,
             llm_cost_budget=None,
             llm_parallel_parsing=False,
             llm_parallel_max_workers=4,
@@ -404,6 +412,7 @@ class RuntimeConfig:
         - CR_LLM_FALLBACK_TO_REGEX: Fallback to regex (default: "true")
         - CR_LLM_CACHE_ENABLED: Enable response caching (default: "true")
         - CR_LLM_MAX_TOKENS: Max tokens per request (default: "2000")
+        - CR_LLM_CONFIDENCE_THRESHOLD: Minimum LLM confidence (default: "0.5")
         - CR_LLM_COST_BUDGET: Max cost per run in USD (default: None)
         - CR_LLM_PARALLEL_PARSING: Enable parallel LLM comment parsing (default: "false")
         - CR_LLM_PARALLEL_WORKERS: Max worker threads for LLM parsing (default: "4")
@@ -469,13 +478,17 @@ class RuntimeConfig:
                 raise ConfigError(f"Invalid {env_var}='{value_str}'. Must be a number") from e
 
         # Parse required float (with default)
-        def parse_float(env_var: str, default: float, min_value: float = 0.0) -> float:
+        def parse_float(
+            env_var: str, default: float, min_value: float = 0.0, max_value: float | None = None
+        ) -> float:
             """Parse required float environment variable."""
             value_str = os.getenv(env_var, str(default))
             try:
                 value = float(value_str)
                 if value < min_value:
                     raise ConfigError(f"{env_var}={value} must be >= {min_value}")
+                if max_value is not None and value > max_value:
+                    raise ConfigError(f"{env_var}={value} must be <= {max_value}")
                 return value
             except ValueError as e:
                 raise ConfigError(f"Invalid {env_var}='{value_str}'. Must be a number") from e
@@ -498,6 +511,12 @@ class RuntimeConfig:
             ),
             llm_cache_enabled=parse_bool("CR_LLM_CACHE_ENABLED", defaults.llm_cache_enabled),
             llm_max_tokens=parse_int("CR_LLM_MAX_TOKENS", defaults.llm_max_tokens, min_value=1),
+            llm_confidence_threshold=parse_float(
+                "CR_LLM_CONFIDENCE_THRESHOLD",
+                defaults.llm_confidence_threshold,
+                min_value=0.0,
+                max_value=1.0,
+            ),
             llm_cost_budget=parse_float_optional("CR_LLM_COST_BUDGET"),
             llm_parallel_parsing=parse_bool(
                 "CR_LLM_PARALLEL_PARSING", defaults.llm_parallel_parsing
@@ -757,6 +776,9 @@ class RuntimeConfig:
             )
             llm_cache_enabled = llm_config.get("cache_enabled", defaults.llm_cache_enabled)
             llm_max_tokens = llm_config.get("max_tokens", defaults.llm_max_tokens)
+            llm_confidence_threshold = llm_config.get(
+                "confidence_threshold", defaults.llm_confidence_threshold
+            )
             llm_cost_budget = llm_config.get("cost_budget", defaults.llm_cost_budget)
             llm_parallel_parsing = llm_config.get("parallel_parsing", defaults.llm_parallel_parsing)
             llm_parallel_max_workers = llm_config.get(
@@ -790,8 +812,9 @@ class RuntimeConfig:
         try:
             parallel_workers = int(llm_parallel_max_workers)
             rate_limit = float(llm_rate_limit)
+            confidence_threshold = float(llm_confidence_threshold)
         except (TypeError, ValueError) as e:
-            raise ConfigError(f"Invalid LLM parallel config in {source}: {e}") from e
+            raise ConfigError(f"Invalid LLM configuration in {source}: {e}") from e
 
         return cls(
             mode=mode,
@@ -808,6 +831,7 @@ class RuntimeConfig:
             llm_fallback_to_regex=bool(llm_fallback_to_regex),
             llm_cache_enabled=bool(llm_cache_enabled),
             llm_max_tokens=int(llm_max_tokens),
+            llm_confidence_threshold=float(confidence_threshold),
             llm_cost_budget=float(llm_cost_budget) if llm_cost_budget else None,
             llm_parallel_parsing=bool(llm_parallel_parsing),
             llm_parallel_max_workers=parallel_workers,

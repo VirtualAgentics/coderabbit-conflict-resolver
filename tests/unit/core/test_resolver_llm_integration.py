@@ -7,6 +7,7 @@ This module tests the integration between ConflictResolver and UniversalLLMParse
 - Backward compatibility (resolver without LLM parser)
 """
 
+import re
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -538,13 +539,24 @@ class TestResolverParallelParsing:
             '"new_content": "llm_parsed2", "change_type": "modification", '
             '"confidence": 0.9, "rationale": "Fixed", "risk_level": "low"}]'
         )
-        mock_provider.generate.side_effect = [
-            llm_result1,
-            "[]",  # Empty result for second comment
-            llm_result2,
-            "[]",  # Empty result for fourth comment
-            "[]",  # Empty result for fifth comment
-        ]
+
+        def mock_generate(prompt: str, max_tokens: int = 2000) -> str:
+            match = re.search(r"regex_fallback_(\d+)", prompt)
+            if match:
+                return "[]"
+
+            match = re.search(r"Fix this (\d+)", prompt)
+            if not match:
+                return "[]"
+
+            idx = int(match.group(1))
+            if idx == 0:
+                return llm_result1
+            if idx == 2:
+                return llm_result2
+            return "[]"
+
+        mock_provider.generate.side_effect = mock_generate
 
         parallel_parser = ParallelLLMParser(provider=mock_provider, max_workers=2)
         resolver = ConflictResolver(workspace_root=tmp_path, llm_parser=parallel_parser)
