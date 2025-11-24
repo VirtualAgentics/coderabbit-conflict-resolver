@@ -814,7 +814,7 @@ class RuntimeConfig:
             rate_limit = float(llm_rate_limit)
             confidence_threshold = float(llm_confidence_threshold)
         except (TypeError, ValueError) as e:
-            raise ConfigError(f"Invalid LLM configuration in {source}: {e}") from e
+            raise ConfigError(f"Invalid LLM parallel config in {source}: {e}") from e
 
         return cls(
             mode=mode,

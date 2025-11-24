@@ -433,11 +433,6 @@ def _display_llm_metrics(metrics: LLMMetrics) -> None:
     help="Minimum LLM confidence (0.0-1.0) required to accept changes (default: 0.5)",
 )
 @click.option(
-    "--llm-confidence-threshold",
-    type=float,
-    help="Minimum LLM confidence (0.0-1.0) required to accept changes (default: 0.5)",
-)
-@click.option(
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
     help="Logging level (default: INFO)",
@@ -741,6 +736,11 @@ def analyze(
     "--llm-rate-limit",
     type=float,
     help="Maximum requests per second for parallel parsing (default: 10.0)",
+)
+@click.option(
+    "--llm-confidence-threshold",
+    type=float,
+    help="Minimum LLM confidence (0.0-1.0) required to accept changes (default: 0.5)",
 )
 @click.option(
     "--config",
