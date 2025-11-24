@@ -4,7 +4,6 @@ Tests for ParallelLLMParser including rate limiting, progress tracking,
 circuit breaker integration, and error handling.
 """
 
-import itertools
 import time
 from unittest.mock import MagicMock
 
@@ -137,9 +136,8 @@ class TestParallelLLMParser:
         assert parser.max_workers == 64
 
     def test_parse_comments_empty_list(self, parser: ParallelLLMParser) -> None:
-        """Test parsing empty comment list raises ValueError."""
-        with pytest.raises(ValueError, match="comments list cannot be empty"):
-            parser.parse_comments([])
+        """Test parsing empty comment list returns empty results."""
+        assert parser.parse_comments([]) == []
 
     def test_parse_comments_single_comment(
         self,
@@ -223,11 +221,13 @@ class TestParallelLLMParser:
         sample_parsed_change_json: str,
     ) -> None:
         """Test handling of partial failures."""
-        counter = itertools.count()
 
         def mock_generate(prompt: str, max_tokens: int = 2000) -> str:
-            idx = next(counter)
-            if idx == 1:  # Fail second comment
+            import re
+
+            match = re.search(r"Comment (\d+)", prompt)
+            idx = int(match.group(1)) if match else -1
+            if idx == 1:  # Fail comment with index 1
                 raise RuntimeError("Simulated failure")
             return sample_parsed_change_json
 
@@ -322,12 +322,18 @@ class TestParallelLLMParser:
         sample_parsed_change_json: str,
     ) -> None:
         """Test exception handling when future.result() raises in as_completed loop."""
+
         # Simulate exception from future.result() (e.g., thread cancellation)
-        mock_provider.generate.side_effect = [
-            sample_parsed_change_json,  # First succeeds
-            RuntimeError("Future cancelled"),  # Second fails in future.result()
-            sample_parsed_change_json,  # Third succeeds
-        ]
+        def mock_generate(prompt: str, max_tokens: int = 2000) -> str:
+            import re
+
+            match = re.search(r"Comment (\d+)", prompt)
+            idx = int(match.group(1)) if match else -1
+            if idx == 1:
+                raise RuntimeError("Future cancelled")
+            return sample_parsed_change_json
+
+        mock_provider.generate.side_effect = mock_generate
 
         comments = [
             CommentInput(body=f"Comment {i}", file_path=f"test{i}.py", line_number=i)

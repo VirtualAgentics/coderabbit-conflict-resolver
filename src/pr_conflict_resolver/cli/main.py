@@ -105,6 +105,7 @@ def _create_llm_parser(runtime_config: RuntimeConfig) -> LLMParser | None:
         return llm_parser
 
     except Exception as e:
+        logger.exception("Failed to initialize LLM parser")
         console.print(f"[yellow]⚠ Warning: Failed to initialize LLM parser: {e}[/yellow]")
         console.print("[dim]Falling back to regex-only parsing[/dim]")
         return None

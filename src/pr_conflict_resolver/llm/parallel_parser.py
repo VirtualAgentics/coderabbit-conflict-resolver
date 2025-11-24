@@ -97,12 +97,15 @@ class RateLimiter:
         This method is thread-safe and ensures that consecutive calls
         are spaced at least min_interval seconds apart.
         """
-        with self._lock:
-            now = time.monotonic()
-            elapsed = now - self._last_call_time
-            if elapsed < self.min_interval:
-                time.sleep(self.min_interval - elapsed)
-            self._last_call_time = time.monotonic()
+        while True:
+            with self._lock:
+                now = time.monotonic()
+                elapsed = now - self._last_call_time
+                delay = max(0.0, self.min_interval - elapsed)
+                if delay <= 0.0:
+                    self._last_call_time = now
+                    return
+            time.sleep(delay)
 
 
 class ParallelLLMParser(UniversalLLMParser):
@@ -180,17 +183,14 @@ class ParallelLLMParser(UniversalLLMParser):
         to prevent API throttling. Results are returned in the same order as input.
 
         Args:
-            comments: List of comment inputs to parse
+            comments: List of comment inputs to parse. Empty lists return [] immediately.
             progress_callback: Optional callback(completed, total) for progress updates.
                 Called after each comment completes parsing. Exceptions in callback
                 are caught and logged to prevent breaking the parser.
 
         Returns:
             List of ParsedChange lists, one per input comment (preserves order).
-            Failed comments return empty list.
-
-        Raises:
-            ValueError: If comments list is empty
+            Failed comments return empty list. Empty input returns [].
 
         Note:
             - Circuit breaker state is checked before parallel execution
@@ -199,7 +199,8 @@ class ParallelLLMParser(UniversalLLMParser):
             - Progress callback is thread-safe and exception-safe
         """
         if not comments:
-            raise ValueError("comments list cannot be empty")
+            logger.debug("parse_comments called with empty input; returning []")
+            return []
 
         # Check circuit breaker state before parallel execution
         if self._should_fallback_to_sequential():
