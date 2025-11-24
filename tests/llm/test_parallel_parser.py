@@ -546,6 +546,21 @@ class TestParallelLLMParser:
         assert len(results[1]) == 0  # Second fails (exception caught in as_completed)
         assert len(results[2]) == 1  # Third succeeds
 
+    def test_parse_comments_failure_no_fallback_raises(
+        self,
+        mock_provider: MagicMock,
+    ) -> None:
+        """Ensure exceptions surface when fallback_to_regex is False."""
+        parser = ParallelLLMParser(provider=mock_provider, fallback_to_regex=False)
+        mock_provider.generate.side_effect = RuntimeError("LLM failure")
+
+        comments = [
+            CommentInput(body="Comment 0", file_path="test.py", line_number=1),
+        ]
+
+        with pytest.raises(RuntimeError, match="LLM failure"):
+            parser.parse_comments(comments)
+
     def test_parse_sequential_exception_handling(
         self,
         mock_provider: MagicMock,

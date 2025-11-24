@@ -20,7 +20,7 @@ from typing import Protocol, runtime_checkable
 from pr_conflict_resolver.llm.base import ParsedChange
 from pr_conflict_resolver.llm.parser import UniversalLLMParser
 from pr_conflict_resolver.llm.providers.base import LLMProvider
-from pr_conflict_resolver.llm.resilience.circuit_breaker import CircuitState
+from pr_conflict_resolver.llm.resilience.circuit_breaker import CircuitBreaker, CircuitState
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class SupportsCircuitBreaker(Protocol):
         pass  # Required for Protocol definition (CodeQL compatibility)  # pragma: no cover
 
     @property
-    def circuit_breaker(self) -> object:
+    def circuit_breaker(self) -> CircuitBreaker:
         """Get circuit breaker instance."""
         pass  # Required for Protocol definition (CodeQL compatibility)  # pragma: no cover
 
@@ -112,7 +112,10 @@ class ParallelLLMParser(UniversalLLMParser):
 
     Extends UniversalLLMParser to process multiple comments concurrently
     using ThreadPoolExecutor. Includes rate limiting to prevent API throttling
-    and progress tracking for UI feedback.
+    and progress tracking for UI feedback. When ``fallback_to_regex`` is True the
+    parallel API is best-effort—comment-level failures become empty results so
+    the rest of the batch can continue. When the flag is False, exceptions are
+    propagated to the caller just like :meth:`parse_comment`.
 
     Attributes:
         max_workers: Maximum number of worker threads (1-32 recommended)
@@ -270,6 +273,9 @@ class ParallelLLMParser(UniversalLLMParser):
                             f"Progress callback raised exception: {type(e2).__name__}: {e2}"
                         )
 
+                if not self.fallback_to_regex:
+                    raise
+
                 # Return empty list for failed comment
                 return (idx, [])
 
@@ -289,8 +295,11 @@ class ParallelLLMParser(UniversalLLMParser):
                     results[idx] = parsed_changes
                 except Exception as e:
                     idx = future_to_index[future]
-                    logger.error(f"Unexpected error processing comment {idx+1}: {e}")
-                    results[idx] = []
+                    if self.fallback_to_regex:
+                        logger.error(f"Unexpected error processing comment {idx+1}: {e}")
+                        results[idx] = []
+                    else:
+                        raise
 
         # Build the final ordered list from the dictionary
         ordered_results = [results.get(i, []) for i in range(total)]
@@ -319,16 +328,19 @@ class ParallelLLMParser(UniversalLLMParser):
     ) -> list[list[ParsedChange]]:
         """Parse comments sequentially (fallback when circuit breaker is open).
 
-        Preserves the error semantics of parse_comment: when fallback_to_regex=False,
-        exceptions are re-raised; when True, exceptions are caught and empty list
-        is returned to enable fallback behavior.
+        When ``fallback_to_regex`` is False this method preserves the exact error
+        semantics of :meth:`parse_comment` (any exception is re-raised). When the
+        flag is True it switches to a best-effort mode where exceptions are caught
+        and converted into empty results so regex-based fallback logic can run later.
 
         Args:
             comments: List of comment inputs to parse
             progress_callback: Optional progress callback
 
         Returns:
-            List of ParsedChange lists, one per input comment
+            List of ParsedChange lists, one per input comment. Entries may be empty
+            either because no changes were produced or because an exception was
+            suppressed when ``fallback_to_regex`` is True.
 
         Raises:
             RuntimeError: If parse_comment raises and fallback_to_regex=False
