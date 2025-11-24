@@ -44,7 +44,7 @@ llm:
   fallback_to_regex: true
   cache_enabled: true
   max_tokens: 2000
-  cost_budget: 5.0  # Note: cost_budget is advisory and not currently enforced
+  cost_budget: 5.0  # Note: cost_budget is advisory and not currently enforced (see [Sub-Issue #225](../planning/ROADMAP.md))
 
 ```
 
@@ -74,7 +74,7 @@ cache_enabled = true
 max_tokens = 2000
 cost_budget = 5.0  # Note: cost_budget is advisory and not currently enforced.
                     # This field allows users to express intended spending limits and
-                    # serves as a placeholder for future enforcement/alerts (see Sub-Issue #225).
+                    # serves as a placeholder for future enforcement/alerts (see [Sub-Issue #225](../planning/ROADMAP.md)).
 
 ```
 

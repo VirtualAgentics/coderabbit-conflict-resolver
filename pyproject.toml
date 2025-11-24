@@ -162,7 +162,7 @@ ignore = [
     "PIE790",  # pass is necessary to satisfy CodeQL py/ineffectual-statement
 ]
 "src/pr_conflict_resolver/llm/parallel_parser.py" = [
-    "PIE790",  # pass is necessary to satisfy CodeQL py/ineffectual-statement
+    "PIE790",  # Protocol stubs use 'pass' instead of '...' to avoid CodeQL py/ineffectual-statement false positive
 ]
 
 [tool.ruff.lint.pydocstyle]
