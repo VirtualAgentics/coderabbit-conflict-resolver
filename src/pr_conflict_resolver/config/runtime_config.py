@@ -908,6 +908,7 @@ class RuntimeConfig:
             "llm_fallback_to_regex": self.llm_fallback_to_regex,
             "llm_cache_enabled": self.llm_cache_enabled,
             "llm_max_tokens": self.llm_max_tokens,
+            "llm_confidence_threshold": self.llm_confidence_threshold,
             "llm_cost_budget": self.llm_cost_budget,
             "llm_parallel_parsing": self.llm_parallel_parsing,
             "llm_parallel_max_workers": self.llm_parallel_max_workers,

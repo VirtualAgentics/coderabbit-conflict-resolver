@@ -5,16 +5,22 @@ circuit breaker integration, and error handling.
 """
 
 import time
-from unittest.mock import MagicMock
+from collections.abc import Callable, Iterable
+from types import TracebackType
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from pr_conflict_resolver.llm.base import ParsedChange
 from pr_conflict_resolver.llm.parallel_parser import (
     CommentInput,
     ParallelLLMParser,
     RateLimiter,
 )
 from pr_conflict_resolver.llm.resilience.circuit_breaker import CircuitState
+
+ResultTuple = tuple[int, list[ParsedChange]]
 
 
 @pytest.fixture
@@ -92,6 +98,27 @@ class TestRateLimiter:
             assert (
                 diff >= min_interval
             ), f"Call {i} too close to previous: {diff:.3f}s < {min_interval:.3f}s"
+
+    def test_rate_limiter_reserves_future_slot(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test rate limiter updates last-call timestamp before sleeping."""
+        limiter = RateLimiter(rate=10.0)  # 0.1s interval
+
+        times = iter([1.0, 1.02])
+        monkeypatch.setattr(
+            "pr_conflict_resolver.llm.parallel_parser.time.monotonic", lambda: next(times)
+        )
+
+        sleep_calls: list[float] = []
+        monkeypatch.setattr(
+            "pr_conflict_resolver.llm.parallel_parser.time.sleep", sleep_calls.append
+        )
+
+        limiter.wait_if_needed()  # First call should not sleep
+        limiter.wait_if_needed()  # Second call should compute delay and sleep once
+
+        assert sleep_calls, "Expected rate limiter to sleep on second call"
+        assert pytest.approx(limiter._last_call_time, rel=1e-6) == 1.1
+        assert pytest.approx(sleep_calls[0], rel=1e-2) == 0.08
 
 
 class TestParallelLLMParser:
@@ -287,6 +314,178 @@ class TestParallelLLMParser:
         # Should not raise, callback errors are caught
         results = parser.parse_comments(comments, progress_callback=progress_callback)
         assert len(results) == 1
+
+    def test_progress_callback_called_on_failures(
+        self,
+        parser: ParallelLLMParser,
+        mock_provider: MagicMock,
+        sample_parsed_change_json: str,
+    ) -> None:
+        """Progress callback receives updates even when parsing fails."""
+
+        def mock_generate(prompt: str, max_tokens: int = 2000) -> str:
+            import re
+
+            match = re.search(r"Comment (\d+)", prompt)
+            idx = int(match.group(1)) if match else -1
+            if idx == 0:
+                raise RuntimeError("Simulated failure")
+            return sample_parsed_change_json
+
+        mock_provider.generate.side_effect = mock_generate
+
+        progress_calls: list[tuple[int, int]] = []
+
+        def progress_callback(completed: int, total: int) -> None:
+            progress_calls.append((completed, total))
+
+        comments = [
+            CommentInput(body=f"Comment {i}", file_path=f"test{i}.py", line_number=i)
+            for i in range(2)
+        ]
+        results = parser.parse_comments(comments, progress_callback=progress_callback)
+
+        assert len(results[0]) == 0  # Failed comment returns empty list
+        assert len(results[1]) == 1  # Second comment succeeds
+        assert progress_calls == [(1, 2), (2, 2)]
+
+    def test_parse_comments_failure_branch_sync_executor(
+        self,
+        parser: ParallelLLMParser,
+        mock_provider: MagicMock,
+        sample_parsed_change_json: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Cover failure branch by running executor synchronously."""
+
+        class ImmediateFuture:
+            def __init__(
+                self, result: ResultTuple | None = None, exc: Exception | None = None
+            ) -> None:
+                self._result = result
+                self._exc = exc
+
+            def result(self) -> ResultTuple:
+                if self._exc is not None:
+                    raise self._exc
+                assert self._result is not None
+                return self._result
+
+        class SynchronousExecutor:
+            def __init__(self, max_workers: int) -> None:
+                self._futures: list[ImmediateFuture] = []
+
+            def __enter__(self) -> "SynchronousExecutor":
+                return self
+
+            def __exit__(
+                self,
+                exc_type: type[BaseException] | None,
+                exc: BaseException | None,
+                tb: TracebackType | None,
+            ) -> None:
+                return None
+
+            def submit(
+                self,
+                fn: Callable[[int, CommentInput], ResultTuple],
+                idx: int,
+                comment: CommentInput,
+            ) -> ImmediateFuture:
+                try:
+                    value = fn(idx, comment)
+                    future = ImmediateFuture(result=value)
+                except Exception as exc:  # pragma: no cover - defensive
+                    future = ImmediateFuture(exc=exc)
+                self._futures.append(future)
+                return future
+
+        def fake_as_completed(
+            futures: Iterable[ImmediateFuture] | dict[Any, ImmediateFuture],
+        ) -> list[ImmediateFuture]:
+            if isinstance(futures, dict):
+                return list(futures.keys())
+            return list(futures)
+
+        monkeypatch.setattr(
+            "pr_conflict_resolver.llm.parallel_parser.ThreadPoolExecutor", SynchronousExecutor
+        )
+        monkeypatch.setattr(
+            "pr_conflict_resolver.llm.parallel_parser.as_completed", fake_as_completed
+        )
+
+        def mock_generate(prompt: str, max_tokens: int = 2000) -> str:
+            import re
+
+            match = re.search(r"Comment (\d+)", prompt)
+            idx = int(match.group(1)) if match else -1
+            if idx == 1:
+                raise RuntimeError("boom")
+            return sample_parsed_change_json
+
+        mock_provider.generate.side_effect = mock_generate
+
+        progress_calls: list[tuple[int, int]] = []
+
+        def progress_callback(completed: int, total: int) -> None:
+            progress_calls.append((completed, total))
+
+        comments = [
+            CommentInput(body=f"Comment {i}", file_path=f"test{i}.py", line_number=i)
+            for i in range(2)
+        ]
+
+        results = parser.parse_comments(comments, progress_callback=progress_callback)
+        assert len(results[0]) == 1
+        assert results[1] == []
+        assert progress_calls == [(1, 2), (2, 2)]
+
+    def test_parse_sequential_progress_callback_success(
+        self,
+        mock_provider: MagicMock,
+    ) -> None:
+        """_parse_sequential invokes progress callback on success."""
+        parser = ParallelLLMParser(provider=mock_provider)
+        comments = [
+            CommentInput(body="Comment 0", file_path="test.py", line_number=1),
+            CommentInput(body="Comment 1", file_path="test.py", line_number=2),
+        ]
+
+        progress_calls: list[tuple[int, int]] = []
+
+        with patch.object(parser, "parse_comment", return_value=[MagicMock()]):
+            results = parser._parse_sequential(
+                comments, progress_callback=lambda c, t: progress_calls.append((c, t))
+            )
+
+        assert len(results) == 2
+        assert progress_calls == [(1, 2), (2, 2)]
+
+    def test_parse_sequential_progress_callback_failure_branch(
+        self,
+        mock_provider: MagicMock,
+    ) -> None:
+        """_parse_sequential invokes progress callback even when parsing fails."""
+        parser = ParallelLLMParser(provider=mock_provider, fallback_to_regex=True)
+        comments = [
+            CommentInput(body="Comment 0", file_path="test.py", line_number=1),
+            CommentInput(body="Comment 1", file_path="test.py", line_number=2),
+        ]
+
+        progress_calls: list[tuple[int, int]] = []
+
+        with patch.object(
+            parser,
+            "parse_comment",
+            side_effect=([MagicMock()], RuntimeError("sequential failure")),
+        ):
+            results = parser._parse_sequential(
+                comments, progress_callback=lambda c, t: progress_calls.append((c, t))
+            )
+
+        assert len(results) == 2
+        assert results[1] == []
+        assert progress_calls == [(1, 2), (2, 2)]
 
     def test_parse_comments_circuit_breaker_open(
         self,

@@ -197,14 +197,14 @@ class TestRuntimeConfigFromEnv:
     def test_from_env_llm_confidence_threshold_too_low(self) -> None:
         with (
             patch.dict(os.environ, {"CR_LLM_CONFIDENCE_THRESHOLD": "-0.1"}),
-            pytest.raises(ConfigError, match="must be >= 0.0"),
+            pytest.raises(ConfigError, match="CR_LLM_CONFIDENCE_THRESHOLD"),
         ):
             RuntimeConfig.from_env()
 
     def test_from_env_llm_confidence_threshold_too_high(self) -> None:
         with (
             patch.dict(os.environ, {"CR_LLM_CONFIDENCE_THRESHOLD": "1.5"}),
-            pytest.raises(ConfigError, match="must be <= 1.0"),
+            pytest.raises(ConfigError, match="CR_LLM_CONFIDENCE_THRESHOLD"),
         ):
             RuntimeConfig.from_env()
 
@@ -534,6 +534,13 @@ class TestRuntimeConfigMergeWithCLI:
         assert merged.enable_rollback is True
         assert merged.validate_before_apply is True
 
+    def test_merge_with_cli_confidence_threshold_override(self) -> None:
+        config = RuntimeConfig.from_defaults()
+        merged = config.merge_with_cli(llm_confidence_threshold=0.8)
+        assert merged.llm_confidence_threshold == 0.8
+        # Original config should remain unchanged
+        assert config.llm_confidence_threshold == 0.5
+
     def test_merge_with_cli_none_values_ignored(self) -> None:
         """Test that None values don't override existing config."""
         config = RuntimeConfig(
@@ -592,6 +599,7 @@ class TestRuntimeConfigToDict:
         assert "llm_fallback_to_regex" in data
         assert "llm_cache_enabled" in data
         assert "llm_max_tokens" in data
+        assert "llm_confidence_threshold" in data
         assert "llm_cost_budget" in data
 
     def test_to_dict_values(self) -> None:
@@ -610,6 +618,7 @@ class TestRuntimeConfigToDict:
             llm_fallback_to_regex=False,
             llm_cache_enabled=False,
             llm_max_tokens=4000,
+            llm_confidence_threshold=0.65,
             llm_cost_budget=50.0,
         )
         data = config.to_dict()
@@ -628,6 +637,7 @@ class TestRuntimeConfigToDict:
         assert data["llm_fallback_to_regex"] is False
         assert data["llm_cache_enabled"] is False
         assert data["llm_max_tokens"] == 4000
+        assert data["llm_confidence_threshold"] == 0.65
         assert data["llm_cost_budget"] == 50.0
 
     def test_to_dict_none_log_file(self) -> None:
@@ -964,6 +974,24 @@ llm:
   parallel_parsing: true
   parallel_max_workers: 4
   rate_limit: {value: 10.0}
+"""
+        )
+
+        with pytest.raises(ConfigError, match="Invalid LLM parallel config"):
+            RuntimeConfig.from_file(config_file)
+
+    def test_from_file_invalid_llm_confidence_threshold(self, tmp_path: Path) -> None:
+        """Test that invalid confidence_threshold value raises ConfigError."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            """
+llm:
+  enabled: true
+  provider: claude-cli
+  parallel_parsing: true
+  parallel_max_workers: 4
+  rate_limit: 10.0
+  confidence_threshold: "high"
 """
         )
 

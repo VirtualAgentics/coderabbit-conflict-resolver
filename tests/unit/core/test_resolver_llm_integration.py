@@ -8,13 +8,29 @@ This module tests the integration between ConflictResolver and UniversalLLMParse
 """
 
 import re
+from collections.abc import Callable
 from pathlib import Path
-from unittest.mock import MagicMock
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 from pr_conflict_resolver.core.models import FileType
 from pr_conflict_resolver.core.resolver import ConflictResolver
 from pr_conflict_resolver.llm.base import LLMParser, ParsedChange
-from pr_conflict_resolver.llm.parallel_parser import ParallelLLMParser
+from pr_conflict_resolver.llm.parallel_parser import CommentInput, ParallelLLMParser
+
+
+def _parsed_change(path: str = "test.py", line: int = 10) -> ParsedChange:
+    """Helper to create ParsedChange instances."""
+    return ParsedChange(
+        file_path=path,
+        start_line=line,
+        end_line=line,
+        new_content="patched_code",
+        change_type="modification",
+        confidence=0.9,
+        rationale="auto",
+        risk_level="low",
+    )
 
 
 class TestResolverWithoutLLM:
@@ -653,3 +669,77 @@ class TestResolverParallelParsing:
         assert len(changes) == 5
         # Verify max_workers was not changed (should remain 4)
         assert parallel_parser.max_workers == 4
+
+
+class TestResolverParallelInternals:
+    """Unit tests targeting internal parallel parsing branches."""
+
+    def test_extract_changes_parallel_non_parallel_parser(self, tmp_path: Path) -> None:
+        resolver = ConflictResolver(workspace_root=tmp_path, llm_parser=MagicMock(spec=LLMParser))
+        comments: list[dict[str, Any]] = [{"path": "test.py", "body": "body"}]
+
+        with patch.object(resolver, "_extract_changes_sequential", return_value=[]) as mock_seq:
+            result = resolver._extract_changes_parallel(comments)
+
+        assert result == []
+        mock_seq.assert_called_once_with(comments)
+
+    def test_extract_changes_parallel_no_valid_comments_calls_sequential(
+        self, tmp_path: Path
+    ) -> None:
+        parser = ParallelLLMParser(provider=MagicMock(), max_workers=2)
+        resolver = ConflictResolver(workspace_root=tmp_path, llm_parser=parser)
+        comments: list[dict[str, Any]] = [{"path": "test.py", "body": "missing line"}]
+
+        with patch.object(resolver, "_extract_changes_sequential", return_value=[]) as mock_seq:
+            result = resolver._extract_changes_parallel(comments)
+
+        assert result == []
+        mock_seq.assert_called_once_with(comments)
+
+    def test_extract_changes_parallel_restores_workers_and_handles_regex(
+        self, tmp_path: Path
+    ) -> None:
+        parser = ParallelLLMParser(provider=MagicMock(), max_workers=2)
+        resolver = ConflictResolver(workspace_root=tmp_path, llm_parser=parser)
+
+        parsed_change = _parsed_change()
+
+        def fake_parse(
+            comment_inputs: list[CommentInput],
+            progress_callback: Callable[[int, int], None] | None = None,
+        ) -> list[list[ParsedChange]]:
+            assert len(comment_inputs) == 2
+            return [[parsed_change], []]
+
+        comments: list[dict[str, Any]] = [
+            {
+                "path": "test.py",
+                "line": 10,
+                "body": "Fix this function",
+                "html_url": "https://example.com/1",
+                "user": {"login": "user1"},
+            },
+            {
+                "path": "test.py",
+                "line": 20,
+                "body": "```suggestion\nregex_fix = True\n```",
+                "html_url": "https://example.com/2",
+                "user": {"login": "user2"},
+            },
+            {
+                # Missing line ensures the code path handling invalid comments runs
+                "path": "missing.py",
+                "body": "```suggestion\nnoop\n```",
+                "html_url": "https://example.com/3",
+                "user": {"login": "user3"},
+            },
+        ]
+
+        with patch.object(parser, "parse_comments", side_effect=fake_parse) as mock_parse:
+            changes = resolver._extract_changes_parallel(comments, max_workers=5)
+
+        assert parser.max_workers == 2
+        mock_parse.assert_called_once()
+        assert any(change.parsing_method == "llm" for change in changes)
+        assert any(change.parsing_method == "regex" for change in changes)
