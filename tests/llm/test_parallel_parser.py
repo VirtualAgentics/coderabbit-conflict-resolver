@@ -145,7 +145,7 @@ class TestRateLimiter:
         """Test rate limiter updates last-call timestamp before sleeping."""
         limiter = RateLimiter(rate=10.0)  # 0.1s interval
 
-        times = iter([1.0, 1.02])
+        times = iter([1.0, 1.02, 1.15])
         monkeypatch.setattr(
             "pr_conflict_resolver.llm.parallel_parser.time.monotonic", lambda: next(times)
         )
@@ -155,12 +155,14 @@ class TestRateLimiter:
             "pr_conflict_resolver.llm.parallel_parser.time.sleep", sleep_calls.append
         )
 
-        limiter.wait_if_needed()  # First call should not sleep
-        limiter.wait_if_needed()  # Second call should compute delay and sleep once
+        limiter.wait_if_needed()  # First call at t=1.0, no sleep, reserves slot at 1.0
+        limiter.wait_if_needed()  # Second call at t=1.02, sleeps to 1.1, reserves slot at 1.1
+        limiter.wait_if_needed()  # Third call at t=1.15, sleeps to 1.2 (verifies slot at 1.1)
 
-        assert sleep_calls, "Expected rate limiter to sleep on second call"
-        assert pytest.approx(limiter._last_call_time, rel=1e-6) == 1.1
-        assert pytest.approx(sleep_calls[0], rel=1e-2) == 0.08
+        # Verify behavior through observable effects (sleep durations) not private state
+        assert len(sleep_calls) == 2, "Expected rate limiter to sleep on 2nd and 3rd calls"
+        assert pytest.approx(sleep_calls[0], rel=1e-2) == 0.08  # 1.1 - 1.02
+        assert pytest.approx(sleep_calls[1], rel=1e-2) == 0.05  # 1.2 - 1.15
 
 
 class TestParallelLLMParser:
