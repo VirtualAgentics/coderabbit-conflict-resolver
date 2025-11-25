@@ -1480,9 +1480,9 @@ ruff==0.14.6 \
     --hash=sha256:efea3c0f21901a685fff4befda6d61a1bf4cb43de16da87e8226a281d614350b \
     --hash=sha256:ff18134841e5c68f8e5df1999a64429a02d5549036b394fafbe410f886e1989d
     # via -r requirements-dev.in
-secretstorage==3.4.1 \
-    --hash=sha256:a799acf5be9fb93db609ebaa4ab6e8f1f3ed5ae640e0fa732bfea59e9c3b50e8 \
-    --hash=sha256:c55d57b4da3de568d8c3af89dad244ab24c35ca1da8625fc1b550edf005ebc41
+SecretStorage==3.5.0 \
+    --hash=sha256:0ce65888c0725fcb2c5bc0fdb8e5438eece02c523557ea40ce0703c266248137 \
+    --hash=sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be
     # via keyring
 sniffio==1.3.1 \
     --hash=sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2 \
