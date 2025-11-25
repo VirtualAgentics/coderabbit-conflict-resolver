@@ -993,7 +993,7 @@ class TestAnalyzeCommandLLMPreset:
 class TestDisplayAggregatedMetrics:
     """Tests for _display_aggregated_metrics() function."""
 
-    def test_display_aggregated_metrics_basic(self) -> None:
+    def test_display_aggregated_metrics_basic(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Display aggregated metrics with provider stats and verify output content."""
         from pr_conflict_resolver.llm.metrics import RequestMetrics
 
@@ -1025,8 +1025,14 @@ class TestDisplayAggregatedMetrics:
         assert agg.latency_p50 == 0.5
         assert agg.cache_hit_rate == 0.3
 
-        # Also verify function runs without error
+        # Verify function runs and produces expected output
         _display_aggregated_metrics(aggregator)
+        captured = capsys.readouterr()
+
+        # Verify key metrics appear in rendered output
+        assert "Total requests: 10" in captured.out
+        assert "80.0%" in captured.out  # Success rate
+        assert "anthropic" in captured.out.lower()
 
     def test_display_aggregated_metrics_empty(self) -> None:
         """Display aggregated metrics with no requests."""
