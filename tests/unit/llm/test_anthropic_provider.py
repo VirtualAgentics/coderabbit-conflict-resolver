@@ -730,3 +730,95 @@ class TestAnthropicProviderRetryLogic:
 
         # Should try 3 times
         assert mock_client.messages.create.call_count == 3
+
+
+class TestAnthropicProviderLatencyTracking:
+    """Tests for latency tracking methods."""
+
+    def test_get_last_request_latency_initial_none(self) -> None:
+        """Returns None before any requests are made."""
+        provider = AnthropicAPIProvider(api_key="sk-ant-test")
+        assert provider.get_last_request_latency() is None
+
+    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    def test_get_last_request_latency_after_request(self, mock_anthropic_class: Mock) -> None:
+        """Returns latency value after a successful request."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_text_block = TextBlock(type="text", text='{"result": "success"}')
+        mock_response = MagicMock()
+        mock_response.content = [mock_text_block]
+        mock_response.usage = MagicMock(
+            input_tokens=10,
+            output_tokens=5,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
+        mock_client.messages.create.return_value = mock_response
+
+        provider = AnthropicAPIProvider(api_key="sk-ant-test")
+        provider.generate("Test prompt")
+
+        latency = provider.get_last_request_latency()
+        assert latency is not None
+        assert latency >= 0
+
+    def test_get_all_latencies_initial_empty(self) -> None:
+        """Returns empty list before any requests are made."""
+        provider = AnthropicAPIProvider(api_key="sk-ant-test")
+        assert provider.get_all_latencies() == []
+
+    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    def test_get_all_latencies_accumulates(self, mock_anthropic_class: Mock) -> None:
+        """Returns list of all request latencies after multiple requests."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_text_block = TextBlock(type="text", text='{"result": "success"}')
+        mock_response = MagicMock()
+        mock_response.content = [mock_text_block]
+        mock_response.usage = MagicMock(
+            input_tokens=10,
+            output_tokens=5,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
+        mock_client.messages.create.return_value = mock_response
+
+        provider = AnthropicAPIProvider(api_key="sk-ant-test")
+        provider.generate("Test prompt 1")
+        provider.generate("Test prompt 2")
+
+        latencies = provider.get_all_latencies()
+        assert len(latencies) == 2
+        assert all(lat >= 0 for lat in latencies)
+
+    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    def test_reset_latency_tracking(self, mock_anthropic_class: Mock) -> None:
+        """Clears latencies and resets last_request_latency to None."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_text_block = TextBlock(type="text", text='{"result": "success"}')
+        mock_response = MagicMock()
+        mock_response.content = [mock_text_block]
+        mock_response.usage = MagicMock(
+            input_tokens=10,
+            output_tokens=5,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
+        mock_client.messages.create.return_value = mock_response
+
+        provider = AnthropicAPIProvider(api_key="sk-ant-test")
+        provider.generate("Test prompt")
+
+        # Verify latency was recorded
+        assert provider.get_last_request_latency() is not None
+        assert len(provider.get_all_latencies()) == 1
+
+        # Reset and verify cleared
+        provider.reset_latency_tracking()
+        assert provider.get_last_request_latency() is None
+        assert provider.get_all_latencies() == []

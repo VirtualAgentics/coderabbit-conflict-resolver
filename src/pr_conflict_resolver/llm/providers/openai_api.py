@@ -13,6 +13,8 @@ protocol for type safety and polymorphic usage.
 """
 
 import logging
+import time
+from collections import deque
 from typing import ClassVar
 
 import tiktoken
@@ -119,6 +121,10 @@ class OpenAIAPIProvider:
         self.total_input_tokens = 0
         self.total_output_tokens = 0
 
+        # Latency tracking (bounded to prevent unbounded memory growth)
+        self._request_latencies: deque[float] = deque(maxlen=1000)
+        self._last_request_latency: float | None = None
+
         # Get tokenizer for this model
         try:
             self.tokenizer = tiktoken.encoding_for_model(model)
@@ -193,13 +199,19 @@ class OpenAIAPIProvider:
         try:
             logger.debug(f"Sending request to OpenAI: model={self.model}, max_tokens={max_tokens}")
 
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=max_tokens,
-                temperature=0.0,  # Deterministic for consistency
-                response_format={"type": "json_object"},  # Force JSON output
-            )
+            start_time = time.perf_counter()
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=max_tokens,
+                    temperature=0.0,  # Deterministic for consistency
+                    response_format={"type": "json_object"},  # Force JSON output
+                )
+            finally:
+                latency = time.perf_counter() - start_time
+                self._last_request_latency = latency
+                self._request_latencies.append(latency)
 
             # Track token usage
             usage = response.usage
@@ -326,3 +338,29 @@ class OpenAIAPIProvider:
         self.total_input_tokens = 0
         self.total_output_tokens = 0
         logger.debug("Reset token usage tracking")
+
+    def get_last_request_latency(self) -> float | None:
+        """Get latency of most recent request in seconds.
+
+        Returns:
+            Latency in seconds, or None if no requests made yet.
+        """
+        return self._last_request_latency
+
+    def get_all_latencies(self) -> list[float]:
+        """Get all recorded request latencies.
+
+        Returns:
+            Copy of list containing all request latencies in seconds.
+            Note: Limited to most recent 1000 entries.
+        """
+        return list(self._request_latencies)
+
+    def reset_latency_tracking(self) -> None:
+        """Reset latency tracking (separate from token/cost tracking).
+
+        Clears all recorded latencies and resets last request latency.
+        """
+        self._request_latencies.clear()
+        self._last_request_latency = None
+        logger.debug("Reset latency tracking")

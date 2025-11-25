@@ -3,6 +3,7 @@
 import hashlib
 import logging
 import re
+from pathlib import Path
 
 import click
 from rich.console import Console
@@ -21,6 +22,7 @@ from pr_conflict_resolver.core.resolver import ConflictResolver
 from pr_conflict_resolver.llm.base import LLMParser
 from pr_conflict_resolver.llm.exceptions import LLMError
 from pr_conflict_resolver.llm.metrics import LLMMetrics
+from pr_conflict_resolver.llm.metrics_aggregator import MetricsAggregator
 from pr_conflict_resolver.llm.parallel_parser import ParallelLLMParser
 from pr_conflict_resolver.llm.parser import UniversalLLMParser
 from pr_conflict_resolver.llm.presets import LLMPresetConfig
@@ -345,6 +347,151 @@ def _display_llm_metrics(metrics: LLMMetrics) -> None:
     console.print(panel)
 
 
+def _display_aggregated_metrics(aggregator: MetricsAggregator) -> None:
+    """Display detailed aggregated metrics with latency percentiles.
+
+    Shows comprehensive metrics including per-provider breakdown and
+    latency percentiles (p50, p95, p99) in a formatted Rich panel.
+
+    Args:
+        aggregator: MetricsAggregator with collected request metrics.
+    """
+    metrics = aggregator.get_aggregated_metrics()
+
+    if metrics.total_requests == 0:
+        console.print("[dim]No LLM requests recorded[/dim]")
+        return
+
+    # Build metrics table
+    table = Table.grid(padding=(0, 2))
+    table.add_column(style="cyan", justify="left")
+    table.add_column(style="white", justify="left")
+
+    # Row 1: Request counts
+    table.add_row(
+        f"Total requests: {metrics.total_requests}",
+        f"Success rate: {metrics.success_rate * 100:.1f}%",
+    )
+
+    # Row 2: Latency percentiles
+    table.add_row(
+        f"Latency p50: {metrics.latency_p50 * 1000:.0f}ms",
+        f"p95: {metrics.latency_p95 * 1000:.0f}ms / p99: {metrics.latency_p99 * 1000:.0f}ms",
+    )
+
+    # Row 3: Cost and cache
+    cost_display = f"${metrics.total_cost:.4f}" if metrics.total_cost > 0 else "Free"
+    table.add_row(
+        f"Total cost: {cost_display}",
+        f"Cache hit rate: {metrics.cache_hit_rate * 100:.1f}%",
+    )
+
+    # Row 4: Cache savings
+    if metrics.cache_savings > 0:
+        table.add_row(
+            f"Cache savings: ${metrics.cache_savings:.4f}",
+            "",
+        )
+
+    # Per-provider breakdown
+    if metrics.provider_stats:
+        table.add_row("", "")
+        table.add_row("[bold]Per-provider breakdown:[/bold]", "")
+        for name, stats in metrics.provider_stats.items():
+            provider_display = "OpenAI" if name.lower() == "openai" else name.capitalize()
+            table.add_row(
+                f"  {provider_display}:",
+                f"{stats.total_requests} reqs, p95={stats.latency_p95 * 1000:.0f}ms, "
+                f"${stats.total_cost:.4f}",
+            )
+
+    # Display in panel
+    panel = Panel(
+        table,
+        title="Aggregated LLM Metrics",
+        border_style="blue",
+        padding=(1, 2),
+    )
+
+    console.print()
+    console.print(panel)
+
+
+def _export_metrics(
+    aggregator: MetricsAggregator,
+    output_path: str,
+    detail_level: str,
+) -> None:
+    """Export metrics to file (JSON or CSV).
+
+    Args:
+        aggregator: MetricsAggregator with collected request metrics.
+        output_path: Path to output file (extension determines format).
+        detail_level: 'summary' or 'full' (includes per-request data).
+    """
+    path = Path(output_path)
+    suffix = path.suffix.lower()
+
+    try:
+        if suffix == ".csv":
+            aggregator.export_csv(path)
+            console.print(f"[green]✓ Metrics exported to {path}[/green]")
+        elif suffix == ".json":
+            include_requests = detail_level == "full"
+            aggregator.export_json(path, include_requests=include_requests)
+            console.print(f"[green]✓ Metrics exported to {path}[/green]")
+        else:
+            # Default to JSON
+            include_requests = detail_level == "full"
+            aggregator.export_json(path.with_suffix(".json"), include_requests=include_requests)
+            console.print(f"[green]✓ Metrics exported to {path.with_suffix('.json')}[/green]")
+    except OSError as e:
+        console.print(f"[red]❌ Failed to export metrics: {e}[/red]")
+        logger.error("Failed to export metrics to %s: %s", path, e)
+
+
+def _record_and_display_metrics(
+    llm_metrics: LLMMetrics,
+    owner: str,
+    repo: str,
+    pr: int,
+    metrics_output: str | None,
+    metrics_detail: str,
+) -> None:
+    """Record LLM metrics and display/export aggregated results.
+
+    Creates a MetricsAggregator, records a synthetic request from LLMMetrics,
+    displays the aggregated metrics, and optionally exports to file.
+
+    Note: This records a single synthetic request from aggregated LLMMetrics.
+    Per-request latency tracking requires direct provider integration with
+    the MetricsAggregator.
+
+    Args:
+        llm_metrics: Aggregated LLM metrics from parsing.
+        owner: Repository owner.
+        repo: Repository name.
+        pr: Pull request number.
+        metrics_output: Optional file path for metrics export.
+        metrics_detail: Detail level ('summary' or 'full').
+    """
+    aggregator = MetricsAggregator()
+    aggregator.set_pr_info(owner, repo, pr)
+    req_id = aggregator.start_request(llm_metrics.provider, llm_metrics.model)
+    aggregator.end_request(
+        req_id,
+        success=True,
+        # Total includes input+output; breakdown unavailable in LLMMetrics
+        tokens_input=llm_metrics.total_tokens,
+        tokens_output=0,  # Not tracked separately in LLMMetrics
+        cost=llm_metrics.total_cost,
+    )
+    _display_aggregated_metrics(aggregator)
+
+    if metrics_output:
+        _export_metrics(aggregator, metrics_output, metrics_detail)
+
+
 # NOTE: File path validation for CLI options is not yet needed.
 # Current CLI commands use identifiers (--owner, --repo, --pr) which are validated
 # by the validators above (validate_github_username and validate_github_repo).
@@ -442,6 +589,25 @@ def _display_llm_metrics(metrics: LLMMetrics) -> None:
     type=click.Path(dir_okay=False),
     help="Path to log file (default: stdout only)",
 )
+@click.option(
+    "--metrics-output",
+    type=click.Path(dir_okay=False),
+    help="Export LLM metrics to file (requires --show-metrics; supports .json/.csv)",
+)
+@click.option(
+    "--metrics-detail",
+    type=click.Choice(["summary", "full"], case_sensitive=False),
+    default="summary",
+    help="Metrics detail level: 'summary' or 'full' with per-request data",
+)
+@click.option(
+    "--show-metrics",
+    is_flag=True,
+    help=(
+        "Display detailed LLM metrics after analysis. Note: Latency percentiles "
+        "show aggregate values; per-request tracking requires provider integration."
+    ),
+)
 def analyze(
     pr: int,
     owner: str,
@@ -458,6 +624,9 @@ def analyze(
     llm_confidence_threshold: float | None,
     log_level: str | None,
     log_file: str | None,
+    metrics_output: str | None,
+    metrics_detail: str,
+    show_metrics: bool,
 ) -> None:
     """Analyze conflicts in a pull request and print a summary to the console.
 
@@ -481,10 +650,19 @@ def analyze(
         llm_confidence_threshold: Minimum LLM confidence (0.0-1.0) required to accept changes.
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Path to log file for output.
+        metrics_output: Path to export metrics file (.json or .csv).
+        metrics_detail: Level of detail for metrics export ('summary' or 'full').
+        show_metrics: Display detailed metrics with latency percentiles.
 
     Raises:
         click.Abort: If an error occurs while analyzing conflicts.
     """
+    # Validate metrics options
+    if metrics_output and not show_metrics:
+        console.print(
+            "[yellow]Warning: --metrics-output has no effect without --show-metrics[/yellow]"
+        )
+
     # Load runtime configuration with proper precedence
     try:
         env_var_map = {
@@ -634,6 +812,12 @@ def analyze(
                 if llm_metrics:
                     _display_llm_metrics(llm_metrics)
 
+                # Show detailed aggregated metrics if --show-metrics flag is set
+                if show_metrics and llm_metrics:
+                    _record_and_display_metrics(
+                        llm_metrics, owner, repo, pr, metrics_output, metrics_detail
+                    )
+
         except LLMError:
             # LLM errors are handled by the context manager
             raise
@@ -760,6 +944,25 @@ def analyze(
     type=click.Path(dir_okay=False),
     help="Path to log file (default: stdout only)",
 )
+@click.option(
+    "--metrics-output",
+    type=click.Path(dir_okay=False),
+    help="Export LLM metrics to file (requires --show-metrics; supports .json/.csv)",
+)
+@click.option(
+    "--metrics-detail",
+    type=click.Choice(["summary", "full"], case_sensitive=False),
+    default="summary",
+    help="Metrics detail level: 'summary' or 'full' with per-request data",
+)
+@click.option(
+    "--show-metrics",
+    is_flag=True,
+    help=(
+        "Display detailed LLM metrics after processing. Note: Latency percentiles "
+        "show aggregate values; per-request tracking requires provider integration."
+    ),
+)
 def apply(
     pr: int,
     owner: str,
@@ -783,6 +986,9 @@ def apply(
     config: str | None,
     log_level: str | None,
     log_file: str | None,
+    metrics_output: str | None,
+    metrics_detail: str,
+    show_metrics: bool,
 ) -> None:
     r"""Apply or simulate applying conflict-resolution suggestions to a pull request.
 
@@ -818,6 +1024,9 @@ def apply(
         config: Configuration preset name or path to configuration file (YAML or TOML).
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Path to log file for output.
+        metrics_output: Path to export LLM metrics file (.json or .csv), or None to skip export.
+        metrics_detail: Metrics export detail level ("summary" or "full" with per-request data).
+        show_metrics: If True, display detailed LLM metrics to stdout after processing.
 
     Raises:
         click.Abort: If an error occurs while analyzing or applying suggestions.
@@ -845,6 +1054,12 @@ def apply(
         $ pr-resolve apply --pr 123 --owner myorg --repo myrepo \\
             --config /path/to/config.yaml
     """
+    # Validate metrics options
+    if metrics_output and not show_metrics:
+        console.print(
+            "[yellow]Warning: --metrics-output has no effect without --show-metrics[/yellow]"
+        )
+
     # Load runtime configuration with proper precedence
     try:
         # Handle deprecated --dry-run flag (maps to mode)
@@ -1000,6 +1215,17 @@ def apply(
                 # Display LLM metrics if available
                 if result.llm_metrics:
                     _display_llm_metrics(result.llm_metrics)
+
+                    # Show detailed aggregated metrics if --show-metrics flag is set
+                    if show_metrics:
+                        _record_and_display_metrics(
+                            result.llm_metrics,
+                            owner,
+                            repo,
+                            pr,
+                            metrics_output,
+                            metrics_detail,
+                        )
 
         except LLMError:
             # LLM errors are handled by the context manager

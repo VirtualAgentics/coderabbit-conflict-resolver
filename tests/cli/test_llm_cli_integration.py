@@ -4,12 +4,18 @@ This module tests the CLI's integration with LLM metrics display and
 error handling functionality, ensuring proper formatting and user experience.
 """
 
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
 
-from pr_conflict_resolver.cli.main import _display_llm_metrics, cli
+from pr_conflict_resolver.cli.main import (
+    _display_aggregated_metrics,
+    _display_llm_metrics,
+    _export_metrics,
+    cli,
+)
 from pr_conflict_resolver.config.exceptions import ConfigError
 from pr_conflict_resolver.config.runtime_config import ApplicationMode
 from pr_conflict_resolver.llm.exceptions import (
@@ -21,6 +27,7 @@ from pr_conflict_resolver.llm.exceptions import (
     LLMTimeoutError,
 )
 from pr_conflict_resolver.llm.metrics import LLMMetrics
+from pr_conflict_resolver.llm.metrics_aggregator import MetricsAggregator
 
 
 def _populate_runtime_config_mock(cfg: Mock) -> Mock:
@@ -981,3 +988,183 @@ class TestAnalyzeCommandLLMPreset:
             # Should exit with error
             assert result.exit_code != 0
             assert "Invalid preset configuration" in result.output
+
+
+class TestDisplayAggregatedMetrics:
+    """Tests for _display_aggregated_metrics() function."""
+
+    def test_display_aggregated_metrics_basic(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Display aggregated metrics with provider stats and verify output content."""
+        from pr_conflict_resolver.llm.metrics import RequestMetrics
+
+        aggregator = MetricsAggregator()
+        # Add some requests via record_request
+        for i in range(10):
+            metrics = RequestMetrics(
+                request_id=f"req-{i}",
+                provider="anthropic",
+                model="claude-haiku-4",
+                latency_seconds=0.5,
+                success=(i < 8),  # 8 success, 2 failure
+                tokens_input=600,
+                tokens_output=400,
+                cost=0.001,
+                cache_hit=(i < 3),  # 3 cache hits
+                error_type="rate_limit" if i >= 8 else None,
+            )
+            aggregator.record_request(metrics)
+
+        # Get aggregated metrics and verify values directly
+        agg = aggregator.get_aggregated_metrics()
+
+        # Verify metrics values directly
+        assert agg.total_requests == 10
+        assert agg.successful_requests == 8
+        assert agg.success_rate == 0.8
+        assert "anthropic" in agg.provider_stats
+        assert agg.latency_p50 == 0.5
+        assert agg.cache_hit_rate == 0.3
+
+        # Verify function runs and produces expected output
+        _display_aggregated_metrics(aggregator)
+        captured = capsys.readouterr()
+
+        # Verify key metrics appear in rendered output
+        assert "Total requests: 10" in captured.out
+        assert "80.0%" in captured.out  # Success rate
+        assert "anthropic" in captured.out.lower()
+
+    def test_display_aggregated_metrics_empty(self) -> None:
+        """Display aggregated metrics with no requests."""
+        aggregator = MetricsAggregator()
+
+        # Should handle empty aggregator without error
+        _display_aggregated_metrics(aggregator)
+
+        # Verify empty state metrics
+        agg = aggregator.get_aggregated_metrics()
+        assert agg.total_requests == 0
+        assert agg.successful_requests == 0
+
+
+class TestExportMetrics:
+    """Tests for _export_metrics() function."""
+
+    def test_export_metrics_json(self, tmp_path: Path) -> None:
+        """Export metrics to JSON format."""
+        import json
+
+        from pr_conflict_resolver.llm.metrics import RequestMetrics
+
+        aggregator = MetricsAggregator()
+        # Add a request via record_request
+        metrics = RequestMetrics(
+            request_id="req-1",
+            provider="openai",
+            model="gpt-4",
+            latency_seconds=0.1,
+            success=True,
+            tokens_input=50,
+            tokens_output=25,
+            cost=0.001,
+            cache_hit=False,
+        )
+        aggregator.record_request(metrics)
+
+        output_file = tmp_path / "metrics.json"
+        _export_metrics(aggregator, str(output_file), "summary")
+
+        assert output_file.exists()
+        with open(output_file) as f:
+            data = json.load(f)
+        assert "summary" in data
+        assert data["summary"]["total_requests"] == 1
+
+    def test_export_metrics_csv(self, tmp_path: Path) -> None:
+        """Export metrics to CSV format."""
+        from pr_conflict_resolver.llm.metrics import RequestMetrics
+
+        aggregator = MetricsAggregator()
+        metrics = RequestMetrics(
+            request_id="req-1",
+            provider="anthropic",
+            model="claude-haiku-4",
+            latency_seconds=0.2,
+            success=True,
+            tokens_input=100,
+            tokens_output=50,
+            cost=0.001,
+            cache_hit=True,
+        )
+        aggregator.record_request(metrics)
+
+        output_file = tmp_path / "metrics.csv"
+        _export_metrics(aggregator, str(output_file), "summary")
+
+        assert output_file.exists()
+        content = output_file.read_text()
+        assert "request_id" in content
+        assert "anthropic" in content
+        assert "claude-haiku-4" in content
+
+    def test_export_metrics_full_detail(self, tmp_path: Path) -> None:
+        """Export metrics with full detail level."""
+        import json
+
+        from pr_conflict_resolver.llm.metrics import RequestMetrics
+
+        aggregator = MetricsAggregator()
+        metrics = RequestMetrics(
+            request_id="req-1",
+            provider="ollama",
+            model="llama3",
+            latency_seconds=0.3,
+            success=True,
+            tokens_input=75,
+            tokens_output=40,
+            cost=0.0,
+            cache_hit=False,
+        )
+        aggregator.record_request(metrics)
+
+        output_file = tmp_path / "metrics_detail.json"
+        _export_metrics(aggregator, str(output_file), "full")
+
+        assert output_file.exists()
+        with open(output_file) as f:
+            data = json.load(f)
+        assert "summary" in data
+        # Full detail includes requests list
+        assert "requests" in data
+        assert len(data["requests"]) == 1
+
+    def test_export_metrics_unsupported_extension(self, tmp_path: Path) -> None:
+        """Export metrics with unsupported file extension defaults to JSON."""
+        import json
+
+        from pr_conflict_resolver.llm.metrics import RequestMetrics
+
+        aggregator = MetricsAggregator()
+        metrics = RequestMetrics(
+            request_id="req-1",
+            provider="openai",
+            model="gpt-4",
+            latency_seconds=0.15,
+            success=True,
+            tokens_input=60,
+            tokens_output=30,
+            cost=0.001,
+            cache_hit=False,
+        )
+        aggregator.record_request(metrics)
+
+        output_file = tmp_path / "metrics.xml"
+        # Should create JSON fallback file
+        _export_metrics(aggregator, str(output_file), "summary")
+
+        # The function should create metrics.json as fallback
+        json_fallback = tmp_path / "metrics.json"
+        assert json_fallback.exists()
+        with open(json_fallback) as f:
+            data = json.load(f)
+        assert "summary" in data

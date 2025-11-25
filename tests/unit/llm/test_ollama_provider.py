@@ -1157,3 +1157,101 @@ class TestOllamaProviderAutoDownload:
             provider._download_model("another-model:7b")
 
         assert "closed" in str(exc_info.value).lower()
+
+
+@pytest.mark.usefixtures("patch_session_for_module_mocks")
+class TestOllamaProviderLatencyTracking:
+    """Tests for latency tracking methods."""
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_get_last_request_latency_initial_none(self, mock_get: Mock, mock_post: Mock) -> None:
+        """Returns None before any requests are made."""
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
+        mock_get.return_value = mock_get_response
+
+        provider = OllamaProvider(model="llama3.3:70b")
+        assert provider.get_last_request_latency() is None
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_get_last_request_latency_after_request(self, mock_get: Mock, mock_post: Mock) -> None:
+        """Returns latency value after a successful request."""
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
+        mock_get.return_value = mock_get_response
+
+        mock_post_response = Mock()
+        mock_post_response.status_code = 200
+        mock_post_response.json.return_value = {"response": '{"result": "ok"}'}
+        mock_post.return_value = mock_post_response
+
+        provider = OllamaProvider(model="llama3.3:70b")
+        provider.generate("Test prompt")
+
+        latency = provider.get_last_request_latency()
+        assert latency is not None
+        assert latency >= 0
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_get_all_latencies_initial_empty(self, mock_get: Mock, mock_post: Mock) -> None:
+        """Returns empty list before any requests are made."""
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
+        mock_get.return_value = mock_get_response
+
+        provider = OllamaProvider(model="llama3.3:70b")
+        assert provider.get_all_latencies() == []
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_get_all_latencies_accumulates(self, mock_get: Mock, mock_post: Mock) -> None:
+        """Returns list of all request latencies after multiple requests."""
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
+        mock_get.return_value = mock_get_response
+
+        mock_post_response = Mock()
+        mock_post_response.status_code = 200
+        mock_post_response.json.return_value = {"response": '{"result": "ok"}'}
+        mock_post.return_value = mock_post_response
+
+        provider = OllamaProvider(model="llama3.3:70b")
+        provider.generate("Test prompt 1")
+        provider.generate("Test prompt 2")
+
+        latencies = provider.get_all_latencies()
+        assert len(latencies) == 2
+        assert all(lat >= 0 for lat in latencies)
+
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.post")
+    @patch("pr_conflict_resolver.llm.providers.ollama.requests.get")
+    def test_reset_latency_tracking(self, mock_get: Mock, mock_post: Mock) -> None:
+        """Clears latencies and resets last_request_latency to None."""
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.json.return_value = {"models": [{"name": "llama3.3:70b"}]}
+        mock_get.return_value = mock_get_response
+
+        mock_post_response = Mock()
+        mock_post_response.status_code = 200
+        mock_post_response.json.return_value = {"response": '{"result": "ok"}'}
+        mock_post.return_value = mock_post_response
+
+        provider = OllamaProvider(model="llama3.3:70b")
+        provider.generate("Test prompt")
+
+        # Verify latency was recorded
+        assert provider.get_last_request_latency() is not None
+        assert len(provider.get_all_latencies()) == 1
+
+        # Reset and verify cleared
+        provider.reset_latency_tracking()
+        assert provider.get_last_request_latency() is None
+        assert provider.get_all_latencies() == []
