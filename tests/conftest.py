@@ -231,6 +231,9 @@ settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "dev"))
 # Synchronous Executor Utilities for Deterministic Testing
 # ============================================================================
 
+# Sentinel object to distinguish "no result set" from None as a valid result
+_NOT_SET: object = object()
+
 
 class SyncFuture[T]:
     """A synchronous future for deterministic testing.
@@ -242,16 +245,16 @@ class SyncFuture[T]:
         T: The type of the result value.
     """
 
-    def __init__(self, result: T | None = None, exc: Exception | None = None) -> None:
+    def __init__(self, result: T | object = _NOT_SET, exc: Exception | None = None) -> None:
         """Initialize the future.
 
         Args:
-            result: Optional immediate result value.
+            result: Optional immediate result value. Use _NOT_SET sentinel for no result.
             exc: Optional immediate exception.
         """
-        self._result: T | None = result
+        self._result: T | object = result
         self._exc: Exception | None = exc
-        self._has_result = result is not None or exc is not None
+        self._has_result = result is not _NOT_SET or exc is not None
 
     def set_result(self, result: T) -> None:
         """Set the result value (for deferred assignment)."""
@@ -267,9 +270,9 @@ class SyncFuture[T]:
         """Get the result, raising any stored exception."""
         if self._exc is not None:
             raise self._exc
-        if self._result is None:
+        if self._result is _NOT_SET:
             raise RuntimeError("Future has no result set")
-        return self._result
+        return self._result  # type: ignore[return-value]
 
 
 class SyncExecutor[T]:

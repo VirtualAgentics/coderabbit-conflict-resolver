@@ -51,7 +51,8 @@ def sample_parsed_change_json() -> str:
             "new_content": "def test():\\n    pass",
             "change_type": "modification",
             "rationale": "Test change",
-            "confidence": 0.9
+            "confidence": 0.9,
+            "risk_level": "low"
         }
     ]"""
 
