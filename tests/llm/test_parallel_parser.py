@@ -4,6 +4,7 @@ Tests for ParallelLLMParser including rate limiting, progress tracking,
 circuit breaker integration, and error handling.
 """
 
+import re
 from collections.abc import Callable, Iterable
 from types import TracebackType
 from typing import Any
@@ -20,6 +21,21 @@ from pr_conflict_resolver.llm.parallel_parser import (
 from pr_conflict_resolver.llm.resilience.circuit_breaker import CircuitState
 
 ResultTuple = tuple[int, list[ParsedChange]]
+
+
+def _extract_comment_index(prompt: str) -> int:
+    """Extract comment index from prompt body.
+
+    Parses 'Comment N' pattern first, falls back to 'testN.py' pattern.
+    Returns -1 if no match found.
+    """
+    match = re.search(r"Comment (\d+)", prompt)
+    if match:
+        return int(match.group(1))
+    match = re.search(r"test(\d+)\.py", prompt)
+    if match:
+        return int(match.group(1))
+    return -1
 
 
 @pytest.fixture
@@ -89,7 +105,8 @@ class TestRateLimiter:
         lock = threading.Lock()
 
         def fake_monotonic() -> float:
-            return fake_time
+            with lock:
+                return fake_time
 
         def fake_sleep(dt: float) -> None:
             nonlocal fake_time
@@ -204,6 +221,7 @@ class TestParallelLLMParser:
         assert len(results[0]) == 1
         assert results[0][0].file_path == "test.py"
         assert results[0][0].start_line == 10
+        assert mock_provider.generate.call_count == 1
 
     def test_parse_comments_multiple_comments(
         self,
@@ -223,6 +241,7 @@ class TestParallelLLMParser:
 
         assert len(results) == 3
         assert all(len(r) == 1 for r in results)
+        assert mock_provider.generate.call_count == 3
 
     def test_parse_comments_preserves_order(
         self,
@@ -233,16 +252,9 @@ class TestParallelLLMParser:
 
         # Extract index from comment body to avoid dependency on call order
         def mock_generate(prompt: str, max_tokens: int = 2000) -> str:
-            # Extract index from comment body in prompt (stable input data)
-            import re
-
-            match = re.search(r"Comment (\d+)", prompt)
-            if match:
-                idx = int(match.group(1))
-            else:
-                # Fallback: try to extract from file_path in prompt
-                match = re.search(r"test(\d+)\.py", prompt)
-                idx = int(match.group(1)) if match else 0
+            idx = _extract_comment_index(prompt)
+            if idx == -1:
+                idx = 0
             return (
                 f'[{{"file_path": "test{idx}.py", "start_line": 1, "end_line": 1, '
                 f'"new_content": "code", "change_type": "modification", '
@@ -272,10 +284,7 @@ class TestParallelLLMParser:
         """Test handling of partial failures."""
 
         def mock_generate(prompt: str, max_tokens: int = 2000) -> str:
-            import re
-
-            match = re.search(r"Comment (\d+)", prompt)
-            idx = int(match.group(1)) if match else -1
+            idx = _extract_comment_index(prompt)
             if idx == 1:  # Fail comment with index 1
                 raise RuntimeError("Simulated failure")
             return sample_parsed_change_json
@@ -346,10 +355,7 @@ class TestParallelLLMParser:
         """Progress callback receives updates even when parsing fails."""
 
         def mock_generate(prompt: str, max_tokens: int = 2000) -> str:
-            import re
-
-            match = re.search(r"Comment (\d+)", prompt)
-            idx = int(match.group(1)) if match else -1
+            idx = _extract_comment_index(prompt)
             if idx == 0:
                 raise RuntimeError("Simulated failure")
             return sample_parsed_change_json
@@ -378,7 +384,16 @@ class TestParallelLLMParser:
         sample_parsed_change_json: str,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Cover failure branch by running executor synchronously."""
+        """Test partial-failure handling where worker internally catches exceptions.
+
+        This test exercises the scenario where parse_single_comment catches
+        exceptions internally and returns (idx, []) for failed comments,
+        while neighboring comments succeed. Uses a synchronous executor
+        to ensure deterministic execution order.
+
+        Note: The actual future.result() exception path is tested separately
+        in test_parse_comments_future_result_exception using future.set_exception().
+        """
 
         class ImmediateFuture:
             def __init__(
@@ -437,10 +452,7 @@ class TestParallelLLMParser:
         )
 
         def mock_generate(prompt: str, max_tokens: int = 2000) -> str:
-            import re
-
-            match = re.search(r"Comment (\d+)", prompt)
-            idx = int(match.group(1)) if match else -1
+            idx = _extract_comment_index(prompt)
             if idx == 1:
                 raise RuntimeError("boom")
             return sample_parsed_change_json
