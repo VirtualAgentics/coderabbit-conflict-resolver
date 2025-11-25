@@ -194,6 +194,14 @@ class TestParallelLLMParser:
         with pytest.raises(ValueError, match="max_workers must be >= 1"):
             ParallelLLMParser(provider=mock_provider, max_workers=0)
 
+    def test_parser_invalid_rate_limit(self, mock_provider: MagicMock) -> None:
+        """Test parser rejects invalid rate_limit values."""
+        with pytest.raises(ValueError, match="rate must be positive"):
+            ParallelLLMParser(provider=mock_provider, rate_limit=0.0)
+
+        with pytest.raises(ValueError, match="rate must be positive"):
+            ParallelLLMParser(provider=mock_provider, rate_limit=-1.0)
+
     def test_parser_accepts_high_max_workers(self, mock_provider: MagicMock) -> None:
         """Test that high max_workers values are accepted."""
         parser = ParallelLLMParser(provider=mock_provider, max_workers=64)
