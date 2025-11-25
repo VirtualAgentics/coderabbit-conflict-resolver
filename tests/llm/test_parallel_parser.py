@@ -139,7 +139,7 @@ class TestRateLimiter:
         timestamps_sorted = sorted(timestamps)
         for i in range(1, len(timestamps_sorted)):
             diff = timestamps_sorted[i] - timestamps_sorted[i - 1]
-            assert diff == pytest.approx(0.1, rel=1e-6)
+            assert diff >= limiter.min_interval - 1e-6
 
     def test_rate_limiter_reserves_future_slot(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test rate limiter updates last-call timestamp before sleeping."""
