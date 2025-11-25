@@ -336,8 +336,6 @@ class TestParallelLLMParser:
         assert len(progress_calls) == 3
         # Verify all expected progress invocations occurred (order-independent)
         assert sorted(progress_calls) == [(1, 3), (2, 3), (3, 3)]
-        # Verify final state captured all completions
-        assert (3, 3) in progress_calls
 
     def test_parse_comments_progress_callback_exception(
         self,
