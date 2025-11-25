@@ -14,7 +14,8 @@ Exception Hierarchy:
     │   ├── LLMInvalidResponseError (malformed LLM response)
     │   └── LLMValidationError (response doesn't match expected schema)
     ├── LLMConfigurationError (configuration issues)
-    └── LLMCostExceededError (cost budget exceeded)
+    ├── LLMCostExceededError (cost budget exceeded)
+    └── LLMSecretDetectedError (secrets detected in content before LLM call)
 
 Usage Examples:
     >>> try:
@@ -32,6 +33,13 @@ Usage Examples:
     ...     # Generic LLM error - log and continue
     ...     logger.error(f"LLM error: {e}")
 """
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pr_conflict_resolver.security.secret_scanner import SecretFinding
 
 
 class LLMError(Exception):
@@ -254,3 +262,52 @@ class LLMCostExceededError(LLMError):
         """Format error with cost details."""
         base_msg = super().__str__()
         return f"{base_msg} (accumulated=${self.accumulated_cost:.4f}, budget=${self.budget:.4f})"
+
+
+# Security exceptions
+
+
+class LLMSecretDetectedError(LLMError):
+    """Secrets detected in content before sending to external LLM API.
+
+    Raised when the SecretScanner detects potential secrets (API keys, tokens,
+    credentials) in the content that would be sent to an external LLM API.
+    This prevents accidental data exfiltration.
+
+    Attributes:
+        findings: List of SecretFinding objects describing detected secrets
+        secret_types: Set of detected secret types for logging
+
+    Example:
+        >>> try:
+        ...     changes = parser.parse_comment("Fix using key: ghp_abc123...")
+        ... except LLMSecretDetectedError as e:
+        ...     logger.error(
+        ...         "Blocked %d secrets from external API: %s",
+        ...         len(e.findings), e.secret_types
+        ...     )
+        ...     # Do not proceed with LLM parsing
+    """
+
+    def __init__(
+        self,
+        message: str,
+        findings: list[SecretFinding] | None = None,
+        details: dict[str, object] | None = None,
+    ) -> None:
+        """Initialize secret detected error.
+
+        Args:
+            message: Error message describing what went wrong
+            findings: List of SecretFinding objects from SecretScanner
+            details: Optional dictionary with additional context
+        """
+        super().__init__(message, details)
+        self.findings: list[SecretFinding] = findings if findings is not None else []
+        self.secret_types = {f.secret_type for f in self.findings}
+
+    def __str__(self) -> str:
+        """Format error with secret types (no actual secrets!)."""
+        base_msg = super().__str__()
+        types_str = ", ".join(sorted(self.secret_types)) if self.secret_types else "unknown"
+        return f"{base_msg} (types: {types_str}, count: {len(self.findings)})"

@@ -6,7 +6,7 @@ This document provides a comprehensive threat model for the Review Bot Automator
 
 **Purpose**: Enable security teams, auditors, and maintainers to understand the security landscape and evaluate risk posture.
 
-**Last Updated**: 2025-11-03
+**Last Updated**: 2025-11-25
 **Next Review**: Quarterly or after major architectural changes
 
 ---
@@ -595,6 +595,139 @@ if original_mode is not None:
 
 ---
 
+### LLM-Specific Threats (Phase 5)
+
+#### T13: LLM Data Exfiltration via PR Comments
+
+**Description**: Sensitive data (secrets, credentials) in PR comments sent to external LLM APIs.
+
+**Impact**: HIGH
+**Likelihood**: MEDIUM
+**Risk Rating**: HIGH
+
+**Attack Scenario**:
+
+1. User posts PR comment containing API keys or credentials
+2. Comment body is processed by LLM parser
+3. Secrets are sent to external LLM API (Anthropic/OpenAI)
+4. Credentials exposed to third-party service
+
+**Mitigations**:
+
+* ✅ **IMPLEMENTED**: `SecretScanner.scan_content()` before LLM calls (parser.py:147-158)
+* ✅ **IMPLEMENTED**: `LLMSecretDetectedError` raised when secrets detected
+* ✅ 25+ secret detection patterns covering major providers
+* ✅ Configurable `scan_for_secrets` parameter (default: True)
+
+**Residual Risk**: LOW (comprehensive pre-LLM secret scanning)
+
+---
+
+#### T14: Prompt Injection Attack
+
+**Description**: Malicious PR comments containing prompts designed to manipulate LLM responses.
+
+**Impact**: MEDIUM
+**Likelihood**: MEDIUM
+**Risk Rating**: MEDIUM
+
+**Attack Scenario**:
+
+1. Attacker crafts PR comment with embedded instructions
+2. Comment processed by LLM parser
+3. LLM follows injected instructions instead of parsing intent
+4. Malicious code suggestions generated
+
+**Mitigations**:
+
+* ✅ Structured JSON output format enforced
+* ✅ Schema validation on all ParsedChange objects
+* ✅ Confidence threshold filtering (default: 0.5)
+* ✅ Invalid JSON responses rejected
+
+**Residual Risk**: MEDIUM (inherent LLM limitation, multiple validation layers)
+
+---
+
+#### T15: LLM Cache Poisoning
+
+**Description**: Attacker attempts to poison prompt cache with malicious responses.
+
+**Impact**: MEDIUM
+**Likelihood**: LOW
+**Risk Rating**: LOW
+
+**Attack Scenario**:
+
+1. Attacker crafts comment that generates specific cache key
+2. Malicious response cached
+3. Future identical prompts return poisoned response
+4. Malicious code suggestions served from cache
+
+**Mitigations**:
+
+* ✅ SHA-256 hash-based cache keys (collision-resistant)
+* ✅ Cache stores prompt hash, not actual prompt text
+* ✅ Cache files have 0600 permissions (owner-only)
+* ✅ Cache directory has 0700 permissions
+
+**Residual Risk**: VERY LOW (cryptographic hash prevents practical collision attacks)
+
+---
+
+#### T16: LLM Cost Exhaustion Attack
+
+**Description**: Attacker triggers excessive LLM API calls to exhaust budget or cause financial harm.
+
+**Impact**: LOW
+**Likelihood**: LOW
+**Risk Rating**: LOW
+
+**Attack Scenario**:
+
+1. Attacker creates many PR comments
+2. Each comment triggers LLM API call
+3. Budget exhausted rapidly
+4. Financial impact or denial of service
+
+**Mitigations**:
+
+* ✅ **IMPLEMENTED**: `CostTracker` with configurable budget
+* ✅ **IMPLEMENTED**: `LLMCostExceededError` when budget exceeded
+* ✅ Warning at configurable threshold (default: 80%)
+* ✅ Graceful fallback to regex parsing
+* ✅ Rate limiting in `ParallelLLMParser`
+
+**Residual Risk**: LOW (budget enforcement with graceful degradation)
+
+---
+
+#### T17: API Key Exposure in Error Messages
+
+**Description**: API keys or secrets leaked in error messages or logs.
+
+**Impact**: HIGH
+**Likelihood**: MEDIUM
+**Risk Rating**: MEDIUM
+
+**Attack Scenario**:
+
+1. LLM provider returns error containing request details
+2. Error message includes API key or sensitive data
+3. Error logged or displayed to user
+4. Credentials exposed
+
+**Mitigations**:
+
+* ✅ **IMPLEMENTED**: `ResilientLLMProvider` sanitizes exception messages
+* ✅ **IMPLEMENTED**: `SecretScanner.has_secrets()` checks error strings
+* ✅ Secrets in errors replaced with "(details redacted)"
+* ✅ API keys stored in environment variables, not code
+
+**Residual Risk**: LOW (automatic sanitization of error messages)
+
+---
+
 ## Risk Matrix
 
 | Threat ID | Threat | Impact | Likelihood | Risk | Status |
@@ -611,6 +744,11 @@ if original_mode is not None:
 | T10 | Algorithmic Complexity | LOW | LOW | LOW | ✅ Mitigated |
 | T11 | Privilege Escalation | HIGH | LOW | MEDIUM | ✅ Mitigated |
 | T12 | Dependency Confusion | HIGH | LOW | MEDIUM | ✅ Mitigated |
+| T13 | LLM Data Exfiltration | HIGH | MEDIUM | HIGH | ✅ Mitigated |
+| T14 | Prompt Injection | MEDIUM | MEDIUM | MEDIUM | ⏳ Partial |
+| T15 | LLM Cache Poisoning | MEDIUM | LOW | LOW | ✅ Mitigated |
+| T16 | LLM Cost Exhaustion | LOW | LOW | LOW | ✅ Mitigated |
+| T17 | API Key in Errors | HIGH | MEDIUM | MEDIUM | ✅ Mitigated |
 
 **Legend**:
 
@@ -634,6 +772,11 @@ if original_mode is not None:
 | Fuzzing | T9, T10 | ClusterFuzzLite | MEDIUM |
 | Secret Scanning (CI) | T7 | TruffleHog, Scorecard | HIGH |
 | HTTPS Enforcement | T1 | GitHub API client | HIGH |
+| LLM Pre-Scan | T13, T17 | parser.py, SecretScanner | HIGH |
+| CostTracker | T16 | cost_tracker.py | HIGH |
+| ResilientLLMProvider | T17 | resilient_provider.py | HIGH |
+| PromptCache | T15 | cache/prompt_cache.py | HIGH |
+| ParallelLLMParser | T16 | parallel_parser.py | HIGH |
 
 ---
 
@@ -670,7 +813,7 @@ if original_mode is not None:
 ---
 
 **Document Version**: 1.0
-**Last Updated**: 2025-11-03
+**Last Updated**: 2025-11-25
 **Next Review**: 2026-02-03 (Quarterly)
 **Owner**: Security Team
 **Approval**: Pending

@@ -275,6 +275,8 @@ class TestMetricsAggregator:
         assert metrics.total_requests == 1
         assert metrics.successful_requests == 1
         assert metrics.latency_avg > 0
+        # Latency should be reasonable (under 1 second for this simple test)
+        assert metrics.latency_avg < 1.0
 
     def test_multiple_requests(self) -> None:
         """Test tracking multiple requests."""
@@ -515,7 +517,7 @@ class TestExportFormats:
         output_path = tmp_path / "metrics.json"
         aggregator.export_json(output_path)
 
-        with open(output_path) as f:
+        with open(output_path, encoding="utf-8") as f:
             data = json.load(f)
 
         assert "summary" in data
@@ -536,7 +538,7 @@ class TestExportFormats:
         output_path = tmp_path / "metrics_detailed.json"
         aggregator.export_json(output_path, include_requests=True)
 
-        with open(output_path) as f:
+        with open(output_path, encoding="utf-8") as f:
             data = json.load(f)
 
         assert "requests" in data
@@ -555,7 +557,7 @@ class TestExportFormats:
         output_path = tmp_path / "metrics.csv"
         aggregator.export_csv(output_path)
 
-        with open(output_path) as f:
+        with open(output_path, encoding="utf-8") as f:
             lines = f.readlines()
 
         # Header + 3 data rows
@@ -699,7 +701,7 @@ class TestExportErrorHandling:
         output_path = tmp_path / "no_pr_info.json"
         aggregator.export_json(output_path)
 
-        with open(output_path) as f:
+        with open(output_path, encoding="utf-8") as f:
             data = json.load(f)
 
         assert "pr_info" not in data

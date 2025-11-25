@@ -20,6 +20,7 @@ from pr_conflict_resolver.llm.exceptions import (
     LLMError,
     LLMParsingError,
     LLMRateLimitError,
+    LLMSecretDetectedError,
     LLMTimeoutError,
 )
 
@@ -102,6 +103,21 @@ def handle_llm_errors(runtime_config: "RuntimeConfig") -> Generator[None, None, 
         console.print("[dim]Falling back to regex parsing for remaining comments[/dim]")
         logger.warning("LLM cost budget exceeded for provider %s: %s", provider, e)
         # Don't abort - allow graceful degradation to regex parsing
+
+    except LLMSecretDetectedError as e:
+        # Security error - secrets detected in content, abort to prevent exfiltration
+        secret_types = ", ".join(sorted(e.secret_types)) if e.secret_types else "unknown"
+        console.print(
+            f"\n[red]🔒 Security: Secret detected in PR comment ({secret_types}). "
+            "Content blocked from external LLM API.[/red]"
+        )
+        console.print("[dim]Review the PR comment for sensitive data before retrying.[/dim]")
+        logger.error(
+            "Secret detected, blocked LLM request: types=%s, count=%d",
+            secret_types,
+            len(e.findings),
+        )
+        raise click.Abort() from e
 
     except LLMAPIError as e:
         # Generic API errors

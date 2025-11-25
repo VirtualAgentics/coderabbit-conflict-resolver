@@ -12,8 +12,10 @@ import logging
 from pr_conflict_resolver.llm.providers.base import LLMProvider
 from pr_conflict_resolver.llm.resilience.circuit_breaker import (
     CircuitBreaker,
+    CircuitBreakerOpen,
     CircuitState,
 )
+from pr_conflict_resolver.security.secret_scanner import SecretScanner
 
 logger = logging.getLogger(__name__)
 
@@ -168,7 +170,20 @@ class ResilientLLMProvider(LLMProvider):
             ... except CircuitBreakerOpen as e:
             ...     print(f"Service unavailable, retry in {e.remaining_cooldown:.1f}s")
         """
-        return self.circuit_breaker.call(self.provider.generate, prompt, max_tokens=max_tokens)
+        try:
+            return self.circuit_breaker.call(self.provider.generate, prompt, max_tokens=max_tokens)
+        except CircuitBreakerOpen:
+            # Re-raise circuit breaker exceptions without modification
+            raise
+        except Exception as e:
+            # Security: Sanitize exception messages to prevent secret leakage
+            error_str = str(e)
+            if SecretScanner.has_secrets(error_str):
+                logger.error(
+                    "Provider error occurred (details redacted - potential secret in error)"
+                )
+                raise RuntimeError("Provider error (details redacted)") from None
+            raise
 
     def count_tokens(self, text: str) -> int:
         """Count tokens in text using wrapped provider's tokenizer.
