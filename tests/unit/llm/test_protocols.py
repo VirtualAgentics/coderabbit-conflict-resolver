@@ -34,6 +34,9 @@ class TestLLMProviderProtocol:
             def count_tokens(self, text: str) -> int:
                 return len(text.split())
 
+            def get_total_cost(self) -> float:
+                return 0.0
+
         provider = ValidProvider()
         assert isinstance(provider, LLMProvider)
 
@@ -60,6 +63,9 @@ class TestLLMProviderProtocol:
 
             def count_tokens(self, text: str) -> int:
                 return len(text.split())
+
+            def get_total_cost(self) -> float:
+                return 0.0
 
             def get_cost_estimate(self) -> float:
                 """Extra method not in protocol."""

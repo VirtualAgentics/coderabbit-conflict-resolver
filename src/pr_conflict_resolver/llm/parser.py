@@ -232,6 +232,14 @@ class UniversalLLMParser(LLMParser):
 
             return parsed_changes
 
+        except LLMCostExceededError:
+            # Handle cost budget exceeded explicitly - don't wrap in RuntimeError
+            if self.fallback_to_regex:
+                logger.info("Cost budget exceeded; returning empty list for regex fallback")
+                return []
+            else:
+                raise
+
         except Exception as e:
             logger.error(f"LLM parsing failed: {type(e).__name__}: {e}")
 

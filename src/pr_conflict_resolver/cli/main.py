@@ -301,6 +301,12 @@ def validate_cost_budget(
             ctx=ctx,
             param=param,
         )
+    if value == 0.0:
+        click.echo(
+            "Warning: --cost-budget=0 will disable all LLM parsing "
+            "(budget exhausted immediately)",
+            err=True,
+        )
     return value
 
 

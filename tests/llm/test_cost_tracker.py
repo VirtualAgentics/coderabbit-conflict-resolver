@@ -299,11 +299,23 @@ class TestThreadSafety:
         assert abs(tracker.accumulated_cost - expected_total) < 0.0001
 
     def test_thread_safety_warning_only_once(self) -> None:
-        """Warning message returned only once across threads."""
+        """Warning message returned only once across threads.
+
+        This test verifies the atomicity of get_warning_message() by spawning
+        100 concurrent calls across 10 threads. The CostTracker uses a lock to
+        ensure that _warning_logged is checked and set atomically, preventing
+        multiple threads from receiving the warning. This is critical for
+        avoiding log spam during parallel comment parsing.
+
+        The assertion `len(warnings_received) == 1` is deterministic because:
+        1. The lock in get_warning_message() makes read-check-set atomic
+        2. Only the first thread to acquire the lock gets the warning
+        3. All subsequent threads see _warning_logged=True and get None
+        """
         tracker = CostTracker(budget=10.0, warning_threshold=0.5)
         tracker.add_cost(6.0)  # Already at warning level
 
-        warnings_received = []
+        warnings_received: list[str] = []
         lock = threading.Lock()
 
         def get_warning() -> None:
