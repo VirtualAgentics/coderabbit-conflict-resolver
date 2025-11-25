@@ -91,6 +91,9 @@ class TestResilientLLMProviderInit:
             def count_tokens(self, text: str) -> int:
                 return 0
 
+            def get_total_cost(self) -> float:
+                return 0.0
+
         with pytest.raises(AttributeError, match="must have a 'model' attribute"):
             ResilientLLMProvider(NoModelProvider())
 
@@ -106,6 +109,9 @@ class TestResilientLLMProviderInit:
             def count_tokens(self, text: str) -> int:
                 return 0
 
+            def get_total_cost(self) -> float:
+                return 0.0
+
         with pytest.raises(AttributeError, match="invalid 'model' attribute"):
             ResilientLLMProvider(EmptyModelProvider())
 
@@ -120,6 +126,9 @@ class TestResilientLLMProviderInit:
 
             def count_tokens(self, text: str) -> int:
                 return 0
+
+            def get_total_cost(self) -> float:
+                return 0.0
 
         with pytest.raises(AttributeError, match="invalid 'model' attribute"):
             ResilientLLMProvider(NoneModelProvider())
@@ -250,6 +259,7 @@ class TestResilientLLMProviderCost:
     def test_get_total_cost_missing_method(self) -> None:
         """get_total_cost returns 0.0 if method missing."""
 
+        # Intentionally not implementing get_total_cost to test fallback behavior
         class MinimalProvider:
             model = "test"
 
@@ -259,7 +269,7 @@ class TestResilientLLMProviderCost:
             def count_tokens(self, text: str) -> int:
                 return 0
 
-        resilient = ResilientLLMProvider(MinimalProvider())
+        resilient = ResilientLLMProvider(MinimalProvider())  # type: ignore[arg-type]
         assert resilient.get_total_cost() == 0.0
 
 

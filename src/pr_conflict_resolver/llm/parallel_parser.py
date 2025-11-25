@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
 from pr_conflict_resolver.llm.base import ParsedChange
+from pr_conflict_resolver.llm.cost_tracker import CostTracker
 from pr_conflict_resolver.llm.parser import UniversalLLMParser
 from pr_conflict_resolver.llm.providers.base import LLMProvider
 from pr_conflict_resolver.llm.resilience.circuit_breaker import CircuitBreaker, CircuitState
@@ -147,6 +148,7 @@ class ParallelLLMParser(UniversalLLMParser):
         fallback_to_regex: bool = True,
         confidence_threshold: float = 0.5,
         max_tokens: int = 2000,
+        cost_tracker: CostTracker | None = None,
     ) -> None:
         """Initialize parallel LLM parser.
 
@@ -157,11 +159,15 @@ class ParallelLLMParser(UniversalLLMParser):
             fallback_to_regex: If True, return empty list on failure (enables fallback)
             confidence_threshold: Minimum confidence score (0.0-1.0) to accept changes
             max_tokens: Maximum tokens for LLM response
+            cost_tracker: Optional CostTracker for budget enforcement. The tracker
+                is thread-safe and will be shared across worker threads.
 
         Raises:
             ValueError: If max_workers < 1 or rate_limit <= 0
         """
-        super().__init__(provider, fallback_to_regex, confidence_threshold, max_tokens)
+        super().__init__(
+            provider, fallback_to_regex, confidence_threshold, max_tokens, cost_tracker
+        )
         if max_workers < 1:
             raise ValueError("max_workers must be >= 1")
         if max_workers > 32:

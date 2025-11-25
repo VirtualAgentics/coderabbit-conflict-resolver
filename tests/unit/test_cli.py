@@ -276,7 +276,7 @@ def test_cli_analyze_shows_llm_metrics(
     )
     mock_load_config.return_value = (runtime_config, "balanced")
     mock_handle_llm_errors.return_value = nullcontext()
-    mock_create_parser.return_value = object()
+    mock_create_parser.return_value = (object(), None)  # (parser, tracker) tuple
 
     conflict = _sample_conflict("test.json", "low")
     mock_inst = mock_resolver.return_value
@@ -378,13 +378,14 @@ def test_cli_apply_invalid_confidence_threshold(mock_load_config: Mock) -> None:
 
 
 def test_create_llm_parser_disabled() -> None:
-    """Test _create_llm_parser returns None when LLM is disabled."""
+    """Test _create_llm_parser returns (None, None) when LLM is disabled."""
     config = RuntimeConfig.from_defaults()
     config = config.merge_with_cli(llm_enabled=False)
 
-    parser = _create_llm_parser(config)
+    parser, tracker = _create_llm_parser(config)
 
     assert parser is None
+    assert tracker is None
 
 
 @patch("pr_conflict_resolver.cli.main.console")
@@ -463,7 +464,7 @@ def test_create_llm_parser_parallel_enabled(
         llm_rate_limit=20.0,
     )
 
-    parser = _create_llm_parser(config)
+    parser, _tracker = _create_llm_parser(config)
 
     assert parser is not None
     mock_parallel_parser.assert_called_once()
@@ -491,7 +492,7 @@ def test_create_llm_parser_parallel_disabled(
         llm_parallel_parsing=False,
     )
 
-    parser = _create_llm_parser(config)
+    parser, _tracker = _create_llm_parser(config)
 
     assert parser is not None
     mock_universal_parser.assert_called_once()
@@ -499,7 +500,7 @@ def test_create_llm_parser_parallel_disabled(
 
 @patch("pr_conflict_resolver.llm.factory.create_provider")
 def test_create_llm_parser_provider_error(mock_create_provider: Mock) -> None:
-    """Test _create_llm_parser returns None when provider creation fails."""
+    """Test _create_llm_parser returns (None, None) when provider creation fails."""
     mock_create_provider.side_effect = RuntimeError("Provider initialization failed")
 
     config = RuntimeConfig.from_defaults()
@@ -508,9 +509,10 @@ def test_create_llm_parser_provider_error(mock_create_provider: Mock) -> None:
         llm_provider="claude-cli",  # Use valid provider, but creation will fail
     )
 
-    parser = _create_llm_parser(config)
+    parser, tracker = _create_llm_parser(config)
 
     assert parser is None
+    assert tracker is None
 
 
 @patch("pr_conflict_resolver.llm.factory.create_provider")
@@ -518,7 +520,7 @@ def test_create_llm_parser_provider_error(mock_create_provider: Mock) -> None:
 def test_create_llm_parser_parser_error(
     mock_parallel_parser: Mock, mock_create_provider: Mock
 ) -> None:
-    """Test _create_llm_parser returns None when parser creation fails."""
+    """Test _create_llm_parser returns (None, None) when parser creation fails."""
     mock_provider = MagicMock()
     mock_create_provider.return_value = mock_provider
     mock_parallel_parser.side_effect = ValueError("Invalid parser configuration")
@@ -529,6 +531,7 @@ def test_create_llm_parser_parser_error(
         llm_parallel_parsing=True,
     )
 
-    parser = _create_llm_parser(config)
+    parser, tracker = _create_llm_parser(config)
 
     assert parser is None
+    assert tracker is None

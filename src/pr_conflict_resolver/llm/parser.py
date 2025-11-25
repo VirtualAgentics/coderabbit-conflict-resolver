@@ -7,14 +7,19 @@ code changes from CodeRabbit review comments. The parser:
 - Returns structured ParsedChange objects
 - Handles errors gracefully with optional fallback
 - Filters results by confidence threshold
+- Supports cost budget enforcement
 
 The parser is provider-agnostic and works with any LLMProvider implementation.
 """
+
+from __future__ import annotations
 
 import json
 import logging
 
 from pr_conflict_resolver.llm.base import LLMParser, ParsedChange
+from pr_conflict_resolver.llm.cost_tracker import CostStatus, CostTracker
+from pr_conflict_resolver.llm.exceptions import LLMCostExceededError
 from pr_conflict_resolver.llm.prompts import PARSE_COMMENT_PROMPT
 from pr_conflict_resolver.llm.providers.base import LLMProvider
 
@@ -52,6 +57,7 @@ class UniversalLLMParser(LLMParser):
         fallback_to_regex: bool = True,
         confidence_threshold: float = 0.5,
         max_tokens: int = 2000,
+        cost_tracker: CostTracker | None = None,
     ) -> None:
         """Initialize universal LLM parser.
 
@@ -65,6 +71,9 @@ class UniversalLLMParser(LLMParser):
             max_tokens: Maximum tokens for LLM response generation. Default 2000 is
                 sufficient for most PR comments while keeping costs low. Increase for
                 very long comments with many changes.
+            cost_tracker: Optional CostTracker for budget enforcement. If provided,
+                requests are blocked when budget is exceeded and LLMCostExceededError
+                is raised.
 
         Raises:
             ValueError: If confidence_threshold is not in [0.0, 1.0]
@@ -78,12 +87,15 @@ class UniversalLLMParser(LLMParser):
         self.fallback_to_regex = fallback_to_regex
         self.confidence_threshold = confidence_threshold
         self.max_tokens = max_tokens
+        self.cost_tracker = cost_tracker
 
         logger.info(
-            "Initialized UniversalLLMParser: fallback=%s, threshold=%s, max_tokens=%s",
+            "Initialized UniversalLLMParser: fallback=%s, threshold=%s, max_tokens=%s, "
+            "cost_tracker=%s",
             fallback_to_regex,
             confidence_threshold,
             max_tokens,
+            "enabled" if cost_tracker else "disabled",
         )
 
     def parse_comment(
@@ -124,6 +136,17 @@ class UniversalLLMParser(LLMParser):
         if not comment_body:
             raise ValueError("comment_body cannot be None or empty")
 
+        # Check budget before making LLM API call
+        if self.cost_tracker and self.cost_tracker.should_block_request():
+            # Cache values to avoid multiple lock acquisitions
+            accumulated = self.cost_tracker.accumulated_cost
+            budget = self.cost_tracker.budget or 0.0
+            raise LLMCostExceededError(
+                f"Cost budget exceeded: ${accumulated:.4f}/${budget:.4f}",
+                accumulated_cost=accumulated,
+                budget=budget,
+            )
+
         try:
             # Build prompt with context
             prompt = PARSE_COMMENT_PROMPT.format(
@@ -137,8 +160,23 @@ class UniversalLLMParser(LLMParser):
                 f"body_length={len(comment_body)}"
             )
 
+            # Track cost before call to calculate incremental cost
+            previous_cost = self.provider.get_total_cost() if self.cost_tracker else 0.0
+
             # Generate response from LLM
             response = self.provider.generate(prompt, max_tokens=self.max_tokens)
+
+            # Track cost after successful call
+            if self.cost_tracker:
+                current_cost = self.provider.get_total_cost()
+                request_cost = current_cost - previous_cost
+                status = self.cost_tracker.add_cost(request_cost)
+
+                # Log warning at threshold (only once)
+                if status == CostStatus.WARNING:
+                    warning_msg = self.cost_tracker.get_warning_message()
+                    if warning_msg:
+                        logger.warning(warning_msg)
 
             logger.debug(f"LLM response length: {len(response)} characters")
 

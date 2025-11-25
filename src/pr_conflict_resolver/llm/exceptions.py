@@ -13,7 +13,8 @@ Exception Hierarchy:
     ├── LLMParsingError (parsing/response processing failures)
     │   ├── LLMInvalidResponseError (malformed LLM response)
     │   └── LLMValidationError (response doesn't match expected schema)
-    └── LLMConfigurationError (configuration issues)
+    ├── LLMConfigurationError (configuration issues)
+    └── LLMCostExceededError (cost budget exceeded)
 
 Usage Examples:
     >>> try:
@@ -202,3 +203,54 @@ class LLMConfigurationError(LLMError):
         ...         details={"provider": "openai"}
         ...     )
     """
+
+
+# Budget/cost exceptions
+
+
+class LLMCostExceededError(LLMError):
+    """LLM cost budget has been exceeded.
+
+    Raised when the accumulated cost of LLM API calls reaches or exceeds
+    the configured budget limit. This enables graceful degradation to
+    fallback parsing methods (e.g., regex) instead of hard failures.
+
+    Attributes:
+        accumulated_cost: Total cost accumulated before exceeding budget (USD)
+        budget: Configured budget limit (USD)
+
+    Example:
+        >>> try:
+        ...     changes = parser.parse_comment("Fix this bug")
+        ... except LLMCostExceededError as e:
+        ...     logger.warning(
+        ...         "Budget exceeded: $%.4f of $%.4f",
+        ...         e.accumulated_cost, e.budget
+        ...     )
+        ...     # Fall back to regex parsing
+        ...     changes = regex_parser.parse_comment("Fix this bug")
+    """
+
+    def __init__(
+        self,
+        message: str,
+        accumulated_cost: float = 0.0,
+        budget: float = 0.0,
+        details: dict[str, object] | None = None,
+    ) -> None:
+        """Initialize cost exceeded error.
+
+        Args:
+            message: Error message describing what went wrong
+            accumulated_cost: Total cost accumulated (USD)
+            budget: Budget limit that was exceeded (USD)
+            details: Optional dictionary with additional context
+        """
+        super().__init__(message, details)
+        self.accumulated_cost = accumulated_cost
+        self.budget = budget
+
+    def __str__(self) -> str:
+        """Format error with cost details."""
+        base_msg = super().__str__()
+        return f"{base_msg} (accumulated=${self.accumulated_cost:.4f}, budget=${self.budget:.4f})"
