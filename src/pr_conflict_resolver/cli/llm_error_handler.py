@@ -16,6 +16,7 @@ from pr_conflict_resolver.llm.exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
     LLMConfigurationError,
+    LLMCostExceededError,
     LLMError,
     LLMParsingError,
     LLMRateLimitError,
@@ -90,6 +91,17 @@ def handle_llm_errors(runtime_config: "RuntimeConfig") -> Generator[None, None, 
         logger.warning("LLM parsing error: %s", e)
         # Don't abort - may have fallen back to regex parsing
         # Suppress the exception to allow execution to continue
+
+    except LLMCostExceededError as e:
+        # Cost budget exceeded - allow graceful degradation to regex
+        provider = getattr(runtime_config, "llm_provider", None) or "unknown"
+        console.print(
+            f"\n[yellow]⚠️ LLM cost budget exceeded: "
+            f"${e.accumulated_cost:.4f} of ${e.budget:.4f}[/yellow]"
+        )
+        console.print("[dim]Falling back to regex parsing for remaining comments[/dim]")
+        logger.warning("LLM cost budget exceeded for provider %s: %s", provider, e)
+        # Don't abort - allow graceful degradation to regex parsing
 
     except LLMAPIError as e:
         # Generic API errors

@@ -531,6 +531,9 @@ class TestCachingProviderProviderName:
             def count_tokens(self, text: str) -> int:
                 return len(text)
 
+            def get_total_cost(self) -> float:
+                return 0.0
+
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCache(cache_dir=Path(tmpdir))
             provider = AnthropicAPIProvider()
@@ -550,6 +553,9 @@ class TestCachingProviderProviderName:
 
             def count_tokens(self, text: str) -> int:
                 return len(text)
+
+            def get_total_cost(self) -> float:
+                return 0.0
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCache(cache_dir=Path(tmpdir))
@@ -571,6 +577,9 @@ class TestCachingProviderProviderName:
             def count_tokens(self, text: str) -> int:
                 return len(text)
 
+            def get_total_cost(self) -> float:
+                return 0.0
+
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCache(cache_dir=Path(tmpdir))
             provider = OllamaProvider()
@@ -591,6 +600,9 @@ class TestCachingProviderProviderName:
             def count_tokens(self, text: str) -> int:
                 return len(text)
 
+            def get_total_cost(self) -> float:
+                return 0.0
+
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCache(cache_dir=Path(tmpdir))
             provider = SomeAPI()
@@ -610,6 +622,9 @@ class TestCachingProviderProviderName:
 
             def count_tokens(self, text: str) -> int:
                 return len(text)
+
+            def get_total_cost(self) -> float:
+                return 0.0
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache = PromptCache(cache_dir=Path(tmpdir))

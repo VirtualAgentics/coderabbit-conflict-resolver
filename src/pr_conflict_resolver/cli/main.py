@@ -20,6 +20,7 @@ from pr_conflict_resolver.config.runtime_config import (
 )
 from pr_conflict_resolver.core.resolver import ConflictResolver
 from pr_conflict_resolver.llm.base import LLMParser
+from pr_conflict_resolver.llm.cost_tracker import CostTracker
 from pr_conflict_resolver.llm.exceptions import LLMError
 from pr_conflict_resolver.llm.metrics import LLMMetrics
 from pr_conflict_resolver.llm.metrics_aggregator import MetricsAggregator
@@ -50,7 +51,9 @@ MAX_GITHUB_REPO_LENGTH = 100
 _INJECTION_PATTERN = re.compile(r"[\x00-\x1f\x7f]")  # Control chars only
 
 
-def _create_llm_parser(runtime_config: RuntimeConfig) -> LLMParser | None:
+def _create_llm_parser(
+    runtime_config: RuntimeConfig,
+) -> tuple[LLMParser | None, CostTracker | None]:
     """Create LLM parser from runtime configuration.
 
     Creates either ParallelLLMParser or UniversalLLMParser based on configuration.
@@ -60,10 +63,12 @@ def _create_llm_parser(runtime_config: RuntimeConfig) -> LLMParser | None:
         runtime_config: Runtime configuration containing LLM settings.
 
     Returns:
-        LLMParser instance or None if LLM is disabled or initialization fails.
+        Tuple of (LLMParser instance, CostTracker instance), or (None, None) if
+        LLM is disabled or initialization fails. CostTracker is only created if
+        a cost budget is configured.
     """
     if not runtime_config.llm_enabled:
-        return None
+        return None, None
 
     try:
         from pr_conflict_resolver.llm.factory import create_provider
@@ -75,6 +80,12 @@ def _create_llm_parser(runtime_config: RuntimeConfig) -> LLMParser | None:
             api_key=runtime_config.llm_api_key,
         )
 
+        # Create cost tracker if budget is configured
+        cost_tracker: CostTracker | None = None
+        if runtime_config.llm_cost_budget is not None:
+            cost_tracker = CostTracker(budget=runtime_config.llm_cost_budget)
+            logger.info(f"Cost budget: ${runtime_config.llm_cost_budget:.4f}")
+
         # Create parser with provider (use ParallelLLMParser if parallel parsing enabled)
         llm_parser: LLMParser
         if runtime_config.llm_parallel_parsing:
@@ -85,6 +96,7 @@ def _create_llm_parser(runtime_config: RuntimeConfig) -> LLMParser | None:
                 fallback_to_regex=runtime_config.llm_fallback_to_regex,
                 confidence_threshold=runtime_config.llm_confidence_threshold,
                 max_tokens=runtime_config.llm_max_tokens,
+                cost_tracker=cost_tracker,
             )
             console.print(
                 f"[dim]✓ Parallel LLM parser initialized: "
@@ -98,19 +110,20 @@ def _create_llm_parser(runtime_config: RuntimeConfig) -> LLMParser | None:
                 fallback_to_regex=runtime_config.llm_fallback_to_regex,
                 confidence_threshold=runtime_config.llm_confidence_threshold,
                 max_tokens=runtime_config.llm_max_tokens,
+                cost_tracker=cost_tracker,
             )
             console.print(
                 f"[dim]✓ LLM parser initialized: {runtime_config.llm_provider} "
                 f"({runtime_config.llm_model})[/dim]"
             )
 
-        return llm_parser
+        return llm_parser, cost_tracker
 
     except Exception as e:
         logger.exception("Failed to initialize LLM parser")
         console.print(f"[yellow]⚠ Warning: Failed to initialize LLM parser: {e}[/yellow]")
         console.print("[dim]Falling back to regex-only parsing[/dim]")
-        return None
+        return None, None
 
 
 def sanitize_for_output(value: str) -> str:
@@ -262,6 +275,37 @@ def validate_pr_number(ctx: click.Context, param: click.Parameter, value: int) -
             "PR number must be positive (>= 1)",
             ctx=ctx,
             param=param,
+        )
+    return value
+
+
+def validate_cost_budget(
+    ctx: click.Context, param: click.Parameter, value: float | None
+) -> float | None:
+    """Validate that cost budget is non-negative.
+
+    Args:
+        ctx: Click context.
+        param: Parameter being validated.
+        value: The cost budget to validate (None for unlimited).
+
+    Returns:
+        The validated cost budget or None.
+
+    Raises:
+        click.BadParameter: If cost budget is negative.
+    """
+    if value is not None and value < 0:
+        raise click.BadParameter(
+            "cost budget must be non-negative",
+            ctx=ctx,
+            param=param,
+        )
+    if value == 0.0:
+        click.echo(
+            "Warning: --cost-budget=0 will disable all LLM parsing "
+            "(budget exhausted immediately)",
+            err=True,
         )
     return value
 
@@ -450,6 +494,42 @@ def _export_metrics(
         logger.error("Failed to export metrics to %s: %s", path, e)
 
 
+def _display_cost_status(cost_tracker: CostTracker | None) -> None:
+    """Display cost budget status panel.
+
+    Shows cost budget utilization with color-coded status based on
+    the tracker's configured warning threshold:
+    - Green: Under warning threshold (OK)
+    - Yellow: At/above warning threshold, under 100% (WARNING)
+    - Red: 100%+ (EXCEEDED)
+
+    Args:
+        cost_tracker: CostTracker instance to display status for.
+            Does nothing if tracker is None or has no budget set.
+    """
+    if cost_tracker is None or cost_tracker.budget is None:
+        return  # No budget set, nothing to display
+
+    utilization = cost_tracker.budget_utilization
+    budget = cost_tracker.budget
+    warning_threshold = cost_tracker.warning_threshold
+
+    if utilization >= 1.0:
+        style = "red"
+        status = "EXCEEDED"
+    elif utilization >= warning_threshold:
+        style = "yellow"
+        status = "WARNING"
+    else:
+        style = "green"
+        status = "OK"
+
+    console.print(
+        f"[{style}]Cost: ${cost_tracker.accumulated_cost:.4f} / "
+        f"${budget:.4f} ({utilization*100:.1f}%) - {status}[/{style}]"
+    )
+
+
 def _record_and_display_metrics(
     llm_metrics: LLMMetrics,
     owner: str,
@@ -580,6 +660,13 @@ def _record_and_display_metrics(
     help="Minimum LLM confidence (0.0-1.0) required to accept changes (default: 0.5)",
 )
 @click.option(
+    "--cost-budget",
+    type=float,
+    default=None,
+    callback=validate_cost_budget,
+    help="Maximum LLM cost in USD (default: unlimited). Processing stops at budget limit.",
+)
+@click.option(
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
     help="Logging level (default: INFO)",
@@ -622,6 +709,7 @@ def analyze(
     llm_parallel_workers: int | None,
     llm_rate_limit: float | None,
     llm_confidence_threshold: float | None,
+    cost_budget: float | None,
     log_level: str | None,
     log_file: str | None,
     metrics_output: str | None,
@@ -648,6 +736,7 @@ def analyze(
         llm_parallel_workers: Maximum worker threads for parallel comment parsing.
         llm_rate_limit: Maximum requests per second for parallel comment parsing.
         llm_confidence_threshold: Minimum LLM confidence (0.0-1.0) required to accept changes.
+        cost_budget: Maximum cost in USD for LLM API calls. None for unlimited.
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Path to log file for output.
         metrics_output: Path to export metrics file (.json or .csv).
@@ -693,6 +782,7 @@ def analyze(
             "llm_parallel_max_workers": llm_parallel_workers,
             "llm_rate_limit": llm_rate_limit,
             "llm_confidence_threshold": llm_confidence_threshold,
+            "llm_cost_budget": cost_budget,
         }
 
         runtime_config, preset_name = load_runtime_config(
@@ -739,7 +829,7 @@ def analyze(
         config_preset = PresetConfig.BALANCED
 
     # Initialize LLM parser if enabled
-    llm_parser = _create_llm_parser(runtime_config)
+    llm_parser, cost_tracker = _create_llm_parser(runtime_config)
 
     # Initialize resolver with LLM parser
     resolver = ConflictResolver(config_preset, llm_parser=llm_parser)
@@ -811,6 +901,9 @@ def analyze(
 
                 if llm_metrics:
                     _display_llm_metrics(llm_metrics)
+
+                # Display cost budget status if tracking enabled
+                _display_cost_status(cost_tracker)
 
                 # Show detailed aggregated metrics if --show-metrics flag is set
                 if show_metrics and llm_metrics:
@@ -927,6 +1020,13 @@ def analyze(
     help="Minimum LLM confidence (0.0-1.0) required to accept changes (default: 0.5)",
 )
 @click.option(
+    "--cost-budget",
+    type=float,
+    default=None,
+    callback=validate_cost_budget,
+    help="Maximum LLM cost in USD (default: unlimited). Processing stops at budget limit.",
+)
+@click.option(
     "--config",
     type=str,
     help=(
@@ -983,6 +1083,7 @@ def apply(
     llm_parallel_workers: int | None,
     llm_rate_limit: float | None,
     llm_confidence_threshold: float | None,
+    cost_budget: float | None,
     config: str | None,
     log_level: str | None,
     log_file: str | None,
@@ -1021,6 +1122,7 @@ def apply(
         llm_parallel_workers: Maximum worker threads for parallel LLM parsing (1-32).
         llm_rate_limit: Rate limit for LLM API calls (requests/second, minimum 0.1).
         llm_confidence_threshold: Minimum LLM confidence (0.0-1.0) required to accept changes.
+        cost_budget: Maximum cost in USD for LLM API calls. None for unlimited.
         config: Configuration preset name or path to configuration file (YAML or TOML).
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Path to log file for output.
@@ -1111,6 +1213,7 @@ def apply(
             "llm_parallel_max_workers": llm_parallel_workers,
             "llm_rate_limit": llm_rate_limit,
             "llm_confidence_threshold": llm_confidence_threshold,
+            "llm_cost_budget": cost_budget,
         }
 
         runtime_config, preset_name = load_runtime_config(
@@ -1173,7 +1276,7 @@ def apply(
         config_preset = PresetConfig.BALANCED
 
     # Initialize LLM parser if enabled
-    llm_parser = _create_llm_parser(runtime_config)
+    llm_parser, cost_tracker = _create_llm_parser(runtime_config)
 
     # Initialize resolver with LLM parser
     resolver = ConflictResolver(config_preset, llm_parser=llm_parser)
@@ -1215,6 +1318,9 @@ def apply(
                 # Display LLM metrics if available
                 if result.llm_metrics:
                     _display_llm_metrics(result.llm_metrics)
+
+                    # Display cost budget status if tracking enabled
+                    _display_cost_status(cost_tracker)
 
                     # Show detailed aggregated metrics if --show-metrics flag is set
                     if show_metrics:

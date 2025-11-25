@@ -10,16 +10,22 @@ from click.testing import CliRunner
 from pr_conflict_resolver import Change, Conflict, FileType, Resolution, ResolutionResult
 from pr_conflict_resolver.cli.main import (
     _create_llm_parser,
+    _display_cost_status,
     _display_llm_metrics,
+    _export_metrics,
+    _record_and_display_metrics,
     cli,
     sanitize_for_output,
+    validate_cost_budget,
     validate_github_repo,
     validate_github_username,
     validate_pr_number,
 )
 from pr_conflict_resolver.config.exceptions import ConfigError
 from pr_conflict_resolver.config.runtime_config import RuntimeConfig
+from pr_conflict_resolver.llm.cost_tracker import CostTracker
 from pr_conflict_resolver.llm.metrics import LLMMetrics
+from pr_conflict_resolver.llm.metrics_aggregator import MetricsAggregator
 from pr_conflict_resolver.llm.providers.gpu_detector import GPUInfo
 
 
@@ -276,7 +282,7 @@ def test_cli_analyze_shows_llm_metrics(
     )
     mock_load_config.return_value = (runtime_config, "balanced")
     mock_handle_llm_errors.return_value = nullcontext()
-    mock_create_parser.return_value = object()
+    mock_create_parser.return_value = (object(), None)  # (parser, tracker) tuple
 
     conflict = _sample_conflict("test.json", "low")
     mock_inst = mock_resolver.return_value
@@ -378,13 +384,14 @@ def test_cli_apply_invalid_confidence_threshold(mock_load_config: Mock) -> None:
 
 
 def test_create_llm_parser_disabled() -> None:
-    """Test _create_llm_parser returns None when LLM is disabled."""
+    """Test _create_llm_parser returns (None, None) when LLM is disabled."""
     config = RuntimeConfig.from_defaults()
     config = config.merge_with_cli(llm_enabled=False)
 
-    parser = _create_llm_parser(config)
+    parser, tracker = _create_llm_parser(config)
 
     assert parser is None
+    assert tracker is None
 
 
 @patch("pr_conflict_resolver.cli.main.console")
@@ -463,7 +470,7 @@ def test_create_llm_parser_parallel_enabled(
         llm_rate_limit=20.0,
     )
 
-    parser = _create_llm_parser(config)
+    parser, _tracker = _create_llm_parser(config)
 
     assert parser is not None
     mock_parallel_parser.assert_called_once()
@@ -491,7 +498,7 @@ def test_create_llm_parser_parallel_disabled(
         llm_parallel_parsing=False,
     )
 
-    parser = _create_llm_parser(config)
+    parser, _tracker = _create_llm_parser(config)
 
     assert parser is not None
     mock_universal_parser.assert_called_once()
@@ -499,7 +506,7 @@ def test_create_llm_parser_parallel_disabled(
 
 @patch("pr_conflict_resolver.llm.factory.create_provider")
 def test_create_llm_parser_provider_error(mock_create_provider: Mock) -> None:
-    """Test _create_llm_parser returns None when provider creation fails."""
+    """Test _create_llm_parser returns (None, None) when provider creation fails."""
     mock_create_provider.side_effect = RuntimeError("Provider initialization failed")
 
     config = RuntimeConfig.from_defaults()
@@ -508,9 +515,10 @@ def test_create_llm_parser_provider_error(mock_create_provider: Mock) -> None:
         llm_provider="claude-cli",  # Use valid provider, but creation will fail
     )
 
-    parser = _create_llm_parser(config)
+    parser, tracker = _create_llm_parser(config)
 
     assert parser is None
+    assert tracker is None
 
 
 @patch("pr_conflict_resolver.llm.factory.create_provider")
@@ -518,7 +526,7 @@ def test_create_llm_parser_provider_error(mock_create_provider: Mock) -> None:
 def test_create_llm_parser_parser_error(
     mock_parallel_parser: Mock, mock_create_provider: Mock
 ) -> None:
-    """Test _create_llm_parser returns None when parser creation fails."""
+    """Test _create_llm_parser returns (None, None) when parser creation fails."""
     mock_provider = MagicMock()
     mock_create_provider.return_value = mock_provider
     mock_parallel_parser.side_effect = ValueError("Invalid parser configuration")
@@ -529,6 +537,205 @@ def test_create_llm_parser_parser_error(
         llm_parallel_parsing=True,
     )
 
-    parser = _create_llm_parser(config)
+    parser, tracker = _create_llm_parser(config)
 
     assert parser is None
+    assert tracker is None
+
+
+# ============================================================
+# Cost Budget Coverage Tests (Issue #225)
+# ============================================================
+
+
+class TestValidateCostBudget:
+    """Tests for validate_cost_budget CLI callback."""
+
+    def test_validate_cost_budget_valid_values(self) -> None:
+        """validate_cost_budget accepts valid non-negative values."""
+        assert validate_cost_budget(Mock(), Mock(), 0.0) == 0.0
+        assert validate_cost_budget(Mock(), Mock(), 1.5) == 1.5
+        assert validate_cost_budget(Mock(), Mock(), None) is None
+
+    def test_validate_cost_budget_rejects_negative(self) -> None:
+        """validate_cost_budget rejects negative values."""
+        with pytest.raises(click.BadParameter, match="cost budget must be non-negative"):
+            validate_cost_budget(Mock(), Mock(), -0.01)
+
+
+class TestDisplayCostStatus:
+    """Tests for _display_cost_status function."""
+
+    @patch("pr_conflict_resolver.cli.main.console")
+    def test_display_cost_status_no_tracker(self, mock_console: Mock) -> None:
+        """_display_cost_status returns early when tracker is None."""
+        _display_cost_status(None)
+        mock_console.print.assert_not_called()
+
+    @patch("pr_conflict_resolver.cli.main.console")
+    def test_display_cost_status_no_budget_set(self, mock_console: Mock) -> None:
+        """_display_cost_status returns early when budget is None."""
+        tracker = CostTracker(budget=None)
+        _display_cost_status(tracker)
+        mock_console.print.assert_not_called()
+
+    @patch("pr_conflict_resolver.cli.main.console")
+    def test_display_cost_status_ok(self, mock_console: Mock) -> None:
+        """_display_cost_status shows OK status when under warning threshold."""
+        tracker = CostTracker(budget=1.0, warning_threshold=0.8)
+        tracker.add_cost(0.5)  # 50%
+        _display_cost_status(tracker)
+        call_text = mock_console.print.call_args[0][0]
+        assert "green" in call_text and "OK" in call_text
+
+    @patch("pr_conflict_resolver.cli.main.console")
+    def test_display_cost_status_warning(self, mock_console: Mock) -> None:
+        """_display_cost_status shows WARNING status above threshold."""
+        tracker = CostTracker(budget=1.0, warning_threshold=0.8)
+        tracker.add_cost(0.85)  # 85%
+        _display_cost_status(tracker)
+        call_text = mock_console.print.call_args[0][0]
+        assert "yellow" in call_text and "WARNING" in call_text
+
+    @patch("pr_conflict_resolver.cli.main.console")
+    def test_display_cost_status_exceeded(self, mock_console: Mock) -> None:
+        """_display_cost_status shows EXCEEDED status over 100%."""
+        tracker = CostTracker(budget=1.0, warning_threshold=0.8)
+        tracker.add_cost(1.05)  # 105%
+        _display_cost_status(tracker)
+        call_text = mock_console.print.call_args[0][0]
+        assert "red" in call_text and "EXCEEDED" in call_text
+
+
+class TestRecordAndDisplayMetrics:
+    """Tests for _record_and_display_metrics function."""
+
+    @patch("pr_conflict_resolver.cli.main._display_aggregated_metrics")
+    @patch("pr_conflict_resolver.cli.main._export_metrics")
+    def test_record_and_display_metrics_no_export(
+        self, mock_export: Mock, mock_display: Mock
+    ) -> None:
+        """_record_and_display_metrics displays without export."""
+        metrics = LLMMetrics(
+            provider="anthropic",
+            model="claude-haiku-4",
+            changes_parsed=5,
+            avg_confidence=0.9,
+            cache_hit_rate=0.0,
+            total_cost=0.05,
+            api_calls=2,
+            total_tokens=1000,
+        )
+        _record_and_display_metrics(metrics, "owner", "repo", 123, None, "summary")
+        mock_display.assert_called_once()
+        mock_export.assert_not_called()
+
+    @patch("pr_conflict_resolver.cli.main._display_aggregated_metrics")
+    @patch("pr_conflict_resolver.cli.main._export_metrics")
+    def test_record_and_display_metrics_with_export(
+        self, mock_export: Mock, mock_display: Mock
+    ) -> None:
+        """_record_and_display_metrics exports when path provided."""
+        metrics = LLMMetrics(
+            provider="anthropic",
+            model="claude-haiku-4",
+            changes_parsed=5,
+            avg_confidence=0.9,
+            cache_hit_rate=0.0,
+            total_cost=0.05,
+            api_calls=2,
+            total_tokens=1000,
+        )
+        _record_and_display_metrics(metrics, "owner", "repo", 123, "/path/metrics.json", "full")
+        mock_display.assert_called_once()
+        mock_export.assert_called_once()
+
+
+class TestExportMetrics:
+    """Tests for _export_metrics function."""
+
+    @patch("pr_conflict_resolver.cli.main.console")
+    @patch.object(MetricsAggregator, "export_json")
+    def test_export_metrics_oserror(self, mock_export_json: Mock, mock_console: Mock) -> None:
+        """_export_metrics handles OSError gracefully."""
+        mock_export_json.side_effect = OSError("Permission denied")
+        aggregator = MetricsAggregator()
+        _export_metrics(aggregator, "/invalid/path/metrics.json", "summary")
+        # Check that error message was printed
+        error_calls = [c for c in mock_console.print.call_args_list if "Failed" in str(c)]
+        assert len(error_calls) > 0
+
+
+class TestCostBudgetCLI:
+    """Tests for --cost-budget CLI integration."""
+
+    @patch("pr_conflict_resolver.cli.main.load_runtime_config")
+    @patch("pr_conflict_resolver.cli.main.ConflictResolver")
+    def test_cli_analyze_with_cost_budget(
+        self, mock_resolver: Mock, mock_load_config: Mock
+    ) -> None:
+        """analyze forwards --cost-budget to config overrides."""
+        config = RuntimeConfig.from_defaults()
+        mock_load_config.return_value = (config, None)
+        mock_resolver.return_value.analyze_conflicts.return_value = []
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "analyze",
+                "--pr",
+                "15",
+                "--owner",
+                "o",
+                "--repo",
+                "r",
+                "--cost-budget",
+                "2.50",
+            ],
+        )
+
+        assert result.exit_code == 0
+        overrides = mock_load_config.call_args.kwargs["cli_overrides"]
+        assert overrides["llm_cost_budget"] == 2.50
+
+    @patch("pr_conflict_resolver.llm.factory.create_provider")
+    @patch("pr_conflict_resolver.cli.main.UniversalLLMParser")
+    def test_create_llm_parser_with_cost_budget(
+        self, mock_parser: Mock, mock_provider: Mock
+    ) -> None:
+        """_create_llm_parser creates CostTracker when budget configured."""
+        mock_provider.return_value = MagicMock()
+        mock_parser.return_value = MagicMock()
+
+        config = RuntimeConfig.from_defaults().merge_with_cli(
+            llm_enabled=True,
+            llm_provider="anthropic",
+            llm_api_key="test-key-123",
+            llm_cost_budget=2.50,
+        )
+        parser, tracker = _create_llm_parser(config)
+
+        assert parser is not None
+        assert tracker is not None
+        assert tracker.budget == 2.50
+
+    @patch("pr_conflict_resolver.llm.factory.create_provider")
+    @patch("pr_conflict_resolver.cli.main.UniversalLLMParser")
+    def test_create_llm_parser_without_cost_budget(
+        self, mock_parser: Mock, mock_provider: Mock
+    ) -> None:
+        """_create_llm_parser returns None tracker when no budget."""
+        mock_provider.return_value = MagicMock()
+        mock_parser.return_value = MagicMock()
+
+        config = RuntimeConfig.from_defaults().merge_with_cli(
+            llm_enabled=True,
+            llm_provider="anthropic",
+            llm_api_key="test-key-123",
+            llm_cost_budget=None,
+        )
+        parser, tracker = _create_llm_parser(config)
+
+        assert parser is not None
+        assert tracker is None

@@ -88,3 +88,19 @@ class LLMProvider(Protocol):
             return exact counts using their official tokenizers.
         """
         pass
+
+    def get_total_cost(self) -> float:
+        """Get total accumulated cost of all API calls.
+
+        This method tracks cumulative cost across all provider calls,
+        enabling budget tracking and cost management.
+
+        Returns:
+            Total cost in USD accumulated since provider initialization.
+            Returns 0.0 if cost tracking is not supported by the provider.
+
+        Note:
+            Cost calculation is provider-specific. API providers track
+            actual API costs, while CLI providers may return 0.0.
+        """
+        pass
