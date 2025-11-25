@@ -10,3 +10,4 @@ MD033: false  # Inline HTML - allowed (needed for badges, centered images, etc.)
 MD041: false  # First line in file should be top-level heading - disabled (README has badges first)
 MD024:  # Duplicate headings allowed when in different sections
   siblings_only: true
+MD060: false  # Table column style - disabled (overly pedantic about pipe spacing)
