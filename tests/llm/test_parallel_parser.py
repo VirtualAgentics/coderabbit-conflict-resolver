@@ -383,7 +383,8 @@ class TestParallelLLMParser:
 
         assert len(results[0]) == 0  # Failed comment returns empty list
         assert len(results[1]) == 1  # Second comment succeeds
-        assert progress_calls == [(1, 2), (2, 2)]
+        # Use sorted comparison as parallel execution order is non-deterministic
+        assert sorted(progress_calls) == sorted([(1, 2), (2, 2)])
 
     def test_parse_comments_failure_branch_sync_executor(
         self,
