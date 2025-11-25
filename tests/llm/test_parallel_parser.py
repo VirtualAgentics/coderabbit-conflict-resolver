@@ -5,9 +5,6 @@ circuit breaker integration, and error handling.
 """
 
 import re
-from collections.abc import Callable, Iterable
-from types import TracebackType
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,6 +16,11 @@ from pr_conflict_resolver.llm.parallel_parser import (
     RateLimiter,
 )
 from pr_conflict_resolver.llm.resilience.circuit_breaker import CircuitState
+from tests.conftest import (
+    SyncExecutor,
+    create_exception_injecting_executor,
+    fake_as_completed,
+)
 
 ResultTuple = tuple[int, list[ParsedChange]]
 
@@ -403,58 +405,9 @@ class TestParallelLLMParser:
         Note: The actual future.result() exception path is tested separately
         in test_parse_comments_future_result_exception using future.set_exception().
         """
-
-        class ImmediateFuture:
-            def __init__(
-                self, result: ResultTuple | None = None, exc: Exception | None = None
-            ) -> None:
-                self._result = result
-                self._exc = exc
-
-            def result(self) -> ResultTuple:
-                if self._exc is not None:
-                    raise self._exc
-                assert self._result is not None
-                return self._result
-
-        class SynchronousExecutor:
-            def __init__(self, max_workers: int) -> None:
-                self._futures: list[ImmediateFuture] = []
-
-            def __enter__(self) -> "SynchronousExecutor":
-                return self
-
-            def __exit__(
-                self,
-                exc_type: type[BaseException] | None,
-                exc: BaseException | None,
-                tb: TracebackType | None,
-            ) -> None:
-                return None
-
-            def submit(
-                self,
-                fn: Callable[[int, CommentInput], ResultTuple],
-                idx: int,
-                comment: CommentInput,
-            ) -> ImmediateFuture:
-                try:
-                    value = fn(idx, comment)
-                    future = ImmediateFuture(result=value)
-                except Exception as exc:  # pragma: no cover - defensive
-                    future = ImmediateFuture(exc=exc)
-                self._futures.append(future)
-                return future
-
-        def fake_as_completed(
-            futures: Iterable[ImmediateFuture] | dict[Any, ImmediateFuture],
-        ) -> list[ImmediateFuture]:
-            if isinstance(futures, dict):
-                return list(futures.keys())
-            return list(futures)
-
         monkeypatch.setattr(
-            "pr_conflict_resolver.llm.parallel_parser.ThreadPoolExecutor", SynchronousExecutor
+            "pr_conflict_resolver.llm.parallel_parser.ThreadPoolExecutor",
+            SyncExecutor,
         )
         monkeypatch.setattr(
             "pr_conflict_resolver.llm.parallel_parser.as_completed", fake_as_completed
@@ -563,52 +516,14 @@ class TestParallelLLMParser:
         sample_parsed_change_json: str,
     ) -> None:
         """Test exception handling when future.result() raises in as_completed loop."""
-        from concurrent.futures import Future
-
         parser = ParallelLLMParser(provider=mock_provider, fallback_to_regex=True)
         mock_provider.generate.return_value = sample_parsed_change_json
 
-        FutureResult = Future[tuple[int, list[ParsedChange]]]
-
-        class DummyExecutor:
-            def __init__(self, max_workers: int) -> None:
-                self.futures: list[FutureResult] = []
-
-            def __enter__(self) -> "DummyExecutor":
-                return self
-
-            def __exit__(
-                self,
-                exc_type: type[BaseException] | None,
-                exc: BaseException | None,
-                tb: TracebackType | None,
-            ) -> None:
-                return None
-
-            def submit(
-                self,
-                fn: Callable[[int, CommentInput], tuple[int, list[ParsedChange]]],
-                idx: int,
-                comment: CommentInput,
-            ) -> FutureResult:
-                future: FutureResult = Future()
-                if idx == 1:
-                    future.set_exception(RuntimeError("Future cancelled"))
-                else:
-                    result = fn(idx, comment)
-                    future.set_result(result)
-                self.futures.append(future)
-                return future
-
-        def fake_executor_factory(max_workers: int) -> DummyExecutor:
-            return DummyExecutor(max_workers)
-
-        def fake_as_completed(
-            futures: Iterable[FutureResult] | dict[Any, FutureResult],
-        ) -> list[FutureResult]:
-            if isinstance(futures, dict):
-                return list(futures.keys())
-            return list(futures)
+        # Create executor that injects exception for index 1
+        FailingExecutor = create_exception_injecting_executor(
+            fail_indices={1},
+            exception_factory=lambda: RuntimeError("Future cancelled"),
+        )
 
         comments = [
             CommentInput(body=f"Comment {i}", file_path=f"test{i}.py", line_number=i)
@@ -616,9 +531,7 @@ class TestParallelLLMParser:
         ]
 
         with (
-            patch(
-                "pr_conflict_resolver.llm.parallel_parser.ThreadPoolExecutor", fake_executor_factory
-            ),
+            patch("pr_conflict_resolver.llm.parallel_parser.ThreadPoolExecutor", FailingExecutor),
             patch("pr_conflict_resolver.llm.parallel_parser.as_completed", fake_as_completed),
         ):
             results = parser.parse_comments(comments)
