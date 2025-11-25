@@ -112,6 +112,9 @@ def handle_llm_errors(runtime_config: "RuntimeConfig") -> Generator[None, None, 
             "Content blocked from external LLM API.[/red]"
         )
         console.print("[dim]Review the PR comment for sensitive data before retrying.[/dim]")
+        # CodeQL[py/clear-text-logging-sensitive-data]: False positive - we log the secret
+        # TYPE (e.g., "github_token"), not the actual secret value. This is security metadata
+        # needed for auditing which patterns triggered the block.
         logger.error(
             "Secret detected, blocked LLM request: types=%s, count=%d",
             secret_types,

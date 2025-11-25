@@ -9,6 +9,7 @@ Tests for secure LLM operations including:
 
 import os
 import stat
+import string
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -25,7 +26,7 @@ from pr_conflict_resolver.security.secret_scanner import SecretScanner
 
 def make_token(prefix: str, suffix_length: int = 36) -> str:
     """Create a test token with the given prefix and suffix length."""
-    charset = "".join([str(i) for i in range(10)]) + "".join([chr(ord("a") + i) for i in range(26)])
+    charset = string.digits + string.ascii_lowercase
     suffix = (charset * ((suffix_length // len(charset)) + 1))[:suffix_length]
     return f"{prefix}{suffix}"
 

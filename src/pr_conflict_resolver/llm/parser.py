@@ -151,6 +151,9 @@ class UniversalLLMParser(LLMParser):
         if self.scan_for_secrets:
             findings = SecretScanner.scan_content(comment_body, stop_on_first=True)
             if findings:
+                # CodeQL[py/clear-text-logging-sensitive-data]: False positive - we log the
+                # secret TYPE (e.g., "github_token"), not the actual secret value. This is
+                # security metadata needed for auditing which patterns triggered the block.
                 logger.error(
                     "Secret detected in comment body (%s), blocking LLM request - "
                     "refusing to send to external API",

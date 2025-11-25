@@ -24,10 +24,12 @@ from pr_conflict_resolver.llm.exceptions import (
     LLMConfigurationError,
     LLMParsingError,
     LLMRateLimitError,
+    LLMSecretDetectedError,
     LLMTimeoutError,
 )
 from pr_conflict_resolver.llm.metrics import LLMMetrics
 from pr_conflict_resolver.llm.metrics_aggregator import MetricsAggregator
+from pr_conflict_resolver.security.secret_scanner import SecretFinding, Severity
 
 
 def _populate_runtime_config_mock(cfg: Mock) -> Mock:
@@ -457,6 +459,89 @@ class TestApplyCommandLLMIntegration:
             assert "Failed to parse LLM response" in result.output
             # LLMParsingError doesn't abort - exits successfully (fallback scenario)
             assert result.exit_code == 0
+
+    def test_apply_handles_secret_detected_error(self, cli_runner: CliRunner) -> None:
+        """Test apply command handles LLMSecretDetectedError (aborts with security message)."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            mock_resolver = mock_resolver_class.return_value
+            # Create mock findings for the error
+            mock_finding = SecretFinding(
+                secret_type="github_personal_token",  # noqa: S106
+                matched_text="ghp_****...",
+                line_number=1,
+                column=10,
+                severity=Severity.HIGH,
+            )
+            mock_resolver.resolve_pr_conflicts.side_effect = LLMSecretDetectedError(
+                "Secret detected in PR comment",
+                findings=[mock_finding],
+            )
+
+            result = cli_runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "123",
+                    "--owner",
+                    "testowner",
+                    "--repo",
+                    "testrepo",
+                ],
+            )
+
+            # Should display security error message and abort
+            assert result.exit_code != 0
+            assert "Security" in result.output or "Secret" in result.output
+            assert "github_personal_token" in result.output
+            # Should suggest reviewing PR comment
+            assert "blocked" in result.output.lower() or "review" in result.output.lower()
+
+    def test_apply_handles_secret_detected_error_multiple_types(
+        self, cli_runner: CliRunner
+    ) -> None:
+        """Test apply command handles LLMSecretDetectedError with multiple secret types."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            mock_resolver = mock_resolver_class.return_value
+            # Create mock findings with multiple secret types
+            findings = [
+                SecretFinding(
+                    secret_type="github_personal_token",  # noqa: S106
+                    matched_text="ghp_****...",
+                    line_number=1,
+                    column=10,
+                    severity=Severity.HIGH,
+                ),
+                SecretFinding(
+                    secret_type="openai_api_key",  # noqa: S106
+                    matched_text="sk-****...",
+                    line_number=2,
+                    column=60,
+                    severity=Severity.HIGH,
+                ),
+            ]
+            mock_resolver.resolve_pr_conflicts.side_effect = LLMSecretDetectedError(
+                "Multiple secrets detected in PR comment",
+                findings=findings,
+            )
+
+            result = cli_runner.invoke(
+                cli,
+                [
+                    "apply",
+                    "--pr",
+                    "456",
+                    "--owner",
+                    "testowner",
+                    "--repo",
+                    "testrepo",
+                ],
+            )
+
+            # Should display security error message with both secret types
+            assert result.exit_code != 0
+            assert "github_personal_token" in result.output
+            assert "openai_api_key" in result.output
 
 
 class TestMetricsDisplayEdgeCases:
