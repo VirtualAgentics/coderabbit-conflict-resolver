@@ -6,7 +6,11 @@ costs, cache performance, and parsing statistics.
 
 import pytest
 
-from pr_conflict_resolver.llm.metrics import LLMMetrics
+from pr_conflict_resolver.llm.metrics import (
+    AggregatedMetrics,
+    LLMMetrics,
+    ProviderStats,
+)
 
 
 class TestLLMMetrics:
@@ -361,3 +365,192 @@ class TestLLMMetricsEdgeCases:
 
         assert metrics.total_cost == 0.0
         assert metrics.cost_per_change == 0.0
+
+
+class TestProviderStatsValidation:
+    """Tests for ProviderStats __post_init__ validation."""
+
+    def _valid_provider_stats(
+        self,
+        provider: str = "anthropic",
+        model: str = "claude-haiku-4",
+        total_requests: int = 10,
+        successful_requests: int = 9,
+        failed_requests: int = 1,
+        success_rate: float = 0.9,
+        total_cost: float = 0.05,
+        total_tokens: int = 5000,
+        avg_latency: float = 0.5,
+        latency_p50: float = 0.4,
+        latency_p95: float = 0.8,
+        latency_p99: float = 1.0,
+        cache_hit_rate: float = 0.5,
+    ) -> ProviderStats:
+        """Create valid ProviderStats with optional overrides."""
+        return ProviderStats(
+            provider=provider,
+            model=model,
+            total_requests=total_requests,
+            successful_requests=successful_requests,
+            failed_requests=failed_requests,
+            success_rate=success_rate,
+            total_cost=total_cost,
+            total_tokens=total_tokens,
+            avg_latency=avg_latency,
+            latency_p50=latency_p50,
+            latency_p95=latency_p95,
+            latency_p99=latency_p99,
+            cache_hit_rate=cache_hit_rate,
+            error_counts={},
+        )
+
+    def test_negative_total_requests_raises(self) -> None:
+        """total_requests < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="total_requests must be >= 0"):
+            self._valid_provider_stats(total_requests=-1)
+
+    def test_negative_successful_requests_raises(self) -> None:
+        """successful_requests < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="successful_requests must be >= 0"):
+            self._valid_provider_stats(successful_requests=-1)
+
+    def test_negative_failed_requests_raises(self) -> None:
+        """failed_requests < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="failed_requests must be >= 0"):
+            self._valid_provider_stats(failed_requests=-1)
+
+    def test_negative_total_cost_raises(self) -> None:
+        """total_cost < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="total_cost must be >= 0"):
+            self._valid_provider_stats(total_cost=-0.01)
+
+    def test_negative_total_tokens_raises(self) -> None:
+        """total_tokens < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="total_tokens must be >= 0"):
+            self._valid_provider_stats(total_tokens=-1)
+
+    def test_negative_avg_latency_raises(self) -> None:
+        """avg_latency < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="avg_latency must be >= 0"):
+            self._valid_provider_stats(avg_latency=-0.1)
+
+    def test_negative_latency_p50_raises(self) -> None:
+        """latency_p50 < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="latency_p50 must be >= 0"):
+            self._valid_provider_stats(latency_p50=-0.1)
+
+    def test_negative_latency_p95_raises(self) -> None:
+        """latency_p95 < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="latency_p95 must be >= 0"):
+            self._valid_provider_stats(latency_p95=-0.1)
+
+    def test_negative_latency_p99_raises(self) -> None:
+        """latency_p99 < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="latency_p99 must be >= 0"):
+            self._valid_provider_stats(latency_p99=-0.1)
+
+
+class TestAggregatedMetricsValidation:
+    """Tests for AggregatedMetrics __post_init__ validation."""
+
+    def _valid_aggregated_metrics(
+        self,
+        latency_p50: float = 0.4,
+        latency_p95: float = 0.8,
+        latency_p99: float = 1.0,
+        latency_avg: float = 0.5,
+        total_requests: int = 10,
+        successful_requests: int = 9,
+        failed_requests: int = 1,
+        success_rate: float = 0.9,
+        total_cost: float = 0.05,
+        cost_per_comment: float = 0.005,
+        cache_hit_rate: float = 0.5,
+        cache_savings: float = 0.02,
+    ) -> AggregatedMetrics:
+        """Create valid AggregatedMetrics with optional overrides."""
+        return AggregatedMetrics(
+            provider_stats={},
+            latency_p50=latency_p50,
+            latency_p95=latency_p95,
+            latency_p99=latency_p99,
+            latency_avg=latency_avg,
+            total_requests=total_requests,
+            successful_requests=successful_requests,
+            failed_requests=failed_requests,
+            success_rate=success_rate,
+            total_cost=total_cost,
+            cost_per_comment=cost_per_comment,
+            cache_hit_rate=cache_hit_rate,
+            cache_savings=cache_savings,
+        )
+
+    def test_negative_latency_p50_raises(self) -> None:
+        """latency_p50 < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="latency_p50 must be >= 0"):
+            self._valid_aggregated_metrics(latency_p50=-0.1)
+
+    def test_negative_latency_p95_raises(self) -> None:
+        """latency_p95 < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="latency_p95 must be >= 0"):
+            self._valid_aggregated_metrics(latency_p95=-0.1)
+
+    def test_negative_latency_p99_raises(self) -> None:
+        """latency_p99 < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="latency_p99 must be >= 0"):
+            self._valid_aggregated_metrics(latency_p99=-0.1)
+
+    def test_negative_latency_avg_raises(self) -> None:
+        """latency_avg < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="latency_avg must be >= 0"):
+            self._valid_aggregated_metrics(latency_avg=-0.1)
+
+    def test_negative_total_requests_raises(self) -> None:
+        """total_requests < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="total_requests must be >= 0"):
+            self._valid_aggregated_metrics(total_requests=-1)
+
+    def test_negative_successful_requests_raises(self) -> None:
+        """successful_requests < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="successful_requests must be >= 0"):
+            self._valid_aggregated_metrics(successful_requests=-1)
+
+    def test_negative_failed_requests_raises(self) -> None:
+        """failed_requests < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="failed_requests must be >= 0"):
+            self._valid_aggregated_metrics(failed_requests=-1)
+
+    def test_success_rate_below_zero_raises(self) -> None:
+        """success_rate < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="success_rate must be between 0.0 and 1.0"):
+            self._valid_aggregated_metrics(success_rate=-0.1)
+
+    def test_success_rate_above_one_raises(self) -> None:
+        """success_rate > 1 raises ValueError."""
+        with pytest.raises(ValueError, match="success_rate must be between 0.0 and 1.0"):
+            self._valid_aggregated_metrics(success_rate=1.1)
+
+    def test_negative_total_cost_raises(self) -> None:
+        """total_cost < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="total_cost must be >= 0"):
+            self._valid_aggregated_metrics(total_cost=-0.01)
+
+    def test_negative_cost_per_comment_raises(self) -> None:
+        """cost_per_comment < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="cost_per_comment must be >= 0"):
+            self._valid_aggregated_metrics(cost_per_comment=-0.001)
+
+    def test_cache_hit_rate_below_zero_raises(self) -> None:
+        """cache_hit_rate < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="cache_hit_rate must be between 0.0 and 1.0"):
+            self._valid_aggregated_metrics(cache_hit_rate=-0.1)
+
+    def test_cache_hit_rate_above_one_raises(self) -> None:
+        """cache_hit_rate > 1 raises ValueError."""
+        with pytest.raises(ValueError, match="cache_hit_rate must be between 0.0 and 1.0"):
+            self._valid_aggregated_metrics(cache_hit_rate=1.1)
+
+    def test_negative_cache_savings_raises(self) -> None:
+        """cache_savings < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="cache_savings must be >= 0"):
+            self._valid_aggregated_metrics(cache_savings=-0.01)

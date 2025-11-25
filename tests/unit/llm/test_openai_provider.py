@@ -364,3 +364,77 @@ class TestOpenAIProviderRetryLogic:
 
         # Should only try once (no retries)
         assert mock_client.chat.completions.create.call_count == 1
+
+
+class TestOpenAIProviderLatencyTracking:
+    """Tests for latency tracking methods."""
+
+    def test_get_last_request_latency_initial_none(self) -> None:
+        """Returns None before any requests are made."""
+        provider = OpenAIAPIProvider(api_key="sk-test")
+        assert provider.get_last_request_latency() is None
+
+    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    def test_get_last_request_latency_after_request(self, mock_openai_class: Mock) -> None:
+        """Returns latency value after a successful request."""
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content='{"result": "ok"}'))]
+        mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5)
+        mock_client.chat.completions.create.return_value = mock_response
+
+        provider = OpenAIAPIProvider(api_key="sk-test")
+        provider.generate("Test prompt")
+
+        latency = provider.get_last_request_latency()
+        assert latency is not None
+        assert latency >= 0
+
+    def test_get_all_latencies_initial_empty(self) -> None:
+        """Returns empty list before any requests are made."""
+        provider = OpenAIAPIProvider(api_key="sk-test")
+        assert provider.get_all_latencies() == []
+
+    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    def test_get_all_latencies_accumulates(self, mock_openai_class: Mock) -> None:
+        """Returns list of all request latencies after multiple requests."""
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content='{"result": "ok"}'))]
+        mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5)
+        mock_client.chat.completions.create.return_value = mock_response
+
+        provider = OpenAIAPIProvider(api_key="sk-test")
+        provider.generate("Test prompt 1")
+        provider.generate("Test prompt 2")
+
+        latencies = provider.get_all_latencies()
+        assert len(latencies) == 2
+        assert all(lat >= 0 for lat in latencies)
+
+    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    def test_reset_latency_tracking(self, mock_openai_class: Mock) -> None:
+        """Clears latencies and resets last_request_latency to None."""
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content='{"result": "ok"}'))]
+        mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5)
+        mock_client.chat.completions.create.return_value = mock_response
+
+        provider = OpenAIAPIProvider(api_key="sk-test")
+        provider.generate("Test prompt")
+
+        # Verify latency was recorded
+        assert provider.get_last_request_latency() is not None
+        assert len(provider.get_all_latencies()) == 1
+
+        # Reset and verify cleared
+        provider.reset_latency_tracking()
+        assert provider.get_last_request_latency() is None
+        assert provider.get_all_latencies() == []

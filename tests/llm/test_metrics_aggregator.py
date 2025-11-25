@@ -599,3 +599,113 @@ class TestThreadSafety:
         metrics = aggregator.get_aggregated_metrics()
         expected_total = num_threads * requests_per_thread
         assert metrics.total_requests == expected_total
+
+
+class TestGetProviderStats:
+    """Tests for get_provider_stats method."""
+
+    def test_get_provider_stats_returns_none_for_unknown(self) -> None:
+        """Returns None when querying an unknown provider."""
+        aggregator = MetricsAggregator()
+
+        # Add request for one provider
+        req_id = aggregator.start_request("anthropic", "claude-haiku-4")
+        aggregator.end_request(req_id, success=True, tokens_input=100)
+
+        # Query for a different provider
+        stats = aggregator.get_provider_stats("openai")
+        assert stats is None
+
+    def test_get_provider_stats_returns_none_for_empty_aggregator(self) -> None:
+        """Returns None when aggregator has no requests."""
+        aggregator = MetricsAggregator()
+        stats = aggregator.get_provider_stats("anthropic")
+        assert stats is None
+
+    def test_get_provider_stats_returns_stats_for_known(self) -> None:
+        """Returns ProviderStats for a provider with requests."""
+        aggregator = MetricsAggregator()
+
+        # Add multiple requests for the provider
+        for i in range(3):
+            req_id = aggregator.start_request("anthropic", "claude-haiku-4")
+            aggregator.end_request(
+                req_id,
+                success=(i < 2),  # 2 success, 1 failure
+                tokens_input=100,
+                cost=0.001,
+                error_type="timeout" if i == 2 else None,
+            )
+
+        stats = aggregator.get_provider_stats("anthropic")
+        assert stats is not None
+        assert stats.provider == "anthropic"
+        assert stats.model == "claude-haiku-4"
+        assert stats.total_requests == 3
+        assert stats.successful_requests == 2
+        assert stats.failed_requests == 1
+        assert stats.error_counts == {"timeout": 1}
+
+
+class TestExportErrorHandling:
+    """Tests for export error handling."""
+
+    def test_export_json_error_handling(self, tmp_path: Path) -> None:
+        """Export JSON raises OSError for invalid path."""
+        aggregator = MetricsAggregator()
+        req_id = aggregator.start_request("anthropic", "claude-haiku-4")
+        aggregator.end_request(req_id, success=True)
+
+        # Try to write to a non-existent directory
+        invalid_path = tmp_path / "nonexistent" / "subdir" / "metrics.json"
+
+        with pytest.raises(OSError):
+            aggregator.export_json(invalid_path)
+
+    def test_export_csv_error_handling(self, tmp_path: Path) -> None:
+        """Export CSV raises OSError for invalid path."""
+        aggregator = MetricsAggregator()
+        req_id = aggregator.start_request("openai", "gpt-4o-mini")
+        aggregator.end_request(req_id, success=True, tokens_input=50)
+
+        # Try to write to a non-existent directory
+        invalid_path = tmp_path / "nonexistent" / "subdir" / "metrics.csv"
+
+        with pytest.raises(OSError):
+            aggregator.export_csv(invalid_path)
+
+    def test_export_json_with_no_pr_info(self, tmp_path: Path) -> None:
+        """Export JSON without PR info omits pr_info field."""
+        aggregator = MetricsAggregator()
+        # Don't set PR info
+        req_id = aggregator.start_request("anthropic", "claude-haiku-4")
+        aggregator.end_request(req_id, success=True)
+
+        output_path = tmp_path / "no_pr_info.json"
+        aggregator.export_json(output_path)
+
+        with open(output_path) as f:
+            data = json.load(f)
+
+        assert "pr_info" not in data
+        assert "summary" in data
+
+
+class TestMixedModels:
+    """Tests for mixed model scenarios."""
+
+    def test_provider_stats_with_mixed_models(self) -> None:
+        """Provider stats reports 'mixed' when multiple models used."""
+        aggregator = MetricsAggregator()
+
+        # Add requests with different models for same provider
+        req_id = aggregator.start_request("anthropic", "claude-haiku-4")
+        aggregator.end_request(req_id, success=True, tokens_input=100)
+
+        req_id = aggregator.start_request("anthropic", "claude-sonnet-4")
+        aggregator.end_request(req_id, success=True, tokens_input=200)
+
+        stats = aggregator.get_provider_stats("anthropic")
+        assert stats is not None
+        assert stats.model == "mixed"
+        assert stats.total_requests == 2
