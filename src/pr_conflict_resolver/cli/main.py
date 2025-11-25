@@ -481,8 +481,9 @@ def _record_and_display_metrics(
     aggregator.end_request(
         req_id,
         success=True,
+        # Total includes input+output; breakdown unavailable in LLMMetrics
         tokens_input=llm_metrics.total_tokens,
-        tokens_output=0,
+        tokens_output=0,  # Not tracked separately in LLMMetrics
         cost=llm_metrics.total_cost,
     )
     _display_aggregated_metrics(aggregator)
