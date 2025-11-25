@@ -17,6 +17,7 @@ and implements the LLMProvider protocol for type safety and polymorphic usage.
 
 import json
 import logging
+import time
 from typing import Any, ClassVar
 
 import requests
@@ -136,6 +137,10 @@ class OllamaProvider:
         # Token usage tracking (estimated via character count)
         self.total_input_tokens = 0
         self.total_output_tokens = 0
+
+        # Latency tracking
+        self._request_latencies: list[float] = []
+        self._last_request_latency: float | None = None
 
         try:
             # Verify Ollama is running
@@ -674,11 +679,17 @@ class OllamaProvider:
                 },
             }
 
-            response = self.session.post(
-                f"{self.base_url}/api/generate",
-                json=payload,
-                timeout=self.timeout,
-            )
+            start_time = time.perf_counter()
+            try:
+                response = self.session.post(
+                    f"{self.base_url}/api/generate",
+                    json=payload,
+                    timeout=self.timeout,
+                )
+            finally:
+                latency = time.perf_counter() - start_time
+                self._last_request_latency = latency
+                self._request_latencies.append(latency)
 
             # Handle HTTP errors
             if response.status_code != 200:
@@ -788,6 +799,31 @@ class OllamaProvider:
         self.total_input_tokens = 0
         self.total_output_tokens = 0
         logger.debug("Reset token usage tracking")
+
+    def get_last_request_latency(self) -> float | None:
+        """Get latency of most recent request in seconds.
+
+        Returns:
+            Latency in seconds, or None if no requests made yet.
+        """
+        return self._last_request_latency
+
+    def get_all_latencies(self) -> list[float]:
+        """Get all recorded request latencies.
+
+        Returns:
+            Copy of list containing all request latencies in seconds.
+        """
+        return self._request_latencies.copy()
+
+    def reset_latency_tracking(self) -> None:
+        """Reset latency tracking (separate from token/cost tracking).
+
+        Clears all recorded latencies and resets last request latency.
+        """
+        self._request_latencies = []
+        self._last_request_latency = None
+        logger.debug("Reset latency tracking")
 
     def close(self) -> None:
         """Close HTTP session and release connection pool resources.

@@ -13,6 +13,7 @@ protocol for type safety and polymorphic usage.
 """
 
 import logging
+import time
 from typing import Any, ClassVar
 
 from anthropic import (
@@ -152,6 +153,10 @@ class AnthropicAPIProvider:
         self.total_cache_write_tokens: int = 0
         self.total_cache_read_tokens: int = 0
 
+        # Latency tracking
+        self._request_latencies: list[float] = []
+        self._last_request_latency: float | None = None
+
         logger.info(f"Initialized Anthropic provider: model={model}, timeout={timeout}s")
 
     def generate(self, prompt: str, max_tokens: int = 2000) -> str:
@@ -272,13 +277,19 @@ class AnthropicAPIProvider:
                     }
                 )
 
-            response = self.client.messages.create(
-                model=self.model,
-                messages=[{"role": "user", "content": content_blocks}],  # type: ignore[typeddict-item]
-                max_tokens=max_tokens,
-                temperature=0.0,  # Deterministic for consistency
-                extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
-            )
+            start_time = time.perf_counter()
+            try:
+                response = self.client.messages.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": content_blocks}],  # type: ignore[typeddict-item]
+                    max_tokens=max_tokens,
+                    temperature=0.0,  # Deterministic for consistency
+                    extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
+                )
+            finally:
+                latency = time.perf_counter() - start_time
+                self._last_request_latency = latency
+                self._request_latencies.append(latency)
 
             # Track token usage (including cache metrics)
             usage = response.usage
@@ -463,3 +474,28 @@ class AnthropicAPIProvider:
         self.total_cache_write_tokens = 0
         self.total_cache_read_tokens = 0
         logger.debug("Reset token usage tracking")
+
+    def get_last_request_latency(self) -> float | None:
+        """Get latency of most recent request in seconds.
+
+        Returns:
+            Latency in seconds, or None if no requests made yet.
+        """
+        return self._last_request_latency
+
+    def get_all_latencies(self) -> list[float]:
+        """Get all recorded request latencies.
+
+        Returns:
+            Copy of list containing all request latencies in seconds.
+        """
+        return self._request_latencies.copy()
+
+    def reset_latency_tracking(self) -> None:
+        """Reset latency tracking (separate from token/cost tracking).
+
+        Clears all recorded latencies and resets last request latency.
+        """
+        self._request_latencies = []
+        self._last_request_latency = None
+        logger.debug("Reset latency tracking")
