@@ -450,6 +450,47 @@ def _export_metrics(
         logger.error("Failed to export metrics to %s: %s", path, e)
 
 
+def _record_and_display_metrics(
+    llm_metrics: LLMMetrics,
+    owner: str,
+    repo: str,
+    pr: int,
+    metrics_output: str | None,
+    metrics_detail: str,
+) -> None:
+    """Record LLM metrics and display/export aggregated results.
+
+    Creates a MetricsAggregator, records a synthetic request from LLMMetrics,
+    displays the aggregated metrics, and optionally exports to file.
+
+    Note: This records a single synthetic request from aggregated LLMMetrics.
+    Per-request latency tracking requires direct provider integration with
+    the MetricsAggregator.
+
+    Args:
+        llm_metrics: Aggregated LLM metrics from parsing.
+        owner: Repository owner.
+        repo: Repository name.
+        pr: Pull request number.
+        metrics_output: Optional file path for metrics export.
+        metrics_detail: Detail level ('summary' or 'full').
+    """
+    aggregator = MetricsAggregator()
+    aggregator.set_pr_info(owner, repo, pr)
+    req_id = aggregator.start_request(llm_metrics.provider, llm_metrics.model)
+    aggregator.end_request(
+        req_id,
+        success=True,
+        tokens_input=llm_metrics.total_tokens,
+        tokens_output=0,
+        cost=llm_metrics.total_cost,
+    )
+    _display_aggregated_metrics(aggregator)
+
+    if metrics_output:
+        _export_metrics(aggregator, metrics_output, metrics_detail)
+
+
 # NOTE: File path validation for CLI options is not yet needed.
 # Current CLI commands use identifiers (--owner, --repo, --pr) which are validated
 # by the validators above (validate_github_username and validate_github_repo).
@@ -561,7 +602,10 @@ def _export_metrics(
 @click.option(
     "--show-metrics",
     is_flag=True,
-    help="Display detailed LLM metrics with latency percentiles after analysis",
+    help=(
+        "Display detailed LLM metrics after analysis. Note: Latency percentiles "
+        "show aggregate values; per-request tracking requires provider integration."
+    ),
 )
 def analyze(
     pr: int,
@@ -763,25 +807,9 @@ def analyze(
 
                 # Show detailed aggregated metrics if --show-metrics flag is set
                 if show_metrics and llm_metrics:
-                    # Create aggregator for detailed metrics
-                    # Note: This is a simplified implementation; full integration
-                    # would require the providers to use the aggregator directly
-                    aggregator = MetricsAggregator()
-                    aggregator.set_pr_info(owner, repo, pr)
-                    # Record a synthetic request based on LLMMetrics
-                    req_id = aggregator.start_request(llm_metrics.provider, llm_metrics.model)
-                    aggregator.end_request(
-                        req_id,
-                        success=True,
-                        tokens_input=llm_metrics.total_tokens,
-                        tokens_output=0,
-                        cost=llm_metrics.total_cost,
+                    _record_and_display_metrics(
+                        llm_metrics, owner, repo, pr, metrics_output, metrics_detail
                     )
-                    _display_aggregated_metrics(aggregator)
-
-                    # Export metrics if --metrics-output is specified
-                    if metrics_output:
-                        _export_metrics(aggregator, metrics_output, metrics_detail)
 
         except LLMError:
             # LLM errors are handled by the context manager
@@ -923,7 +951,10 @@ def analyze(
 @click.option(
     "--show-metrics",
     is_flag=True,
-    help="Display detailed LLM metrics with latency percentiles after processing",
+    help=(
+        "Display detailed LLM metrics after processing. Note: Latency percentiles "
+        "show aggregate values; per-request tracking requires provider integration."
+    ),
 )
 def apply(
     pr: int,
@@ -1174,23 +1205,14 @@ def apply(
 
                     # Show detailed aggregated metrics if --show-metrics flag is set
                     if show_metrics:
-                        aggregator = MetricsAggregator()
-                        aggregator.set_pr_info(owner, repo, pr)
-                        req_id = aggregator.start_request(
-                            result.llm_metrics.provider, result.llm_metrics.model
+                        _record_and_display_metrics(
+                            result.llm_metrics,
+                            owner,
+                            repo,
+                            pr,
+                            metrics_output,
+                            metrics_detail,
                         )
-                        aggregator.end_request(
-                            req_id,
-                            success=True,
-                            tokens_input=result.llm_metrics.total_tokens,
-                            tokens_output=0,
-                            cost=result.llm_metrics.total_cost,
-                        )
-                        _display_aggregated_metrics(aggregator)
-
-                        # Export metrics if --metrics-output is specified
-                        if metrics_output:
-                            _export_metrics(aggregator, metrics_output, metrics_detail)
 
         except LLMError:
             # LLM errors are handled by the context manager

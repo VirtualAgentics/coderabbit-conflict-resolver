@@ -384,8 +384,7 @@ class AggregatedMetrics:
 
     def __post_init__(self) -> None:
         """Validate aggregated metrics values and ensure immutability."""
-        # Wrap provider_stats in MappingProxyType to prevent mutation
-        object.__setattr__(self, "provider_stats", MappingProxyType(dict(self.provider_stats)))
+        # Validate all fields first, before wrapping in immutable proxy
         if self.latency_p50 < 0:
             raise ValueError(f"latency_p50 must be >= 0, got {self.latency_p50}")
         if self.latency_p95 < 0:
@@ -412,3 +411,5 @@ class AggregatedMetrics:
             )
         if self.cache_savings < 0:
             raise ValueError(f"cache_savings must be >= 0, got {self.cache_savings}")
+        # All validations passed - wrap provider_stats in MappingProxyType
+        object.__setattr__(self, "provider_stats", MappingProxyType(dict(self.provider_stats)))

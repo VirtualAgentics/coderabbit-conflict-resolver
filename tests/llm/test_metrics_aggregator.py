@@ -109,6 +109,21 @@ class TestRequestMetrics:
                 cache_hit=False,
             )
 
+    def test_validation_negative_tokens_output(self) -> None:
+        """Test validation rejects negative output token counts."""
+        with pytest.raises(ValueError, match="tokens_output must be >= 0"):
+            RequestMetrics(
+                request_id="req-1",
+                provider="openai",
+                model="gpt-4o-mini",
+                latency_seconds=0.1,
+                success=True,
+                tokens_input=100,
+                tokens_output=-50,
+                cost=0.001,
+                cache_hit=False,
+            )
+
     def test_validation_negative_cost(self) -> None:
         """Test validation rejects negative cost."""
         with pytest.raises(ValueError, match="cost must be >= 0"):
