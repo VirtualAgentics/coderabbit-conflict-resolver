@@ -657,6 +657,12 @@ def analyze(
     Raises:
         click.Abort: If an error occurs while analyzing conflicts.
     """
+    # Validate metrics options
+    if metrics_output and not show_metrics:
+        console.print(
+            "[yellow]Warning: --metrics-output has no effect without --show-metrics[/yellow]"
+        )
+
     # Load runtime configuration with proper precedence
     try:
         env_var_map = {
@@ -1048,6 +1054,12 @@ def apply(
         $ pr-resolve apply --pr 123 --owner myorg --repo myrepo \\
             --config /path/to/config.yaml
     """
+    # Validate metrics options
+    if metrics_output and not show_metrics:
+        console.print(
+            "[yellow]Warning: --metrics-output has no effect without --show-metrics[/yellow]"
+        )
+
     # Load runtime configuration with proper precedence
     try:
         # Handle deprecated --dry-run flag (maps to mode)
