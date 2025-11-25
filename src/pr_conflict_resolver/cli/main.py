@@ -592,7 +592,7 @@ def _record_and_display_metrics(
 @click.option(
     "--metrics-output",
     type=click.Path(dir_okay=False),
-    help="Export LLM metrics to file (supports .json and .csv extensions)",
+    help="Export LLM metrics to file (requires --show-metrics; supports .json/.csv)",
 )
 @click.option(
     "--metrics-detail",
@@ -941,7 +941,7 @@ def analyze(
 @click.option(
     "--metrics-output",
     type=click.Path(dir_okay=False),
-    help="Export LLM metrics to file (supports .json and .csv extensions)",
+    help="Export LLM metrics to file (requires --show-metrics; supports .json/.csv)",
 )
 @click.option(
     "--metrics-detail",
