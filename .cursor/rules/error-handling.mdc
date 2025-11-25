@@ -104,6 +104,9 @@ elif isinstance(error, PERMANENT_ERRORS):
 
 ## Circuit Breaker Pattern
 
+> **Implementation Status**: Circuit breaker pattern is IMPLEMENTED (`ResilientLLMProvider` and `CircuitBreaker` classes in `llm/resilience/`). The pattern below matches the actual implementation.
+
+
 ### Implementation Pattern
 
 Implement circuit breaker to prevent cascading failures:

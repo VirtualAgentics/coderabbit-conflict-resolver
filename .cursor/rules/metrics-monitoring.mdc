@@ -7,6 +7,9 @@ alwaysApply: false
 
 # Metrics & Monitoring Guidelines
 
+> **Implementation Status**: Basic metrics aggregation exists (`_aggregate_llm_metrics()` in `resolver.py`, `LLMMetrics` dataclass). Metrics export (JSON/CSV) and latency percentiles (p95/p99) tracking are NOT yet implemented (Issue #224). The patterns below are for future implementation.
+
+
 ## Metrics Collection Patterns
 
 ### Metrics Dataclass

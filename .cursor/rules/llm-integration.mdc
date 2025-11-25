@@ -209,6 +209,9 @@ def _calculate_cost(self, input_tokens: int, output_tokens: int) -> float:
 
 ### Budget Limits
 
+> **Implementation Status**: The `cost_budget` configuration exists in `LLMConfig`. However, budget enforcement (raising errors when budget exceeded) is NOT yet implemented. The code example below is for future implementation.
+
+
 Enforce cost budgets:
 
 ```python

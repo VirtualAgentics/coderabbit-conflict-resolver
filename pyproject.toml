@@ -161,6 +161,9 @@ ignore = [
 "src/pr_conflict_resolver/llm/providers/base.py" = [
     "PIE790",  # pass is necessary to satisfy CodeQL py/ineffectual-statement
 ]
+"src/pr_conflict_resolver/llm/parallel_parser.py" = [
+    "PIE790",  # Protocol stubs intentionally use 'pass' for CodeQL compatibility
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

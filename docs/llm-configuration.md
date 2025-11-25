@@ -44,7 +44,8 @@ llm:
   fallback_to_regex: true
   cache_enabled: true
   max_tokens: 2000
-  cost_budget: 5.0
+  confidence_threshold: 0.6  # Reject changes below 60% confidence
+  cost_budget: 5.0  # Note: cost_budget is advisory and not currently enforced (see [Sub-Issue #225](../planning/ROADMAP.md))
 
 ```
 
@@ -72,7 +73,10 @@ api_key = "${OPENAI_API_KEY}"  # Environment variable reference
 fallback_to_regex = true
 cache_enabled = true
 max_tokens = 2000
-cost_budget = 5.0
+confidence_threshold = 0.6  # Reject changes below 60% confidence
+cost_budget = 5.0  # Note: cost_budget is advisory and not currently enforced.
+                    # This field allows users to express intended spending limits and
+                    # serves as a placeholder for future enforcement/alerts (see [Sub-Issue #225](../planning/ROADMAP.md)).
 
 ```
 
@@ -94,7 +98,8 @@ pr-resolve apply 123 --config config.toml
 | `llm.fallback_to_regex` | boolean | `true` | Fall back to regex parsing if LLM fails |
 | `llm.cache_enabled` | boolean | `true` | Enable response caching |
 | `llm.max_tokens` | integer | `2000` | Maximum tokens per LLM request |
-| `llm.cost_budget` | float | `null` | Maximum cost per run in USD (optional) |
+| `llm.confidence_threshold` | float | `0.5` | Minimum LLM confidence (0.0-1.0) required to accept changes |
+| `llm.cost_budget` | float | `null` | Cost budget configuration (advisory only, not currently enforced). This field allows users to express intended spending limits and serves as a placeholder for future enforcement/alerts (see [Sub-Issue #225](../planning/ROADMAP.md)). |
 | `llm.ollama_base_url` | string | `http://localhost:11434` | Ollama server URL (Ollama only) |
 
 ## LLM Presets
@@ -817,24 +822,6 @@ ollama serve
 # Or specify custom URL
 export OLLAMA_BASE_URL="http://ollama-server:11434"
 pr-resolve apply 123 --config config.yaml
-
-```
-
-### Cost Budget Exceeded
-
-**Error**:
-
-```text
-LLMProviderError: Cost budget exceeded: $5.23 > $5.00
-
-```
-
-**Solution**: Increase budget or optimize usage:
-
-```yaml
-llm:
-  cost_budget: 10.0  # Increase budget
-  max_tokens: 1000   # Reduce tokens per request
 
 ```
 

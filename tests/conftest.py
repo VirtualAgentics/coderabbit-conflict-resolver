@@ -3,8 +3,9 @@
 import io
 import logging
 import os
-from collections.abc import Generator
+from collections.abc import Callable, Generator, Iterable
 from pathlib import Path
+from types import TracebackType
 from typing import Any
 from unittest.mock import Mock
 
@@ -224,3 +225,175 @@ settings.register_profile(
 
 # Load profile from environment or use "dev" as default
 settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "dev"))
+
+
+# ============================================================================
+# Synchronous Executor Utilities for Deterministic Testing
+# ============================================================================
+
+# Sentinel object to distinguish "no result set" from None as a valid result
+_NOT_SET: object = object()
+
+
+class SyncFuture[T]:
+    """A synchronous future for deterministic testing.
+
+    Supports both immediate result/exception setting (like ImmediateFuture)
+    and deferred setting via set_result/set_exception (like concurrent.futures.Future).
+
+    Type Parameters:
+        T: The type of the result value.
+    """
+
+    def __init__(self, result: T | object = _NOT_SET, exc: Exception | None = None) -> None:
+        """Initialize the future.
+
+        Args:
+            result: Optional immediate result value. Use _NOT_SET sentinel for no result.
+            exc: Optional immediate exception.
+        """
+        self._result: T | object = result
+        self._exc: Exception | None = exc
+        self._has_result = result is not _NOT_SET or exc is not None
+
+    def set_result(self, result: T) -> None:
+        """Set the result value (for deferred assignment)."""
+        self._result = result
+        self._has_result = True
+
+    def set_exception(self, exc: Exception) -> None:
+        """Set an exception (for deferred assignment)."""
+        self._exc = exc
+        self._has_result = True
+
+    def result(self) -> T:
+        """Get the result, raising any stored exception."""
+        if self._exc is not None:
+            raise self._exc
+        if self._result is _NOT_SET:
+            raise RuntimeError("Future has no result set")
+        return self._result  # type: ignore[return-value]
+
+
+class SyncExecutor[T]:
+    """A synchronous executor for deterministic testing.
+
+    Executes tasks immediately in the calling thread, enabling
+    predictable test behavior without threading non-determinism.
+
+    Type Parameters:
+        T: The return type of submitted callables.
+    """
+
+    def __init__(self, max_workers: int = 1) -> None:
+        """Initialize the executor.
+
+        Args:
+            max_workers: Ignored, kept for API compatibility.
+        """
+        self.futures: list[SyncFuture[T]] = []
+        self._max_workers = max_workers
+
+    def __enter__(self) -> "SyncExecutor[T]":
+        """Enter context manager."""
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        """Exit context manager."""
+        return None
+
+    def submit(
+        self,
+        fn: Callable[..., T],
+        *args: object,
+        **kwargs: object,
+    ) -> SyncFuture[T]:
+        """Submit a callable for immediate execution.
+
+        Args:
+            fn: The callable to execute.
+            *args: Positional arguments for the callable.
+            **kwargs: Keyword arguments for the callable.
+
+        Returns:
+            SyncFuture containing the result or exception.
+        """
+        future: SyncFuture[T] = SyncFuture()
+        try:
+            result = fn(*args, **kwargs)
+            future.set_result(result)
+        except Exception as exc:  # pragma: no cover - defensive
+            future.set_exception(exc)
+        self.futures.append(future)
+        return future
+
+
+def fake_as_completed[T](
+    futures: Iterable[SyncFuture[T]] | dict[SyncFuture[T], Any],
+) -> list[SyncFuture[T]]:
+    """Fake as_completed that returns futures in submission order.
+
+    Handles both iterables and dicts consistently, matching the
+    concurrent.futures.as_completed signature.
+
+    Args:
+        futures: Either an iterable of futures or a dict with futures as keys.
+
+    Returns:
+        List of futures in their original order.
+    """
+    if isinstance(futures, dict):
+        return list(futures.keys())
+    return list(futures)
+
+
+def create_exception_injecting_executor(
+    fail_indices: set[int],
+    exception_factory: Callable[[], Exception] = lambda: RuntimeError("Injected failure"),
+) -> type:
+    """Create a SyncExecutor that injects exceptions for specific indices.
+
+    This factory creates executor classes that set exceptions on futures
+    for specific argument indices, useful for testing exception handling
+    in the as_completed loop.
+
+    Args:
+        fail_indices: Set of indices that should fail with an exception.
+        exception_factory: Callable that creates the exception to inject.
+
+    Returns:
+        A SyncExecutor subclass with exception injection behavior.
+
+    Example:
+        >>> FailingExecutor = create_exception_injecting_executor({1}, lambda: ValueError("fail"))
+        >>> with patch("module.ThreadPoolExecutor", FailingExecutor):
+        ...     # Index 1 will have set_exception called instead of set_result
+    """
+
+    class ExceptionInjectingExecutor(SyncExecutor[Any]):
+        def submit(
+            self,
+            fn: Callable[..., Any],
+            *args: object,
+            **kwargs: object,
+        ) -> SyncFuture[Any]:
+            future: SyncFuture[Any] = SyncFuture()
+            # Check if the first positional arg (typically idx) is in fail_indices
+            idx = args[0] if args else None
+            if idx in fail_indices:
+                future.set_exception(exception_factory())
+            else:
+                try:
+                    result = fn(*args, **kwargs)
+                    future.set_result(result)
+                except Exception as exc:  # pragma: no cover - defensive
+                    future.set_exception(exc)
+            self.futures.append(future)
+            return future
+
+    return ExceptionInjectingExecutor

@@ -73,6 +73,10 @@ class TestRuntimeConfigDefaults:
         config = RuntimeConfig.from_defaults()
         assert config.log_file is None
 
+    def test_from_defaults_llm_confidence_threshold(self) -> None:
+        config = RuntimeConfig.from_defaults()
+        assert config.llm_confidence_threshold == 0.5
+
 
 class TestRuntimeConfigFromEnv:
     """Test RuntimeConfig.from_env() with environment variables."""
@@ -185,6 +189,25 @@ class TestRuntimeConfigFromEnv:
         ):
             RuntimeConfig.from_env()
 
+    def test_from_env_llm_confidence_threshold(self) -> None:
+        with patch.dict(os.environ, {"CR_LLM_CONFIDENCE_THRESHOLD": "0.75"}):
+            config = RuntimeConfig.from_env()
+            assert config.llm_confidence_threshold == 0.75
+
+    def test_from_env_llm_confidence_threshold_too_low(self) -> None:
+        with (
+            patch.dict(os.environ, {"CR_LLM_CONFIDENCE_THRESHOLD": "-0.1"}),
+            pytest.raises(ConfigError, match="CR_LLM_CONFIDENCE_THRESHOLD"),
+        ):
+            RuntimeConfig.from_env()
+
+    def test_from_env_llm_confidence_threshold_too_high(self) -> None:
+        with (
+            patch.dict(os.environ, {"CR_LLM_CONFIDENCE_THRESHOLD": "1.5"}),
+            pytest.raises(ConfigError, match="CR_LLM_CONFIDENCE_THRESHOLD"),
+        ):
+            RuntimeConfig.from_env()
+
 
 class TestRuntimeConfigFromFile:
     """Test RuntimeConfig.from_file() with YAML/TOML files."""
@@ -268,6 +291,7 @@ llm:
   fallback_to_regex: false
   cache_enabled: true
   max_tokens: 4000
+  confidence_threshold: 0.65
   cost_budget: 50.0
 """
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
@@ -284,6 +308,7 @@ llm:
                 assert config.llm_fallback_to_regex is False
                 assert config.llm_cache_enabled is True
                 assert config.llm_max_tokens == 4000
+                assert config.llm_confidence_threshold == 0.65
                 assert config.llm_cost_budget == 50.0
                 # Non-LLM fields from YAML
                 assert config.mode == ApplicationMode.ALL
@@ -388,20 +413,88 @@ class TestRuntimeConfigValidation:
                 log_file=None,
             )
 
-    def test_max_workers_very_high_warns(self, caplog: pytest.LogCaptureFixture) -> None:
-        """Test that very high max_workers triggers a warning."""
-        config = RuntimeConfig(
-            mode=ApplicationMode.ALL,
-            enable_rollback=True,
-            validate_before_apply=True,
-            parallel_processing=False,
-            max_workers=64,
-            log_level="INFO",
-            log_file=None,
-        )
-        assert config.max_workers == 64
-        # Check that warning was logged
-        assert any("very high" in record.message.lower() for record in caplog.records)
+    def test_max_workers_very_high_raises_error(self) -> None:
+        """Test that max_workers > 32 raises ConfigError."""
+        with pytest.raises(ConfigError, match="max_workers should be <= 32"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=True,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=64,
+                log_level="INFO",
+                log_file=None,
+            )
+
+    def test_llm_parallel_max_workers_too_high_raises_error(self) -> None:
+        """Test that llm_parallel_max_workers > 32 raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_parallel_max_workers should be <= 32"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=True,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_parallel_max_workers=64,
+            )
+
+    def test_llm_parallel_max_workers_too_low_raises_error(self) -> None:
+        """Test that llm_parallel_max_workers < 1 raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_parallel_max_workers must be >= 1"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=True,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_parallel_max_workers=0,
+            )
+
+    def test_llm_rate_limit_too_low_raises_error(self) -> None:
+        """Test that llm_rate_limit < 0.1 raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_rate_limit must be >= 0.1"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=True,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_rate_limit=0.05,
+            )
+
+    def test_llm_confidence_threshold_too_low_raises_error(self) -> None:
+        """Test that llm_confidence_threshold < 0 raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_confidence_threshold"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=True,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_confidence_threshold=-0.1,
+            )
+
+    def test_llm_confidence_threshold_too_high_raises_error(self) -> None:
+        """Test that llm_confidence_threshold > 1 raises ConfigError."""
+        with pytest.raises(ConfigError, match="llm_confidence_threshold"):
+            RuntimeConfig(
+                mode=ApplicationMode.ALL,
+                enable_rollback=True,
+                validate_before_apply=True,
+                parallel_processing=False,
+                max_workers=4,
+                log_level="INFO",
+                log_file=None,
+                llm_confidence_threshold=1.2,
+            )
 
 
 class TestRuntimeConfigMergeWithCLI:
@@ -440,6 +533,13 @@ class TestRuntimeConfigMergeWithCLI:
         # Unchanged
         assert merged.enable_rollback is True
         assert merged.validate_before_apply is True
+
+    def test_merge_with_cli_confidence_threshold_override(self) -> None:
+        config = RuntimeConfig.from_defaults()
+        merged = config.merge_with_cli(llm_confidence_threshold=0.8)
+        assert merged.llm_confidence_threshold == 0.8
+        # Original config should remain unchanged
+        assert config.llm_confidence_threshold == 0.5
 
     def test_merge_with_cli_none_values_ignored(self) -> None:
         """Test that None values don't override existing config."""
@@ -499,6 +599,7 @@ class TestRuntimeConfigToDict:
         assert "llm_fallback_to_regex" in data
         assert "llm_cache_enabled" in data
         assert "llm_max_tokens" in data
+        assert "llm_confidence_threshold" in data
         assert "llm_cost_budget" in data
 
     def test_to_dict_values(self) -> None:
@@ -517,6 +618,7 @@ class TestRuntimeConfigToDict:
             llm_fallback_to_regex=False,
             llm_cache_enabled=False,
             llm_max_tokens=4000,
+            llm_confidence_threshold=0.65,
             llm_cost_budget=50.0,
         )
         data = config.to_dict()
@@ -535,6 +637,7 @@ class TestRuntimeConfigToDict:
         assert data["llm_fallback_to_regex"] is False
         assert data["llm_cache_enabled"] is False
         assert data["llm_max_tokens"] == 4000
+        assert data["llm_confidence_threshold"] == 0.65
         assert data["llm_cost_budget"] == 50.0
 
     def test_to_dict_none_log_file(self) -> None:
@@ -756,6 +859,164 @@ class TestRuntimeConfigLLMFields:
         monkeypatch.setenv("CR_LLM_COST_BUDGET", "not-a-number")
         with pytest.raises(ConfigError, match="Invalid CR_LLM_COST_BUDGET"):
             RuntimeConfig.from_env()
+
+    def test_from_env_llm_parallel_parsing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test from_env() with LLM parallel parsing environment variables."""
+        monkeypatch.setenv("CR_LLM_PARALLEL_PARSING", "true")
+        monkeypatch.setenv("CR_LLM_PARALLEL_WORKERS", "8")
+        monkeypatch.setenv("CR_LLM_RATE_LIMIT", "20.0")
+
+        config = RuntimeConfig.from_env()
+
+        assert config.llm_parallel_parsing is True
+        assert config.llm_parallel_max_workers == 8
+        assert config.llm_rate_limit == 20.0
+
+    def test_from_env_invalid_llm_parallel_workers_raises(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that invalid CR_LLM_PARALLEL_WORKERS raises ConfigError."""
+        monkeypatch.setenv("CR_LLM_PARALLEL_WORKERS", "invalid")
+        with pytest.raises(ConfigError, match="Invalid CR_LLM_PARALLEL_WORKERS"):
+            RuntimeConfig.from_env()
+
+    def test_from_env_llm_parallel_workers_zero_raises(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that CR_LLM_PARALLEL_WORKERS=0 raises ConfigError."""
+        monkeypatch.setenv("CR_LLM_PARALLEL_WORKERS", "0")
+        with pytest.raises(ConfigError, match="must be >= 1"):
+            RuntimeConfig.from_env()
+
+    def test_from_env_llm_parallel_workers_too_high_raises(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that CR_LLM_PARALLEL_WORKERS > 32 raises ConfigError."""
+        monkeypatch.setenv("CR_LLM_PARALLEL_WORKERS", "64")
+        with pytest.raises(ConfigError, match="llm_parallel_max_workers should be <= 32"):
+            RuntimeConfig.from_env()
+
+    def test_from_env_invalid_llm_rate_limit_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that invalid CR_LLM_RATE_LIMIT raises ConfigError."""
+        monkeypatch.setenv("CR_LLM_RATE_LIMIT", "not-a-number")
+        with pytest.raises(ConfigError, match="Invalid CR_LLM_RATE_LIMIT"):
+            RuntimeConfig.from_env()
+
+    def test_from_env_llm_rate_limit_too_low_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that CR_LLM_RATE_LIMIT < 0.1 raises ConfigError."""
+        monkeypatch.setenv("CR_LLM_RATE_LIMIT", "0.05")
+        with pytest.raises(ConfigError, match="CR_LLM_RATE_LIMIT=0.05 must be >= 0.1"):
+            RuntimeConfig.from_env()
+
+
+class TestRuntimeConfigFromFileErrorHandling:
+    """Test error handling in RuntimeConfig.from_file for LLM parallel config."""
+
+    def test_from_file_invalid_llm_parallel_workers_type(self, tmp_path: Path) -> None:
+        """Test that invalid type for llm.parallel_max_workers raises ConfigError."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            """
+llm:
+  enabled: true
+  provider: claude-cli
+  parallel_parsing: true
+  parallel_max_workers: "not-a-number"
+  rate_limit: 10.0
+"""
+        )
+
+        with pytest.raises(ConfigError, match="Invalid LLM parallel config"):
+            RuntimeConfig.from_file(config_file)
+
+    def test_from_file_invalid_llm_rate_limit_type(self, tmp_path: Path) -> None:
+        """Test that invalid type for llm.rate_limit raises ConfigError."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            """
+llm:
+  enabled: true
+  provider: claude-cli
+  parallel_parsing: true
+  parallel_max_workers: 4
+  rate_limit: "invalid"
+"""
+        )
+
+        with pytest.raises(ConfigError, match="Invalid LLM parallel config"):
+            RuntimeConfig.from_file(config_file)
+
+    def test_from_file_llm_parallel_workers_list_type(self, tmp_path: Path) -> None:
+        """Test that list type for llm.parallel_max_workers raises ConfigError."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            """
+llm:
+  enabled: true
+  provider: claude-cli
+  parallel_parsing: true
+  parallel_max_workers: [4, 8]
+  rate_limit: 10.0
+"""
+        )
+
+        with pytest.raises(ConfigError, match="Invalid LLM parallel config"):
+            RuntimeConfig.from_file(config_file)
+
+    def test_from_file_llm_rate_limit_dict_type(self, tmp_path: Path) -> None:
+        """Test that dict type for llm.rate_limit raises ConfigError."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            """
+llm:
+  enabled: true
+  provider: claude-cli
+  parallel_parsing: true
+  parallel_max_workers: 4
+  rate_limit: {value: 10.0}
+"""
+        )
+
+        with pytest.raises(ConfigError, match="Invalid LLM parallel config"):
+            RuntimeConfig.from_file(config_file)
+
+    def test_from_file_invalid_llm_confidence_threshold(self, tmp_path: Path) -> None:
+        """Test that invalid confidence_threshold value raises ConfigError."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            """
+llm:
+  enabled: true
+  provider: claude-cli
+  parallel_parsing: true
+  parallel_max_workers: 4
+  rate_limit: 10.0
+  confidence_threshold: "high"
+"""
+        )
+
+        with pytest.raises(ConfigError, match="Invalid LLM parallel config"):
+            RuntimeConfig.from_file(config_file)
+
+    def test_from_file_valid_llm_parallel_config(self, tmp_path: Path) -> None:
+        """Test that valid LLM parallel config values are accepted."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            """
+llm:
+  enabled: true
+  provider: claude-cli
+  parallel_parsing: true
+  parallel_max_workers: 8
+  rate_limit: 20.5
+"""
+        )
+
+        config = RuntimeConfig.from_file(config_file)
+
+        assert config.llm_parallel_parsing is True
+        assert config.llm_parallel_max_workers == 8
+        assert config.llm_rate_limit == 20.5
 
     def test_merge_with_cli_llm_overrides(self) -> None:
         """Test merge_with_cli() with LLM overrides."""
