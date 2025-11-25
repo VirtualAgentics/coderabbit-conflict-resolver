@@ -994,7 +994,7 @@ class TestDisplayAggregatedMetrics:
     """Tests for _display_aggregated_metrics() function."""
 
     def test_display_aggregated_metrics_basic(self) -> None:
-        """Display aggregated metrics with provider stats."""
+        """Display aggregated metrics with provider stats and verify output content."""
         from pr_conflict_resolver.llm.metrics import RequestMetrics
 
         aggregator = MetricsAggregator()
@@ -1014,7 +1014,18 @@ class TestDisplayAggregatedMetrics:
             )
             aggregator.record_request(metrics)
 
-        # This should not raise - just verify it runs without error
+        # Get aggregated metrics and verify values directly
+        agg = aggregator.get_aggregated_metrics()
+
+        # Verify metrics values directly
+        assert agg.total_requests == 10
+        assert agg.successful_requests == 8
+        assert agg.success_rate == 0.8
+        assert "anthropic" in agg.provider_stats
+        assert agg.latency_p50 == 0.5
+        assert agg.cache_hit_rate == 0.3
+
+        # Also verify function runs without error
         _display_aggregated_metrics(aggregator)
 
     def test_display_aggregated_metrics_empty(self) -> None:
@@ -1023,6 +1034,11 @@ class TestDisplayAggregatedMetrics:
 
         # Should handle empty aggregator without error
         _display_aggregated_metrics(aggregator)
+
+        # Verify empty state metrics
+        agg = aggregator.get_aggregated_metrics()
+        assert agg.total_requests == 0
+        assert agg.successful_requests == 0
 
 
 class TestExportMetrics:

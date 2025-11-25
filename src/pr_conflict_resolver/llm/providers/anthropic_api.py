@@ -14,6 +14,7 @@ protocol for type safety and polymorphic usage.
 
 import logging
 import time
+from collections import deque
 from typing import Any, ClassVar
 
 from anthropic import (
@@ -153,8 +154,8 @@ class AnthropicAPIProvider:
         self.total_cache_write_tokens: int = 0
         self.total_cache_read_tokens: int = 0
 
-        # Latency tracking
-        self._request_latencies: list[float] = []
+        # Latency tracking (bounded to prevent unbounded memory growth)
+        self._request_latencies: deque[float] = deque(maxlen=1000)
         self._last_request_latency: float | None = None
 
         logger.info(f"Initialized Anthropic provider: model={model}, timeout={timeout}s")
@@ -488,14 +489,15 @@ class AnthropicAPIProvider:
 
         Returns:
             Copy of list containing all request latencies in seconds.
+            Note: Limited to most recent 1000 entries.
         """
-        return self._request_latencies.copy()
+        return list(self._request_latencies)
 
     def reset_latency_tracking(self) -> None:
         """Reset latency tracking (separate from token/cost tracking).
 
         Clears all recorded latencies and resets last request latency.
         """
-        self._request_latencies = []
+        self._request_latencies.clear()
         self._last_request_latency = None
         logger.debug("Reset latency tracking")
