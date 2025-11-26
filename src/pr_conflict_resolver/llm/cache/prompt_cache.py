@@ -658,26 +658,35 @@ class PromptCache:
         with self._lock:
             for entry in entries:
                 try:
-                    # Validate required fields
-                    prompt = entry.get("prompt")
-                    provider = entry.get("provider")
-                    model = entry.get("model")
-                    response = entry.get("response")
+                    # Extract and validate required fields with explicit type narrowing
+                    prompt_raw = entry.get("prompt")
+                    provider_raw = entry.get("provider")
+                    model_raw = entry.get("model")
+                    response_raw = entry.get("response")
 
-                    # Validate required fields exist and are non-empty/non-whitespace strings
-                    if not (
-                        isinstance(prompt, str)
-                        and prompt.strip()
-                        and isinstance(provider, str)
-                        and provider.strip()
-                        and isinstance(model, str)
-                        and model.strip()
-                        and isinstance(response, str)
-                        and response.strip()
-                    ):
+                    # Validate each field is a non-empty/non-whitespace string
+                    if not isinstance(prompt_raw, str) or not prompt_raw.strip():
                         logger.warning("Skipping invalid warm cache entry: missing required fields")
                         skipped += 1
                         continue
+                    if not isinstance(provider_raw, str) or not provider_raw.strip():
+                        logger.warning("Skipping invalid warm cache entry: missing required fields")
+                        skipped += 1
+                        continue
+                    if not isinstance(model_raw, str) or not model_raw.strip():
+                        logger.warning("Skipping invalid warm cache entry: missing required fields")
+                        skipped += 1
+                        continue
+                    if not isinstance(response_raw, str) or not response_raw.strip():
+                        logger.warning("Skipping invalid warm cache entry: missing required fields")
+                        skipped += 1
+                        continue
+
+                    # Type-narrowed variables for use below
+                    prompt: str = prompt_raw
+                    provider: str = provider_raw
+                    model: str = model_raw
+                    response: str = response_raw
 
                     # Compute cache key
                     key = self.compute_key(prompt, provider, model)
