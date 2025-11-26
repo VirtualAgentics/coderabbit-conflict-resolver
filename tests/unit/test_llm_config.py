@@ -80,6 +80,37 @@ class TestLLMConfigValidation:
         assert config.enabled is True
         assert config.api_key is None
 
+    def test_retry_max_attempts_zero_raises_error(self) -> None:
+        """Test that zero retry_max_attempts raises ValueError."""
+        with pytest.raises(ValueError, match="retry_max_attempts must be >= 1"):
+            LLMConfig(retry_max_attempts=0)
+
+    def test_retry_max_attempts_negative_raises_error(self) -> None:
+        """Test that negative retry_max_attempts raises ValueError."""
+        with pytest.raises(ValueError, match="retry_max_attempts must be >= 1"):
+            LLMConfig(retry_max_attempts=-1)
+
+    def test_retry_base_delay_zero_raises_error(self) -> None:
+        """Test that zero retry_base_delay raises ValueError."""
+        with pytest.raises(ValueError, match="retry_base_delay must be > 0"):
+            LLMConfig(retry_base_delay=0.0)
+
+    def test_retry_base_delay_negative_raises_error(self) -> None:
+        """Test that negative retry_base_delay raises ValueError."""
+        with pytest.raises(ValueError, match="retry_base_delay must be > 0"):
+            LLMConfig(retry_base_delay=-1.0)
+
+    def test_valid_retry_config(self) -> None:
+        """Test that valid retry configuration is accepted."""
+        config = LLMConfig(
+            retry_on_rate_limit=True,
+            retry_max_attempts=5,
+            retry_base_delay=3.0,
+        )
+        assert config.retry_on_rate_limit is True
+        assert config.retry_max_attempts == 5
+        assert config.retry_base_delay == 3.0
+
 
 class TestLLMConfigFromEnv:
     """Test LLMConfig.from_env() environment variable loading."""
@@ -212,6 +243,50 @@ class TestLLMConfigFromEnv:
         assert config.cache_enabled is False
         assert config.max_tokens == 8000
         assert config.cost_budget == 100.0
+
+    def test_from_env_retry_on_rate_limit_true(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test from_env() with CR_LLM_RETRY_ON_RATE_LIMIT=true."""
+        monkeypatch.setenv("CR_LLM_RETRY_ON_RATE_LIMIT", "true")
+        config = LLMConfig.from_env()
+        assert config.retry_on_rate_limit is True
+
+    def test_from_env_retry_on_rate_limit_false(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test from_env() with CR_LLM_RETRY_ON_RATE_LIMIT=false."""
+        monkeypatch.setenv("CR_LLM_RETRY_ON_RATE_LIMIT", "false")
+        config = LLMConfig.from_env()
+        assert config.retry_on_rate_limit is False
+
+    def test_from_env_retry_max_attempts_custom(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test from_env() with CR_LLM_RETRY_MAX_ATTEMPTS=5."""
+        monkeypatch.setenv("CR_LLM_RETRY_MAX_ATTEMPTS", "5")
+        config = LLMConfig.from_env()
+        assert config.retry_max_attempts == 5
+
+    def test_from_env_retry_max_attempts_invalid_raises_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test from_env() with invalid CR_LLM_RETRY_MAX_ATTEMPTS raises ConfigError."""
+        from pr_conflict_resolver.config.exceptions import ConfigError
+
+        monkeypatch.setenv("CR_LLM_RETRY_MAX_ATTEMPTS", "invalid")
+        with pytest.raises(ConfigError, match="CR_LLM_RETRY_MAX_ATTEMPTS must be a valid integer"):
+            LLMConfig.from_env()
+
+    def test_from_env_retry_base_delay_custom(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test from_env() with CR_LLM_RETRY_BASE_DELAY=5.0."""
+        monkeypatch.setenv("CR_LLM_RETRY_BASE_DELAY", "5.0")
+        config = LLMConfig.from_env()
+        assert config.retry_base_delay == 5.0
+
+    def test_from_env_retry_base_delay_invalid_raises_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test from_env() with invalid CR_LLM_RETRY_BASE_DELAY raises ConfigError."""
+        from pr_conflict_resolver.config.exceptions import ConfigError
+
+        monkeypatch.setenv("CR_LLM_RETRY_BASE_DELAY", "invalid")
+        with pytest.raises(ConfigError, match="CR_LLM_RETRY_BASE_DELAY must be a valid float"):
+            LLMConfig.from_env()
 
 
 class TestLLMConfigImmutability:

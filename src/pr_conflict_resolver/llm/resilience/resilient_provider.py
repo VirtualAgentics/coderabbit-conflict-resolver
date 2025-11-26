@@ -227,6 +227,8 @@ class ResilientLLMProvider(LLMProvider):
             LLMRateLimitError: After all retries exhausted
             Exception: Other provider errors
         """
+        request_delay = 0.0  # Track delay for this specific request
+
         for attempt in range(self.retry_max_attempts):
             try:
                 return self._call_provider(prompt, max_tokens)
@@ -251,6 +253,7 @@ class ResilientLLMProvider(LLMProvider):
                     with self._retry_lock:
                         self._retry_count += 1
                         self._retry_total_delay += delay
+                    request_delay += delay
 
                     logger.warning(
                         f"Rate limit hit, retrying in {delay:.1f}s "
@@ -261,7 +264,7 @@ class ResilientLLMProvider(LLMProvider):
                     # Final attempt failed, raise the exception
                     logger.error(
                         f"Rate limit exceeded after {self.retry_max_attempts} attempts, "
-                        f"total delay: {self._retry_total_delay:.1f}s"
+                        f"total delay: {request_delay:.1f}s"
                     )
                     raise
             except Exception as e:

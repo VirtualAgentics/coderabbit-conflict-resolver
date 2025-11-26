@@ -314,9 +314,7 @@ class CachingProvider:
         if entries is None:
             # Log available patterns for documentation purposes
             patterns = self.cache.get_common_patterns()
-            logger.info(
-                f"Cache warm-up called without entries. " f"Common patterns: {len(patterns)}"
-            )
+            logger.info(f"Cache warm-up called without entries. Common patterns: {len(patterns)}")
             for pattern in patterns:
                 logger.debug(f"  Pattern: {pattern}")
             return (0, 0)

@@ -664,12 +664,16 @@ class PromptCache:
                     model = entry.get("model")
                     response = entry.get("response")
 
-                    # Validate required fields exist and are strings
+                    # Validate required fields exist and are non-empty strings
                     if not (
                         isinstance(prompt, str)
+                        and prompt
                         and isinstance(provider, str)
+                        and provider
                         and isinstance(model, str)
+                        and model
                         and isinstance(response, str)
+                        and response
                     ):
                         logger.warning("Skipping invalid warm cache entry: missing required fields")
                         skipped += 1
@@ -727,6 +731,8 @@ class PromptCache:
             - Thread-safe operation
             - Expired entries are included (check timestamp if needed)
             - Original prompts are not exported (privacy by design)
+            - Exported entries cannot be re-imported via warm_cache() since
+              original prompts are not stored; use for analytics/backup only
         """
         entries = []
 

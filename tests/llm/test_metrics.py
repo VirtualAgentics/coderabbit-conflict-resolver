@@ -467,6 +467,8 @@ class TestAggregatedMetricsValidation:
         cost_per_comment: float = 0.005,
         cache_hit_rate: float = 0.5,
         cache_savings: float = 0.02,
+        fallback_count: int = 0,
+        fallback_rate: float = 0.0,
     ) -> AggregatedMetrics:
         """Create valid AggregatedMetrics with optional overrides."""
         return AggregatedMetrics(
@@ -483,6 +485,8 @@ class TestAggregatedMetricsValidation:
             cost_per_comment=cost_per_comment,
             cache_hit_rate=cache_hit_rate,
             cache_savings=cache_savings,
+            fallback_count=fallback_count,
+            fallback_rate=fallback_rate,
         )
 
     def test_negative_latency_p50_raises(self) -> None:
@@ -554,3 +558,44 @@ class TestAggregatedMetricsValidation:
         """cache_savings < 0 raises ValueError."""
         with pytest.raises(ValueError, match="cache_savings must be >= 0"):
             self._valid_aggregated_metrics(cache_savings=-0.01)
+
+    def test_negative_fallback_count_raises(self) -> None:
+        """fallback_count < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="fallback_count must be >= 0"):
+            self._valid_aggregated_metrics(fallback_count=-1)
+
+    def test_fallback_count_zero_valid(self) -> None:
+        """fallback_count=0 is valid."""
+        metrics = self._valid_aggregated_metrics(fallback_count=0)
+        assert metrics.fallback_count == 0
+
+    def test_fallback_count_positive_valid(self) -> None:
+        """fallback_count > 0 is valid."""
+        metrics = self._valid_aggregated_metrics(fallback_count=10)
+        assert metrics.fallback_count == 10
+
+    def test_fallback_rate_below_zero_raises(self) -> None:
+        """fallback_rate < 0 raises ValueError."""
+        with pytest.raises(ValueError, match="fallback_rate must be between 0.0 and 1.0"):
+            self._valid_aggregated_metrics(fallback_rate=-0.1)
+
+    def test_fallback_rate_above_one_raises(self) -> None:
+        """fallback_rate > 1 raises ValueError."""
+        with pytest.raises(ValueError, match="fallback_rate must be between 0.0 and 1.0"):
+            self._valid_aggregated_metrics(fallback_rate=1.1)
+
+    def test_fallback_rate_boundary_zero_valid(self) -> None:
+        """fallback_rate=0.0 is valid."""
+        metrics = self._valid_aggregated_metrics(fallback_rate=0.0)
+        assert metrics.fallback_rate == 0.0
+
+    def test_fallback_rate_boundary_one_valid(self) -> None:
+        """fallback_rate=1.0 is valid."""
+        metrics = self._valid_aggregated_metrics(fallback_rate=1.0)
+        assert metrics.fallback_rate == 1.0
+
+    def test_aggregated_metrics_with_fallback_fields(self) -> None:
+        """Test AggregatedMetrics with fallback tracking fields."""
+        metrics = self._valid_aggregated_metrics(fallback_count=5, fallback_rate=0.25)
+        assert metrics.fallback_count == 5
+        assert metrics.fallback_rate == 0.25
