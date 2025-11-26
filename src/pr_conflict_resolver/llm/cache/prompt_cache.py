@@ -378,6 +378,7 @@ class PromptCache:
         prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
         cache_file = self.cache_dir / f"{key}.json"
+        tmp_file = cache_file.with_suffix(".json.tmp")
 
         # Create cache entry
         entry = {
@@ -388,12 +389,12 @@ class PromptCache:
             "prompt_hash": prompt_hash,
         }
 
-        # Write to file with secure permissions
-        with open(cache_file, "w", encoding="utf-8") as f:
+        # Write to temp file with secure permissions, then atomically replace
+        # This prevents partially-written/corrupted files if interrupted
+        with open(tmp_file, "w", encoding="utf-8") as f:
             json.dump(entry, f, indent=2)
-
-        # Set file permissions to 0600 (user read/write only)
-        os.chmod(cache_file, 0o600)
+        os.chmod(tmp_file, 0o600)
+        os.replace(tmp_file, cache_file)
 
         logger.debug(f"Cached response for key {key[:8]}...")
 
@@ -758,7 +759,7 @@ class PromptCache:
         Examples:
             >>> cache = PromptCache()
             >>> entries = cache.export_entries()
-            >>> # Save to file for later import
+            >>> # Save to file for later analysis or backup
             >>> import json
             >>> with open("cache_backup.json", "w") as f:
             ...     json.dump(entries, f)
