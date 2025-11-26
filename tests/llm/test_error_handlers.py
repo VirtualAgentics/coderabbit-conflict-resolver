@@ -223,9 +223,9 @@ class TestModelErrorFormatting:
 
         assert "Anthropic" in message
         assert "invalid-model" in message
-        assert "claude-haiku-4" in message
-        assert "claude-sonnet-4" in message
-        assert "claude-opus-4" in message
+        assert "claude-haiku-4-5" in message
+        assert "claude-sonnet-4-5" in message
+        assert "claude-opus-4-5" in message
 
     def test_format_model_error_openai(self) -> None:
         """Test OpenAI model error message."""
@@ -233,9 +233,9 @@ class TestModelErrorFormatting:
 
         assert "OpenAI" in message
         assert "invalid-model" in message
+        assert "gpt-5-mini" in message
+        assert "gpt-5-nano" in message
         assert "gpt-4o-mini" in message
-        assert "gpt-4o" in message
-        assert "gpt-4-turbo" in message
 
     def test_format_model_error_api_key_sanitized(self) -> None:
         """Test API key in model name is sanitized."""

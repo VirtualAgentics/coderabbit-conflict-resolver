@@ -660,6 +660,13 @@ def _record_and_display_metrics(
     help="Minimum LLM confidence (0.0-1.0) required to accept changes (default: 0.5)",
 )
 @click.option(
+    "--llm-effort",
+    type=click.Choice(["none", "low", "medium", "high"], case_sensitive=False),
+    default=None,
+    help="LLM effort level: none (fastest), low, medium, high (most thorough). "
+    "Controls speed/cost vs accuracy tradeoff. (default: provider-specific)",
+)
+@click.option(
     "--cost-budget",
     type=float,
     default=None,
@@ -709,6 +716,7 @@ def analyze(
     llm_parallel_workers: int | None,
     llm_rate_limit: float | None,
     llm_confidence_threshold: float | None,
+    llm_effort: str | None,
     cost_budget: float | None,
     log_level: str | None,
     log_file: str | None,
@@ -736,6 +744,7 @@ def analyze(
         llm_parallel_workers: Maximum worker threads for parallel comment parsing.
         llm_rate_limit: Maximum requests per second for parallel comment parsing.
         llm_confidence_threshold: Minimum LLM confidence (0.0-1.0) required to accept changes.
+        llm_effort: LLM effort level (none/low/medium/high) for speed/cost vs accuracy tradeoff.
         cost_budget: Maximum cost in USD for LLM API calls. None for unlimited.
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         log_file: Path to log file for output.
@@ -769,6 +778,7 @@ def analyze(
             "llm_parallel_max_workers": "CR_LLM_PARALLEL_WORKERS",
             "llm_rate_limit": "CR_LLM_RATE_LIMIT",
             "llm_confidence_threshold": "CR_LLM_CONFIDENCE_THRESHOLD",
+            "llm_effort": "CR_LLM_EFFORT",
         }
 
         cli_overrides = {
@@ -782,6 +792,7 @@ def analyze(
             "llm_parallel_max_workers": llm_parallel_workers,
             "llm_rate_limit": llm_rate_limit,
             "llm_confidence_threshold": llm_confidence_threshold,
+            "llm_effort": llm_effort,
             "llm_cost_budget": cost_budget,
         }
 
@@ -1020,6 +1031,13 @@ def analyze(
     help="Minimum LLM confidence (0.0-1.0) required to accept changes (default: 0.5)",
 )
 @click.option(
+    "--llm-effort",
+    type=click.Choice(["none", "low", "medium", "high"], case_sensitive=False),
+    default=None,
+    help="LLM effort level: none (fastest), low, medium, high (most thorough). "
+    "Controls speed/cost vs accuracy tradeoff. (default: provider-specific)",
+)
+@click.option(
     "--cost-budget",
     type=float,
     default=None,
@@ -1083,6 +1101,7 @@ def apply(
     llm_parallel_workers: int | None,
     llm_rate_limit: float | None,
     llm_confidence_threshold: float | None,
+    llm_effort: str | None,
     cost_budget: float | None,
     config: str | None,
     log_level: str | None,
@@ -1122,6 +1141,7 @@ def apply(
         llm_parallel_workers: Maximum worker threads for parallel LLM parsing (1-32).
         llm_rate_limit: Rate limit for LLM API calls (requests/second, minimum 0.1).
         llm_confidence_threshold: Minimum LLM confidence (0.0-1.0) required to accept changes.
+        llm_effort: LLM effort level (none/low/medium/high) for speed/cost vs accuracy tradeoff.
         cost_budget: Maximum cost in USD for LLM API calls. None for unlimited.
         config: Configuration preset name or path to configuration file (YAML or TOML).
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
@@ -1195,6 +1215,7 @@ def apply(
             "llm_parallel_max_workers": "CR_LLM_PARALLEL_WORKERS",
             "llm_rate_limit": "CR_LLM_RATE_LIMIT",
             "llm_confidence_threshold": "CR_LLM_CONFIDENCE_THRESHOLD",
+            "llm_effort": "CR_LLM_EFFORT",
         }
 
         cli_overrides = {
@@ -1213,6 +1234,7 @@ def apply(
             "llm_parallel_max_workers": llm_parallel_workers,
             "llm_rate_limit": llm_rate_limit,
             "llm_confidence_threshold": llm_confidence_threshold,
+            "llm_effort": llm_effort,
             "llm_cost_budget": cost_budget,
         }
 

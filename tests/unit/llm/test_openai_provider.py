@@ -366,6 +366,124 @@ class TestOpenAIProviderRetryLogic:
         assert mock_client.chat.completions.create.call_count == 1
 
 
+class TestOpenAIProviderEffortParameter:
+    """Tests for reasoning_effort parameter support."""
+
+    def test_init_with_effort_none_by_default(self) -> None:
+        """Test that effort is None by default."""
+        provider = OpenAIAPIProvider(api_key="sk-test")
+        assert provider.effort is None
+
+    def test_init_with_effort_parameter(self) -> None:
+        """Test that effort parameter is stored correctly on o1 model."""
+        provider = OpenAIAPIProvider(api_key="sk-test", model="o1", effort="high")
+        assert provider.effort == "high"
+
+    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    def test_generate_without_effort_omits_reasoning_effort(self, mock_openai_class: Mock) -> None:
+        """Test that reasoning_effort is NOT included when effort is None."""
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content='{"test": "data"}'))]
+        mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5)
+        mock_client.chat.completions.create.return_value = mock_response
+
+        provider = OpenAIAPIProvider(api_key="sk-test", effort=None)
+        provider.generate("Test prompt")
+
+        # Verify reasoning_effort was NOT included
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert "reasoning_effort" not in call_kwargs
+
+    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    def test_generate_with_effort_includes_reasoning_effort(self, mock_openai_class: Mock) -> None:
+        """Test that reasoning_effort IS included when effort is set."""
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content='{"test": "data"}'))]
+        mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5)
+        mock_client.chat.completions.create.return_value = mock_response
+
+        provider = OpenAIAPIProvider(api_key="sk-test", model="o1", effort="high")
+        provider.generate("Test prompt")
+
+        # Verify reasoning_effort was included with correct value (o1 models only)
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert call_kwargs["reasoning_effort"] == "high"
+
+    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    def test_generate_with_effort_low(self, mock_openai_class: Mock) -> None:
+        """Test that reasoning_effort='low' is passed correctly."""
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content='{"test": "data"}'))]
+        mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5)
+        mock_client.chat.completions.create.return_value = mock_response
+
+        provider = OpenAIAPIProvider(api_key="sk-test", model="o1-mini", effort="low")
+        provider.generate("Test prompt")
+
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert call_kwargs["reasoning_effort"] == "low"
+
+    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    def test_generate_with_effort_medium(self, mock_openai_class: Mock) -> None:
+        """Test that reasoning_effort='medium' is passed correctly."""
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content='{"test": "data"}'))]
+        mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5)
+        mock_client.chat.completions.create.return_value = mock_response
+
+        provider = OpenAIAPIProvider(api_key="sk-test", model="o1-preview", effort="medium")
+        provider.generate("Test prompt")
+
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert call_kwargs["reasoning_effort"] == "medium"
+
+    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    def test_generate_with_effort_none_disables_effort(self, mock_openai_class: Mock) -> None:
+        """Test that effort='none' disables reasoning_effort (does not send to API)."""
+        mock_client = MagicMock()
+        mock_openai_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content='{"test": "data"}'))]
+        mock_response.usage = MagicMock(prompt_tokens=10, completion_tokens=5)
+        mock_client.chat.completions.create.return_value = mock_response
+
+        provider = OpenAIAPIProvider(api_key="sk-test", model="o1", effort="none")
+        provider.generate("Test prompt")
+
+        # effort="none" means disabled - should NOT send reasoning_effort to API
+        # Only "low"/"medium"/"high" are valid API values
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert "reasoning_effort" not in call_kwargs
+
+    def test_init_with_effort_on_non_o1_model_raises(self) -> None:
+        """Test that effort parameter on non-o1 model raises LLMConfigurationError."""
+        with pytest.raises(LLMConfigurationError, match="only supported for o1 models"):
+            OpenAIAPIProvider(api_key="sk-test", model="gpt-4o-mini", effort="high")
+
+    def test_init_with_effort_on_gpt5_raises(self) -> None:
+        """Test that effort parameter on GPT-5 model raises LLMConfigurationError."""
+        with pytest.raises(LLMConfigurationError, match="only supported for o1 models"):
+            OpenAIAPIProvider(api_key="sk-test", model="gpt-5", effort="low")
+
+    def test_init_with_invalid_effort_level_raises(self) -> None:
+        """Test that invalid effort level raises LLMConfigurationError."""
+        with pytest.raises(LLMConfigurationError, match="Invalid effort level"):
+            OpenAIAPIProvider(api_key="sk-test", model="o1", effort="invalid")
+
+
 class TestOpenAIProviderLatencyTracking:
     """Tests for latency tracking methods."""
 

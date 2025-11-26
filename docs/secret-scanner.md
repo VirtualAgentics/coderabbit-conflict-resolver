@@ -7,7 +7,7 @@ The secret scanner detects potential secrets and sensitive data in code changes 
 The secret scanner:
 
 * Detects common secret patterns (API keys, passwords, tokens)
-* Assigns severity levels (LOW, MEDIUM, HIGH, CRITICAL)
+* Assigns severity levels (LOW, MEDIUM, HIGH)
 * Integrates with the change application pipeline
 * Supports custom pattern definitions
 
@@ -15,14 +15,13 @@ The secret scanner:
 
 | Type | Pattern Examples | Severity |
 |------|-----------------|----------|
-| AWS Access Key | `AKIA...` | CRITICAL |
-| AWS Secret Key | `aws_secret_access_key=...` | CRITICAL |
+| AWS Access Key | `AKIA...` | HIGH |
+| AWS Secret Key | `aws_secret_access_key=...` | HIGH |
 | GitHub Token | `ghp_...`, `gho_...`, `ghs_...` | HIGH |
-| Anthropic API Key | `sk-ant-...` | HIGH |
 | OpenAI API Key | `sk-...` | HIGH |
 | Generic API Key | `api_key=...`, `apikey:...` | MEDIUM |
 | Password | `password=...`, `passwd:...` | MEDIUM |
-| Private Key | `-----BEGIN RSA PRIVATE KEY-----` | CRITICAL |
+| Private Key | `-----BEGIN RSA PRIVATE KEY-----` | HIGH |
 | Connection String | `postgresql://user:pass@host` | HIGH |
 
 ## How It Works
@@ -73,8 +72,7 @@ Change application blocked. Review and remove secrets before proceeding.
 |----------|--------|-------------|
 | LOW | Log warning | Possible false positive, proceed with caution |
 | MEDIUM | Log warning | Likely sensitive data, review recommended |
-| HIGH | Block + warn | Strong indication of secret, manual review required |
-| CRITICAL | Block + error | Definite secret (private key, AWS creds), must remove |
+| HIGH | Block + warn | Strong indication of secret (API keys, private keys, AWS creds), manual review required |
 
 ## False Positive Handling
 

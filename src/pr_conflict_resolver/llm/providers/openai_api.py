@@ -82,21 +82,46 @@ class OpenAIAPIProvider:
         Note: Unknown models return $0.00 cost (see _calculate_cost method).
     """
 
-    # Pricing per 1M tokens (as of Nov 2024)
+    # Pricing per 1M tokens (as of Nov 2025)
     # Source: https://openai.com/pricing
     MODEL_PRICING: ClassVar[dict[str, dict[str, float]]] = {
+        # GPT-5 family (November 2025)
+        "gpt-5.1": {"input": 1.25, "output": 10.00},
+        "gpt-5": {"input": 1.25, "output": 10.00},
+        "gpt-5-mini": {"input": 0.25, "output": 2.00},
+        "gpt-5-nano": {"input": 0.05, "output": 0.40},
+        # GPT-4.1 family (April 2025)
+        "gpt-4.1": {"input": 2.00, "output": 8.00},
+        "gpt-4.1-mini": {"input": 0.40, "output": 1.60},
+        "gpt-4.1-nano": {"input": 0.10, "output": 0.40},
+        # GPT-4o family (2024)
+        "gpt-4o": {"input": 2.50, "output": 10.00},
+        "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+        # Legacy models
         "gpt-4": {"input": 30.00, "output": 60.00},
         "gpt-4-turbo": {"input": 10.00, "output": 30.00},
         "gpt-3.5-turbo": {"input": 1.00, "output": 2.00},
-        "gpt-4o": {"input": 2.50, "output": 10.00},
-        "gpt-4o-mini": {"input": 0.15, "output": 0.60},
     }
+
+    # Models that support the reasoning_effort parameter
+    O1_MODELS: ClassVar[set[str]] = {
+        "o1",
+        "o1-preview",
+        "o1-mini",
+        "o1-2024-12-17",
+        "o1-preview-2024-09-12",
+        "o1-mini-2024-09-12",
+    }
+
+    # Valid effort levels
+    VALID_EFFORT_LEVELS: ClassVar[set[str]] = {"none", "low", "medium", "high"}
 
     def __init__(
         self,
         api_key: str,
         model: str = "gpt-4o-mini",
         timeout: int = 60,
+        effort: str | None = None,
     ) -> None:
         """Initialize OpenAI API provider.
 
@@ -104,6 +129,8 @@ class OpenAIAPIProvider:
             api_key: OpenAI API key (starts with sk-)
             model: Model identifier (default: gpt-4o-mini for cost efficiency)
             timeout: Request timeout in seconds
+            effort: Reasoning effort level for o1 models ('none', 'low', 'medium', 'high')
+                   Maps to OpenAI's reasoning_effort parameter. Only applied to o1 model family.
 
         Raises:
             LLMConfigurationError: If api_key is empty or configuration is invalid
@@ -113,9 +140,24 @@ class OpenAIAPIProvider:
                 "OpenAI API key cannot be empty", details={"provider": "openai"}
             )
 
+        # Validate effort is only used with o1 models
+        if effort is not None and model not in self.O1_MODELS:
+            raise LLMConfigurationError(
+                f"effort parameter is only supported for o1 models, " f"got model='{model}'",
+                details={"model": model, "effort": effort},
+            )
+
+        # Validate effort value (defense-in-depth for callers bypassing LLMConfig)
+        if effort is not None and effort not in self.VALID_EFFORT_LEVELS:
+            raise LLMConfigurationError(
+                f"Invalid effort level '{effort}', must be one of {self.VALID_EFFORT_LEVELS}",
+                details={"effort": effort, "valid_levels": list(self.VALID_EFFORT_LEVELS)},
+            )
+
         self.client = OpenAI(api_key=api_key, timeout=timeout)
         self.model = model
         self.timeout = timeout
+        self.effort = effort  # For o1 model family reasoning_effort parameter
 
         # Token usage tracking
         self.total_input_tokens = 0
@@ -201,13 +243,24 @@ class OpenAIAPIProvider:
 
             start_time = time.perf_counter()
             try:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=max_tokens,
-                    temperature=0.0,  # Deterministic for consistency
-                    response_format={"type": "json_object"},  # Force JSON output
-                )
+                # Build API kwargs
+                api_kwargs: dict[str, object] = {
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": max_tokens,
+                    "temperature": 0.0,  # Deterministic for consistency
+                    "response_format": {"type": "json_object"},  # Force JSON output
+                }
+
+                # Add reasoning_effort for o1 models only (not other model families)
+                # See: https://platform.openai.com/docs/guides/reasoning
+                # Note: effort="none" means disabled, same as effort=None
+                # Only "low"/"medium"/"high" are valid API values
+                effort_enabled = self.effort is not None and self.effort != "none"
+                if effort_enabled and self.model in self.O1_MODELS:
+                    api_kwargs["reasoning_effort"] = self.effort
+
+                response = self.client.chat.completions.create(**api_kwargs)  # type: ignore[call-overload]
             finally:
                 latency = time.perf_counter() - start_time
                 self._last_request_latency = latency
@@ -300,7 +353,7 @@ class OpenAIAPIProvider:
 
         Note:
             Cost is calculated using MODEL_PRICING table. If model is not
-            found, returns 0.0. Pricing is current as of Nov 2024.
+            found, returns 0.0. Pricing is current as of Nov 2025.
         """
         return self._calculate_cost(self.total_input_tokens, self.total_output_tokens)
 

@@ -289,6 +289,71 @@ class TestLLMConfigFromEnv:
             LLMConfig.from_env()
 
 
+class TestLLMConfigEffort:
+    """Test LLMConfig effort parameter validation and loading."""
+
+    def test_effort_default_none(self) -> None:
+        """Test that effort defaults to None."""
+        config = LLMConfig()
+        assert config.effort is None
+
+    def test_effort_valid_values(self) -> None:
+        """Test that all valid effort values are accepted."""
+        for effort in ["none", "low", "medium", "high"]:
+            config = LLMConfig(effort=effort)
+            assert config.effort == effort
+
+    def test_effort_case_insensitive_validation(self) -> None:
+        """Test that effort validation is case insensitive and normalizes to lowercase."""
+        for effort in ["LOW", "Medium", "HIGH", "None"]:
+            # Should not raise and should normalize to lowercase
+            config = LLMConfig(effort=effort)
+            assert config.effort == effort.lower()
+
+    def test_effort_invalid_value_raises_error(self) -> None:
+        """Test that invalid effort values raise ValueError."""
+        with pytest.raises(ValueError, match="effort must be one of"):
+            LLMConfig(effort="invalid")
+
+    def test_effort_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test from_env() with CR_LLM_EFFORT."""
+        monkeypatch.setenv("CR_LLM_EFFORT", "high")
+        config = LLMConfig.from_env()
+        assert config.effort == "high"
+
+    def test_effort_from_env_normalizes_to_lowercase(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test from_env() normalizes effort to lowercase."""
+        monkeypatch.setenv("CR_LLM_EFFORT", "HIGH")
+        config = LLMConfig.from_env()
+        assert config.effort == "high"  # Should be normalized to lowercase
+
+    def test_effort_from_env_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test from_env() with CR_LLM_EFFORT=none."""
+        monkeypatch.setenv("CR_LLM_EFFORT", "none")
+        config = LLMConfig.from_env()
+        assert config.effort == "none"
+
+    def test_effort_from_env_not_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test from_env() without CR_LLM_EFFORT returns None."""
+        monkeypatch.delenv("CR_LLM_EFFORT", raising=False)
+        config = LLMConfig.from_env()
+        assert config.effort is None
+
+    def test_effort_from_env_strips_whitespace(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test from_env() strips whitespace from effort value."""
+        monkeypatch.setenv("CR_LLM_EFFORT", "  HIGH  ")
+        config = LLMConfig.from_env()
+        assert config.effort == "high"
+
+    def test_effort_from_env_whitespace_only_returns_none(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test from_env() treats whitespace-only effort as None."""
+        monkeypatch.setenv("CR_LLM_EFFORT", "   ")
+        config = LLMConfig.from_env()
+        assert config.effort is None
+
+
 class TestLLMConfigImmutability:
     """Test that LLMConfig is immutable (frozen=True)."""
 

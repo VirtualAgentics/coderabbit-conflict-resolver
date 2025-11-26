@@ -47,6 +47,8 @@ jobs:
           CR_LLM_COST_BUDGET: '2.0'
         run: |
           pr-resolve apply ${{ github.event.pull_request.number || github.event.issue.number }} \
+            --owner ${{ github.repository_owner }} \
+            --repo ${{ github.event.repository.name }} \
             --show-metrics \
             --log-level INFO
 
@@ -102,6 +104,8 @@ jobs:
     CR_LLM_CONFIDENCE_THRESHOLD: '0.7'  # Higher quality
   run: |
     pr-resolve apply ${{ github.event.pull_request.number }} \
+      --owner ${{ github.repository_owner }} \
+      --repo ${{ github.event.repository.name }} \
       --show-metrics \
       --metrics-output metrics.json
 ```
