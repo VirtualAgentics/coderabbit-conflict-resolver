@@ -20,9 +20,10 @@ def openai_provider() -> OpenAIAPIProvider:
     provider = OpenAIAPIProvider(api_key=api_key, model="gpt-4o-mini")
 
     # Sanity check credentials/budget with a minimal call, then reset counters.
+    # Note: OpenAI requires the word "json" in the prompt when using json_object response_format
     guarded_call(
         "OpenAI",
-        lambda: provider.generate('Return {"status": "ok"} exactly', max_tokens=10),
+        lambda: provider.generate('Return this JSON exactly: {"status": "ok"}', max_tokens=20),
     )
     provider.reset_usage_tracking()
     return provider
@@ -33,7 +34,8 @@ class TestOpenAIProviderIntegration:
 
     def test_real_api_simple_generation(self, openai_provider: OpenAIAPIProvider) -> None:
         """LLM returns JSON and tracks tokens."""
-        prompt = 'Return this exact JSON: {"test": "success"}'
+        # Note: OpenAI requires the word "json" in the prompt when using json_object response_format
+        prompt = 'Return this JSON object: {"test": "success"}'
 
         result = guarded_call("OpenAI", lambda: openai_provider.generate(prompt, max_tokens=50))
 
@@ -48,10 +50,11 @@ class TestOpenAIProviderIntegration:
 
     def test_real_api_cost_tracking(self, openai_provider: OpenAIAPIProvider) -> None:
         """Cost tracking increments after a live call."""
+        # Note: OpenAI requires the word "json" in the prompt when using json_object response_format
         guarded_call(
             "OpenAI",
             lambda: openai_provider.generate(
-                'Return a JSON response with: {"test": "data"}', max_tokens=50
+                'Return a JSON object with: {"test": "data"}', max_tokens=50
             ),
         )
 

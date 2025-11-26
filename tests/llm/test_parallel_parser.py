@@ -207,12 +207,15 @@ class TestParallelLLMParser:
         with pytest.raises(ValueError, match="rate must be positive"):
             ParallelLLMParser(provider=mock_provider, rate_limit=-1.0)
 
-    def test_parser_accepts_high_max_workers(self, mock_provider: MagicMock) -> None:
-        """Test that high max_workers values are accepted."""
-        parser = ParallelLLMParser(provider=mock_provider, max_workers=64)
+    def test_parser_rejects_high_max_workers(self, mock_provider: MagicMock) -> None:
+        """Test that high max_workers values are rejected (security limit)."""
+        with pytest.raises(ValueError, match="cannot exceed 32"):
+            ParallelLLMParser(provider=mock_provider, max_workers=64)
 
-        # Parser should accept high max_workers (no exception)
-        assert parser.max_workers == 64
+    def test_parser_accepts_max_workers_at_limit(self, mock_provider: MagicMock) -> None:
+        """Test that max_workers at exactly 32 is accepted."""
+        parser = ParallelLLMParser(provider=mock_provider, max_workers=32)
+        assert parser.max_workers == 32
 
     def test_parse_comments_empty_list(self, parser: ParallelLLMParser) -> None:
         """Test parsing empty comment list returns empty results."""

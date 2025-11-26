@@ -140,6 +140,9 @@ class ParallelLLMParser(UniversalLLMParser):
         2
     """
 
+    # Security: Hard limit on worker threads to prevent resource exhaustion
+    MAX_ALLOWED_WORKERS = 32
+
     def __init__(
         self,
         provider: LLMProvider,
@@ -149,32 +152,39 @@ class ParallelLLMParser(UniversalLLMParser):
         confidence_threshold: float = 0.5,
         max_tokens: int = 2000,
         cost_tracker: CostTracker | None = None,
+        scan_for_secrets: bool = True,
     ) -> None:
         """Initialize parallel LLM parser.
 
         Args:
             provider: LLM provider instance for text generation
-            max_workers: Maximum number of worker threads (1-32 recommended)
+            max_workers: Maximum number of worker threads (1-32)
             rate_limit: Maximum requests per second to prevent API throttling
             fallback_to_regex: If True, return empty list on failure (enables fallback)
             confidence_threshold: Minimum confidence score (0.0-1.0) to accept changes
             max_tokens: Maximum tokens for LLM response
             cost_tracker: Optional CostTracker for budget enforcement. The tracker
                 is thread-safe and will be shared across worker threads.
+            scan_for_secrets: If True (default), scan comment bodies for secrets
+                before sending to external LLM APIs. Raises LLMSecretDetectedError
+                if secrets are detected.
 
         Raises:
-            ValueError: If max_workers < 1 or rate_limit <= 0
+            ValueError: If max_workers < 1, max_workers > 32, or rate_limit <= 0
         """
         super().__init__(
-            provider, fallback_to_regex, confidence_threshold, max_tokens, cost_tracker
+            provider=provider,
+            fallback_to_regex=fallback_to_regex,
+            confidence_threshold=confidence_threshold,
+            max_tokens=max_tokens,
+            cost_tracker=cost_tracker,
+            scan_for_secrets=scan_for_secrets,
         )
         if max_workers < 1:
             raise ValueError("max_workers must be >= 1")
-        if max_workers > 32:
-            logger.warning(
-                f"max_workers set to {max_workers}. Very high worker counts "
-                "(e.g., >16-32) may not yield further speedup due to Python GIL "
-                "and API rate limits. Consider reducing for optimal performance."
+        if max_workers > self.MAX_ALLOWED_WORKERS:
+            raise ValueError(
+                f"max_workers cannot exceed {self.MAX_ALLOWED_WORKERS} (got {max_workers})"
             )
         self.max_workers = max_workers
         self.rate_limit = rate_limit

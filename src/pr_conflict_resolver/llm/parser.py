@@ -19,9 +19,10 @@ import logging
 
 from pr_conflict_resolver.llm.base import LLMParser, ParsedChange
 from pr_conflict_resolver.llm.cost_tracker import CostStatus, CostTracker
-from pr_conflict_resolver.llm.exceptions import LLMCostExceededError
+from pr_conflict_resolver.llm.exceptions import LLMCostExceededError, LLMSecretDetectedError
 from pr_conflict_resolver.llm.prompts import PARSE_COMMENT_PROMPT
 from pr_conflict_resolver.llm.providers.base import LLMProvider
+from pr_conflict_resolver.security.secret_scanner import SecretScanner
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ class UniversalLLMParser(LLMParser):
         confidence_threshold: float = 0.5,
         max_tokens: int = 2000,
         cost_tracker: CostTracker | None = None,
+        scan_for_secrets: bool = True,
     ) -> None:
         """Initialize universal LLM parser.
 
@@ -74,6 +76,10 @@ class UniversalLLMParser(LLMParser):
             cost_tracker: Optional CostTracker for budget enforcement. If provided,
                 requests are blocked when budget is exceeded and LLMCostExceededError
                 is raised.
+            scan_for_secrets: Security setting (default: True - secure). When enabled,
+                scans comment bodies for secrets before sending to external LLM APIs
+                and raises LLMSecretDetectedError if any are found. Disable only for
+                testing or trusted local-only LLMs.
 
         Raises:
             ValueError: If confidence_threshold is not in [0.0, 1.0]
@@ -88,14 +94,16 @@ class UniversalLLMParser(LLMParser):
         self.confidence_threshold = confidence_threshold
         self.max_tokens = max_tokens
         self.cost_tracker = cost_tracker
+        self.scan_for_secrets = scan_for_secrets
 
         logger.info(
             "Initialized UniversalLLMParser: fallback=%s, threshold=%s, max_tokens=%s, "
-            "cost_tracker=%s",
+            "cost_tracker=%s, secret_scan=%s",
             fallback_to_regex,
             confidence_threshold,
             max_tokens,
             "enabled" if cost_tracker else "disabled",
+            "enabled" if scan_for_secrets else "disabled",
         )
 
     def parse_comment(
@@ -128,6 +136,9 @@ class UniversalLLMParser(LLMParser):
         Raises:
             RuntimeError: If parsing fails and fallback_to_regex=False
             ValueError: If comment_body is None or empty
+            LLMSecretDetectedError: If secrets are detected in comment_body
+                and scan_for_secrets=True (default)
+            LLMCostExceededError: If cost budget is exceeded
 
         Note:
             The method logs all parsing failures for debugging. Check logs
@@ -135,6 +146,22 @@ class UniversalLLMParser(LLMParser):
         """
         if not comment_body:
             raise ValueError("comment_body cannot be None or empty")
+
+        # Scan for secrets BEFORE sending to external LLM API
+        if self.scan_for_secrets:
+            findings = SecretScanner.scan_content(comment_body, stop_on_first=True)
+            if findings:
+                # Log count only - no tainted secret type data flows to logs
+                logger.error(
+                    "Secret detected in comment body (count=%d), blocking LLM request - "
+                    "refusing to send to external API",
+                    len(findings),
+                )
+                raise LLMSecretDetectedError(
+                    "Secret detected in comment content",
+                    findings=findings,
+                    details={"file_path": file_path, "line_number": line_number},
+                )
 
         # Check budget before making LLM API call
         if self.cost_tracker and self.cost_tracker.should_block_request():

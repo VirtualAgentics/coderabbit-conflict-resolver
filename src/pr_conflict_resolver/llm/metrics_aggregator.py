@@ -15,10 +15,13 @@ Example:
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import json
 import logging
+import os
 import statistics
+import tempfile
 import threading
 import time
 import uuid
@@ -309,6 +312,11 @@ class MetricsAggregator:
         try:
             metrics = self.get_aggregated_metrics()
 
+            # Thread-safe access to _pr_info and _requests
+            with self._lock:
+                pr_info_copy = self._pr_info.copy() if self._pr_info else None
+                requests_copy = [asdict(r) for r in self._requests] if include_requests else None
+
             data: dict[str, Any] = {
                 "summary": {
                     "total_requests": metrics.total_requests,
@@ -330,16 +338,28 @@ class MetricsAggregator:
                 },
             }
 
-            if self._pr_info:
-                data["pr_info"] = self._pr_info
+            if pr_info_copy:
+                data["pr_info"] = pr_info_copy
 
-            if include_requests:
-                with self._lock:
-                    data["requests"] = [asdict(r) for r in self._requests]
+            if requests_copy is not None:
+                data["requests"] = requests_copy
 
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
-            logger.info("Exported metrics to %s", path)
+            # Atomic write: write to temp file, then replace
+            temp_fd, temp_path = tempfile.mkstemp(
+                dir=path.parent, prefix=".metrics_", suffix=".json"
+            )
+            try:
+                with os.fdopen(temp_fd, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=2)
+                # Security: Restrict file permissions to owner only before replacing
+                os.chmod(temp_path, 0o600)
+                os.replace(temp_path, path)
+                logger.info("Exported metrics to %s (permissions: 0600)", path)
+            except Exception:
+                # Clean up temp file on error
+                with contextlib.suppress(OSError):
+                    os.unlink(temp_path)
+                raise
         except OSError as e:
             logger.error("Failed to export metrics to %s: %s", path, e)
             raise
@@ -370,12 +390,25 @@ class MetricsAggregator:
             requests = list(self._requests)
 
         try:
-            with open(path, "w", encoding="utf-8", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
-                writer.writeheader()
-                for req in requests:
-                    writer.writerow(asdict(req))
-            logger.info("Exported metrics to %s", path)
+            # Atomic write: write to temp file, then replace
+            temp_fd, temp_path = tempfile.mkstemp(
+                dir=path.parent, prefix=".metrics_", suffix=".csv"
+            )
+            try:
+                with os.fdopen(temp_fd, "w", encoding="utf-8", newline="") as f:
+                    writer = csv.DictWriter(f, fieldnames=fieldnames)
+                    writer.writeheader()
+                    for req in requests:
+                        writer.writerow(asdict(req))
+                # Security: Restrict file permissions to owner only before replacing
+                os.chmod(temp_path, 0o600)
+                os.replace(temp_path, path)
+                logger.info("Exported metrics to %s (permissions: 0600)", path)
+            except Exception:
+                # Clean up temp file on error
+                with contextlib.suppress(OSError):
+                    os.unlink(temp_path)
+                raise
         except OSError as e:
             logger.error("Failed to export metrics to %s: %s", path, e)
             raise
