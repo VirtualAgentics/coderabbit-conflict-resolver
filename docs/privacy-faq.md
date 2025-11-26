@@ -639,4 +639,4 @@ pr-resolve apply 456 --llm-preset fast-api
 
 ---
 
-**Have more questions?** Open an issue on [GitHub](https://github.com/your-repo/review-bot-automator/issues) or check the [Privacy Architecture](privacy-architecture.md) for detailed analysis.
+**Have more questions?** Open an issue on [GitHub](https://github.com/VirtualAgentics/review-bot-automator/issues) or check the [Privacy Architecture](privacy-architecture.md) for detailed analysis.

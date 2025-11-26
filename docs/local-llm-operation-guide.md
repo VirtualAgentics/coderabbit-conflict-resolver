@@ -53,7 +53,7 @@ Internet is always required for:
 
 * ✅ **GitHub API**: Fetching PR data and review comments
 * ✅ **GitHub Push**: Pushing resolved changes back to PR
-* ⚠️ **Initial Setup**: Downloading Ollama, models, and Review Bot Automator package
+* ⚠️ **Initial Setup**: Downloading Ollama, models, and Review Bot Automator package (provides the `pr-resolve` CLI)
 
 ---
 
@@ -73,7 +73,7 @@ Before starting local LLM operation, you need:
 
 * **Ollama**: Latest version
 * **Python 3.12+**: With pip and venv
-* **Review Bot Automator**: Latest version from PyPI
+* **Review Bot Automator**: Latest version from PyPI (provides the `pr-resolve` CLI)
 * **LLM Model**: At least one model (qwen2.5-coder:7b recommended)
 * **GitHub Token**: For API access
 
@@ -123,7 +123,7 @@ python3 -m venv .venv
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate    # Windows
 
-# Install pr-resolve
+# Install review-bot-automator (provides the pr-resolve CLI)
 pip install review-bot-automator
 
 # Verify installation
@@ -402,7 +402,7 @@ du -sh ~/.ollama/models/
 ### Updating Review Bot Automator
 
 ```bash
-# Update to latest version
+# Update review-bot-automator (provides the pr-resolve CLI)
 pip install --upgrade review-bot-automator
 
 # Verify new version

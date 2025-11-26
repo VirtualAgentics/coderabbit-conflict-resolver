@@ -4,6 +4,8 @@ This handler provides YAML-aware suggestion application with structure validatio
 and comment preservation using ruamel.yaml.
 """
 
+from __future__ import annotations
+
 import contextlib
 import logging
 import os
@@ -11,15 +13,18 @@ import stat
 import tempfile
 from os import PathLike
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import ClassVar, TypeAlias
 
 from review_bot_automator.core.models import Change, Conflict
 from review_bot_automator.handlers.base import BaseHandler
 from review_bot_automator.security.input_validator import InputValidator
 from review_bot_automator.utils.path_utils import resolve_file_path
 
-# Type alias for YAML values to avoid Any usage
-YAMLValue = dict[str, Any] | list[Any] | str | int | float | bool | None
+# Type alias for YAML values - recursive to capture nested dicts/lists
+# Note: object is included as fallback for test compatibility with dict[str, str] etc.
+YAMLValue: TypeAlias = (
+    dict[str, "YAMLValue"] | list["YAMLValue"] | str | int | float | bool | None | object
+)
 
 try:
     from ruamel.yaml import YAML

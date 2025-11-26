@@ -102,6 +102,7 @@ class TestBuildArtifacts:
         wheel_name = wheel_files[0].name
 
         # Expected format: review_bot_automator-<version>-py3-none-any.whl
+        # (Note: wheel filenames always use underscores per PEP 427)
         # Read version from pyproject.toml to avoid hard-coding
         with (build_artifacts.parent / "pyproject.toml").open("rb") as f:
             project_config = tomllib.load(f)
@@ -122,7 +123,9 @@ class TestBuildArtifacts:
         sdist_files = list(build_artifacts.glob("*.tar.gz"))
         sdist_name = sdist_files[0].name
 
-        # Expected format: review_bot_automator-<version>.tar.gz
+        # Expected format: review_bot_automator-<version>.tar.gz or
+        # review-bot-automator-<version>.tar.gz (sdist may use either underscores
+        # or hyphens depending on build backend)
         # Read version from pyproject.toml to avoid hard-coding
         with (build_artifacts.parent / "pyproject.toml").open("rb") as f:
             project_config = tomllib.load(f)

@@ -568,12 +568,19 @@ pr-resolve apply --llm-preset ollama-local --owner VirtualAgentics --repo my-rep
 
 ### Backward Compatibility Guarantee
 
-✅ **Zero Breaking Changes** - All v1.x code works unchanged in v2.0
+✅ **Runtime Behavior Preserved** - v2.0 maintains full compatibility for CLI and API usage
 
 - LLM parsing **disabled by default** (opt-in via `--llm` flag)
 - Automatic **fallback to regex** if LLM fails
 - v1.x CLI commands **work identically**
-- v1.x Python API **unchanged**
+- v1.x Python API **behavior unchanged**
+
+⚠️ **Package Rename**: v2.0 renamed the package from `pr-conflict-resolver` to `review-bot-automator`. Update your imports and dependencies:
+
+- Import: `from review_bot_automator import ...` (was `pr_conflict_resolver`)
+- Dependency: `review-bot-automator` in requirements.txt (was `pr-conflict-resolver`)
+
+See [Migration Guide](docs/migration.md) for details.
 
 ### Enhanced Change Metadata
 

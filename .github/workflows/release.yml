@@ -6,8 +6,8 @@ on:
       - "v*"
 
 concurrency:
-  group: release-${{ github.ref_name }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false  # Never cancel ongoing releases - could leave PyPI in inconsistent state
 
 permissions:
   contents: read
