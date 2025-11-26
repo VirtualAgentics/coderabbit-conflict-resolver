@@ -45,7 +45,7 @@ repos:
           - rich==14.2.0
           - ruamel.yaml==0.18.16
           - tomli-w==1.2.0
-          - pydantic==2.12.4
+          - pydantic==2.12.5
           - hypothesis==6.148.2
           - tenacity==9.1.2
           - openai==2.8.1
