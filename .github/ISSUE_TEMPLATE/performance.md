@@ -49,7 +49,7 @@ What performance do you expect or need?
 
 ```python
 # Provide a minimal code example that demonstrates the performance issue
-from pr_conflict_resolver import ConflictResolver
+from review_bot_automator import ConflictResolver
 
 # Your code here
 

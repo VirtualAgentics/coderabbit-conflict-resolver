@@ -15,8 +15,8 @@ The resolver provides four preset configurations optimized for different use cas
 **Use case:** Critical systems requiring manual review of all conflicts
 
 ```python
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.config import PresetConfig
+from review_bot_automator import ConflictResolver
+from review_bot_automator.config import PresetConfig
 
 resolver = ConflictResolver(config=PresetConfig.CONSERVATIVE)
 
@@ -439,7 +439,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo \
 
 ```python
 from pathlib import Path
-from pr_conflict_resolver.config.runtime_config import RuntimeConfig, ApplicationMode
+from review_bot_automator.config.runtime_config import RuntimeConfig, ApplicationMode
 
 # Load from defaults
 config = RuntimeConfig.from_defaults()
@@ -744,7 +744,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo
 export OLLAMA_BASE_URL="http://custom-host:11434"
 
 # Or configure in Python
-from pr_conflict_resolver.llm import create_provider
+from review_bot_automator.llm import create_provider
 
 provider = create_provider(
     "ollama",
@@ -807,8 +807,8 @@ provider = create_provider(
 ### Python API Usage (Advanced)
 
 ```python
-from pr_conflict_resolver.llm import create_provider, validate_provider
-from pr_conflict_resolver.llm.config import LLMConfig
+from review_bot_automator.llm import create_provider, validate_provider
+from review_bot_automator.llm.config import LLMConfig
 
 # Method 1: Create provider directly
 provider = create_provider(
@@ -853,7 +853,7 @@ else:
 Anthropic providers support prompt caching for 50-90% cost reduction on repeated prompts:
 
 ```python
-from pr_conflict_resolver.llm.cache import PromptCache
+from review_bot_automator.llm.cache import PromptCache
 from pathlib import Path
 
 # Create cache instance
@@ -1153,9 +1153,9 @@ Building configuration programmatically:
 
 ```python
 from pathlib import Path
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.config.runtime_config import RuntimeConfig, ApplicationMode
-from pr_conflict_resolver.config import PresetConfig
+from review_bot_automator import ConflictResolver
+from review_bot_automator.config.runtime_config import RuntimeConfig, ApplicationMode
+from review_bot_automator.config import PresetConfig
 
 # Start with preset configuration
 base_config = PresetConfig.BALANCED
@@ -1413,7 +1413,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo --config aggressive
 The resolver validates configuration parameters:
 
 ```python
-from pr_conflict_resolver import ConflictResolver
+from review_bot_automator import ConflictResolver
 
 try:
     resolver = ConflictResolver(config={
@@ -1647,7 +1647,7 @@ pr-resolve apply --pr 123 --owner org --repo repo \
 
 ```python
 # Base configuration for all teams
-from pr_conflict_resolver.config import PresetConfig
+from review_bot_automator.config import PresetConfig
 
 base_config = PresetConfig.BALANCED
 

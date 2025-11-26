@@ -101,13 +101,13 @@ class TestBuildArtifacts:
         wheel_files = list(build_artifacts.glob("*.whl"))
         wheel_name = wheel_files[0].name
 
-        # Expected format: pr_conflict_resolver-<version>-py3-none-any.whl
+        # Expected format: review_bot_automator-<version>-py3-none-any.whl
         # Read version from pyproject.toml to avoid hard-coding
         with (build_artifacts.parent / "pyproject.toml").open("rb") as f:
             project_config = tomllib.load(f)
             version = project_config["project"]["version"]
 
-        assert "pr_conflict_resolver" in wheel_name
+        assert "review_bot_automator" in wheel_name
         assert version in wheel_name
         assert wheel_name.endswith("-py3-none-any.whl")
 
@@ -122,13 +122,13 @@ class TestBuildArtifacts:
         sdist_files = list(build_artifacts.glob("*.tar.gz"))
         sdist_name = sdist_files[0].name
 
-        # Expected format: pr_conflict_resolver-<version>.tar.gz
+        # Expected format: review_bot_automator-<version>.tar.gz
         # Read version from pyproject.toml to avoid hard-coding
         with (build_artifacts.parent / "pyproject.toml").open("rb") as f:
             project_config = tomllib.load(f)
             version = project_config["project"]["version"]
 
-        assert "pr_conflict_resolver" in sdist_name or "pr-conflict-resolver" in sdist_name
+        assert "review_bot_automator" in sdist_name or "review-bot-automator" in sdist_name
         assert version in sdist_name
         assert sdist_name.endswith(".tar.gz")
 
@@ -181,7 +181,7 @@ class TestMetadataContent:
             metadata = json.load(f)
 
         package = metadata["package"]
-        assert package["name"] == "pr-conflict-resolver"
+        assert package["name"] == "review-bot-automator"
 
         # Read expected version from pyproject.toml
         with (build_artifacts.parent / "pyproject.toml").open("rb") as f:
@@ -377,7 +377,7 @@ class TestBuildArtifactIntegrity:
             namelist = zf.namelist()
 
             # Should contain package files
-            assert any("pr_conflict_resolver" in name for name in namelist)
+            assert any("review_bot_automator" in name for name in namelist)
 
             # Should contain metadata
             assert any("METADATA" in name for name in namelist)
@@ -401,7 +401,7 @@ class TestBuildArtifactIntegrity:
             metadata_content = zf.read(metadata_files[0]).decode("utf-8")
 
             # Check for required metadata fields
-            assert "Name: pr-conflict-resolver" in metadata_content
+            assert "Name: review-bot-automator" in metadata_content
             assert f"Version: {version}" in metadata_content
             assert "VirtualAgentics" in metadata_content
 
@@ -415,4 +415,4 @@ class TestBuildArtifactIntegrity:
 
             # Should contain source files
             assert any("pyproject.toml" in name for name in namelist)
-            assert any("pr_conflict_resolver" in name for name in namelist)
+            assert any("review_bot_automator" in name for name in namelist)

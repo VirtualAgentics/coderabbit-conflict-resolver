@@ -515,7 +515,7 @@ Inference is very slow
 
    ```bash
    # Run GPU detection test
-   python -c "from pr_conflict_resolver.llm.providers.gpu_detector import GPUDetector; print(GPUDetector.detect_gpu('<http://localhost:11434'>))"
+   python -c "from review_bot_automator.llm.providers.gpu_detector import GPUDetector; print(GPUDetector.detect_gpu('<http://localhost:11434'>))"
 
    ```
 
@@ -994,7 +994,7 @@ ERROR: pip's dependency resolver does not currently take into account all the pa
    ```bash
    python -m venv .venv
    source .venv/bin/activate
-   pip install pr-conflict-resolver
+   pip install review-bot-automator
 
    ```
 

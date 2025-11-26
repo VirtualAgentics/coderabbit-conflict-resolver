@@ -22,13 +22,13 @@ from openai import (
     RateLimitError,
 )
 
-from pr_conflict_resolver.llm.exceptions import (
+from review_bot_automator.llm.exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
     LLMConfigurationError,
 )
-from pr_conflict_resolver.llm.providers.base import LLMProvider
-from pr_conflict_resolver.llm.providers.openai_api import OpenAIAPIProvider
+from review_bot_automator.llm.providers.base import LLMProvider
+from review_bot_automator.llm.providers.openai_api import OpenAIAPIProvider
 
 
 class TestOpenAIProviderProtocol:
@@ -181,7 +181,7 @@ class TestOpenAIProviderCostCalculation:
 class TestOpenAIProviderGenerate:
     """Test text generation with mocked API."""
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_success(self, mock_openai_class: Mock) -> None:
         """Test successful generation."""
         # Mock the OpenAI client
@@ -201,21 +201,21 @@ class TestOpenAIProviderGenerate:
         assert provider.total_input_tokens == 10
         assert provider.total_output_tokens == 5
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_empty_prompt_raises(self, mock_openai_class: Mock) -> None:
         """Test that empty prompt raises ValueError."""
         provider = OpenAIAPIProvider(api_key="sk-test", model="gpt-4")
         with pytest.raises(ValueError, match="Prompt cannot be empty"):
             provider.generate("", max_tokens=100)
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_invalid_max_tokens_raises(self, mock_openai_class: Mock) -> None:
         """Test that invalid max_tokens raises ValueError."""
         provider = OpenAIAPIProvider(api_key="sk-test", model="gpt-4")
         with pytest.raises(ValueError, match="max_tokens must be positive"):
             provider.generate("Test prompt", max_tokens=0)
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_uses_json_mode(self, mock_openai_class: Mock) -> None:
         """Test that generation uses JSON mode for structured output."""
         mock_client = MagicMock()
@@ -233,7 +233,7 @@ class TestOpenAIProviderGenerate:
         call_kwargs = mock_client.chat.completions.create.call_args[1]
         assert call_kwargs["response_format"] == {"type": "json_object"}
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_uses_zero_temperature(self, mock_openai_class: Mock) -> None:
         """Test that generation uses temperature=0 for determinism."""
         mock_client = MagicMock()
@@ -251,7 +251,7 @@ class TestOpenAIProviderGenerate:
         call_kwargs = mock_client.chat.completions.create.call_args[1]
         assert call_kwargs["temperature"] == 0.0
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_empty_response_raises(self, mock_openai_class: Mock) -> None:
         """Test that empty response from API raises error."""
         mock_client = MagicMock()
@@ -270,7 +270,7 @@ class TestOpenAIProviderGenerate:
 class TestOpenAIProviderRetryLogic:
     """Test retry logic for transient failures."""
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_retries_on_timeout(self, mock_openai_class: Mock) -> None:
         """Test that generation retries on API timeout."""
         mock_client = MagicMock()
@@ -295,7 +295,7 @@ class TestOpenAIProviderRetryLogic:
         assert result == '{"result": "success"}'
         assert mock_client.chat.completions.create.call_count == 2
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_retries_on_rate_limit(self, mock_openai_class: Mock) -> None:
         """Test that generation retries on rate limit error."""
         mock_client = MagicMock()
@@ -320,7 +320,7 @@ class TestOpenAIProviderRetryLogic:
         assert result == '{"result": "success"}'
         assert mock_client.chat.completions.create.call_count == 2
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_retries_on_connection_error(self, mock_openai_class: Mock) -> None:
         """Test that generation retries on connection error."""
         mock_client = MagicMock()
@@ -344,7 +344,7 @@ class TestOpenAIProviderRetryLogic:
         assert result == '{"result": "success"}'
         assert mock_client.chat.completions.create.call_count == 2
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_no_retry_on_auth_error(self, mock_openai_class: Mock) -> None:
         """Test that generation does NOT retry on authentication error."""
         mock_client = MagicMock()
@@ -379,7 +379,7 @@ class TestOpenAIProviderEffortParameter:
         provider = OpenAIAPIProvider(api_key="sk-test", model="o1", effort="high")
         assert provider.effort == "high"
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_without_effort_omits_reasoning_effort(self, mock_openai_class: Mock) -> None:
         """Test that reasoning_effort is NOT included when effort is None."""
         mock_client = MagicMock()
@@ -397,7 +397,7 @@ class TestOpenAIProviderEffortParameter:
         call_kwargs = mock_client.chat.completions.create.call_args[1]
         assert "reasoning_effort" not in call_kwargs
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_with_effort_includes_reasoning_effort(self, mock_openai_class: Mock) -> None:
         """Test that reasoning_effort IS included when effort is set."""
         mock_client = MagicMock()
@@ -415,7 +415,7 @@ class TestOpenAIProviderEffortParameter:
         call_kwargs = mock_client.chat.completions.create.call_args[1]
         assert call_kwargs["reasoning_effort"] == "high"
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_with_effort_low(self, mock_openai_class: Mock) -> None:
         """Test that reasoning_effort='low' is passed correctly."""
         mock_client = MagicMock()
@@ -432,7 +432,7 @@ class TestOpenAIProviderEffortParameter:
         call_kwargs = mock_client.chat.completions.create.call_args[1]
         assert call_kwargs["reasoning_effort"] == "low"
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_with_effort_medium(self, mock_openai_class: Mock) -> None:
         """Test that reasoning_effort='medium' is passed correctly."""
         mock_client = MagicMock()
@@ -449,7 +449,7 @@ class TestOpenAIProviderEffortParameter:
         call_kwargs = mock_client.chat.completions.create.call_args[1]
         assert call_kwargs["reasoning_effort"] == "medium"
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_generate_with_effort_none_disables_effort(self, mock_openai_class: Mock) -> None:
         """Test that effort='none' disables reasoning_effort (does not send to API)."""
         mock_client = MagicMock()
@@ -492,7 +492,7 @@ class TestOpenAIProviderLatencyTracking:
         provider = OpenAIAPIProvider(api_key="sk-test")
         assert provider.get_last_request_latency() is None
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_get_last_request_latency_after_request(self, mock_openai_class: Mock) -> None:
         """Returns latency value after a successful request."""
         mock_client = MagicMock()
@@ -515,7 +515,7 @@ class TestOpenAIProviderLatencyTracking:
         provider = OpenAIAPIProvider(api_key="sk-test")
         assert provider.get_all_latencies() == []
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_get_all_latencies_accumulates(self, mock_openai_class: Mock) -> None:
         """Returns list of all request latencies after multiple requests."""
         mock_client = MagicMock()
@@ -534,7 +534,7 @@ class TestOpenAIProviderLatencyTracking:
         assert len(latencies) == 2
         assert all(lat >= 0 for lat in latencies)
 
-    @patch("pr_conflict_resolver.llm.providers.openai_api.OpenAI")
+    @patch("review_bot_automator.llm.providers.openai_api.OpenAI")
     def test_reset_latency_tracking(self, mock_openai_class: Mock) -> None:
         """Clears latencies and resets last_request_latency to None."""
         mock_client = MagicMock()

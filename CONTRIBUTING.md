@@ -899,10 +899,10 @@ We welcome contributions in these areas:
 
 ### Core Components
 
-* **Conflict Detection**: `src/pr_conflict_resolver/analysis/`
-* **Resolution Strategies**: `src/pr_conflict_resolver/strategies/`
-* **File Handlers**: `src/pr_conflict_resolver/handlers/`
-* **GitHub Integration**: `src/pr_conflict_resolver/integrations/`
+* **Conflict Detection**: `src/review_bot_automator/analysis/`
+* **Resolution Strategies**: `src/review_bot_automator/strategies/`
+* **File Handlers**: `src/review_bot_automator/handlers/`
+* **GitHub Integration**: `src/review_bot_automator/integrations/`
 
 ### Testing (Development)
 

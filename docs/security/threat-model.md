@@ -808,7 +808,7 @@ if original_mode is not None:
 * **OWASP Threat Modeling**: <https://owasp.org/www-community/Threat_Modeling>
 * **CWE Top 25**: <https://cwe.mitre.org/top25/>
 * **Security Architecture**: [docs/security-architecture.md](../security-architecture.md)
-* **Implementation**: [src/pr_conflict_resolver/security/](../../src/pr_conflict_resolver/security/)
+* **Implementation**: [src/review_bot_automator/security/](../../src/review_bot_automator/security/)
 
 ---
 

@@ -11,7 +11,7 @@ alwaysApply: true
 The project follows a clear module structure:
 
 ```
-src/pr_conflict_resolver/
+src/review_bot_automator/
 ├── analysis/          # Conflict detection and analysis
 ├── handlers/         # File-type specific handlers
 ├── strategies/       # Conflict resolution strategies
@@ -159,7 +159,7 @@ Use preset configurations for different use cases:
 The project includes an LLM-powered parsing system (v2.0):
 
 ```
-src/pr_conflict_resolver/llm/
+src/review_bot_automator/llm/
 ├── base.py              # Base parser interface (LLMParser ABC)
 ├── parser.py            # Universal parser implementation
 ├── config.py            # LLM configuration (LLMConfig)
@@ -183,7 +183,7 @@ src/pr_conflict_resolver/llm/
 Use factory pattern for provider creation:
 
 ```python
-from pr_conflict_resolver.llm.providers.factory import create_provider
+from review_bot_automator.llm.providers.factory import create_provider
 
 provider = create_provider(
     provider_name="openai",
@@ -197,7 +197,7 @@ provider = create_provider(
 All LLM parsers must implement `LLMParser` ABC:
 
 ```python
-from pr_conflict_resolver.llm.base import LLMParser, ParsedChange
+from review_bot_automator.llm.base import LLMParser, ParsedChange
 
 class MyLLMParser(LLMParser):
     def parse_comment(

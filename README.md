@@ -68,7 +68,7 @@ When multiple PR review comments suggest overlapping changes to the same file, t
 ### Installation
 
 ```bash
-pip install pr-conflict-resolver
+pip install review-bot-automator
 ```
 
 ### Basic Usage
@@ -163,8 +163,8 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123
 ### Python API
 
 ```python
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.config import PresetConfig
+from review_bot_automator import ConflictResolver
+from review_bot_automator.config import PresetConfig
 
 resolver = ConflictResolver(config=PresetConfig.BALANCED)
 results = resolver.resolve_pr_conflicts(

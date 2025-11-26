@@ -1,4 +1,4 @@
-"""Unit tests for CLI commands in pr_conflict_resolver.cli.main."""
+"""Unit tests for CLI commands in review_bot_automator.cli.main."""
 
 from contextlib import nullcontext
 from unittest.mock import MagicMock, Mock, patch
@@ -7,8 +7,8 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from pr_conflict_resolver import Change, Conflict, FileType, Resolution, ResolutionResult
-from pr_conflict_resolver.cli.main import (
+from review_bot_automator import Change, Conflict, FileType, Resolution, ResolutionResult
+from review_bot_automator.cli.main import (
     _create_llm_parser,
     _display_cost_status,
     _display_llm_metrics,
@@ -21,12 +21,12 @@ from pr_conflict_resolver.cli.main import (
     validate_github_username,
     validate_pr_number,
 )
-from pr_conflict_resolver.config.exceptions import ConfigError
-from pr_conflict_resolver.config.runtime_config import RuntimeConfig
-from pr_conflict_resolver.llm.cost_tracker import CostTracker
-from pr_conflict_resolver.llm.metrics import LLMMetrics
-from pr_conflict_resolver.llm.metrics_aggregator import MetricsAggregator
-from pr_conflict_resolver.llm.providers.gpu_detector import GPUInfo
+from review_bot_automator.config.exceptions import ConfigError
+from review_bot_automator.config.runtime_config import RuntimeConfig
+from review_bot_automator.llm.cost_tracker import CostTracker
+from review_bot_automator.llm.metrics import LLMMetrics
+from review_bot_automator.llm.metrics_aggregator import MetricsAggregator
+from review_bot_automator.llm.providers.gpu_detector import GPUInfo
 
 
 def _sample_conflict(file_path: str = "test.json", severity: str = "low") -> Conflict:
@@ -89,7 +89,7 @@ def test_validate_github_repo_rules() -> None:
     assert validate_github_repo(ctx, param, "valid_repo") == "valid_repo"
 
 
-@patch("pr_conflict_resolver.cli.main.ConflictResolver")
+@patch("review_bot_automator.cli.main.ConflictResolver")
 def test_cli_analyze_no_conflicts(mock_resolver: Mock) -> None:
     """analyze prints 'No conflicts' when none are found."""
     mock_inst = mock_resolver.return_value
@@ -102,7 +102,7 @@ def test_cli_analyze_no_conflicts(mock_resolver: Mock) -> None:
     assert "No conflicts detected" in result.output
 
 
-@patch("pr_conflict_resolver.cli.main.ConflictResolver")
+@patch("review_bot_automator.cli.main.ConflictResolver")
 def test_cli_analyze_with_conflicts(mock_resolver: Mock) -> None:
     """analyze prints a table and summary when conflicts exist."""
     mock_inst = mock_resolver.return_value
@@ -127,7 +127,7 @@ def test_cli_apply_dry_run() -> None:
     assert "Analyzing conflicts without applying changes" in result.output
 
 
-@patch("pr_conflict_resolver.cli.main.ConflictResolver")
+@patch("review_bot_automator.cli.main.ConflictResolver")
 def test_cli_apply_success(mock_resolver: Mock) -> None:
     """apply prints resolution summary when successful."""
     mock_inst = mock_resolver.return_value
@@ -148,7 +148,7 @@ def test_cli_apply_success(mock_resolver: Mock) -> None:
     assert "Success rate: 60.0%" in result.output
 
 
-@patch("pr_conflict_resolver.cli.main.ConflictResolver")
+@patch("review_bot_automator.cli.main.ConflictResolver")
 def test_cli_simulate_mixed_conflicts(mock_resolver: Mock) -> None:
     """simulate reports how many would be applied vs skipped."""
     mock_inst = mock_resolver.return_value
@@ -203,7 +203,7 @@ def test_cli_simulate_mixed_conflicts(mock_resolver: Mock) -> None:
     assert "Would skip: 1" in result.output
 
 
-@patch("pr_conflict_resolver.cli.main.ConflictResolver")
+@patch("review_bot_automator.cli.main.ConflictResolver")
 def test_cli_analyze_handles_error(mock_resolver: Mock) -> None:
     """analyze gracefully handles exceptions and aborts."""
     mock_inst = mock_resolver.return_value
@@ -216,7 +216,7 @@ def test_cli_analyze_handles_error(mock_resolver: Mock) -> None:
     assert "Error analyzing conflicts" in result.output
 
 
-@patch("pr_conflict_resolver.cli.main.ConflictResolver")
+@patch("review_bot_automator.cli.main.ConflictResolver")
 def test_cli_apply_handles_error(mock_resolver: Mock) -> None:
     """apply gracefully handles exceptions and aborts."""
     mock_inst = mock_resolver.return_value
@@ -229,8 +229,8 @@ def test_cli_apply_handles_error(mock_resolver: Mock) -> None:
     assert "Error applying suggestions" in result.output
 
 
-@patch("pr_conflict_resolver.cli.main.load_runtime_config")
-@patch("pr_conflict_resolver.cli.main.ConflictResolver")
+@patch("review_bot_automator.cli.main.load_runtime_config")
+@patch("review_bot_automator.cli.main.ConflictResolver")
 def test_cli_analyze_confidence_threshold_override(
     mock_resolver: Mock, mock_load_config: Mock
 ) -> None:
@@ -260,11 +260,11 @@ def test_cli_analyze_confidence_threshold_override(
     assert overrides["llm_confidence_threshold"] == 0.7
 
 
-@patch("pr_conflict_resolver.cli.main._display_llm_metrics")
-@patch("pr_conflict_resolver.cli.main.handle_llm_errors")
-@patch("pr_conflict_resolver.cli.main._create_llm_parser")
-@patch("pr_conflict_resolver.cli.main.load_runtime_config")
-@patch("pr_conflict_resolver.cli.main.ConflictResolver")
+@patch("review_bot_automator.cli.main._display_llm_metrics")
+@patch("review_bot_automator.cli.main.handle_llm_errors")
+@patch("review_bot_automator.cli.main._create_llm_parser")
+@patch("review_bot_automator.cli.main.load_runtime_config")
+@patch("review_bot_automator.cli.main.ConflictResolver")
 def test_cli_analyze_shows_llm_metrics(
     mock_resolver: Mock,
     mock_load_config: Mock,
@@ -319,8 +319,8 @@ def test_cli_analyze_shows_llm_metrics(
     mock_display_metrics.assert_called_once()
 
 
-@patch("pr_conflict_resolver.cli.main.load_runtime_config")
-@patch("pr_conflict_resolver.cli.main.ConflictResolver")
+@patch("review_bot_automator.cli.main.load_runtime_config")
+@patch("review_bot_automator.cli.main.ConflictResolver")
 def test_cli_apply_confidence_threshold_override(
     mock_resolver: Mock, mock_load_config: Mock
 ) -> None:
@@ -358,7 +358,7 @@ def test_cli_apply_confidence_threshold_override(
     assert overrides["llm_confidence_threshold"] == 0.6
 
 
-@patch("pr_conflict_resolver.cli.main.load_runtime_config")
+@patch("review_bot_automator.cli.main.load_runtime_config")
 def test_cli_apply_invalid_confidence_threshold(mock_load_config: Mock) -> None:
     """apply surfaces configuration errors for invalid confidence thresholds."""
     mock_load_config.side_effect = ConfigError("llm_confidence_threshold must be between 0 and 1")
@@ -394,7 +394,7 @@ def test_create_llm_parser_disabled() -> None:
     assert tracker is None
 
 
-@patch("pr_conflict_resolver.cli.main.console")
+@patch("review_bot_automator.cli.main.console")
 def test_display_llm_metrics_gpu_branch(mock_console: Mock) -> None:
     """_display_llm_metrics renders GPU details when available."""
     metrics = LLMMetrics(
@@ -422,7 +422,7 @@ def test_display_llm_metrics_gpu_branch(mock_console: Mock) -> None:
     assert mock_console.print.call_count == 2
 
 
-@patch("pr_conflict_resolver.cli.main.console")
+@patch("review_bot_automator.cli.main.console")
 def test_display_llm_metrics_cpu_branch(mock_console: Mock) -> None:
     """_display_llm_metrics prints CPU info when GPU unavailable."""
     metrics = LLMMetrics(
@@ -449,8 +449,8 @@ def test_display_llm_metrics_cpu_branch(mock_console: Mock) -> None:
     assert mock_console.print.call_count == 2
 
 
-@patch("pr_conflict_resolver.llm.factory.create_provider")
-@patch("pr_conflict_resolver.cli.main.ParallelLLMParser")
+@patch("review_bot_automator.llm.factory.create_provider")
+@patch("review_bot_automator.cli.main.ParallelLLMParser")
 def test_create_llm_parser_parallel_enabled(
     mock_parallel_parser: Mock, mock_create_provider: Mock
 ) -> None:
@@ -479,8 +479,8 @@ def test_create_llm_parser_parallel_enabled(
     assert call_kwargs["rate_limit"] == 20.0
 
 
-@patch("pr_conflict_resolver.llm.factory.create_provider")
-@patch("pr_conflict_resolver.cli.main.UniversalLLMParser")
+@patch("review_bot_automator.llm.factory.create_provider")
+@patch("review_bot_automator.cli.main.UniversalLLMParser")
 def test_create_llm_parser_parallel_disabled(
     mock_universal_parser: Mock, mock_create_provider: Mock
 ) -> None:
@@ -504,7 +504,7 @@ def test_create_llm_parser_parallel_disabled(
     mock_universal_parser.assert_called_once()
 
 
-@patch("pr_conflict_resolver.llm.factory.create_provider")
+@patch("review_bot_automator.llm.factory.create_provider")
 def test_create_llm_parser_provider_error(mock_create_provider: Mock) -> None:
     """Test _create_llm_parser returns (None, None) when provider creation fails."""
     mock_create_provider.side_effect = RuntimeError("Provider initialization failed")
@@ -521,8 +521,8 @@ def test_create_llm_parser_provider_error(mock_create_provider: Mock) -> None:
     assert tracker is None
 
 
-@patch("pr_conflict_resolver.llm.factory.create_provider")
-@patch("pr_conflict_resolver.cli.main.ParallelLLMParser")
+@patch("review_bot_automator.llm.factory.create_provider")
+@patch("review_bot_automator.cli.main.ParallelLLMParser")
 def test_create_llm_parser_parser_error(
     mock_parallel_parser: Mock, mock_create_provider: Mock
 ) -> None:
@@ -566,20 +566,20 @@ class TestValidateCostBudget:
 class TestDisplayCostStatus:
     """Tests for _display_cost_status function."""
 
-    @patch("pr_conflict_resolver.cli.main.console")
+    @patch("review_bot_automator.cli.main.console")
     def test_display_cost_status_no_tracker(self, mock_console: Mock) -> None:
         """_display_cost_status returns early when tracker is None."""
         _display_cost_status(None)
         mock_console.print.assert_not_called()
 
-    @patch("pr_conflict_resolver.cli.main.console")
+    @patch("review_bot_automator.cli.main.console")
     def test_display_cost_status_no_budget_set(self, mock_console: Mock) -> None:
         """_display_cost_status returns early when budget is None."""
         tracker = CostTracker(budget=None)
         _display_cost_status(tracker)
         mock_console.print.assert_not_called()
 
-    @patch("pr_conflict_resolver.cli.main.console")
+    @patch("review_bot_automator.cli.main.console")
     def test_display_cost_status_ok(self, mock_console: Mock) -> None:
         """_display_cost_status shows OK status when under warning threshold."""
         tracker = CostTracker(budget=1.0, warning_threshold=0.8)
@@ -588,7 +588,7 @@ class TestDisplayCostStatus:
         call_text = mock_console.print.call_args[0][0]
         assert "green" in call_text and "OK" in call_text
 
-    @patch("pr_conflict_resolver.cli.main.console")
+    @patch("review_bot_automator.cli.main.console")
     def test_display_cost_status_warning(self, mock_console: Mock) -> None:
         """_display_cost_status shows WARNING status above threshold."""
         tracker = CostTracker(budget=1.0, warning_threshold=0.8)
@@ -597,7 +597,7 @@ class TestDisplayCostStatus:
         call_text = mock_console.print.call_args[0][0]
         assert "yellow" in call_text and "WARNING" in call_text
 
-    @patch("pr_conflict_resolver.cli.main.console")
+    @patch("review_bot_automator.cli.main.console")
     def test_display_cost_status_exceeded(self, mock_console: Mock) -> None:
         """_display_cost_status shows EXCEEDED status over 100%."""
         tracker = CostTracker(budget=1.0, warning_threshold=0.8)
@@ -610,8 +610,8 @@ class TestDisplayCostStatus:
 class TestRecordAndDisplayMetrics:
     """Tests for _record_and_display_metrics function."""
 
-    @patch("pr_conflict_resolver.cli.main._display_aggregated_metrics")
-    @patch("pr_conflict_resolver.cli.main._export_metrics")
+    @patch("review_bot_automator.cli.main._display_aggregated_metrics")
+    @patch("review_bot_automator.cli.main._export_metrics")
     def test_record_and_display_metrics_no_export(
         self, mock_export: Mock, mock_display: Mock
     ) -> None:
@@ -630,8 +630,8 @@ class TestRecordAndDisplayMetrics:
         mock_display.assert_called_once()
         mock_export.assert_not_called()
 
-    @patch("pr_conflict_resolver.cli.main._display_aggregated_metrics")
-    @patch("pr_conflict_resolver.cli.main._export_metrics")
+    @patch("review_bot_automator.cli.main._display_aggregated_metrics")
+    @patch("review_bot_automator.cli.main._export_metrics")
     def test_record_and_display_metrics_with_export(
         self, mock_export: Mock, mock_display: Mock
     ) -> None:
@@ -654,7 +654,7 @@ class TestRecordAndDisplayMetrics:
 class TestExportMetrics:
     """Tests for _export_metrics function."""
 
-    @patch("pr_conflict_resolver.cli.main.console")
+    @patch("review_bot_automator.cli.main.console")
     @patch.object(MetricsAggregator, "export_json")
     def test_export_metrics_oserror(self, mock_export_json: Mock, mock_console: Mock) -> None:
         """_export_metrics handles OSError gracefully."""
@@ -669,8 +669,8 @@ class TestExportMetrics:
 class TestCostBudgetCLI:
     """Tests for --cost-budget CLI integration."""
 
-    @patch("pr_conflict_resolver.cli.main.load_runtime_config")
-    @patch("pr_conflict_resolver.cli.main.ConflictResolver")
+    @patch("review_bot_automator.cli.main.load_runtime_config")
+    @patch("review_bot_automator.cli.main.ConflictResolver")
     def test_cli_analyze_with_cost_budget(
         self, mock_resolver: Mock, mock_load_config: Mock
     ) -> None:
@@ -699,8 +699,8 @@ class TestCostBudgetCLI:
         overrides = mock_load_config.call_args.kwargs["cli_overrides"]
         assert overrides["llm_cost_budget"] == 2.50
 
-    @patch("pr_conflict_resolver.llm.factory.create_provider")
-    @patch("pr_conflict_resolver.cli.main.UniversalLLMParser")
+    @patch("review_bot_automator.llm.factory.create_provider")
+    @patch("review_bot_automator.cli.main.UniversalLLMParser")
     def test_create_llm_parser_with_cost_budget(
         self, mock_parser: Mock, mock_provider: Mock
     ) -> None:
@@ -720,8 +720,8 @@ class TestCostBudgetCLI:
         assert tracker is not None
         assert tracker.budget == 2.50
 
-    @patch("pr_conflict_resolver.llm.factory.create_provider")
-    @patch("pr_conflict_resolver.cli.main.UniversalLLMParser")
+    @patch("review_bot_automator.llm.factory.create_provider")
+    @patch("review_bot_automator.cli.main.UniversalLLMParser")
     def test_create_llm_parser_without_cost_budget(
         self, mock_parser: Mock, mock_provider: Mock
     ) -> None:

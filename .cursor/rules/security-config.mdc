@@ -277,7 +277,7 @@ class LLMProvider:
 Scan prompts for secrets before sending to LLM:
 
 ```python
-from pr_conflict_resolver.security.secret_scanner import SecretScanner
+from review_bot_automator.security.secret_scanner import SecretScanner
 
 def generate_with_secret_check(self, prompt: str) -> str:
     """Generate with secret detection."""
@@ -340,14 +340,14 @@ def load_api_key(provider: str) -> str:
     # Try keyring
     try:
         import keyring
-        api_key = keyring.get_password("pr-conflict-resolver", provider)
+        api_key = keyring.get_password("review-bot-automator", provider)
         if api_key:
             return api_key
     except ImportError:
         pass
 
     # Fallback to config file (with permission check)
-    config_path = Path.home() / ".config" / "pr-conflict-resolver" / "api_keys.json"
+    config_path = Path.home() / ".config" / "review-bot-automator" / "api_keys.json"
     if config_path.exists():
         # Check permissions (should be 600)
         if config_path.stat().st_mode & 0o077 != 0:

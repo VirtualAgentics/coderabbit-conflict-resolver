@@ -56,7 +56,7 @@ The code supports both usage patterns:
 1. **Typed (recommended):**
 
 ```python
-from pr_conflict_resolver.core.models import ChangeMetadata
+from review_bot_automator.core.models import ChangeMetadata
 
 metadata: ChangeMetadata = {"url": "...", "author": "..."}
 

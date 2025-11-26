@@ -119,8 +119,8 @@ import sys
 sys.path.insert(0, {str(install_dir)!r})
 
 try:
-    import pr_conflict_resolver
-    print(f"VERSION:{{pr_conflict_resolver.__version__}}")
+    import review_bot_automator
+    print(f"VERSION:{{review_bot_automator.__version__}}")
     print("IMPORT:SUCCESS")
 except Exception as e:
     print(f"ERROR:{{e}}")
@@ -176,7 +176,7 @@ import sys
 sys.path.insert(0, {str(install_dir)!r})
 
 try:
-    from pr_conflict_resolver.cli.main import cli
+    from review_bot_automator.cli.main import cli
     print("ENTRY_POINT:EXISTS")
 
     # Check if it's callable

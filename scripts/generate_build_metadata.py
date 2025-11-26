@@ -54,7 +54,7 @@ def extract_version_from_init() -> str:
     Raises:
         ValueError: If version not found in __init__.py.
     """
-    init_path = get_project_root() / "src" / "pr_conflict_resolver" / "__init__.py"
+    init_path = get_project_root() / "src" / "review_bot_automator" / "__init__.py"
     if not init_path.exists():
         raise FileNotFoundError(f"__init__.py not found at {init_path}")
 
@@ -200,7 +200,7 @@ def generate_metadata() -> dict[str, Any]:
 
     metadata = {
         "package": {
-            "name": "pr-conflict-resolver",
+            "name": "review-bot-automator",
             "version": version,
         },
         "git": git_metadata,

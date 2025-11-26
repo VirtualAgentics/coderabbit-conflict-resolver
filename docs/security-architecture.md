@@ -478,7 +478,7 @@ graph TB
 
 ### Entry Points
 
-1. **GitHub API Integration** (`src/pr_conflict_resolver/integrations/github.py`)
+1. **GitHub API Integration** (`src/review_bot_automator/integrations/github.py`)
    * Receives code suggestions from GitHub
    * Parses comment bodies
    * Extracts file paths and line ranges
@@ -648,7 +648,7 @@ See `SECURITY.md` for detailed process:
 
 * **Status**: ✅ COMPLETE
 * **Deliverables**: `InputValidator` class, path validation, content sanitization
-* **Implementation**: `src/pr_conflict_resolver/security/input_validator.py`
+* **Implementation**: `src/review_bot_automator/security/input_validator.py`
 * **Tests**: `tests/security/test_input_validator_security.py`
 * **Dependencies**: Phase 0.1
 * **Completion Date**: 2025-10-30
@@ -657,7 +657,7 @@ See `SECURITY.md` for detailed process:
 
 * **Status**: ✅ COMPLETE
 * **Deliverables**: `SecureFileHandler` class, atomic operations, rollback
-* **Implementation**: `src/pr_conflict_resolver/security/secure_file_handler.py`
+* **Implementation**: `src/review_bot_automator/security/secure_file_handler.py`
 * **Tests**: `tests/security/test_secure_file_handler.py`
 * **Dependencies**: Phase 0.1
 * **Completion Date**: 2025-10-30
@@ -666,7 +666,7 @@ See `SECURITY.md` for detailed process:
 
 * **Status**: ✅ COMPLETE
 * **Deliverables**: `SecretScanner` class, pattern matching, warnings
-* **Implementation**: `src/pr_conflict_resolver/security/secret_scanner.py`
+* **Implementation**: `src/review_bot_automator/security/secret_scanner.py`
 * **Tests**: `tests/security/test_secret_scanner.py`
 * **Patterns**: 14+ secret types detected
 * **Dependencies**: Phase 0.1
@@ -688,7 +688,7 @@ See `SECURITY.md` for detailed process:
 
 * **Status**: ✅ COMPLETE
 * **Deliverables**: Security settings, secure defaults, config validation
-* **Implementation**: `src/pr_conflict_resolver/security/config.py`
+* **Implementation**: `src/review_bot_automator/security/config.py`
 * **Features**: SecurityConfig with feature toggles
 * **Dependencies**: Phase 0.1
 * **Completion Date**: 2025-10-31

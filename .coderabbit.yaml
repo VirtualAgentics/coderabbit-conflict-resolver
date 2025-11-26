@@ -67,7 +67,7 @@ reviews:
 
   # Repo-aware instructions
   path_instructions:
-    - path: "src/pr_conflict_resolver/**/*.py"
+    - path: "src/review_bot_automator/**/*.py"
       instructions: |
         Enforce Python 3.12+ best practices, strict type hints, and Google-style docstrings.
         Verify handler pattern implementation (BaseHandler inheritance) for file type handlers.
@@ -79,7 +79,7 @@ reviews:
         Ensure priority-based resolution logic is deterministic and well-tested.
         Prefer Ruff rules; flag performance pitfalls in conflict analysis loops.
 
-    - path: "src/pr_conflict_resolver/handlers/**/*.py"
+    - path: "src/review_bot_automator/handlers/**/*.py"
       instructions: |
         Verify handler correctly implements BaseHandler interface (can_handle, apply_change, validate_change, detect_conflicts).
         Check file-type specific logic (JSON key merging, YAML comment preservation, TOML section handling).
@@ -87,7 +87,7 @@ reviews:
         Validate change application is atomic and safe (no partial writes).
         Flag missing validation or error handling for malformed files.
 
-    - path: "src/pr_conflict_resolver/strategies/**/*.py"
+    - path: "src/review_bot_automator/strategies/**/*.py"
       instructions: |
         Verify strategy implements ResolutionStrategy interface correctly.
         Check priority calculation logic is deterministic and documented.
@@ -95,7 +95,7 @@ reviews:
         Validate conflict resolution decisions are well-reasoned and traceable.
         Flag potential infinite loops or performance issues in resolution algorithms.
 
-    - path: "src/pr_conflict_resolver/integrations/**/*.py"
+    - path: "src/review_bot_automator/integrations/**/*.py"
       instructions: |
         Verify GitHub API usage follows best practices (authentication, rate limiting, pagination).
         Check proper timeout and retry configuration for API calls.

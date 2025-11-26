@@ -6,8 +6,8 @@ all presets are correctly configured and can be loaded without errors.
 
 import pytest
 
-from pr_conflict_resolver.llm.config import LLMConfig
-from pr_conflict_resolver.llm.presets import LLMPreset, LLMPresetConfig
+from review_bot_automator.llm.config import LLMConfig
+from review_bot_automator.llm.presets import LLMPreset, LLMPresetConfig
 
 
 class TestLLMPreset:

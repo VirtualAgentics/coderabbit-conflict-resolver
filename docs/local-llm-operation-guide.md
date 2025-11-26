@@ -124,7 +124,7 @@ source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate    # Windows
 
 # Install pr-resolve
-pip install pr-conflict-resolver
+pip install review-bot-automator
 
 # Verify installation
 pr-resolve --version
@@ -403,7 +403,7 @@ du -sh ~/.ollama/models/
 
 ```bash
 # Update to latest version
-pip install --upgrade pr-conflict-resolver
+pip install --upgrade review-bot-automator
 
 # Verify new version
 pr-resolve --version

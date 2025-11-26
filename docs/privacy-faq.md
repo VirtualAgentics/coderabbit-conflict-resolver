@@ -169,7 +169,7 @@ lsof -i -n -P | grep python
 **3. Code Inspection**:
 
 * pr-resolve is **open source** - review the code on GitHub
-* LLM provider integrations: `src/pr_conflict_resolver/llm/providers/`
+* LLM provider integrations: `src/review_bot_automator/llm/providers/`
 
 **4. Debug Logging**:
 
@@ -639,4 +639,4 @@ pr-resolve apply 456 --llm-preset fast-api
 
 ---
 
-**Have more questions?** Open an issue on [GitHub](https://github.com/your-repo/pr-conflict-resolver/issues) or check the [Privacy Architecture](privacy-architecture.md) for detailed analysis.
+**Have more questions?** Open an issue on [GitHub](https://github.com/your-repo/review-bot-automator/issues) or check the [Privacy Architecture](privacy-architecture.md) for detailed analysis.

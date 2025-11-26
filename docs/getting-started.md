@@ -7,7 +7,7 @@ This guide will help you get started with the Review Bot Automator, from install
 ### From PyPI (Recommended)
 
 ```bash
-pip install pr-conflict-resolver
+pip install review-bot-automator
 
 ```
 
@@ -425,8 +425,8 @@ pr-resolve simulate \
 You can also use the resolver programmatically:
 
 ```python
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.config import PresetConfig
+from review_bot_automator import ConflictResolver
+from review_bot_automator.config import PresetConfig
 
 # Initialize resolver with configuration
 resolver = ConflictResolver(config=PresetConfig.BALANCED)

@@ -3,7 +3,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from pr_conflict_resolver import Change, ConflictResolver, FileType
+from review_bot_automator import Change, ConflictResolver, FileType
 
 
 class TestParallelProcessing:

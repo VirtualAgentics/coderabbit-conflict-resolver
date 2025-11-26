@@ -1,4 +1,4 @@
-from pr_conflict_resolver.utils.version_utils import validate_version_constraint
+from review_bot_automator.utils.version_utils import validate_version_constraint
 
 
 def test_requirements_line_with_exact_pin_is_valid() -> None:

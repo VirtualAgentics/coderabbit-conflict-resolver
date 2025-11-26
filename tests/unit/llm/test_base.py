@@ -5,7 +5,7 @@ Tests the ParsedChange dataclass for Phase 0 (Foundation).
 
 import pytest
 
-from pr_conflict_resolver.llm.base import ParsedChange
+from review_bot_automator.llm.base import ParsedChange
 
 
 class TestParsedChangeValid:

@@ -8,9 +8,9 @@ from unittest.mock import patch
 
 import pytest
 
-from pr_conflict_resolver import FileType, JsonHandler, TomlHandler, YamlHandler
-from pr_conflict_resolver.core.models import Change, Conflict
-from pr_conflict_resolver.handlers.base import BaseHandler
+from review_bot_automator import FileType, JsonHandler, TomlHandler, YamlHandler
+from review_bot_automator.core.models import Change, Conflict
+from review_bot_automator.handlers.base import BaseHandler
 
 
 class MockTaggedObject:
@@ -148,7 +148,7 @@ class TestYamlHandler:
         assert handler.can_handle("test.json") is False
         assert handler.can_handle("test.txt") is False
 
-    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", False)
+    @patch("review_bot_automator.handlers.yaml_handler.YAML_AVAILABLE", False)
     def test_yaml_not_available(self) -> None:
         """Test behavior when ruamel.yaml is not available."""
         handler = YamlHandler()
@@ -157,7 +157,7 @@ class TestYamlHandler:
         assert valid is False
         assert "not available" in msg
 
-    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
+    @patch("review_bot_automator.handlers.yaml_handler.YAML_AVAILABLE", True)
     def test_validate_change(self) -> None:
         """Test change validation."""
         handler = YamlHandler()
@@ -228,7 +228,7 @@ class TestYamlHandler:
             "key: !!python/name:os.system",
         ],
     )
-    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
+    @patch("review_bot_automator.handlers.yaml_handler.YAML_AVAILABLE", True)
     def test_validate_change_dangerous_tags(self, dangerous_yaml: str) -> None:
         """Test validation rejects dangerous YAML tags."""
         handler = YamlHandler()
@@ -237,7 +237,7 @@ class TestYamlHandler:
         assert valid is False
         assert "dangerous Python object tags" in msg
 
-    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
+    @patch("review_bot_automator.handlers.yaml_handler.YAML_AVAILABLE", True)
     @pytest.mark.parametrize("control_char", ["\x00", "\x01", "\x1f"])
     def test_validate_change_dangerous_characters(self, control_char: str) -> None:
         """Test validation rejects dangerous control characters."""
@@ -310,7 +310,7 @@ class TestYamlHandler:
         # The unparseable change is skipped, leaving only one valid change
         assert conflicts == [], "No conflicts expected for single parseable change"
 
-    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
+    @patch("review_bot_automator.handlers.yaml_handler.YAML_AVAILABLE", True)
     def test_apply_change_invalid_path(self) -> None:
         """Test apply_change with invalid file path (security rejection)."""
         handler = YamlHandler()
@@ -340,7 +340,7 @@ class TestYamlHandler:
         expected_keys = ["empty_dict", "empty_list", "normal_key"]
         assert set(expected_keys) <= set(keys)
 
-    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
+    @patch("review_bot_automator.handlers.yaml_handler.YAML_AVAILABLE", True)
     def test_yaml_anchors_and_aliases(self) -> None:
         """Test YAML with anchors/aliases."""
         handler = YamlHandler()
@@ -377,7 +377,7 @@ class TestTomlHandler:
         assert handler.can_handle("test.json") is False
         assert handler.can_handle("test.txt") is False
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", False)
+    @patch("review_bot_automator.handlers.toml_handler.TOML_READ_AVAILABLE", False)
     def test_toml_not_available(self) -> None:
         """Test behavior when TOML_READ_AVAILABLE is False."""
         handler = TomlHandler()
@@ -551,7 +551,7 @@ class TestTomlHandler:
         # Path validation is performed in apply_change
         assert valid is True  # TOML content is valid
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", False)
+    @patch("review_bot_automator.handlers.toml_handler.TOML_READ_AVAILABLE", False)
     def test_validate_change_toml_not_available(self) -> None:
         """Test validate_change when TOML is not available."""
         handler = TomlHandler()

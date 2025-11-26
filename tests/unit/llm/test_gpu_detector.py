@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from pr_conflict_resolver.llm.providers.gpu_detector import GPUDetector, GPUInfo
+from review_bot_automator.llm.providers.gpu_detector import GPUDetector, GPUInfo
 
 
 class TestGPUInfo:
@@ -144,7 +144,7 @@ class TestGPUInfo:
 class TestGPUDetectorOllamaAPI:
     """Tests for GPU detection via Ollama /api/ps endpoint."""
 
-    @patch("pr_conflict_resolver.llm.providers.gpu_detector.requests.get")
+    @patch("review_bot_automator.llm.providers.gpu_detector.requests.get")
     def test_detect_from_ollama_ps_nvidia(self, mock_get: Mock) -> None:
         """Test NVIDIA GPU detection from Ollama /api/ps endpoint."""
         mock_response = Mock()
@@ -170,7 +170,7 @@ class TestGPUDetectorOllamaAPI:
         assert gpu.vram_available_mb == 20480
         mock_get.assert_called_once_with("http://localhost:11434/api/ps", timeout=5)
 
-    @patch("pr_conflict_resolver.llm.providers.gpu_detector.requests.get")
+    @patch("review_bot_automator.llm.providers.gpu_detector.requests.get")
     def test_detect_from_ollama_ps_amd(self, mock_get: Mock) -> None:
         """Test AMD GPU detection from Ollama /api/ps endpoint."""
         mock_response = Mock()
@@ -193,7 +193,7 @@ class TestGPUDetectorOllamaAPI:
         assert gpu.model_name is not None
         assert "AMD ROCm" in gpu.model_name
 
-    @patch("pr_conflict_resolver.llm.providers.gpu_detector.requests.get")
+    @patch("review_bot_automator.llm.providers.gpu_detector.requests.get")
     def test_detect_from_ollama_ps_apple(self, mock_get: Mock) -> None:
         """Test Apple Metal detection from Ollama /api/ps endpoint."""
         mock_response = Mock()
@@ -216,7 +216,7 @@ class TestGPUDetectorOllamaAPI:
         assert gpu.model_name is not None
         assert "Metal" in gpu.model_name
 
-    @patch("pr_conflict_resolver.llm.providers.gpu_detector.requests.get")
+    @patch("review_bot_automator.llm.providers.gpu_detector.requests.get")
     def test_detect_from_ollama_ps_no_models(self, mock_get: Mock) -> None:
         """Test detection failure when no models running."""
         mock_response = Mock()
@@ -227,7 +227,7 @@ class TestGPUDetectorOllamaAPI:
         with pytest.raises(ValueError, match="No running models"):
             GPUDetector._detect_from_ollama_ps("http://localhost:11434", timeout=5)
 
-    @patch("pr_conflict_resolver.llm.providers.gpu_detector.requests.get")
+    @patch("review_bot_automator.llm.providers.gpu_detector.requests.get")
     def test_detect_from_ollama_ps_unknown_processor(self, mock_get: Mock) -> None:
         """Test detection failure with unknown processor type."""
         mock_response = Mock()
@@ -238,7 +238,7 @@ class TestGPUDetectorOllamaAPI:
         with pytest.raises(ValueError, match="Unknown processor type"):
             GPUDetector._detect_from_ollama_ps("http://localhost:11434", timeout=5)
 
-    @patch("pr_conflict_resolver.llm.providers.gpu_detector.requests.get")
+    @patch("review_bot_automator.llm.providers.gpu_detector.requests.get")
     def test_detect_from_ollama_ps_http_error(self, mock_get: Mock) -> None:
         """Test detection failure when API returns HTTP error."""
         mock_get.side_effect = requests.HTTPError("404 Not Found")
@@ -246,7 +246,7 @@ class TestGPUDetectorOllamaAPI:
         with pytest.raises(requests.HTTPError):
             GPUDetector._detect_from_ollama_ps("http://localhost:11434", timeout=5)
 
-    @patch("pr_conflict_resolver.llm.providers.gpu_detector.requests.get")
+    @patch("review_bot_automator.llm.providers.gpu_detector.requests.get")
     def test_detect_from_ollama_ps_timeout(self, mock_get: Mock) -> None:
         """Test detection failure when API request times out."""
         mock_get.side_effect = requests.Timeout("Request timed out")
@@ -352,7 +352,7 @@ class TestGPUDetectorSystemLevel:
 class TestGPUDetectorIntegration:
     """Tests for complete GPU detection flow with fallback strategy."""
 
-    @patch("pr_conflict_resolver.llm.providers.gpu_detector.requests.get")
+    @patch("review_bot_automator.llm.providers.gpu_detector.requests.get")
     def test_detect_gpu_ollama_api_success(self, mock_get: Mock) -> None:
         """Test successful GPU detection via Ollama API (Strategy 1)."""
         mock_response = Mock()
@@ -374,7 +374,7 @@ class TestGPUDetectorIntegration:
         assert gpu.gpu_type == "NVIDIA"
 
     @patch("subprocess.run")
-    @patch("pr_conflict_resolver.llm.providers.gpu_detector.requests.get")
+    @patch("review_bot_automator.llm.providers.gpu_detector.requests.get")
     def test_detect_gpu_fallback_to_system(self, mock_get: Mock, mock_run: Mock) -> None:
         """Test fallback to system detection when Ollama API fails (Strategy 2)."""
         # Ollama API fails
@@ -394,7 +394,7 @@ class TestGPUDetectorIntegration:
         assert "RTX 3090" in gpu.model_name
 
     @patch("subprocess.run")
-    @patch("pr_conflict_resolver.llm.providers.gpu_detector.requests.get")
+    @patch("review_bot_automator.llm.providers.gpu_detector.requests.get")
     def test_detect_gpu_fallback_to_cpu(self, mock_get: Mock, mock_run: Mock) -> None:
         """Test fallback to CPU when all detection methods fail (Strategy 3)."""
         # Ollama API fails
@@ -411,7 +411,7 @@ class TestGPUDetectorIntegration:
         assert gpu.vram_total_mb is None
 
     @patch("subprocess.run")
-    @patch("pr_conflict_resolver.llm.providers.gpu_detector.requests.get")
+    @patch("review_bot_automator.llm.providers.gpu_detector.requests.get")
     def test_detect_gpu_timeout_parameter(self, mock_get: Mock, mock_run: Mock) -> None:
         """Test that timeout parameter is passed to API request."""
         mock_response = Mock()
@@ -429,7 +429,7 @@ class TestGPUDetectorIntegration:
         assert gpu.gpu_type == "CPU"  # Fallback due to no models
 
     @patch("subprocess.run")
-    @patch("pr_conflict_resolver.llm.providers.gpu_detector.requests.get")
+    @patch("review_bot_automator.llm.providers.gpu_detector.requests.get")
     def test_detect_gpu_never_raises(self, mock_get: Mock, mock_run: Mock) -> None:
         """Test that detect_gpu never raises exceptions (always returns GPUInfo)."""
         # Simulate all detection methods throwing exceptions
@@ -446,7 +446,7 @@ class TestGPUDetectorIntegration:
 class TestGPUDetectorEdgeCases:
     """Tests for edge cases and boundary conditions in GPU detection."""
 
-    @patch("pr_conflict_resolver.llm.providers.gpu_detector.requests.get")
+    @patch("review_bot_automator.llm.providers.gpu_detector.requests.get")
     def test_detect_gpu_empty_vram_fields(self, mock_get: Mock) -> None:
         """Test handling of missing VRAM fields in API response."""
         mock_response = Mock()
@@ -521,7 +521,7 @@ class TestGPUDetectorEdgeCases:
         with pytest.raises(ValueError, match="No GPU detected"):
             GPUDetector._detect_from_system()
 
-    @patch("pr_conflict_resolver.llm.providers.gpu_detector.requests.get")
+    @patch("review_bot_automator.llm.providers.gpu_detector.requests.get")
     def test_detect_gpu_case_insensitive_processor(self, mock_get: Mock) -> None:
         """Test case-insensitive matching for processor types."""
         mock_response = Mock()

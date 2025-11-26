@@ -10,7 +10,7 @@ from typing import IO, Any
 
 import pytest
 
-from pr_conflict_resolver.security.secure_file_handler import SecureFileHandler
+from review_bot_automator.security.secure_file_handler import SecureFileHandler
 
 
 class TestSecureTempFile:

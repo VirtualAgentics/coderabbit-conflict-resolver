@@ -17,12 +17,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pr_conflict_resolver.llm.exceptions import LLMSecretDetectedError
-from pr_conflict_resolver.llm.metrics_aggregator import MetricsAggregator
-from pr_conflict_resolver.llm.parallel_parser import CommentInput, ParallelLLMParser
-from pr_conflict_resolver.llm.parser import UniversalLLMParser
-from pr_conflict_resolver.llm.resilience.resilient_provider import ResilientLLMProvider
-from pr_conflict_resolver.security.secret_scanner import SecretScanner
+from review_bot_automator.llm.exceptions import LLMSecretDetectedError
+from review_bot_automator.llm.metrics_aggregator import MetricsAggregator
+from review_bot_automator.llm.parallel_parser import CommentInput, ParallelLLMParser
+from review_bot_automator.llm.parser import UniversalLLMParser
+from review_bot_automator.llm.resilience.resilient_provider import ResilientLLMProvider
+from review_bot_automator.security.secret_scanner import SecretScanner
 
 
 def make_token(prefix: str, suffix_length: int = 36) -> str:

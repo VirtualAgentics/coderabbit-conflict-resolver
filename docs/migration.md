@@ -140,8 +140,8 @@ change = Change(
 
 ```python
 # v1.x code (before migration) - STILL WORKS IN v2.0
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.config import PresetConfig
+from review_bot_automator import ConflictResolver
+from review_bot_automator.config import PresetConfig
 
 resolver = ConflictResolver(config=PresetConfig.BALANCED)
 results = resolver.resolve_pr_conflicts(
@@ -177,7 +177,7 @@ All v1.x features remain available:
 
 #### Steps
 
-1. Upgrade to v2.0: `pip install --upgrade pr-conflict-resolver`
+1. Upgrade to v2.0: `pip install --upgrade review-bot-automator`
 2. Run existing commands/code unchanged
 3. Observe v1.x behavior (LLM disabled by default)
 
@@ -200,7 +200,7 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123
 
 #### Steps: (OpenAI)
 
-1. Upgrade to v2.0: `pip install --upgrade pr-conflict-resolver`
+1. Upgrade to v2.0: `pip install --upgrade review-bot-automator`
 2. Test LLM parsing on a single PR:
 
    ```bash
@@ -416,8 +416,8 @@ CR_LLM_BASE_URL=<http://localhost:11434>
 #### v1.x API (Still Works)
 
 ```python
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.config import PresetConfig
+from review_bot_automator import ConflictResolver
+from review_bot_automator.config import PresetConfig
 
 # v1.x initialization
 resolver = ConflictResolver(config=PresetConfig.BALANCED)
@@ -434,8 +434,8 @@ results = resolver.resolve_pr_conflicts(
 #### v2.0 API (Extended)
 
 ```python
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.config import PresetConfig, LLMConfig, LLMPresetConfig
+from review_bot_automator import ConflictResolver
+from review_bot_automator.config import PresetConfig, LLMConfig, LLMPresetConfig
 
 # v2.0: NEW optional parameter
 resolver = ConflictResolver(
@@ -461,7 +461,7 @@ print(f"Total cost: ${results.total_cost:.2f}")
 #### v1.x Model (Still Works)
 
 ```python
-from pr_conflict_resolver.core.models import Change, ChangeMetadata
+from review_bot_automator.core.models import Change, ChangeMetadata
 
 # v1.x Change creation (all required fields)
 change = Change(
@@ -482,7 +482,7 @@ change = Change(
 #### v2.0 Model (Extended)
 
 ```python
-from pr_conflict_resolver.core.models import Change, ChangeMetadata
+from review_bot_automator.core.models import Change, ChangeMetadata
 
 # v2.0 Change creation (with optional LLM fields)
 change = Change(
@@ -507,7 +507,7 @@ change = Change(
 
 ```python
 # NEW: LLM Parser Factory
-from pr_conflict_resolver.llm import LLMParserFactory, LLMConfig
+from review_bot_automator.llm import LLMParserFactory, LLMConfig
 
 llm_config = LLMConfig(
     enabled=True,
@@ -625,7 +625,7 @@ Success!
 
 ```bash
 # Upgrade to v2.0
-pip install --upgrade pr-conflict-resolver
+pip install --upgrade review-bot-automator
 
 # Run existing command (LLM disabled by default)
 pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123
@@ -704,7 +704,7 @@ pr-resolve apply --llm --llm-provider openai-api --owner VirtualAgentics --repo 
 
 ```bash
 # 1. Downgrade package
-pip install pr-conflict-resolver==1.0.0  # Replace with last v1.x version
+pip install review-bot-automator==1.0.0  # Replace with last v1.x version
 
 # 2. Restore v1.x configuration
 cp .env.backup .env  # Restore backup
@@ -803,7 +803,7 @@ llm:
 
 #### A
 
-1. Upgrade package: `pip install --upgrade pr-conflict-resolver`
+1. Upgrade package: `pip install --upgrade review-bot-automator`
 2. Test with `--llm` flag on a single PR
 3. If satisfied, enable LLM globally via environment variable
 4. Monitor metrics for 1 week
@@ -815,7 +815,7 @@ llm:
 
 1. **Disable LLM**: `export CR_LLM_ENABLED=false` (reverts to v1.x behavior)
 2. **Report bug**: <https://github.com/VirtualAgentics/review-bot-automator/issues>
-3. **Rollback if needed**: `pip install pr-conflict-resolver==1.0.0`
+3. **Rollback if needed**: `pip install review-bot-automator==1.0.0`
 
 ### Q11: Can I use multiple LLM providers simultaneously
 
@@ -857,7 +857,7 @@ diff v1_output.txt v2_output.txt
 TEST_REPOS="repo1 repo2 repo3 repo4 repo5"
 
 # Upgrade to v2.0 (LLM disabled by default)
-pip install --upgrade pr-conflict-resolver
+pip install --upgrade review-bot-automator
 
 # Test with LLM on 1 PR per repo
 for repo in $TEST_REPOS; do

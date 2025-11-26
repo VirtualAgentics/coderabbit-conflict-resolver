@@ -9,13 +9,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pr_conflict_resolver.llm.base import ParsedChange
-from pr_conflict_resolver.llm.parallel_parser import (
+from review_bot_automator.llm.base import ParsedChange
+from review_bot_automator.llm.parallel_parser import (
     CommentInput,
     ParallelLLMParser,
     RateLimiter,
 )
-from pr_conflict_resolver.llm.resilience.circuit_breaker import CircuitState
+from review_bot_automator.llm.resilience.circuit_breaker import CircuitState
 from tests.conftest import (
     SyncExecutor,
     create_exception_injecting_executor,
@@ -88,9 +88,9 @@ class TestRateLimiter:
             fake_time += dt
 
         monkeypatch.setattr(
-            "pr_conflict_resolver.llm.parallel_parser.time.monotonic", fake_monotonic
+            "review_bot_automator.llm.parallel_parser.time.monotonic", fake_monotonic
         )
-        monkeypatch.setattr("pr_conflict_resolver.llm.parallel_parser.time.sleep", fake_sleep)
+        monkeypatch.setattr("review_bot_automator.llm.parallel_parser.time.sleep", fake_sleep)
 
         limiter.wait_if_needed()
         limiter.wait_if_needed()
@@ -117,9 +117,9 @@ class TestRateLimiter:
                 fake_time += dt
 
         monkeypatch.setattr(
-            "pr_conflict_resolver.llm.parallel_parser.time.monotonic", fake_monotonic
+            "review_bot_automator.llm.parallel_parser.time.monotonic", fake_monotonic
         )
-        monkeypatch.setattr("pr_conflict_resolver.llm.parallel_parser.time.sleep", fake_sleep)
+        monkeypatch.setattr("review_bot_automator.llm.parallel_parser.time.sleep", fake_sleep)
 
         timestamps: list[float] = []
 
@@ -147,12 +147,12 @@ class TestRateLimiter:
 
         times = iter([1.0, 1.02, 1.15])
         monkeypatch.setattr(
-            "pr_conflict_resolver.llm.parallel_parser.time.monotonic", lambda: next(times)
+            "review_bot_automator.llm.parallel_parser.time.monotonic", lambda: next(times)
         )
 
         sleep_calls: list[float] = []
         monkeypatch.setattr(
-            "pr_conflict_resolver.llm.parallel_parser.time.sleep", sleep_calls.append
+            "review_bot_automator.llm.parallel_parser.time.sleep", sleep_calls.append
         )
 
         limiter.wait_if_needed()  # First call at t=1.0, no sleep, reserves slot at 1.0
@@ -410,11 +410,11 @@ class TestParallelLLMParser:
         in test_parse_comments_future_result_exception using future.set_exception().
         """
         monkeypatch.setattr(
-            "pr_conflict_resolver.llm.parallel_parser.ThreadPoolExecutor",
+            "review_bot_automator.llm.parallel_parser.ThreadPoolExecutor",
             SyncExecutor,
         )
         monkeypatch.setattr(
-            "pr_conflict_resolver.llm.parallel_parser.as_completed", fake_as_completed
+            "review_bot_automator.llm.parallel_parser.as_completed", fake_as_completed
         )
 
         def mock_generate(prompt: str, max_tokens: int = 2000) -> str:
@@ -535,8 +535,8 @@ class TestParallelLLMParser:
         ]
 
         with (
-            patch("pr_conflict_resolver.llm.parallel_parser.ThreadPoolExecutor", FailingExecutor),
-            patch("pr_conflict_resolver.llm.parallel_parser.as_completed", fake_as_completed),
+            patch("review_bot_automator.llm.parallel_parser.ThreadPoolExecutor", FailingExecutor),
+            patch("review_bot_automator.llm.parallel_parser.as_completed", fake_as_completed),
         ):
             results = parser.parse_comments(comments)
 

@@ -6,7 +6,7 @@ costs, cache performance, and parsing statistics.
 
 import pytest
 
-from pr_conflict_resolver.llm.metrics import (
+from review_bot_automator.llm.metrics import (
     AggregatedMetrics,
     LLMMetrics,
     ProviderStats,

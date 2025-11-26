@@ -28,7 +28,7 @@ jobs:
 
       - name: Install PR Conflict Resolver
         run: |
-          pip install pr-conflict-resolver
+          pip install review-bot-automator
 
       - name: Configure environment
         run: |

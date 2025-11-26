@@ -1,7 +1,7 @@
 ---
 title: Configuration Management Guidelines
 description: Configuration precedence chain, environment variables, preset patterns, and validation
-globs: ["src/pr_conflict_resolver/config/**/*.py", "src/pr_conflict_resolver/cli/**/*.py"]
+globs: ["src/review_bot_automator/config/**/*.py", "src/review_bot_automator/cli/**/*.py"]
 alwaysApply: false
 ---
 

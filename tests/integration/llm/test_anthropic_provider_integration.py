@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from pr_conflict_resolver.llm.providers.anthropic_api import AnthropicAPIProvider
+from review_bot_automator.llm.providers.anthropic_api import AnthropicAPIProvider
 
 from ._helpers import guarded_call, require_env_var
 

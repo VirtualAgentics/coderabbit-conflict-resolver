@@ -8,9 +8,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pr_conflict_resolver.llm.config import LLMConfig
-from pr_conflict_resolver.llm.exceptions import LLMAPIError, LLMConfigurationError
-from pr_conflict_resolver.llm.factory import (
+from review_bot_automator.llm.config import LLMConfig
+from review_bot_automator.llm.exceptions import LLMAPIError, LLMConfigurationError
+from review_bot_automator.llm.factory import (
     _PROVIDERS_REQUIRING_API_KEY,
     PROVIDER_REGISTRY,
     create_provider,
@@ -532,7 +532,7 @@ class TestCreateProviderFromConfig:
 
     def test_create_from_config_with_cache_enabled(self) -> None:
         """Test that cache_enabled=True wraps provider with CachingProvider."""
-        from pr_conflict_resolver.llm.providers.caching_provider import CachingProvider
+        from review_bot_automator.llm.providers.caching_provider import CachingProvider
 
         mock_provider_class = MagicMock()
         mock_instance = MagicMock()
@@ -557,7 +557,7 @@ class TestCreateProviderFromConfig:
 
     def test_create_from_config_with_circuit_breaker_enabled(self) -> None:
         """Test that circuit_breaker_enabled=True wraps provider with ResilientLLMProvider."""
-        from pr_conflict_resolver.llm.resilience import ResilientLLMProvider
+        from review_bot_automator.llm.resilience import ResilientLLMProvider
 
         mock_provider_class = MagicMock()
         mock_instance = MagicMock()
@@ -586,7 +586,7 @@ class TestCreateProviderFromConfig:
 
     def test_create_from_config_with_circuit_breaker_defaults(self) -> None:
         """Test circuit breaker wrapping uses correct default values."""
-        from pr_conflict_resolver.llm.resilience import ResilientLLMProvider
+        from review_bot_automator.llm.resilience import ResilientLLMProvider
 
         mock_provider_class = MagicMock()
         mock_instance = MagicMock()
@@ -612,8 +612,8 @@ class TestCreateProviderFromConfig:
 
     def test_create_from_config_with_both_wrappers(self) -> None:
         """Test that both cache and circuit breaker can be enabled together."""
-        from pr_conflict_resolver.llm.providers.caching_provider import CachingProvider
-        from pr_conflict_resolver.llm.resilience import ResilientLLMProvider
+        from review_bot_automator.llm.providers.caching_provider import CachingProvider
+        from review_bot_automator.llm.resilience import ResilientLLMProvider
 
         mock_provider_class = MagicMock()
         mock_instance = MagicMock()

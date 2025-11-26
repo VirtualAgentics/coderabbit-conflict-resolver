@@ -81,7 +81,7 @@ def function_name(param1: str, param2: int) -> bool:
 Use absolute imports when possible:
 
 ```python
-from pr_conflict_resolver.core.resolver import ConflictResolver
+from review_bot_automator.core.resolver import ConflictResolver
 ```
 
 ## Naming Conventions
@@ -179,7 +179,7 @@ git commit -m "fix: resolve quality issues"
 Use specific exception types for LLM errors:
 
 ```python
-from pr_conflict_resolver.llm.exceptions import (
+from review_bot_automator.llm.exceptions import (
     LLMError,
     LLMAPIError,
     LLMAuthenticationError,

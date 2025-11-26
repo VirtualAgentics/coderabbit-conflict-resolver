@@ -9,8 +9,8 @@ import string
 
 import pytest
 
-from pr_conflict_resolver.integrations.github import GitHubCommentExtractor
-from pr_conflict_resolver.security.input_validator import InputValidator
+from review_bot_automator.integrations.github import GitHubCommentExtractor
+from review_bot_automator.security.input_validator import InputValidator
 
 
 def generate_github_token(prefix: str, total_length: int) -> str:

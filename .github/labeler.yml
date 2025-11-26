@@ -9,37 +9,37 @@ documentation:
 # Core functionality changes
 core:
   - changed-files:
-      - any-glob-to-any-file: ['src/pr_conflict_resolver/core/**']
+      - any-glob-to-any-file: ['src/review_bot_automator/core/**']
 
 # Conflict detection and analysis
 analysis:
   - changed-files:
-      - any-glob-to-any-file: ['src/pr_conflict_resolver/analysis/**']
+      - any-glob-to-any-file: ['src/review_bot_automator/analysis/**']
 
 # File handlers
 handlers:
   - changed-files:
-      - any-glob-to-any-file: ['src/pr_conflict_resolver/handlers/**']
+      - any-glob-to-any-file: ['src/review_bot_automator/handlers/**']
 
 # Resolution strategies
 strategies:
   - changed-files:
-      - any-glob-to-any-file: ['src/pr_conflict_resolver/strategies/**']
+      - any-glob-to-any-file: ['src/review_bot_automator/strategies/**']
 
 # GitHub integration
 integration:
   - changed-files:
-      - any-glob-to-any-file: ['src/pr_conflict_resolver/integrations/**']
+      - any-glob-to-any-file: ['src/review_bot_automator/integrations/**']
 
 # CLI interface
 cli:
   - changed-files:
-      - any-glob-to-any-file: ['src/pr_conflict_resolver/cli/**']
+      - any-glob-to-any-file: ['src/review_bot_automator/cli/**']
 
 # Configuration
 config:
   - changed-files:
-      - any-glob-to-any-file: ['src/pr_conflict_resolver/config/**', 'pyproject.toml', '.pre-commit-config.yaml', 'setup-dev.sh', 'setup-dev.ps1']
+      - any-glob-to-any-file: ['src/review_bot_automator/config/**', 'pyproject.toml', '.pre-commit-config.yaml', 'setup-dev.sh', 'setup-dev.ps1']
 
 # Testing
 tests:
@@ -59,7 +59,7 @@ dependencies:
 # Security
 security:
   - changed-files:
-      - any-glob-to-any-file: ['SECURITY.md', '.github/ISSUE_TEMPLATE/**', 'src/pr_conflict_resolver/integrations/github.py']
+      - any-glob-to-any-file: ['SECURITY.md', '.github/ISSUE_TEMPLATE/**', 'src/review_bot_automator/integrations/github.py']
 
 # CodeRabbit configuration
 coderabbit:

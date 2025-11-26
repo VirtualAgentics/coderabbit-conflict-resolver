@@ -3,8 +3,8 @@
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from pr_conflict_resolver import Change, ConflictResolver, FileType
-from pr_conflict_resolver.utils.text import normalize_content
+from review_bot_automator import Change, ConflictResolver, FileType
+from review_bot_automator.utils.text import normalize_content
 
 
 class TestConflictResolver:
@@ -166,7 +166,7 @@ class TestConflictResolver:
         percentage = resolver._calculate_overlap_percentage(change1, [change2])
         assert 0 <= percentage <= 100
 
-    @patch("pr_conflict_resolver.core.resolver.GitHubCommentExtractor")
+    @patch("review_bot_automator.core.resolver.GitHubCommentExtractor")
     def test_resolve_pr_conflicts(self, mock_extractor: Mock) -> None:
         """Test resolving PR conflicts."""
         resolver = ConflictResolver()
@@ -182,7 +182,7 @@ class TestConflictResolver:
         assert result.resolutions == []
         assert result.conflicts == []
 
-    @patch("pr_conflict_resolver.core.resolver.GitHubCommentExtractor")
+    @patch("review_bot_automator.core.resolver.GitHubCommentExtractor")
     def test_analyze_conflicts(self, mock_extractor: Mock) -> None:
         """Test analyzing conflicts."""
         resolver = ConflictResolver()
@@ -196,7 +196,7 @@ class TestConflictResolver:
 
     def test_separate_changes_by_conflict_status_no_conflicts(self) -> None:
         """Test separating changes when there are no conflicts."""
-        from pr_conflict_resolver.core.models import Conflict
+        from review_bot_automator.core.models import Conflict
 
         resolver = ConflictResolver()
 
@@ -220,7 +220,7 @@ class TestConflictResolver:
 
     def test_separate_changes_by_conflict_status_all_conflicting(self) -> None:
         """Test separating changes when all changes are conflicting."""
-        from pr_conflict_resolver.core.models import Conflict
+        from review_bot_automator.core.models import Conflict
 
         resolver = ConflictResolver()
 
@@ -253,7 +253,7 @@ class TestConflictResolver:
 
     def test_separate_changes_by_conflict_status_mixed(self) -> None:
         """Test separating changes with mix of conflicting and non-conflicting."""
-        from pr_conflict_resolver.core.models import Conflict
+        from review_bot_automator.core.models import Conflict
 
         resolver = ConflictResolver()
 
@@ -288,7 +288,7 @@ class TestConflictResolver:
 
     def test_separate_changes_by_conflict_status_multiple_conflicts(self) -> None:
         """Test separating changes with multiple separate conflicts."""
-        from pr_conflict_resolver.core.models import Conflict
+        from review_bot_automator.core.models import Conflict
 
         resolver = ConflictResolver()
 
@@ -359,7 +359,7 @@ class TestConflictResolver:
         assert len(skipped) == 0
         assert len(failed) == 0
 
-    @patch("pr_conflict_resolver.core.rollback.RollbackManager")
+    @patch("review_bot_automator.core.rollback.RollbackManager")
     def test_apply_changes_with_rollback_initialization_failure(
         self, mock_rollback_manager: Mock
     ) -> None:

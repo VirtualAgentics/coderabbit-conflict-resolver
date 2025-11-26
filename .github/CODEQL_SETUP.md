@@ -52,7 +52,7 @@ The CodeQL analysis uses a custom configuration file at `.github/codeql/codeql-c
 
 ### Path Filters
 
-* **Analyzed**: `src/pr_conflict_resolver/` (production code)
+* **Analyzed**: `src/review_bot_automator/` (production code)
 * **Excluded**: `tests/`, `docs/`, scripts, build artifacts
 * **Benefit**: Focused analysis, reduced false positives, faster scanning
 

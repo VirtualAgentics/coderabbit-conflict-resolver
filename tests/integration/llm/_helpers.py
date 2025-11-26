@@ -9,7 +9,7 @@ from typing import TypeVar
 
 import pytest
 
-from pr_conflict_resolver.llm.exceptions import LLMAuthenticationError, LLMRateLimitError
+from review_bot_automator.llm.exceptions import LLMAuthenticationError, LLMRateLimitError
 
 
 def require_env_var(env_var: str, provider_name: str) -> str:

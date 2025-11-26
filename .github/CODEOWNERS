@@ -40,14 +40,14 @@
 *.py @VirtualAgentics
 
 # Core modules (critical business logic)
-/src/pr_conflict_resolver/core/ @VirtualAgentics
-/src/pr_conflict_resolver/analysis/ @VirtualAgentics
-/src/pr_conflict_resolver/handlers/ @VirtualAgentics
-/src/pr_conflict_resolver/strategies/ @VirtualAgentics
-/src/pr_conflict_resolver/integrations/ @VirtualAgentics
-/src/pr_conflict_resolver/security/ @VirtualAgentics
-/src/pr_conflict_resolver/cli/ @VirtualAgentics
-/src/pr_conflict_resolver/config/ @VirtualAgentics
+/src/review_bot_automator/core/ @VirtualAgentics
+/src/review_bot_automator/analysis/ @VirtualAgentics
+/src/review_bot_automator/handlers/ @VirtualAgentics
+/src/review_bot_automator/strategies/ @VirtualAgentics
+/src/review_bot_automator/integrations/ @VirtualAgentics
+/src/review_bot_automator/security/ @VirtualAgentics
+/src/review_bot_automator/cli/ @VirtualAgentics
+/src/review_bot_automator/config/ @VirtualAgentics
 
 # Tests (ensure test integrity)
 /tests/ @VirtualAgentics

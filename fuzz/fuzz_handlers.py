@@ -26,12 +26,12 @@ import atheris
 
 # Import handlers - wrapped in try/except for graceful failure
 try:
-    from pr_conflict_resolver.handlers.json_handler import JsonHandler
-    from pr_conflict_resolver.handlers.toml_handler import TomlHandler
-    from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
+    from review_bot_automator.handlers.json_handler import JsonHandler
+    from review_bot_automator.handlers.toml_handler import TomlHandler
+    from review_bot_automator.handlers.yaml_handler import YamlHandler
 except ImportError as e:
     print(f"[-] Failed to import handlers: {e}")
-    print("[!] Make sure pr-conflict-resolver is installed: pip install -e .")
+    print("[!] Make sure review-bot-automator is installed: pip install -e .")
     sys.exit(1)
 
 

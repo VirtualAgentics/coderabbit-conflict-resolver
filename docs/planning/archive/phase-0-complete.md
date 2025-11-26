@@ -60,7 +60,7 @@ Phase 0 established a comprehensive security foundation for the Review Bot Autom
 
 ### Phase 0.2: Input Validation & Sanitization ✅
 
-**File**: `src/pr_conflict_resolver/security/input_validator.py`
+**File**: `src/review_bot_automator/security/input_validator.py`
 
 **Delivered**:
 
@@ -99,7 +99,7 @@ class InputValidator:
 
 ### Phase 0.3: Secure File Handling ✅
 
-**File**: `src/pr_conflict_resolver/security/secure_file_handler.py`
+**File**: `src/review_bot_automator/security/secure_file_handler.py`
 
 **Delivered**:
 
@@ -134,7 +134,7 @@ class SecureFileHandler:
 
 ### Phase 0.4: Secret Detection & Prevention ✅
 
-**File**: `src/pr_conflict_resolver/security/secret_scanner.py`
+**File**: `src/review_bot_automator/security/secret_scanner.py`
 
 **Delivered**:
 
@@ -195,7 +195,7 @@ class SecureFileHandler:
 
 ### Phase 0.6: Security Configuration ✅
 
-**File**: `src/pr_conflict_resolver/security/config.py`
+**File**: `src/review_bot_automator/security/config.py`
 
 **Delivered**:
 

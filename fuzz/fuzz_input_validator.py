@@ -26,10 +26,10 @@ import atheris
 
 # Import InputValidator - wrapped in try/except for graceful failure
 try:
-    from pr_conflict_resolver.security.input_validator import InputValidator
+    from review_bot_automator.security.input_validator import InputValidator
 except ImportError as e:
     print(f"[-] Failed to import InputValidator: {e}")
-    print("[!] Make sure pr-conflict-resolver is installed: pip install -e .")
+    print("[!] Make sure review-bot-automator is installed: pip install -e .")
     sys.exit(1)
 
 

@@ -94,7 +94,7 @@ llm:
 Pre-populate the cache for cold start optimization:
 
 ```python
-from pr_conflict_resolver.llm.cache.prompt_cache import PromptCache
+from review_bot_automator.llm.cache.prompt_cache import PromptCache
 
 cache = PromptCache()
 

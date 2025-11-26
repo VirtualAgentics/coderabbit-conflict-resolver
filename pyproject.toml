@@ -1,9 +1,13 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "pr-conflict-resolver"
-version = "0.1.0"
+name = "review-bot-automator"
+version = "2.0.0"
 description = "Universal AI-powered automation for GitHub code review bots with intelligent conflict resolution"
 authors = [
-    { name = "VirtualAgentics", email = "contact@virtualagentics.com" },
+    { name = "VirtualAgentics", email = "bdc@virtualagentics.ai" },
 ]
 readme = "README.md"
 requires-python = ">=3.11"
@@ -87,7 +91,7 @@ Repository = "https://github.com/VirtualAgentics/review-bot-automator"
 Issues = "https://github.com/VirtualAgentics/review-bot-automator/issues"
 
 [project.scripts]
-pr-resolve = "pr_conflict_resolver.cli.main:cli"
+pr-resolve = "review_bot_automator.cli.main:cli"
 
 [tool.black]
 line-length = 100
@@ -155,13 +159,13 @@ ignore = [
     "T201",  # print statements ok for fuzzing error reporting
     "D301",  # backslashes in docstrings ok for fuzzing documentation
 ]
-"src/pr_conflict_resolver/llm/base.py" = [
+"src/review_bot_automator/llm/base.py" = [
     "PIE790",  # pass is necessary to satisfy CodeQL py/ineffectual-statement
 ]
-"src/pr_conflict_resolver/llm/providers/base.py" = [
+"src/review_bot_automator/llm/providers/base.py" = [
     "PIE790",  # pass is necessary to satisfy CodeQL py/ineffectual-statement
 ]
-"src/pr_conflict_resolver/llm/parallel_parser.py" = [
+"src/review_bot_automator/llm/parallel_parser.py" = [
     "PIE790",  # Protocol stubs intentionally use 'pass' for CodeQL compatibility
 ]
 
@@ -227,7 +231,7 @@ python_functions = [
 ]
 addopts = [
     "--strict",  # Enables all strict checks: markers, config, and parametrization IDs (pytest 9.0.0+)
-    "--cov=src/pr_conflict_resolver",
+    "--cov=src/review_bot_automator",
     "--cov-report=html",
     "--cov-report=term-missing",
     "--cov-fail-under=80",  # Increased from 50% to enforce quality standards

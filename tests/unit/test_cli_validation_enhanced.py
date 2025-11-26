@@ -12,7 +12,7 @@ import pytest
 from click import BadParameter, Context
 from click.testing import CliRunner
 
-from pr_conflict_resolver.cli.main import (
+from review_bot_automator.cli.main import (
     MAX_GITHUB_REPO_LENGTH,
     MAX_GITHUB_USERNAME_LENGTH,
     cli,
@@ -298,7 +298,7 @@ class TestSanitizeForOutput:
         test_value = "sensitive\ndata\x00here"
 
         # Capture logs at DEBUG level
-        with caplog.at_level(logging.DEBUG, logger="pr_conflict_resolver.cli.main"):
+        with caplog.at_level(logging.DEBUG, logger="review_bot_automator.cli.main"):
             result = sanitize_for_output(test_value)
 
         # Function should return redacted value

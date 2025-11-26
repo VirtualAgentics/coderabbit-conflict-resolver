@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock, patch
 
-from pr_conflict_resolver import GitHubCommentExtractor
+from review_bot_automator import GitHubCommentExtractor
 
 
 class TestGitHubCommentExtractor:
@@ -22,7 +22,7 @@ class TestGitHubCommentExtractor:
         assert "Authorization" in extractor.session.headers
         assert extractor.session.headers["Authorization"] == "token test_token"
 
-    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    @patch("review_bot_automator.integrations.github.requests.Session.get")
     def test_fetch_review_comments(self, mock_get: Mock) -> None:
         """Test fetching review comments."""
         extractor = GitHubCommentExtractor()
@@ -40,7 +40,7 @@ class TestGitHubCommentExtractor:
         assert comments[0]["body"] == "test comment"
         mock_get.assert_called_once()
 
-    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    @patch("review_bot_automator.integrations.github.requests.Session.get")
     def test_fetch_issue_comments(self, mock_get: Mock) -> None:
         """Test fetching issue comments."""
         extractor = GitHubCommentExtractor()
@@ -58,7 +58,7 @@ class TestGitHubCommentExtractor:
         assert comments[0]["body"] == "issue comment"
         mock_get.assert_called_once()
 
-    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    @patch("review_bot_automator.integrations.github.requests.Session.get")
     def test_fetch_pr_comments(self, mock_get: Mock) -> None:
         """Test fetching all PR comments."""
         extractor = GitHubCommentExtractor()
@@ -75,7 +75,7 @@ class TestGitHubCommentExtractor:
         assert mock_get.call_count == 2
         assert len(comments) == 2  # One from each call
 
-    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    @patch("review_bot_automator.integrations.github.requests.Session.get")
     def test_fetch_pr_metadata(self, mock_get: Mock) -> None:
         """Test fetching PR metadata."""
         extractor = GitHubCommentExtractor()
@@ -93,7 +93,7 @@ class TestGitHubCommentExtractor:
         assert metadata["title"] == "Test PR"
         mock_get.assert_called_once()
 
-    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    @patch("review_bot_automator.integrations.github.requests.Session.get")
     def test_fetch_pr_files(self, mock_get: Mock) -> None:
         """Test fetching PR files."""
         extractor = GitHubCommentExtractor()
@@ -216,7 +216,7 @@ class TestGitHubCommentExtractor:
         assert metadata["line"] == 10
         assert metadata["start_line"] == 5
 
-    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    @patch("review_bot_automator.integrations.github.requests.Session.get")
     def test_fetch_pr_comments_handles_request_error(self, mock_get: Mock) -> None:
         """Test that fetch_pr_comments handles RequestException gracefully."""
         import requests
@@ -231,7 +231,7 @@ class TestGitHubCommentExtractor:
         # Should return empty list on error
         assert comments == []
 
-    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    @patch("review_bot_automator.integrations.github.requests.Session.get")
     def test_fetch_pr_metadata_handles_request_error(self, mock_get: Mock) -> None:
         """Test that fetch_pr_metadata handles RequestException gracefully."""
         import requests
@@ -246,7 +246,7 @@ class TestGitHubCommentExtractor:
         # Should return None on request error
         assert metadata is None
 
-    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    @patch("review_bot_automator.integrations.github.requests.Session.get")
     def test_fetch_pr_files_handles_network_error(self, mock_get: Mock) -> None:
         """Test that fetch_pr_files handles network errors gracefully."""
         import requests
@@ -261,7 +261,7 @@ class TestGitHubCommentExtractor:
         # Should return empty list on error
         assert files == []
 
-    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    @patch("review_bot_automator.integrations.github.requests.Session.get")
     def test_fetch_review_comments_handles_http_error(self, mock_get: Mock) -> None:
         """Test handling of HTTP errors in review comments fetch."""
         from requests import HTTPError
@@ -277,7 +277,7 @@ class TestGitHubCommentExtractor:
         # Should return empty list on HTTP error
         assert comments == []
 
-    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    @patch("review_bot_automator.integrations.github.requests.Session.get")
     def test_fetch_review_comments_handles_json_error(self, mock_get: Mock) -> None:
         """Test handling of JSON decode errors in review comments fetch."""
         import json
@@ -294,7 +294,7 @@ class TestGitHubCommentExtractor:
         # Should return empty list on JSON error
         assert comments == []
 
-    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    @patch("review_bot_automator.integrations.github.requests.Session.get")
     def test_fetch_issue_comments_handles_http_error(self, mock_get: Mock) -> None:
         """Test handling of HTTP errors in issue comments fetch."""
         from requests import HTTPError
@@ -310,7 +310,7 @@ class TestGitHubCommentExtractor:
         # Should return empty list on HTTP error
         assert comments == []
 
-    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    @patch("review_bot_automator.integrations.github.requests.Session.get")
     def test_fetch_issue_comments_handles_json_error(self, mock_get: Mock) -> None:
         """Test handling of JSON decode errors in issue comments fetch."""
         import json
@@ -327,7 +327,7 @@ class TestGitHubCommentExtractor:
         # Should return empty list on JSON error
         assert comments == []
 
-    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    @patch("review_bot_automator.integrations.github.requests.Session.get")
     def test_fetch_pr_files_handles_http_error(self, mock_get: Mock) -> None:
         """Test handling of HTTP errors in PR files fetch."""
         from requests import HTTPError
@@ -343,7 +343,7 @@ class TestGitHubCommentExtractor:
         # Should return empty list on HTTP error
         assert files == []
 
-    @patch("pr_conflict_resolver.integrations.github.requests.Session.get")
+    @patch("review_bot_automator.integrations.github.requests.Session.get")
     def test_fetch_pr_files_handles_json_error(self, mock_get: Mock) -> None:
         """Test handling of JSON decode errors in PR files fetch."""
         import json

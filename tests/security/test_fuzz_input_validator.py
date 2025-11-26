@@ -16,7 +16,7 @@ import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 
-from pr_conflict_resolver.security.input_validator import InputValidator
+from review_bot_automator.security.input_validator import InputValidator
 
 # =============================================================================
 # Hypothesis Strategies

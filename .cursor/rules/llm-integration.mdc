@@ -1,7 +1,7 @@
 ---
 title: LLM Integration Guidelines
 description: LLM provider implementation, prompt engineering, cost tracking, retry logic, and caching patterns
-globs: ["src/pr_conflict_resolver/llm/**/*.py"]
+globs: ["src/review_bot_automator/llm/**/*.py"]
 alwaysApply: false
 ---
 
@@ -14,7 +14,7 @@ alwaysApply: false
 All LLM providers must implement the `LLMProvider` protocol from `llm/providers/base.py`:
 
 ```python
-from pr_conflict_resolver.llm.providers.base import LLMProvider
+from review_bot_automator.llm.providers.base import LLMProvider
 
 class MyProvider:
     def generate(self, prompt: str, max_tokens: int = 2000) -> str:
@@ -85,9 +85,9 @@ Return JSON with this structure:
 Cache prompts to reduce costs (50-90% reduction):
 
 ```python
-from pr_conflict_resolver.llm.cache.prompt_cache import PromptCache
+from review_bot_automator.llm.cache.prompt_cache import PromptCache
 
-cache = PromptCache(cache_dir=Path.home() / ".cache" / "pr-conflict-resolver" / "llm")
+cache = PromptCache(cache_dir=Path.home() / ".cache" / "review-bot-automator" / "llm")
 cache_key = cache._compute_cache_key(prompt, provider="openai", model="gpt-4")
 
 if cached_response := cache.get(cache_key):
@@ -142,7 +142,7 @@ for attempt in retry_strategy:
 Map provider-specific errors to standard exceptions:
 
 ```python
-from pr_conflict_resolver.llm.exceptions import (
+from review_bot_automator.llm.exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
     LLMTimeoutError,
@@ -273,7 +273,7 @@ class PromptCache:
 Use the standard LLM exception hierarchy:
 
 ```python
-from pr_conflict_resolver.llm.exceptions import (
+from review_bot_automator.llm.exceptions import (
     LLMError,                    # Base exception
     LLMProviderError,            # Provider-level failures
     LLMAPIError,                 # API communication failures
@@ -352,7 +352,7 @@ Mock LLM providers in tests:
 ```python
 from unittest.mock import MagicMock, patch
 
-@patch("pr_conflict_resolver.llm.providers.openai_api.OpenAIAPIProvider")
+@patch("review_bot_automator.llm.providers.openai_api.OpenAIAPIProvider")
 def test_parser_with_mocked_provider(mock_provider_class):
     mock_provider = MagicMock()
     mock_provider.generate.return_value = '{"changes": []}'

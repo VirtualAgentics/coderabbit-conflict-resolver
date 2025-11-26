@@ -154,7 +154,7 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo --config config.yaml
 
 ```python
 from pathlib import Path
-from pr_conflict_resolver.core.rollback import RollbackManager
+from review_bot_automator.core.rollback import RollbackManager
 
 # Initialize manager
 manager = RollbackManager(Path("/path/to/repo"))
@@ -182,8 +182,8 @@ except Exception as e:
 #### Using ConflictResolver
 
 ```python
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.config import PresetConfig
+from review_bot_automator import ConflictResolver
+from review_bot_automator.config import PresetConfig
 
 # Initialize resolver
 resolver = ConflictResolver(config=PresetConfig.BALANCED)
@@ -208,7 +208,7 @@ The most Pythonic way to use the rollback system:
 
 ```python
 from pathlib import Path
-from pr_conflict_resolver.core.rollback import RollbackManager
+from review_bot_automator.core.rollback import RollbackManager
 
 # Automatic rollback on exception
 with RollbackManager(Path("/path/to/repo")) as manager:
@@ -233,7 +233,7 @@ with RollbackManager(Path("/path/to/repo")) as manager:
 
 ```python
 from pathlib import Path
-from pr_conflict_resolver.core.rollback import RollbackManager, RollbackError
+from review_bot_automator.core.rollback import RollbackManager, RollbackError
 
 def apply_changes_safely(changes, repo_path):
     """Apply changes with automatic rollback."""
@@ -512,7 +512,7 @@ pr-resolve apply --pr 456 --owner myorg --repo production \
 
 ```python
 from pathlib import Path
-from pr_conflict_resolver.core.rollback import RollbackManager
+from review_bot_automator.core.rollback import RollbackManager
 
 def test_experimental_changes(changes, repo_path):
     """Apply experimental changes with easy rollback."""
@@ -600,7 +600,7 @@ pr-resolve apply --pr 789 --owner myorg --repo myrepo \
 
 ```python
 from pathlib import Path
-from pr_conflict_resolver.core.rollback import RollbackManager, RollbackError
+from review_bot_automator.core.rollback import RollbackManager, RollbackError
 
 def apply_with_fallback(changes, repo_path):
     """Apply changes with multiple recovery levels."""
@@ -853,7 +853,7 @@ grep -i "rollback\|checkpoint\|stash" /tmp/rollback-debug-*.log
 ```python
 import logging
 from pathlib import Path
-from pr_conflict_resolver.core.rollback import RollbackManager
+from review_bot_automator.core.rollback import RollbackManager
 
 # Enable debug logging
 logging.basicConfig(level=logging.DEBUG)

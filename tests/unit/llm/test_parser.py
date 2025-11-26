@@ -14,9 +14,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pr_conflict_resolver.llm.base import LLMParser
-from pr_conflict_resolver.llm.parser import UniversalLLMParser
-from pr_conflict_resolver.llm.providers.base import LLMProvider
+from review_bot_automator.llm.base import LLMParser
+from review_bot_automator.llm.parser import UniversalLLMParser
+from review_bot_automator.llm.providers.base import LLMProvider
 
 
 class TestUniversalLLMParserProtocol:

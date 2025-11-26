@@ -1,8 +1,8 @@
-"""Unit tests for data models in pr_conflict_resolver.core.models."""
+"""Unit tests for data models in review_bot_automator.core.models."""
 
 from dataclasses import is_dataclass
 
-from pr_conflict_resolver.core.models import (
+from review_bot_automator.core.models import (
     Change,
     Conflict,
     FileType,
@@ -196,7 +196,7 @@ def test_change_with_partial_llm_fields() -> None:
 
 def test_change_metadata_with_llm_fields() -> None:
     """Test ChangeMetadata TypedDict with new LLM fields."""
-    from pr_conflict_resolver.core.models import ChangeMetadata
+    from review_bot_automator.core.models import ChangeMetadata
 
     # Type-checked metadata with LLM fields
     metadata: ChangeMetadata = {

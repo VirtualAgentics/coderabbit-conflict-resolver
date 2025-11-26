@@ -194,7 +194,7 @@ The LLM-First Architecture transforms the Review Bot Automator from a regex-base
 ### 3.1 Current Module Hierarchy (v1.x)
 
 ```text
-src/pr_conflict_resolver/
+src/review_bot_automator/
 ├── __init__.py
 ├── cli/
 │   ├── __init__.py
@@ -227,7 +227,7 @@ src/pr_conflict_resolver/
 ### 3.2 New Module Hierarchy (v2.0)
 
 ```text
-src/pr_conflict_resolver/
+src/review_bot_automator/
 ├── __init__.py
 ├── cli/
 │   ├── __init__.py
@@ -508,7 +508,7 @@ conflicts = detector.detect_conflicts(changes)
 ### 5.1 Abstract Base Class
 
 ```python
-# src/pr_conflict_resolver/llm/base.py
+# src/review_bot_automator/llm/base.py
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -591,7 +591,7 @@ class LLMParser(ABC):
 #### 5.2.1 OpenAI API Provider
 
 ```python
-# src/pr_conflict_resolver/llm/providers/openai_api.py
+# src/review_bot_automator/llm/providers/openai_api.py
 
 from openai import OpenAI
 from llm.base import LLMParser, LLMParseResponse, ParsedChange
@@ -681,7 +681,7 @@ class OpenAIAPIProvider(LLMParser):
 #### 5.2.2 Claude Code CLI Provider
 
 ```python
-# src/pr_conflict_resolver/llm/providers/claude_cli.py
+# src/review_bot_automator/llm/providers/claude_cli.py
 
 import subprocess
 import json
@@ -767,7 +767,7 @@ class ClaudeCodeCLIProvider(LLMParser):
 #### 5.2.3 Ollama Local Provider
 
 ```python
-# src/pr_conflict_resolver/llm/providers/ollama.py
+# src/review_bot_automator/llm/providers/ollama.py
 
 import requests
 from llm.base import LLMParser, LLMParseResponse
@@ -850,7 +850,7 @@ class OllamaProvider(LLMParser):
 ### 5.3 Provider Factory
 
 ```python
-# src/pr_conflict_resolver/llm/factory.py
+# src/review_bot_automator/llm/factory.py
 
 from typing import TYPE_CHECKING
 from llm.base import LLMParser
@@ -967,7 +967,7 @@ class LLMParserFactory:
 ### 6.1 Extended Change Model
 
 ```python
-# src/pr_conflict_resolver/core/models.py (MODIFIED)
+# src/review_bot_automator/core/models.py (MODIFIED)
 
 from dataclasses import dataclass
 from typing import Mapping
@@ -1026,7 +1026,7 @@ change = Change(
 ### 6.2 LLM Configuration Model
 
 ```python
-# src/pr_conflict_resolver/config/settings.py (MODIFIED)
+# src/review_bot_automator/config/settings.py (MODIFIED)
 
 from dataclasses import dataclass, field
 
@@ -1081,7 +1081,7 @@ class LLMConfig:
 ### 6.3 Provider Preset Configurations
 
 ```python
-# src/pr_conflict_resolver/config/settings.py (CONTINUED)
+# src/review_bot_automator/config/settings.py (CONTINUED)
 
 class LLMPresetConfig:
     """Preset LLM configurations for common use cases."""
@@ -1138,7 +1138,7 @@ class LLMPresetConfig:
 ### 7.1 ConflictResolver Integration
 
 ```python
-# src/pr_conflict_resolver/core/resolver.py (MODIFIED)
+# src/review_bot_automator/core/resolver.py (MODIFIED)
 
 from typing import TYPE_CHECKING
 from llm.factory import LLMParserFactory
@@ -1245,7 +1245,7 @@ class ConflictResolver:
 ### 7.2 CLI Integration
 
 ```python
-# src/pr_conflict_resolver/cli/main.py (MODIFIED)
+# src/review_bot_automator/cli/main.py (MODIFIED)
 
 import click
 from config.settings import LLMConfig, LLMPresetConfig
@@ -1494,7 +1494,7 @@ validate: true
 ### 9.4 Configuration Loading Logic
 
 ```python
-# src/pr_conflict_resolver/config/settings.py (EXTENDED)
+# src/review_bot_automator/config/settings.py (EXTENDED)
 
 import os
 import yaml
@@ -1684,7 +1684,7 @@ Empty Change List (Graceful Degradation)
 ### 11.2 Error Scenarios and Handling
 
 ```python
-# src/pr_conflict_resolver/llm/base.py (ERROR HANDLING)
+# src/review_bot_automator/llm/base.py (ERROR HANDLING)
 
 class LLMParseError(Exception):
     """Base exception for LLM parsing errors."""
@@ -1737,7 +1737,7 @@ def _extract_changes_with_llm(self, comment: dict) -> list[Change]:
 ### 11.3 Retry Logic with Exponential Backoff
 
 ```python
-# src/pr_conflict_resolver/llm/providers/openai_api.py (RETRY LOGIC)
+# src/review_bot_automator/llm/providers/openai_api.py (RETRY LOGIC)
 
 import time
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -1887,7 +1887,7 @@ class LLMConfig:
 ### 13.1 Prompt Caching Strategy
 
 ```python
-# src/pr_conflict_resolver/llm/cache/prompt_cache.py
+# src/review_bot_automator/llm/cache/prompt_cache.py
 
 import hashlib
 import json
@@ -1944,7 +1944,7 @@ class PromptCache:
 ### 13.2 Parallel Processing
 
 ```python
-# src/pr_conflict_resolver/core/resolver.py (PARALLEL PARSING)
+# src/review_bot_automator/core/resolver.py (PARALLEL PARSING)
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 

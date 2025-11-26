@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.core.models import Change, FileType
-from pr_conflict_resolver.handlers.json_handler import JsonHandler
-from pr_conflict_resolver.handlers.toml_handler import TomlHandler
-from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
+from review_bot_automator import ConflictResolver
+from review_bot_automator.core.models import Change, FileType
+from review_bot_automator.handlers.json_handler import JsonHandler
+from review_bot_automator.handlers.toml_handler import TomlHandler
+from review_bot_automator.handlers.yaml_handler import YamlHandler
 
 
 class TestYAMLDeserializationAttacks:

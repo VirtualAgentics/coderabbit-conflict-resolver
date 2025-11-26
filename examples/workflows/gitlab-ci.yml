@@ -16,7 +16,7 @@ resolve_conflicts:
     CR_ENABLE_ROLLBACK: "true"
     CR_LOG_LEVEL: "INFO"
   before_script:
-    - pip install pr-conflict-resolver
+    - pip install review-bot-automator
     - git config --global user.name "GitLab CI"
     - git config --global user.email "ci@gitlab.com"
   script:

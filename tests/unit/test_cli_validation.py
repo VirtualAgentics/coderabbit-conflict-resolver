@@ -7,14 +7,14 @@ import pytest
 from click import BadParameter, Context, Option
 from click.testing import CliRunner
 
-from pr_conflict_resolver.cli.main import cli, validate_github_repo, validate_pr_number
+from review_bot_automator.cli.main import cli, validate_github_repo, validate_pr_number
 
 
 @pytest.fixture(autouse=True)
 def mock_github_api() -> Generator[None, None, None]:
     """Mock GitHub API calls to prevent network access in tests."""
     with patch(
-        "pr_conflict_resolver.integrations.github.GitHubCommentExtractor.fetch_pr_comments",
+        "review_bot_automator.integrations.github.GitHubCommentExtractor.fetch_pr_comments",
         return_value=[],
     ):
         yield

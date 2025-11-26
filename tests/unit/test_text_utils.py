@@ -1,6 +1,6 @@
 """Unit tests for text normalization utilities."""
 
-from pr_conflict_resolver.utils.text import normalize_content
+from review_bot_automator.utils.text import normalize_content
 
 
 def test_normalize_content_trims_and_removes_blank_lines() -> None:

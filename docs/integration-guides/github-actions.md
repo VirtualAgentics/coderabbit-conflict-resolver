@@ -36,7 +36,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install PR Conflict Resolver
-        run: pip install pr-conflict-resolver
+        run: pip install review-bot-automator
 
       - name: Apply Suggestions
         env:

@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 import pytest
 
-from pr_conflict_resolver.handlers.toml_handler import TomlHandler
+from review_bot_automator.handlers.toml_handler import TomlHandler
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -23,7 +23,7 @@ def enable_toml_for_tests() -> Generator[None, None, None]:
 
     Ensures all tests exercise the TOML-enabled code path consistently.
     """
-    import pr_conflict_resolver.handlers.toml_handler as toml_handler_module
+    import review_bot_automator.handlers.toml_handler as toml_handler_module
 
     with (
         patch.object(toml_handler_module, "TOML_READ_AVAILABLE", True, create=True),
@@ -333,7 +333,7 @@ class TestTomlHandlerErrorHandling:
         """Test that validate_change handles missing TOML libraries."""
         handler = TomlHandler()
 
-        with patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", False):
+        with patch("review_bot_automator.handlers.toml_handler.TOML_READ_AVAILABLE", False):
             valid, msg = handler.validate_change("test.toml", "key = 'value'", 1, 3)
             assert valid is False
             assert "not available" in msg.lower()
@@ -342,7 +342,7 @@ class TestTomlHandlerErrorHandling:
         """Test that apply_change handles missing TOML libraries."""
         handler = TomlHandler()
 
-        with patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", False):
+        with patch("review_bot_automator.handlers.toml_handler.TOML_READ_AVAILABLE", False):
             result = handler.apply_change("test.toml", "key = 'value'", 1, 3)
             assert result is False
 

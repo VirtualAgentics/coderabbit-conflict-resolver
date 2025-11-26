@@ -28,7 +28,7 @@ queries:
 
 # Path filters: Focus analysis on production source code
 paths:
-  - src/pr_conflict_resolver/
+  - src/review_bot_automator/
 
 # Paths to ignore: Exclude non-production code from analysis
 # This improves performance and reduces false positives

@@ -4,8 +4,8 @@ This module tests the error handler for user-friendly error messages,
 provider-specific guidance, and security (API key sanitization).
 """
 
-from pr_conflict_resolver.llm.error_handlers import LLMErrorHandler
-from pr_conflict_resolver.llm.exceptions import (
+from review_bot_automator.llm.error_handlers import LLMErrorHandler
+from review_bot_automator.llm.exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
     LLMConfigurationError,

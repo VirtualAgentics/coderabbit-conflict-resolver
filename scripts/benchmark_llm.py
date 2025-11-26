@@ -41,9 +41,9 @@ from typing import Any
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from pr_conflict_resolver.llm.config import LLMConfig
-from pr_conflict_resolver.llm.factory import create_provider_from_config
-from pr_conflict_resolver.llm.parser import UniversalLLMParser
+from review_bot_automator.llm.config import LLMConfig
+from review_bot_automator.llm.factory import create_provider_from_config
+from review_bot_automator.llm.parser import UniversalLLMParser
 
 
 @dataclass

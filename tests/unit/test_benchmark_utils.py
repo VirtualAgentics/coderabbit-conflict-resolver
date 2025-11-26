@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from pr_conflict_resolver.benchmarks import (
+from review_bot_automator.benchmarks import (
     BenchmarkResult,
     calculate_percentile,
     load_test_dataset,

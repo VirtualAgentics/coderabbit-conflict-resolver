@@ -18,7 +18,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
+from review_bot_automator.handlers.yaml_handler import YamlHandler
 
 # =============================================================================
 # YAML Validation Fuzzing

@@ -125,7 +125,7 @@ This document maps the Review Bot Automator's security controls to industry stan
 * ✅ Symlink detection and rejection
 * ✅ File permission preservation
 
-**Implementation**: `src/pr_conflict_resolver/security/input_validator.py:131-230`
+**Implementation**: `src/review_bot_automator/security/input_validator.py:131-230`
 
 **Test Coverage**: `tests/security/test_input_validator_security.py`
 
@@ -200,7 +200,7 @@ This document maps the Review Bot Automator's security controls to industry stan
 * ✅ Minimal attack surface
 * ✅ Security hardening guides
 
-**Implementation**: `src/pr_conflict_resolver/security/config.py`
+**Implementation**: `src/review_bot_automator/security/config.py`
 
 **CI/CD Hardening**:
 

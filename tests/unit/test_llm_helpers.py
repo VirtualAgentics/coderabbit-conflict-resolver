@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from pr_conflict_resolver.llm.exceptions import (
+from review_bot_automator.llm.exceptions import (
     LLMAuthenticationError,
     LLMRateLimitError,
 )

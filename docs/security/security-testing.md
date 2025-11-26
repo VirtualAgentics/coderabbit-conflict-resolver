@@ -22,7 +22,7 @@ source .venv/bin/activate
 pytest tests/security/ -v
 
 # Run with coverage
-pytest tests/security/ --cov=src/pr_conflict_resolver/security --cov-report=html
+pytest tests/security/ --cov=src/review_bot_automator/security --cov-report=html
 
 # Run specific security test file
 pytest tests/security/test_secret_scanner.py -v
@@ -448,7 +448,7 @@ scorecard --repo=github.com/VirtualAgentics/review-bot-automator
 import pytest
 from pathlib import Path
 
-from pr_conflict_resolver.security.input_validator import InputValidator
+from review_bot_automator.security.input_validator import InputValidator
 
 class TestComponentSecurity:
     """Security tests for component."""
@@ -472,7 +472,7 @@ class TestComponentSecurity:
     def test_secret_detection(self) -> None:
         """Test that secrets are detected in content."""
         # Arrange
-        from pr_conflict_resolver.security.secret_scanner import SecretScanner
+        from review_bot_automator.security.secret_scanner import SecretScanner
 
         malicious_content = """
         api_key = "ghp_1234567890abcdefghijklmnopqrstuvwxyz12"
@@ -670,7 +670,7 @@ def test_pathological_input_performance() -> None:
 
 ```bash
 # Generate coverage report
-pytest --cov=src/pr_conflict_resolver --cov-report=html
+pytest --cov=src/review_bot_automator --cov-report=html
 
 # View report
 open htmlcov/index.html

@@ -13,10 +13,10 @@ import pytest
 from click import Context
 from hypothesis import HealthCheck, settings
 
-from pr_conflict_resolver.cli.main import cli
-from pr_conflict_resolver.handlers.json_handler import JsonHandler
-from pr_conflict_resolver.handlers.toml_handler import TomlHandler
-from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
+from review_bot_automator.cli.main import cli
+from review_bot_automator.handlers.json_handler import JsonHandler
+from review_bot_automator.handlers.toml_handler import TomlHandler
+from review_bot_automator.handlers.yaml_handler import YamlHandler
 
 
 @pytest.fixture
@@ -161,7 +161,7 @@ def github_logger_capture() -> Generator[io.StringIO, None, None]:
     handler.setLevel(logging.ERROR)
 
     # Get the logger for the GitHub module
-    github_logger = logging.getLogger("pr_conflict_resolver.integrations.github")
+    github_logger = logging.getLogger("review_bot_automator.integrations.github")
     # Save original state
     original_level = github_logger.level
     original_propagate = github_logger.propagate

@@ -6,8 +6,8 @@ defined and enforce the expected interface contracts.
 
 import pytest
 
-from pr_conflict_resolver.llm.base import LLMParser, ParsedChange
-from pr_conflict_resolver.llm.providers.base import LLMProvider
+from review_bot_automator.llm.base import LLMParser, ParsedChange
+from review_bot_automator.llm.providers.base import LLMProvider
 
 
 class TestLLMProviderProtocol:

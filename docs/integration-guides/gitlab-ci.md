@@ -23,7 +23,7 @@ apply-suggestions:
     CR_LLM_COST_BUDGET: "2.0"
 
   before_script:
-    - pip install pr-conflict-resolver
+    - pip install review-bot-automator
     - git config user.name "GitLab CI"
     - git config user.email "ci@gitlab.com"
 
@@ -76,7 +76,7 @@ apply-suggestions:
     OLLAMA_BASE_URL: "http://ollama:11434"
 
   before_script:
-    - pip install pr-conflict-resolver
+    - pip install review-bot-automator
     - curl -X POST http://ollama:11434/api/pull -d '{"name":"qwen2.5-coder:7b"}'
 
   script:
@@ -238,7 +238,7 @@ stages:
       - .cache/
 
   before_script:
-    - pip install pr-conflict-resolver
+    - pip install review-bot-automator
     - git config user.name "GitLab CI"
     - git config user.email "ci@gitlab.com"
 

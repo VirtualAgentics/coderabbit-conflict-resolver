@@ -48,7 +48,7 @@ class TestGenerateBuildMetadata:
         root = generate_build_metadata.get_project_root()
         assert root.exists()
         assert (root / "pyproject.toml").exists()
-        assert (root / "src" / "pr_conflict_resolver").exists()
+        assert (root / "src" / "review_bot_automator").exists()
 
     def test_extract_version_from_pyproject(self) -> None:
         """Test version extraction from pyproject.toml."""
@@ -193,7 +193,7 @@ class TestGenerateBuildMetadata:
         assert "build" in metadata
 
         # Verify package section
-        assert metadata["package"]["name"] == "pr-conflict-resolver"
+        assert metadata["package"]["name"] == "review-bot-automator"
 
         # Read expected version from pyproject.toml
         with (generate_build_metadata.get_project_root() / "pyproject.toml").open("rb") as f:

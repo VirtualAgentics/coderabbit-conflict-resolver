@@ -243,7 +243,7 @@ New requests are blocked until the run completes.
 For programmatic cost tracking:
 
 ```python
-from pr_conflict_resolver.llm.cost_tracker import CostTracker, CostStatus
+from review_bot_automator.llm.cost_tracker import CostTracker, CostStatus
 
 # Initialize with budget
 tracker = CostTracker(budget=5.00, warning_threshold=0.8)

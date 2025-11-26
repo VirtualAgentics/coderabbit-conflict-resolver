@@ -302,7 +302,7 @@ mypy src/
 mypy --strict src/
 
 # Check specific module
-mypy src/pr_conflict_resolver/core/resolver.py
+mypy src/review_bot_automator/core/resolver.py
 ```
 
 ## Integration with CI
