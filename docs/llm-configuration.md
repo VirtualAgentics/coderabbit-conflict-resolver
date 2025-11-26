@@ -967,9 +967,14 @@ See `python scripts/benchmark_llm.py --help` for all options.
 
 ## See Also
 
+* [Circuit Breaker](circuit-breaker.md) - Resilience pattern for handling provider failures
+* [Metrics Guide](metrics-guide.md) - Understanding LLM metrics and export options
+* [Cost Estimation](cost-estimation.md) - Pre-run cost estimation and budget configuration
+* [Confidence Threshold](confidence-threshold.md) - Tuning LLM confidence for accuracy/coverage balance
 * [Performance Benchmarks](performance-benchmarks.md) - Detailed performance comparison of all providers
 * [Ollama Setup Guide](ollama-setup.md) - Comprehensive Ollama installation and setup guide
 * [Main Configuration Guide](configuration.md) - Basic LLM setup and provider documentation
 * [Getting Started Guide](getting-started.md) - Quick start with LLM features
+* [Troubleshooting](troubleshooting.md) - Common issues and solutions
 * [API Reference](api-reference.md) - Configuration API documentation
 * [Security Architecture](security-architecture.md) - Security best practices
