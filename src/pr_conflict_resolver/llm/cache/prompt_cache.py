@@ -707,9 +707,9 @@ class PromptCache:
     def export_entries(self) -> list[dict[str, str | int | float]]:
         """Export all cache entries for backup or transfer.
 
-        Exports cache entries in a format suitable for warm_cache() import.
-        Note: Original prompts are NOT stored in cache files (only hashes),
-        so this exports entries with prompt_hash instead of prompt.
+        Exports cache entries for analytics and backup purposes only.
+        Note: Entries contain prompt_hash (not original prompts) and cannot
+        be re-imported via warm_cache() which requires original prompts.
 
         Returns:
             List of cache entry dictionaries with:
