@@ -102,7 +102,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     * `.env.example` updated with all LLM-related environment variables
     * Comprehensive preset documentation in `docs/llm-configuration.md`
     * Provider setup guides for each LLM provider
-* **V2.0 Phase 4**: Documentation & Developer Experience 🔄 IN PROGRESS (Issue #120, 50% Complete)
+* **V2.0 Phase 5**: Optimization & Production Readiness ✅ COMPLETE (Issue #119, PR #250, Nov 26, 2025)
+  * **Rate Limit Retry System:**
+    * Configurable retry on rate limit errors (CR_LLM_RETRY_ON_RATE_LIMIT)
+    * Exponential backoff with jitter (CR_LLM_RETRY_MAX_ATTEMPTS, CR_LLM_RETRY_BASE_DELAY)
+    * Default: 3 attempts, 2.0s base delay
+  * **Cache Warming:**
+    * `warm_cache()` method for cold start optimization
+    * O(n) bulk loading with deferred eviction
+    * `skip_eviction` parameter for batch operations
+  * **Fallback Rate Tracking:**
+    * Tracks LLM vs regex parser usage
+    * Exposed in LLM metrics aggregation
+  * **CLI Enhancements:**
+    * `--llm-confidence-threshold` flag (default: 0.5)
+    * Better error messages with specific exception types
+  * **Cache Durability:**
+    * fsync for crash-safe atomic writes
+    * Temp file cleanup on error (no .json.tmp accumulation)
+  * **Code Quality:**
+    * DRY validation with `_validate_field()` helper
+    * Type narrowing for MyPy strict mode
+    * Specific exception handling throughout
+  * **Test Coverage:** 1818 tests, 88.74% coverage
+* **V2.0 Phase 6**: Documentation & Migration 🔄 IN PROGRESS (Issue #120, ~90% Complete)
   * **Completed (5/6 sub-issues):**
     * ✅ HTTP connection pooling and optimization (PR #173, Sub-Issue #167, Nov 12, 2025)
       * `requests.Session()` for connection reuse and keep-alive

@@ -709,6 +709,92 @@ pr-resolve apply 123 --config prod.yaml
 
 ```
 
+## Retry & Resilience Configuration
+
+### Rate Limit Retry (Phase 5)
+
+Configure automatic retry behavior for rate limit and transient errors:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CR_LLM_RETRY_ON_RATE_LIMIT` | `true` | Enable retry on rate limit errors |
+| `CR_LLM_RETRY_MAX_ATTEMPTS` | `3` | Maximum retry attempts (>=1) |
+| `CR_LLM_RETRY_BASE_DELAY` | `2.0` | Base delay in seconds for exponential backoff |
+
+**Example YAML configuration:**
+
+```yaml
+llm:
+  retry_on_rate_limit: true
+  retry_max_attempts: 5
+  retry_base_delay: 3.0
+```
+
+**Exponential backoff formula:**
+
+```text
+delay = base_delay * 2^attempt + random_jitter
+```
+
+For example, with `retry_base_delay: 2.0`:
+
+* Attempt 1: ~2s delay
+* Attempt 2: ~4s delay
+* Attempt 3: ~8s delay
+
+### Circuit Breaker
+
+Prevents cascading failures by temporarily disabling failing providers:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CR_LLM_CIRCUIT_BREAKER_ENABLED` | `true` | Enable circuit breaker pattern |
+| `CR_LLM_CIRCUIT_BREAKER_THRESHOLD` | `5` | Consecutive failures before circuit opens |
+| `CR_LLM_CIRCUIT_BREAKER_COOLDOWN` | `60.0` | Seconds before attempting recovery |
+
+**Circuit breaker states:**
+
+1. **CLOSED** (normal): Requests pass through
+2. **OPEN** (failing): Requests fail immediately without calling provider
+3. **HALF_OPEN** (recovery): Single test request to check if provider recovered
+
+## Cache Warming
+
+Pre-populate the cache for cold start optimization:
+
+```python
+from pr_conflict_resolver.llm.cache.prompt_cache import PromptCache
+
+cache = PromptCache()
+entries = [
+    {
+        "prompt": "Parse this CodeRabbit comment...",
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-5",
+        "response": "..."
+    },
+    # ... more entries
+]
+loaded, skipped = cache.warm_cache(entries)
+print(f"Loaded {loaded} entries, skipped {skipped}")
+```
+
+**Benefits:**
+
+* Eliminates cold start latency
+* O(n) bulk loading (optimized, no per-entry eviction checks)
+* Skips duplicates automatically
+* Thread-safe for concurrent access
+
+**Via CachingProvider:**
+
+```python
+from pr_conflict_resolver.llm.providers.caching_provider import CachingProvider
+
+cached_provider = CachingProvider(base_provider)
+loaded, skipped = cached_provider.warm_up(entries)
+```
+
 ## Troubleshooting
 
 ### Environment Variable Not Interpolated
