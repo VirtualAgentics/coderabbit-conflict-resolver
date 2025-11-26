@@ -25,7 +25,7 @@
   <a href="https://coderabbit.ai"><img src="https://img.shields.io/coderabbit/prs/github/VirtualAgentics/review-bot-automator?utm_source=oss&utm_medium=github&utm_campaign=VirtualAgentics%2Freview-bot-automator&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews" alt="CodeRabbit Reviews"></a>
   <br>
   <!-- Project Info -->
-  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python Version"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="Status: Alpha">
 </p>

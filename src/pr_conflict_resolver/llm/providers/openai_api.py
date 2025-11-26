@@ -82,14 +82,25 @@ class OpenAIAPIProvider:
         Note: Unknown models return $0.00 cost (see _calculate_cost method).
     """
 
-    # Pricing per 1M tokens (as of Nov 2024)
+    # Pricing per 1M tokens (as of Nov 2025)
     # Source: https://openai.com/pricing
     MODEL_PRICING: ClassVar[dict[str, dict[str, float]]] = {
+        # GPT-5 family (November 2025)
+        "gpt-5.1": {"input": 1.25, "output": 10.00},
+        "gpt-5": {"input": 1.25, "output": 10.00},
+        "gpt-5-mini": {"input": 0.25, "output": 2.00},
+        "gpt-5-nano": {"input": 0.05, "output": 0.40},
+        # GPT-4.1 family (April 2025)
+        "gpt-4.1": {"input": 2.00, "output": 6.00},
+        "gpt-4.1-mini": {"input": 0.30, "output": 1.20},
+        "gpt-4.1-nano": {"input": 0.10, "output": 0.40},
+        # GPT-4o family (2024)
+        "gpt-4o": {"input": 2.50, "output": 10.00},
+        "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+        # Legacy models
         "gpt-4": {"input": 30.00, "output": 60.00},
         "gpt-4-turbo": {"input": 10.00, "output": 30.00},
         "gpt-3.5-turbo": {"input": 1.00, "output": 2.00},
-        "gpt-4o": {"input": 2.50, "output": 10.00},
-        "gpt-4o-mini": {"input": 0.15, "output": 0.60},
     }
 
     def __init__(

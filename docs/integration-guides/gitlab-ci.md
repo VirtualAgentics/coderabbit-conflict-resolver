@@ -30,6 +30,8 @@ apply-suggestions:
   script:
     - |
       pr-resolve apply $CI_MERGE_REQUEST_IID \
+        --owner $CI_PROJECT_NAMESPACE \
+        --repo $CI_PROJECT_NAME \
         --show-metrics \
         --log-level INFO
     - git add -A
@@ -78,7 +80,7 @@ apply-suggestions:
     - curl -X POST http://ollama:11434/api/pull -d '{"name":"qwen2.5-coder:7b"}'
 
   script:
-    - pr-resolve apply $CI_MERGE_REQUEST_IID
+    - pr-resolve apply $CI_MERGE_REQUEST_IID --owner $CI_PROJECT_NAMESPACE --repo $CI_PROJECT_NAME
 ```
 
 ### With Config File
@@ -88,6 +90,8 @@ apply-suggestions:
   script:
     - |
       pr-resolve apply $CI_MERGE_REQUEST_IID \
+        --owner $CI_PROJECT_NAMESPACE \
+        --repo $CI_PROJECT_NAME \
         --config .pr-resolve/gitlab-config.yaml
 ```
 

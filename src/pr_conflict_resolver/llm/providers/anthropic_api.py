@@ -89,7 +89,14 @@ class AnthropicAPIProvider:
     # Pricing per 1M tokens (as of Nov 2025)
     # Source: https://docs.claude.com/en/docs/about-claude/pricing
     MODEL_PRICING: ClassVar[dict[str, dict[str, float]]] = {
-        # Current models (2025)
+        # Current models (November 2025)
+        "claude-opus-4-5": {
+            "input": 5.00,
+            "output": 25.00,
+            "cache_write": 6.25,  # 5-minute cache
+            "cache_read": 0.50,
+        },
+        # Legacy Opus (keeping for compatibility)
         "claude-opus-4-1": {
             "input": 15.00,
             "output": 75.00,

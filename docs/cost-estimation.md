@@ -20,10 +20,13 @@ LLM costs depend on:
 | **Ollama** | qwen2.5-coder:7b | $0.0000 | Free (local) |
 | **Claude CLI** | claude-sonnet-4-5 | $0.0000 | Subscription-based |
 | **Codex CLI** | codex | $0.0000 | Subscription-based |
-| **Anthropic API** | claude-haiku-4 | ~$0.0008 | Low-cost API |
+| **OpenAI API** | gpt-5-nano | ~$0.0001 | Cheapest API option |
+| **OpenAI API** | gpt-5-mini | ~$0.0003 | Best value (Nov 2025) |
+| **OpenAI API** | gpt-4o-mini | ~$0.0002 | Low-cost API |
+| **Anthropic API** | claude-haiku-4-5 | ~$0.0008 | Low-cost API |
 | **Anthropic API** | claude-sonnet-4-5 | ~$0.0030 | Balanced |
-| **OpenAI API** | gpt-4o-mini | ~$0.0005 | Low-cost API |
-| **OpenAI API** | gpt-4o | ~$0.0050 | Premium |
+| **Anthropic API** | claude-opus-4-5 | ~$0.0050 | Flagship (67% cheaper than 4.1!) |
+| **OpenAI API** | gpt-5.1 | ~$0.0015 | Latest flagship |
 
 ### Monthly Cost Projections
 
@@ -33,10 +36,13 @@ Assuming 100 PRs/month with 20 comments each (2,000 comments):
 |----------|-------|--------------|
 | Ollama | qwen2.5-coder:7b | $0.00 |
 | Claude CLI | claude-sonnet-4-5 | $0.00 (subscription) |
-| Anthropic API | claude-haiku-4 | ~$1.60 |
-| OpenAI API | gpt-4o-mini | ~$1.00 |
+| OpenAI API | gpt-5-nano | ~$0.20 |
+| OpenAI API | gpt-5-mini | ~$0.60 |
+| OpenAI API | gpt-4o-mini | ~$0.40 |
+| Anthropic API | claude-haiku-4-5 | ~$1.60 |
+| OpenAI API | gpt-5.1 | ~$3.00 |
 | Anthropic API | claude-sonnet-4-5 | ~$6.00 |
-| OpenAI API | gpt-4o | ~$10.00 |
+| Anthropic API | claude-opus-4-5 | ~$10.00 |
 
 ## Pre-Run Cost Estimation
 
