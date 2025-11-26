@@ -11,6 +11,7 @@ An intelligent, automated conflict resolution system for GitHub PR comments, spe
    architecture
    configuration
    llm-configuration
+   llm-provider-guide
    migration
    conflict-types
    resolution-strategies
