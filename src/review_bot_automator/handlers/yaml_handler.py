@@ -21,10 +21,7 @@ from review_bot_automator.security.input_validator import InputValidator
 from review_bot_automator.utils.path_utils import resolve_file_path
 
 # Type alias for YAML values - recursive to capture nested dicts/lists
-# Note: object is included as fallback for test compatibility with dict[str, str] etc.
-YAMLValue: TypeAlias = (
-    dict[str, "YAMLValue"] | list["YAMLValue"] | str | int | float | bool | None | object
-)
+YAMLValue: TypeAlias = dict[str, "YAMLValue"] | list["YAMLValue"] | str | int | float | bool | None
 
 try:
     from ruamel.yaml import YAML

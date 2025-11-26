@@ -4,6 +4,7 @@ import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import cast
 from unittest.mock import patch
 
 import pytest
@@ -11,6 +12,7 @@ import pytest
 from review_bot_automator import FileType, JsonHandler, TomlHandler, YamlHandler
 from review_bot_automator.core.models import Change, Conflict
 from review_bot_automator.handlers.base import BaseHandler
+from review_bot_automator.handlers.yaml_handler import YAMLValue
 
 
 class MockTaggedObject:
@@ -173,7 +175,10 @@ class TestYamlHandler:
         """Test key extraction."""
         handler = YamlHandler()
 
-        data = {"key1": "value1", "key2": {"nested1": "value2", "nested2": ["item1", "item2"]}}
+        data: YAMLValue = {
+            "key1": "value1",
+            "key2": {"nested1": "value2", "nested2": ["item1", "item2"]},
+        }
 
         keys = handler._extract_keys(data)
 
@@ -192,7 +197,7 @@ class TestYamlHandler:
         handler = YamlHandler()
 
         # Create deeply nested structure
-        data = {
+        data: YAMLValue = {
             "level1": {
                 "level2": {
                     "level3": {
@@ -263,7 +268,7 @@ class TestYamlHandler:
             "nested": {"another_dangerous": MockTaggedObject("!!python/name")},
         }
 
-        assert handler._contains_dangerous_tags(dangerous_data) is True
+        assert handler._contains_dangerous_tags(cast(YAMLValue, dangerous_data)) is True
 
     def test_contains_dangerous_tags_nested_list(self) -> None:
         """Test _contains_dangerous_tags with nested lists."""
@@ -275,7 +280,7 @@ class TestYamlHandler:
             ["nested", MockTaggedObject("!!python/module")],
         ]
 
-        assert handler._contains_dangerous_tags(dangerous_data) is True
+        assert handler._contains_dangerous_tags(cast(YAMLValue, dangerous_data)) is True
 
     def test_detect_conflicts_unparseable_content(self) -> None:
         """Test detect_conflicts with unparseable change content."""
@@ -324,18 +329,22 @@ class TestYamlHandler:
         handler = YamlHandler()
 
         # Test empty dictionary
-        empty_dict: dict[str, object] = {}
+        empty_dict: YAMLValue = {}
         keys = handler._extract_keys(empty_dict)
         assert keys == []
 
         # Test empty list
-        data_with_empty_list: dict[str, list[object]] = {"key": []}
+        data_with_empty_list: YAMLValue = {"key": []}
         keys = handler._extract_keys(data_with_empty_list)
         assert "key" in keys
         assert "key[0]" not in keys  # No items in empty list
 
         # Test dictionary with empty nested structures
-        data_with_empty_nested = {"empty_dict": {}, "empty_list": [], "normal_key": "value"}
+        data_with_empty_nested: YAMLValue = {
+            "empty_dict": {},
+            "empty_list": [],
+            "normal_key": "value",
+        }
         keys = handler._extract_keys(data_with_empty_nested)
         expected_keys = ["empty_dict", "empty_list", "normal_key"]
         assert set(expected_keys) <= set(keys)
@@ -359,7 +368,7 @@ class TestYamlHandler:
             assert "Valid YAML" in msg
 
             # Test key extraction with anchors/aliases
-            data = {"anchor": "&ref", "alias": "*ref"}
+            data: YAMLValue = {"anchor": "&ref", "alias": "*ref"}
             keys = handler._extract_keys(data)
             assert "anchor" in keys
             assert "alias" in keys
