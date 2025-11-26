@@ -353,13 +353,21 @@ class PromptCache:
         with self._lock:
             self._set_unlocked(key, response, metadata)
 
-    def _set_unlocked(self, key: str, response: str, metadata: dict[str, str]) -> None:
+    def _set_unlocked(
+        self,
+        key: str,
+        response: str,
+        metadata: dict[str, str],
+        *,
+        skip_eviction: bool = False,
+    ) -> None:
         """Internal set implementation without locking (caller must hold lock).
 
         Args:
             key: SHA256 cache key
             response: LLM response to cache
             metadata: Must include prompt, provider, and model
+            skip_eviction: If True, skip cache size check and eviction (for bulk ops)
         """
         # Extract and validate prompt (required for prompt_hash)
         prompt = metadata.get("prompt")
@@ -389,13 +397,16 @@ class PromptCache:
 
         logger.debug(f"Cached response for key {key[:8]}...")
 
-        # Check if eviction needed
-        cache_size = self._get_cache_size_unlocked()
-        if cache_size > self.max_size_bytes:
-            # Calculate target size (90% of max to reduce frequent evictions)
-            target_size = int(self.max_size_bytes * _EVICTION_TARGET_RATIO)
-            evicted = self._evict_lru_unlocked(target_size)
-            logger.info(f"Cache exceeded {self.max_size_bytes} bytes, evicted {evicted} entries")
+        # Check if eviction needed (skip during bulk operations for O(n) instead of O(n²))
+        if not skip_eviction:
+            cache_size = self._get_cache_size_unlocked()
+            if cache_size > self.max_size_bytes:
+                # Calculate target size (90% of max to reduce frequent evictions)
+                target_size = int(self.max_size_bytes * _EVICTION_TARGET_RATIO)
+                evicted = self._evict_lru_unlocked(target_size)
+                logger.info(
+                    f"Cache exceeded {self.max_size_bytes} bytes, evicted {evicted} entries"
+                )
 
     def evict_expired(self) -> int:
         """Remove all expired cache entries based on TTL.
@@ -613,6 +624,22 @@ class PromptCache:
                 total_size += cache_file.stat().st_size
         return total_size
 
+    @staticmethod
+    def _validate_field(entry: dict[str, str], field: str) -> str | None:
+        """Validate and return field value or None if invalid.
+
+        Args:
+            entry: Dictionary to extract field from
+            field: Field name to validate
+
+        Returns:
+            Stripped string value if valid, None if missing/empty/whitespace-only
+        """
+        value = entry.get(field)
+        if not isinstance(value, str) or not value.strip():
+            return None
+        return value
+
     def warm_cache(self, entries: list[dict[str, str]]) -> tuple[int, int]:
         """Pre-populate cache with pre-computed entries for cold start optimization.
 
@@ -658,37 +685,28 @@ class PromptCache:
         with self._lock:
             for entry in entries:
                 try:
-                    # Extract and validate required fields with explicit type narrowing
-                    prompt_raw = entry.get("prompt")
-                    provider_raw = entry.get("provider")
-                    model_raw = entry.get("model")
-                    response_raw = entry.get("response")
+                    # Validate required fields using helper (DRY + type narrowing)
+                    prompt = self._validate_field(entry, "prompt")
+                    provider = self._validate_field(entry, "provider")
+                    model = self._validate_field(entry, "model")
+                    response = self._validate_field(entry, "response")
 
-                    # Validate each field is a non-empty/non-whitespace string
-                    if not isinstance(prompt_raw, str) or not prompt_raw.strip():
-                        logger.warning("Skipping invalid warm cache entry: missing required fields")
-                        skipped += 1
-                        continue
-                    if not isinstance(provider_raw, str) or not provider_raw.strip():
-                        logger.warning("Skipping invalid warm cache entry: missing required fields")
-                        skipped += 1
-                        continue
-                    if not isinstance(model_raw, str) or not model_raw.strip():
-                        logger.warning("Skipping invalid warm cache entry: missing required fields")
-                        skipped += 1
-                        continue
-                    if not isinstance(response_raw, str) or not response_raw.strip():
-                        logger.warning("Skipping invalid warm cache entry: missing required fields")
+                    if prompt is None or provider is None or model is None or response is None:
+                        missing = [
+                            f
+                            for f, v in [
+                                ("prompt", prompt),
+                                ("provider", provider),
+                                ("model", model),
+                                ("response", response),
+                            ]
+                            if v is None
+                        ]
+                        logger.warning(f"Skipping invalid entry: missing/empty fields: {missing}")
                         skipped += 1
                         continue
 
-                    # Type-narrowed variables for use below
-                    prompt: str = prompt_raw
-                    provider: str = provider_raw
-                    model: str = model_raw
-                    response: str = response_raw
-
-                    # Compute cache key
+                    # Compute cache key (type narrowed to str after None checks)
                     key = self.compute_key(prompt, provider, model)
                     cache_file = self.cache_dir / f"{key}.json"
 
@@ -698,17 +716,26 @@ class PromptCache:
                         skipped += 1
                         continue
 
-                    # Store entry
+                    # Store entry (skip per-entry eviction for O(n) bulk load)
                     self._set_unlocked(
                         key,
                         response,
                         {"prompt": prompt, "provider": provider, "model": model},
+                        skip_eviction=True,
                     )
                     loaded += 1
 
                 except (ValueError, TypeError, KeyError) as e:
                     logger.warning(f"Failed to warm cache entry: {e}")
                     skipped += 1
+
+            # Single eviction check after bulk load (O(n) instead of O(n²))
+            if loaded > 0:
+                cache_size = self._get_cache_size_unlocked()
+                if cache_size > self.max_size_bytes:
+                    target_size = int(self.max_size_bytes * _EVICTION_TARGET_RATIO)
+                    evicted = self._evict_lru_unlocked(target_size)
+                    logger.info(f"Cache warming evicted {evicted} LRU entries after bulk load")
 
         logger.info(f"Cache warming complete: loaded={loaded}, skipped={skipped}")
         return (loaded, skipped)
