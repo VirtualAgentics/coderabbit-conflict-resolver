@@ -100,7 +100,7 @@ class LLMConfig:
             raise ValueError(f"retry_base_delay must be > 0, got {self.retry_base_delay}")
 
         # Validate effort level
-        valid_efforts = {None, "none", "low", "medium", "high"}
+        valid_efforts = {"none", "low", "medium", "high"}
         if self.effort is not None and self.effort.lower() not in valid_efforts:
             raise ValueError(
                 f"effort must be one of {{'none', 'low', 'medium', 'high'}}, "

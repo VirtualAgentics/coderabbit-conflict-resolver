@@ -145,7 +145,7 @@ class AnthropicAPIProvider:
             api_key: Anthropic API key (starts with sk-ant-)
             model: Model identifier (default: claude-sonnet-4-5 for best value)
             timeout: Request timeout in seconds
-            effort: Effort level for Claude Opus 4.5 ('low', 'medium', 'high')
+            effort: Effort level for Claude Opus 4.5 ('none', 'low', 'medium', 'high')
                    Controls token efficiency vs response quality tradeoff.
 
         Raises:
