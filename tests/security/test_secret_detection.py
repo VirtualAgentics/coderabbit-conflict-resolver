@@ -567,3 +567,93 @@ class TestSecretScannerLogging:
             and "total secrets" in record.message
             for record in caplog.records
         )
+
+
+class TestGetSafeSecretTypeName:
+    """Tests for get_safe_secret_type_name sanitization function.
+
+    This function breaks CodeQL taint tracking by validating secret type
+    identifiers against a known allowlist before logging.
+    """
+
+    def test_known_github_token_types(self) -> None:
+        """Known GitHub token types are returned as-is."""
+        from pr_conflict_resolver.security.secret_scanner import get_safe_secret_type_name
+
+        assert get_safe_secret_type_name("github_personal_token") == "github_personal_token"
+        assert get_safe_secret_type_name("github_oauth_token") == "github_oauth_token"
+        assert get_safe_secret_type_name("github_server_token") == "github_server_token"
+        assert get_safe_secret_type_name("github_refresh_token") == "github_refresh_token"
+
+    def test_known_cloud_provider_types(self) -> None:
+        """Known cloud provider credential types are returned as-is."""
+        from pr_conflict_resolver.security.secret_scanner import get_safe_secret_type_name
+
+        assert get_safe_secret_type_name("aws_access_key") == "aws_access_key"
+        assert get_safe_secret_type_name("aws_secret_key") == "aws_secret_key"
+        assert get_safe_secret_type_name("azure_connection_string") == "azure_connection_string"
+        assert get_safe_secret_type_name("google_oauth") == "google_oauth"
+
+    def test_known_api_key_types(self) -> None:
+        """Known API key types are returned as-is."""
+        from pr_conflict_resolver.security.secret_scanner import get_safe_secret_type_name
+
+        assert get_safe_secret_type_name("openai_api_key") == "openai_api_key"
+        assert get_safe_secret_type_name("slack_token") == "slack_token"
+        assert get_safe_secret_type_name("generic_api_key") == "generic_api_key"
+
+    def test_known_token_and_secret_types(self) -> None:
+        """Known token and secret types are returned as-is."""
+        from pr_conflict_resolver.security.secret_scanner import get_safe_secret_type_name
+
+        assert get_safe_secret_type_name("jwt_token") == "jwt_token"
+        assert get_safe_secret_type_name("private_key") == "private_key"
+        assert get_safe_secret_type_name("generic_token") == "generic_token"
+        assert get_safe_secret_type_name("generic_secret") == "generic_secret"
+
+    def test_known_database_types(self) -> None:
+        """Known database credential types are returned as-is."""
+        from pr_conflict_resolver.security.secret_scanner import get_safe_secret_type_name
+
+        assert (
+            get_safe_secret_type_name("database_url_with_password") == "database_url_with_password"
+        )
+        assert get_safe_secret_type_name("password") == "password"
+
+    def test_unknown_types_return_unknown_type(self) -> None:
+        """Unknown types return 'unknown_type' for safety."""
+        from pr_conflict_resolver.security.secret_scanner import get_safe_secret_type_name
+
+        assert get_safe_secret_type_name("some_random_type") == "unknown_type"
+        assert get_safe_secret_type_name("") == "unknown_type"
+        assert get_safe_secret_type_name("not_in_allowlist") == "unknown_type"
+        assert get_safe_secret_type_name("arbitrary_value") == "unknown_type"
+
+    def test_prevents_log_injection(self) -> None:
+        """Verify function prevents injection of arbitrary values into logs."""
+        from pr_conflict_resolver.security.secret_scanner import get_safe_secret_type_name
+
+        # Malicious inputs should be sanitized to 'unknown_type'
+        assert get_safe_secret_type_name("ghp_actualSecretValue123") == "unknown_type"
+        assert get_safe_secret_type_name("sk-realOpenAIKey") == "unknown_type"
+        assert get_safe_secret_type_name("AKIA...") == "unknown_type"
+        assert get_safe_secret_type_name("\n\ninjected log line") == "unknown_type"
+
+    def test_all_scanner_patterns_have_known_type(self) -> None:
+        """Verify all secret types defined in scanner patterns are in KNOWN_SECRET_TYPES."""
+        from pr_conflict_resolver.security.secret_scanner import (
+            KNOWN_SECRET_TYPES,
+            SecretScanner,
+            get_safe_secret_type_name,
+        )
+
+        # Get all secret types from the scanner patterns
+        scanner_types = {secret_type for _, secret_type, _ in SecretScanner.PATTERNS}
+
+        # Verify all scanner types are in the known types allowlist
+        for secret_type in scanner_types:
+            assert (
+                secret_type in KNOWN_SECRET_TYPES
+            ), f"Secret type '{secret_type}' from scanner patterns is not in KNOWN_SECRET_TYPES"
+            # Also verify the function works correctly for each type
+            assert get_safe_secret_type_name(secret_type) == secret_type

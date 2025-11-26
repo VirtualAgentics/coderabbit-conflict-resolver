@@ -22,7 +22,7 @@ from pr_conflict_resolver.llm.cost_tracker import CostStatus, CostTracker
 from pr_conflict_resolver.llm.exceptions import LLMCostExceededError, LLMSecretDetectedError
 from pr_conflict_resolver.llm.prompts import PARSE_COMMENT_PROMPT
 from pr_conflict_resolver.llm.providers.base import LLMProvider
-from pr_conflict_resolver.security.secret_scanner import SecretScanner
+from pr_conflict_resolver.security.secret_scanner import SecretScanner, get_safe_secret_type_name
 
 logger = logging.getLogger(__name__)
 
@@ -151,13 +151,13 @@ class UniversalLLMParser(LLMParser):
         if self.scan_for_secrets:
             findings = SecretScanner.scan_content(comment_body, stop_on_first=True)
             if findings:
-                # CodeQL[py/clear-text-logging-sensitive-data]: False positive - we log the
-                # secret TYPE (e.g., "github_token"), not the actual secret value. This is
-                # security metadata needed for auditing which patterns triggered the block.
+                # Use get_safe_secret_type_name() to sanitize secret types before logging
+                # This breaks CodeQL taint tracking by validating against a known allowlist
+                safe_type = get_safe_secret_type_name(findings[0].secret_type)
                 logger.error(
                     "Secret detected in comment body (%s), blocking LLM request - "
                     "refusing to send to external API",
-                    findings[0].secret_type,
+                    safe_type,
                 )
                 raise LLMSecretDetectedError(
                     f"Secret detected: {findings[0].secret_type}",
