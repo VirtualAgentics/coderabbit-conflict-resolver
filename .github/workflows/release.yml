@@ -53,7 +53,7 @@ jobs:
         run: python scripts/validate_wheel.py
 
       - name: Publish to PyPI with attestations
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # release/v1
         with:
           attestations: true  # Sigstore attestations for OpenSSF Scorecard
 

@@ -17,7 +17,7 @@ Complete guide for running Review Bot Automator with local LLM inference using O
 
 ## Overview
 
-### Why Local LLM Operation?
+### Why Local LLM Operation
 
 Local LLM operation with Ollama provides:
 
@@ -53,7 +53,7 @@ Internet is always required for:
 
 * ✅ **GitHub API**: Fetching PR data and review comments
 * ✅ **GitHub Push**: Pushing resolved changes back to PR
-* ⚠️ **Initial Setup**: Downloading Ollama, models, and pr-resolve package
+* ⚠️ **Initial Setup**: Downloading Ollama, models, and Review Bot Automator package
 
 ---
 
@@ -73,7 +73,7 @@ Before starting local LLM operation, you need:
 
 * **Ollama**: Latest version
 * **Python 3.12+**: With pip and venv
-* **pr-resolve**: Latest version from PyPI
+* **Review Bot Automator**: Latest version from PyPI
 * **LLM Model**: At least one model (qwen2.5-coder:7b recommended)
 * **GitHub Token**: For API access
 
@@ -115,7 +115,7 @@ ollama list
 
 **Storage Note**: Models are stored in `~/.ollama/models/` and can be 4-8GB each.
 
-### Step 3: Install pr-resolve
+### Step 3: Install Review Bot Automator
 
 ```bash
 # Create virtual environment
@@ -399,7 +399,7 @@ du -sh ~/.ollama/models/
 
 ```
 
-### Updating pr-resolve
+### Updating Review Bot Automator
 
 ```bash
 # Update to latest version

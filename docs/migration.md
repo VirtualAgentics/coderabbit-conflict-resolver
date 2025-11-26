@@ -129,9 +129,11 @@ change = Change(
 
 ### 3.1 Zero Breaking Changes Guarantee
 
+**Note**: The package was renamed from `pr-conflict-resolver` to `review-bot-automator` in v2.0. This is a one-time rename for the initial public release. The guarantees below apply to the v2.0 API going forward.
+
 #### We guarantee
 
-* ✅ All v1.x Python API code works unchanged
+* ✅ All v1.x Python API code works unchanged (update import paths)
 * ✅ All v1.x CLI commands work unchanged
 * ✅ All v1.x configuration files work unchanged
 * ✅ All v1.x data models remain compatible

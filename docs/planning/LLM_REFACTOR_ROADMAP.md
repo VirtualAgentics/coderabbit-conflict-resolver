@@ -1764,7 +1764,7 @@ class ClaudeCLIProvider:
 
 **File:** `src/review_bot_automator/llm/providers/codex_cli.py`
 
-(Similar structure to Claude CLI, adapted for Codex CLI interface)
+(Similar structure to Claude CLI, adapted for Codex CLI)
 
 #### Task 2.4: Implement Ollama Provider (6 hours)
 

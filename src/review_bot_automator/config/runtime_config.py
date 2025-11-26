@@ -43,7 +43,7 @@ class ApplicationMode(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class RuntimeConfig:
-    """Runtime configuration for the PR conflict resolver.
+    """Runtime configuration for Review Bot Automator.
 
     This immutable configuration dataclass manages application settings from multiple
     sources with proper precedence. All fields are validated during initialization.

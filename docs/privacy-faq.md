@@ -75,9 +75,9 @@ See [Privacy Architecture - Data Flow Comparison](privacy-architecture.md#data-f
 
 **A**: It depends on the provider and your agreement:
 
-* **OpenAI**: By default, API data is retained for 30 days for abuse monitoring. You can opt out of training data usage. See [OpenAI's API data usage policy](https://openai.com/policies/api-data-usage-policies).
+* **OpenAI**: By default, API data is retained for 30 days for abuse monitoring. You can opt out of training data usage. See [OpenAI's API data usage policy](<https://openai.com/policies/api-data-usage-policies>).
 
-* **Anthropic**: API requests are NOT used for training by default. Data is retained for 90 days for Trust & Safety. See [Anthropic's commercial terms](https://www.anthropic.com/legal/commercial-terms).
+* **Anthropic**: API requests are NOT used for training by default. Data is retained for 90 days for Trust & Safety. See [Anthropic's commercial terms](<https://www.anthropic.com/legal/commercial-terms>).
 
 * **Ollama**: No data sent to any vendor. Not applicable.
 
@@ -109,7 +109,7 @@ See [Privacy Architecture - Data Flow Comparison](privacy-architecture.md#data-f
 
 **A**: API keys for cloud providers (OpenAI, Anthropic) are:
 
-* ✅ **Never logged** by pr-resolve
+* ✅ **Never logged** by Review Bot Automator
 * ✅ **Never sent to GitHub** or other services
 * ✅ **Only sent to the respective LLM provider** (OpenAI/Anthropic)
 * ✅ **Stored in environment variables or config files** (user-controlled)
@@ -131,7 +131,7 @@ llm:
 
 See [LLM Configuration - API Key Security](llm-configuration.md#api-key-security) for details.
 
-### Q: Does pr-resolve collect any telemetry or analytics?
+### Q: Does Review Bot Automator collect any telemetry or analytics?
 
 **A**: **No**. Review Bot Automator collects zero telemetry, analytics, or usage data. Everything runs locally on your machine.
 
@@ -168,7 +168,7 @@ lsof -i -n -P | grep python
 
 **3. Code Inspection**:
 
-* pr-resolve is **open source** - review the code on GitHub
+* Review Bot Automator is **open source** - review the code on GitHub
 * LLM provider integrations: `src/review_bot_automator/llm/providers/`
 
 **4. Debug Logging**:
@@ -227,7 +227,7 @@ See [Local LLM Operation Guide](local-llm-operation-guide.md) for honest explana
 
 * Ollama installer (one-time)
 * At least one LLM model (e.g., `ollama pull qwen2.5-coder:7b`)
-* pr-resolve Python package and dependencies
+* Review Bot Automator Python package and dependencies
 * Python 3.12+ runtime
 
 **Important**: These downloads enable local LLM processing, but the tool still requires internet to fetch PR data from GitHub.

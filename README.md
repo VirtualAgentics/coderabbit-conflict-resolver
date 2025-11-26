@@ -423,7 +423,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 📊 Project Status
 
-**Current Version**: 0.1.0 (Alpha)
+**Current Version**: 2.0.0
 
 **Roadmap**:
 
