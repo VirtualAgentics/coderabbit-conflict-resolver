@@ -742,7 +742,9 @@ class TestAnthropicProviderEffortParameter:
 
     def test_init_with_effort_parameter(self) -> None:
         """Test that effort parameter is stored correctly."""
-        provider = AnthropicAPIProvider(api_key="sk-ant-test", effort="high")
+        provider = AnthropicAPIProvider(
+            api_key="sk-ant-test", model="claude-opus-4-5", effort="high"
+        )
         assert provider.effort == "high"
 
     @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
@@ -792,7 +794,9 @@ class TestAnthropicProviderEffortParameter:
         )
         mock_client.messages.create.return_value = mock_response
 
-        provider = AnthropicAPIProvider(api_key="sk-ant-test", effort="high")
+        provider = AnthropicAPIProvider(
+            api_key="sk-ant-test", model="claude-opus-4-5", effort="high"
+        )
         provider.generate("Test prompt")
 
         # Verify both beta headers are included
@@ -818,7 +822,9 @@ class TestAnthropicProviderEffortParameter:
         )
         mock_client.messages.create.return_value = mock_response
 
-        provider = AnthropicAPIProvider(api_key="sk-ant-test", effort="high")
+        provider = AnthropicAPIProvider(
+            api_key="sk-ant-test", model="claude-opus-4-5", effort="high"
+        )
         provider.generate("Test prompt")
 
         # Verify extra_body contains output_config with effort
@@ -843,7 +849,9 @@ class TestAnthropicProviderEffortParameter:
         )
         mock_client.messages.create.return_value = mock_response
 
-        provider = AnthropicAPIProvider(api_key="sk-ant-test", effort="low")
+        provider = AnthropicAPIProvider(
+            api_key="sk-ant-test", model="claude-opus-4-5", effort="low"
+        )
         provider.generate("Test prompt")
 
         call_args = mock_client.messages.create.call_args
@@ -866,11 +874,48 @@ class TestAnthropicProviderEffortParameter:
         )
         mock_client.messages.create.return_value = mock_response
 
-        provider = AnthropicAPIProvider(api_key="sk-ant-test", effort="medium")
+        provider = AnthropicAPIProvider(
+            api_key="sk-ant-test", model="claude-opus-4-5", effort="medium"
+        )
         provider.generate("Test prompt")
 
         call_args = mock_client.messages.create.call_args
         assert call_args[1]["extra_body"] == {"output_config": {"effort": "medium"}}
+
+    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    def test_generate_with_effort_none(self, mock_anthropic_class: Mock) -> None:
+        """Test that effort='none' is passed correctly."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_text_block = TextBlock(type="text", text="response")
+        mock_response = MagicMock()
+        mock_response.content = [mock_text_block]
+        mock_response.usage = MagicMock(
+            input_tokens=10,
+            output_tokens=5,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
+        mock_client.messages.create.return_value = mock_response
+
+        provider = AnthropicAPIProvider(
+            api_key="sk-ant-test", model="claude-opus-4-5", effort="none"
+        )
+        provider.generate("Test prompt")
+
+        call_args = mock_client.messages.create.call_args
+        assert call_args[1]["extra_body"] == {"output_config": {"effort": "none"}}
+
+    def test_init_with_effort_on_non_opus_model_raises(self) -> None:
+        """Test that effort parameter on non-Opus model raises LLMConfigurationError."""
+        with pytest.raises(LLMConfigurationError, match="only supported for Claude Opus 4.5"):
+            AnthropicAPIProvider(api_key="sk-ant-test", model="claude-sonnet-4-5", effort="high")
+
+    def test_init_with_effort_on_haiku_raises(self) -> None:
+        """Test that effort parameter on Haiku model raises LLMConfigurationError."""
+        with pytest.raises(LLMConfigurationError, match="only supported for Claude Opus 4.5"):
+            AnthropicAPIProvider(api_key="sk-ant-test", model="claude-haiku-4-5", effort="low")
 
 
 class TestAnthropicProviderLatencyTracking:

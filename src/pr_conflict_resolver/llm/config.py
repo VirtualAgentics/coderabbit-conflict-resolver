@@ -33,7 +33,8 @@ class LLMConfig:
         retry_on_rate_limit: Enable automatic retry on rate limit errors (default: True)
         retry_max_attempts: Maximum retry attempts for rate limit errors (default: 3)
         retry_base_delay: Base delay in seconds for exponential backoff (default: 2.0)
-        effort: LLM effort level for speed/cost vs accuracy tradeoff (None, "low", "medium", "high")
+        effort: LLM effort level for speed/cost vs accuracy tradeoff
+            (None, "none", "low", "medium", "high")
 
     Example:
         >>> config = LLMConfig.from_defaults()

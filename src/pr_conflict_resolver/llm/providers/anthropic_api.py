@@ -129,6 +129,9 @@ class AnthropicAPIProvider:
         },
     }
 
+    # Models that support the effort parameter
+    OPUS_MODELS: ClassVar[set[str]] = {"claude-opus-4-5", "claude-opus-4-5-20251101"}
+
     def __init__(
         self,
         api_key: str,
@@ -151,6 +154,14 @@ class AnthropicAPIProvider:
         if not api_key:
             raise LLMConfigurationError(
                 "Anthropic API key cannot be empty", details={"provider": "anthropic"}
+            )
+
+        # Validate effort is only used with Claude Opus 4.5 models
+        if effort is not None and model not in self.OPUS_MODELS:
+            raise LLMConfigurationError(
+                f"effort parameter is only supported for Claude Opus 4.5 models, "
+                f"got model='{model}'",
+                details={"model": model, "effort": effort},
             )
 
         # Create client with max_retries=0 to implement our own retry logic

@@ -103,6 +103,16 @@ class OpenAIAPIProvider:
         "gpt-3.5-turbo": {"input": 1.00, "output": 2.00},
     }
 
+    # Models that support the reasoning_effort parameter
+    O1_MODELS: ClassVar[set[str]] = {
+        "o1",
+        "o1-preview",
+        "o1-mini",
+        "o1-2024-12-17",
+        "o1-preview-2024-09-12",
+        "o1-mini-2024-09-12",
+    }
+
     def __init__(
         self,
         api_key: str,
@@ -116,8 +126,8 @@ class OpenAIAPIProvider:
             api_key: OpenAI API key (starts with sk-)
             model: Model identifier (default: gpt-4o-mini for cost efficiency)
             timeout: Request timeout in seconds
-            effort: Reasoning effort level for GPT-5.x models ('none', 'low', 'medium', 'high')
-                   Maps to OpenAI's reasoning_effort parameter.
+            effort: Reasoning effort level for o1 models ('none', 'low', 'medium', 'high')
+                   Maps to OpenAI's reasoning_effort parameter. Only applied to o1 model family.
 
         Raises:
             LLMConfigurationError: If api_key is empty or configuration is invalid
@@ -127,10 +137,17 @@ class OpenAIAPIProvider:
                 "OpenAI API key cannot be empty", details={"provider": "openai"}
             )
 
+        # Validate effort is only used with o1 models
+        if effort is not None and model not in self.O1_MODELS:
+            raise LLMConfigurationError(
+                f"effort parameter is only supported for o1 models, " f"got model='{model}'",
+                details={"model": model, "effort": effort},
+            )
+
         self.client = OpenAI(api_key=api_key, timeout=timeout)
         self.model = model
         self.timeout = timeout
-        self.effort = effort  # For GPT-5.x reasoning_effort parameter
+        self.effort = effort  # For o1 model family reasoning_effort parameter
 
         # Token usage tracking
         self.total_input_tokens = 0
@@ -225,8 +242,9 @@ class OpenAIAPIProvider:
                     "response_format": {"type": "json_object"},  # Force JSON output
                 }
 
-                # Add reasoning_effort for GPT-5.x models if specified
-                if self.effort is not None:
+                # Add reasoning_effort for o1 models only (not other model families)
+                # See: https://platform.openai.com/docs/guides/reasoning
+                if self.effort is not None and self.model in self.O1_MODELS:
                     api_kwargs["reasoning_effort"] = self.effort
 
                 response = self.client.chat.completions.create(**api_kwargs)  # type: ignore[call-overload]
