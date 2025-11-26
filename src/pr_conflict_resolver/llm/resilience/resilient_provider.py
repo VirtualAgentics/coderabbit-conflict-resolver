@@ -5,10 +5,14 @@ circuit breaker protection to prevent cascading failures during provider
 outages.
 
 Phase 5 - Issue #222: Circuit Breaker Pattern Implementation
+Phase 5 - Issue #119: Rate limit retry with exponential backoff
 """
 
 import logging
+import threading
+import time
 
+from pr_conflict_resolver.llm.exceptions import LLMRateLimitError
 from pr_conflict_resolver.llm.providers.base import LLMProvider
 from pr_conflict_resolver.llm.resilience.circuit_breaker import (
     CircuitBreaker,
@@ -65,6 +69,9 @@ class ResilientLLMProvider(LLMProvider):
         *,
         failure_threshold: int = 5,
         cooldown_seconds: float = 60.0,
+        retry_on_rate_limit: bool = True,
+        retry_max_attempts: int = 3,
+        retry_base_delay: float = 2.0,
     ) -> None:
         """Initialize resilient provider wrapper.
 
@@ -76,6 +83,12 @@ class ResilientLLMProvider(LLMProvider):
                 circuit. Only used if circuit_breaker is None. Default: 5
             cooldown_seconds: Seconds to wait before recovery attempt.
                 Only used if circuit_breaker is None. Default: 60.0
+            retry_on_rate_limit: Enable automatic retry on rate limit errors.
+                Default: True
+            retry_max_attempts: Maximum retry attempts for rate limit errors.
+                Default: 3 (delays: 2s, 4s, 8s with base_delay=2.0)
+            retry_base_delay: Base delay in seconds for exponential backoff.
+                Default: 2.0 (delays: 2s, 4s, 8s)
 
         Raises:
             AttributeError: If provider doesn't have required `model` attribute
@@ -85,6 +98,9 @@ class ResilientLLMProvider(LLMProvider):
             >>> provider = AnthropicAPIProvider(api_key="sk-...")
             >>> resilient = ResilientLLMProvider(provider)
             >>> resilient = ResilientLLMProvider(provider, failure_threshold=3)
+            >>> resilient = ResilientLLMProvider(
+            ...     provider, retry_max_attempts=5, retry_base_delay=1.0
+            ... )
         """
         self.provider = provider
 
@@ -115,10 +131,23 @@ class ResilientLLMProvider(LLMProvider):
                 cooldown_seconds=cooldown_seconds,
             )
 
+        # Retry configuration for rate limit errors
+        self.retry_on_rate_limit = retry_on_rate_limit
+        self.retry_max_attempts = retry_max_attempts
+        self.retry_base_delay = retry_base_delay
+
+        # Retry statistics tracking (thread-safe)
+        self._retry_count = 0
+        self._retry_total_delay = 0.0
+        self._retry_lock = threading.Lock()
+
         logger.debug(
             f"Initialized ResilientLLMProvider for {provider.__class__.__name__} "
             f"with threshold={self.circuit_breaker.failure_threshold}, "
-            f"cooldown={self.circuit_breaker.cooldown_seconds}s"
+            f"cooldown={self.circuit_breaker.cooldown_seconds}s, "
+            f"retry_on_rate_limit={retry_on_rate_limit}, "
+            f"retry_max_attempts={retry_max_attempts}, "
+            f"retry_base_delay={retry_base_delay}s"
         )
 
     @property
@@ -137,12 +166,15 @@ class ResilientLLMProvider(LLMProvider):
         return self.circuit_breaker.failure_count
 
     def generate(self, prompt: str, max_tokens: int = 2000) -> str:
-        """Generate text completion with circuit breaker protection.
+        """Generate text completion with circuit breaker protection and rate limit retry.
 
         Checks circuit state before calling the wrapped provider. If the
         circuit is open, raises CircuitBreakerOpen immediately without
         making an API call. Otherwise, delegates to the wrapped provider
         and updates circuit state based on success or failure.
+
+        On rate limit errors (LLMRateLimitError), automatically retries with
+        exponential backoff if retry_on_rate_limit is enabled.
 
         Args:
             prompt: Input prompt text for generation
@@ -153,6 +185,7 @@ class ResilientLLMProvider(LLMProvider):
 
         Raises:
             CircuitBreakerOpen: If circuit is open and cooldown hasn't elapsed
+            LLMRateLimitError: If rate limit exceeded after all retries
             RuntimeError: If generation fails (from wrapped provider)
             ValueError: If prompt is empty or max_tokens is invalid
             ConnectionError: If provider is unreachable
@@ -163,6 +196,13 @@ class ResilientLLMProvider(LLMProvider):
             After failure_threshold consecutive failures, the circuit opens
             and blocks requests for cooldown_seconds.
 
+            Rate limit errors are retried with exponential backoff:
+            - Attempt 1: immediate
+            - Attempt 2: base_delay (2s)
+            - Attempt 3: base_delay * 2 (4s)
+            - Attempt 4: base_delay * 4 (8s)
+            - etc.
+
         Examples:
             >>> resilient = ResilientLLMProvider(provider)
             >>> try:
@@ -170,20 +210,84 @@ class ResilientLLMProvider(LLMProvider):
             ... except CircuitBreakerOpen as e:
             ...     print(f"Service unavailable, retry in {e.remaining_cooldown:.1f}s")
         """
-        try:
-            return self.circuit_breaker.call(self.provider.generate, prompt, max_tokens=max_tokens)
-        except CircuitBreakerOpen:
-            # Re-raise circuit breaker exceptions without modification
-            raise
-        except Exception as e:
-            # Security: Sanitize exception messages to prevent secret leakage
-            error_str = str(e)
-            if SecretScanner.has_secrets(error_str):
-                logger.error(
-                    "Provider error occurred (details redacted - potential secret in error)"
-                )
-                raise RuntimeError("Provider error (details redacted)") from None
-            raise
+        return self._generate_with_retry(prompt, max_tokens)
+
+    def _generate_with_retry(self, prompt: str, max_tokens: int) -> str:
+        """Internal generate implementation with rate limit retry logic.
+
+        Args:
+            prompt: Input prompt text
+            max_tokens: Maximum tokens to generate
+
+        Returns:
+            Generated text from provider
+
+        Raises:
+            CircuitBreakerOpen: If circuit is open
+            LLMRateLimitError: After all retries exhausted
+            Exception: Other provider errors
+        """
+        for attempt in range(self.retry_max_attempts):
+            try:
+                return self._call_provider(prompt, max_tokens)
+            except CircuitBreakerOpen:
+                # Re-raise circuit breaker exceptions without retry
+                raise
+            except LLMRateLimitError as e:
+                if not self.retry_on_rate_limit:
+                    # Retry disabled, raise immediately
+                    raise
+
+                if attempt < self.retry_max_attempts - 1:
+                    # Calculate delay with exponential backoff: 2^attempt * base_delay
+                    delay = self.retry_base_delay * (2**attempt)
+
+                    # Check if provider returned a retry_after hint
+                    retry_after = e.details.get("retry_after") if hasattr(e, "details") else None
+                    if retry_after and isinstance(retry_after, (int, float)) and retry_after > 0:
+                        delay = max(delay, float(retry_after))
+
+                    # Track retry statistics (thread-safe)
+                    with self._retry_lock:
+                        self._retry_count += 1
+                        self._retry_total_delay += delay
+
+                    logger.warning(
+                        f"Rate limit hit, retrying in {delay:.1f}s "
+                        f"(attempt {attempt + 1}/{self.retry_max_attempts})"
+                    )
+                    time.sleep(delay)
+                else:
+                    # Final attempt failed, raise the exception
+                    logger.error(
+                        f"Rate limit exceeded after {self.retry_max_attempts} attempts, "
+                        f"total delay: {self._retry_total_delay:.1f}s"
+                    )
+                    raise
+            except Exception as e:
+                # Non-rate-limit errors: sanitize and raise immediately
+                error_str = str(e)
+                if SecretScanner.has_secrets(error_str):
+                    logger.error(
+                        "Provider error occurred (details redacted - potential secret in error)"
+                    )
+                    raise RuntimeError("Provider error (details redacted)") from None
+                raise
+
+        # Unreachable: the loop either returns or raises
+        raise AssertionError("Unreachable: retry loop should return or raise")
+
+    def _call_provider(self, prompt: str, max_tokens: int) -> str:
+        """Call the wrapped provider through the circuit breaker.
+
+        Args:
+            prompt: Input prompt text
+            max_tokens: Maximum tokens to generate
+
+        Returns:
+            Generated text from provider
+        """
+        return self.circuit_breaker.call(self.provider.generate, prompt, max_tokens=max_tokens)
 
     def count_tokens(self, text: str) -> int:
         """Count tokens in text using wrapped provider's tokenizer.
@@ -253,3 +357,35 @@ class ResilientLLMProvider(LLMProvider):
             >>> assert resilient.circuit_state == CircuitState.CLOSED
         """
         self.circuit_breaker.reset()
+
+    def get_retry_stats(self) -> tuple[int, float]:
+        """Get retry statistics for monitoring.
+
+        Returns:
+            Tuple of (retry_count, total_delay_seconds):
+                - retry_count: Total number of retries performed
+                - total_delay_seconds: Total time spent waiting on retries
+
+        Examples:
+            >>> resilient = ResilientLLMProvider(provider)
+            >>> # After some operations...
+            >>> count, delay = resilient.get_retry_stats()
+            >>> print(f"Retried {count} times, total delay: {delay:.1f}s")
+        """
+        with self._retry_lock:
+            return (self._retry_count, self._retry_total_delay)
+
+    def reset_retry_stats(self) -> None:
+        """Reset retry statistics counters.
+
+        Useful for testing or starting fresh tracking for a new PR.
+
+        Examples:
+            >>> resilient.reset_retry_stats()
+            >>> count, _ = resilient.get_retry_stats()
+            >>> assert count == 0
+        """
+        with self._retry_lock:
+            self._retry_count = 0
+            self._retry_total_delay = 0.0
+        logger.debug("Reset retry statistics counters")

@@ -30,6 +30,9 @@ class LLMConfig:
         circuit_breaker_enabled: Enable circuit breaker for provider protection (default: True)
         circuit_breaker_threshold: Consecutive failures before circuit opens (default: 5)
         circuit_breaker_cooldown: Seconds to wait before recovery attempt (default: 60.0)
+        retry_on_rate_limit: Enable automatic retry on rate limit errors (default: True)
+        retry_max_attempts: Maximum retry attempts for rate limit errors (default: 3)
+        retry_base_delay: Base delay in seconds for exponential backoff (default: 2.0)
 
     Example:
         >>> config = LLMConfig.from_defaults()
@@ -54,6 +57,10 @@ class LLMConfig:
     circuit_breaker_enabled: bool = True
     circuit_breaker_threshold: int = 5
     circuit_breaker_cooldown: float = 60.0
+    # Rate limit retry configuration
+    retry_on_rate_limit: bool = True
+    retry_max_attempts: int = 3
+    retry_base_delay: float = 2.0
 
     def __post_init__(self) -> None:
         """Validate LLMConfig fields after initialization.
@@ -81,6 +88,12 @@ class LLMConfig:
             raise ValueError(
                 f"circuit_breaker_cooldown must be > 0, got {self.circuit_breaker_cooldown}"
             )
+
+        if self.retry_max_attempts < 1:
+            raise ValueError(f"retry_max_attempts must be >= 1, got {self.retry_max_attempts}")
+
+        if self.retry_base_delay <= 0:
+            raise ValueError(f"retry_base_delay must be > 0, got {self.retry_base_delay}")
 
         # Validate that API-based providers have an API key if enabled
         if self.enabled and self.provider in {"openai", "anthropic"} and not self.api_key:
@@ -118,6 +131,9 @@ class LLMConfig:
         - CR_LLM_CIRCUIT_BREAKER_ENABLED: "true"/"false"
         - CR_LLM_CIRCUIT_BREAKER_THRESHOLD: Integer value (minimum 1)
         - CR_LLM_CIRCUIT_BREAKER_COOLDOWN: Float value in seconds
+        - CR_LLM_RETRY_ON_RATE_LIMIT: "true"/"false" (default: true)
+        - CR_LLM_RETRY_MAX_ATTEMPTS: Integer value (default: 3)
+        - CR_LLM_RETRY_BASE_DELAY: Float value in seconds (default: 2.0)
 
         Returns:
             LLMConfig with values from environment, falling back to defaults
@@ -175,6 +191,25 @@ class LLMConfig:
                 f"got '{circuit_breaker_cooldown_str}'"
             ) from e
 
+        retry_on_rate_limit = os.getenv("CR_LLM_RETRY_ON_RATE_LIMIT", "true").lower() == "true"
+
+        retry_max_attempts_str = os.getenv("CR_LLM_RETRY_MAX_ATTEMPTS", "3")
+        try:
+            retry_max_attempts = int(retry_max_attempts_str)
+        except ValueError as e:
+            raise ConfigError(
+                f"CR_LLM_RETRY_MAX_ATTEMPTS must be a valid integer, "
+                f"got '{retry_max_attempts_str}'"
+            ) from e
+
+        retry_base_delay_str = os.getenv("CR_LLM_RETRY_BASE_DELAY", "2.0")
+        try:
+            retry_base_delay = float(retry_base_delay_str)
+        except ValueError as e:
+            raise ConfigError(
+                f"CR_LLM_RETRY_BASE_DELAY must be a valid float, " f"got '{retry_base_delay_str}'"
+            ) from e
+
         return cls(
             enabled=enabled,
             provider=provider,
@@ -187,4 +222,7 @@ class LLMConfig:
             circuit_breaker_enabled=circuit_breaker_enabled,
             circuit_breaker_threshold=circuit_breaker_threshold,
             circuit_breaker_cooldown=circuit_breaker_cooldown,
+            retry_on_rate_limit=retry_on_rate_limit,
+            retry_max_attempts=retry_max_attempts,
+            retry_base_delay=retry_base_delay,
         )

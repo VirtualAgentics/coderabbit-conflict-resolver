@@ -612,3 +612,167 @@ class PromptCache:
             with contextlib.suppress(OSError):
                 total_size += cache_file.stat().st_size
         return total_size
+
+    def warm_cache(self, entries: list[dict[str, str]]) -> tuple[int, int]:
+        """Pre-populate cache with pre-computed entries for cold start optimization.
+
+        This method allows importing previously cached responses to avoid cold start
+        latency. Useful for:
+        - Restoring cache after container restart
+        - Sharing cache across team members
+        - Pre-populating test environments
+
+        Args:
+            entries: List of cache entry dictionaries. Each entry must contain:
+                - prompt: Original prompt text
+                - provider: LLM provider name (e.g., "anthropic", "openai")
+                - model: Model name (e.g., "claude-sonnet-4-5", "gpt-4o")
+                - response: The cached LLM response
+
+        Returns:
+            Tuple of (loaded_count, skipped_count):
+                - loaded_count: Number of entries successfully loaded
+                - skipped_count: Number of entries skipped (invalid or already cached)
+
+        Examples:
+            >>> cache = PromptCache()
+            >>> entries = [
+            ...     {
+            ...         "prompt": "Fix the bug",
+            ...         "provider": "anthropic",
+            ...         "model": "claude-sonnet-4-5",
+            ...         "response": "[]",
+            ...     }
+            ... ]
+            >>> loaded, skipped = cache.warm_cache(entries)
+            >>> print(f"Loaded {loaded} entries, skipped {skipped}")
+
+        Note:
+            - Existing cache entries are NOT overwritten (skip duplicates)
+            - Invalid entries are logged and skipped
+            - Thread-safe operation
+        """
+        loaded = 0
+        skipped = 0
+
+        with self._lock:
+            for entry in entries:
+                try:
+                    # Validate required fields
+                    prompt = entry.get("prompt")
+                    provider = entry.get("provider")
+                    model = entry.get("model")
+                    response = entry.get("response")
+
+                    # Validate required fields exist and are strings
+                    if not (
+                        isinstance(prompt, str)
+                        and isinstance(provider, str)
+                        and isinstance(model, str)
+                        and isinstance(response, str)
+                    ):
+                        logger.warning("Skipping invalid warm cache entry: missing required fields")
+                        skipped += 1
+                        continue
+
+                    # Compute cache key
+                    key = self.compute_key(prompt, provider, model)
+                    cache_file = self.cache_dir / f"{key}.json"
+
+                    # Skip if already cached (don't overwrite existing entries)
+                    if cache_file.exists():
+                        logger.debug(f"Skipping existing cache entry {key[:8]}...")
+                        skipped += 1
+                        continue
+
+                    # Store entry
+                    self._set_unlocked(
+                        key,
+                        response,
+                        {"prompt": prompt, "provider": provider, "model": model},
+                    )
+                    loaded += 1
+
+                except Exception as e:
+                    logger.warning(f"Failed to warm cache entry: {e}")
+                    skipped += 1
+
+        logger.info(f"Cache warming complete: loaded={loaded}, skipped={skipped}")
+        return (loaded, skipped)
+
+    def export_entries(self) -> list[dict[str, str | int | float]]:
+        """Export all cache entries for backup or transfer.
+
+        Exports cache entries in a format suitable for warm_cache() import.
+        Note: Original prompts are NOT stored in cache files (only hashes),
+        so this exports entries with prompt_hash instead of prompt.
+
+        Returns:
+            List of cache entry dictionaries with:
+                - prompt_hash: SHA256 hash of original prompt
+                - provider: LLM provider name
+                - model: Model name
+                - response: The cached LLM response
+                - timestamp: Unix timestamp (float/int)
+
+        Examples:
+            >>> cache = PromptCache()
+            >>> entries = cache.export_entries()
+            >>> # Save to file for later import
+            >>> import json
+            >>> with open("cache_backup.json", "w") as f:
+            ...     json.dump(entries, f)
+
+        Note:
+            - Thread-safe operation
+            - Expired entries are included (check timestamp if needed)
+            - Original prompts are not exported (privacy by design)
+        """
+        entries = []
+
+        with self._lock:
+            for cache_file in self.cache_dir.glob("*.json"):
+                try:
+                    with open(cache_file, encoding="utf-8") as f:
+                        data = json.load(f)
+
+                    entries.append(
+                        {
+                            "prompt_hash": data.get("prompt_hash", ""),
+                            "provider": data.get("provider", ""),
+                            "model": data.get("model", ""),
+                            "response": data.get("response", ""),
+                            "timestamp": data.get("timestamp", 0),
+                        }
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to export cache entry {cache_file.name}: {e}")
+
+        logger.info(f"Exported {len(entries)} cache entries")
+        return entries
+
+    @staticmethod
+    def get_common_patterns() -> list[str]:
+        """Get common prompt pattern prefixes used in this application.
+
+        Returns prompt template prefixes that are commonly used, which can help
+        with cache analysis and optimization planning.
+
+        Returns:
+            List of common prompt pattern descriptions
+
+        Examples:
+            >>> patterns = PromptCache.get_common_patterns()
+            >>> for pattern in patterns:
+            ...     print(f"- {pattern}")
+
+        Note:
+            These patterns describe the prompt templates, not full prompts.
+            Actual prompts contain dynamic content (file paths, line numbers, etc.)
+        """
+        return [
+            "PARSE_COMMENT_PROMPT - Extracts code changes from CodeRabbit review comments",
+            "Diff block parsing - Handles unified diff format with @@ headers",
+            "Suggestion block parsing - Handles markdown suggestion blocks",
+            "Natural language parsing - Extracts changes from prose descriptions",
+        ]

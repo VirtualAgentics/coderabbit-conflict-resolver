@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 
 from pr_conflict_resolver.llm.base import LLMParser, ParsedChange
 from pr_conflict_resolver.llm.cost_tracker import CostStatus, CostTracker
@@ -95,6 +96,11 @@ class UniversalLLMParser(LLMParser):
         self.max_tokens = max_tokens
         self.cost_tracker = cost_tracker
         self.scan_for_secrets = scan_for_secrets
+
+        # Fallback tracking counters (thread-safe)
+        self._fallback_count = 0
+        self._llm_success_count = 0
+        self._stats_lock = threading.Lock()
 
         logger.info(
             "Initialized UniversalLLMParser: fallback=%s, threshold=%s, max_tokens=%s, "
@@ -257,12 +263,17 @@ class UniversalLLMParser(LLMParser):
                 f"(threshold={self.confidence_threshold})"
             )
 
+            # Track successful LLM parse (thread-safe)
+            with self._stats_lock:
+                self._llm_success_count += 1
             return parsed_changes
 
         except LLMCostExceededError:
             # Handle cost budget exceeded explicitly - don't wrap in RuntimeError
             if self.fallback_to_regex:
                 logger.info("Cost budget exceeded; returning empty list for regex fallback")
+                with self._stats_lock:
+                    self._fallback_count += 1
                 return []
             else:
                 raise
@@ -272,6 +283,8 @@ class UniversalLLMParser(LLMParser):
 
             if self.fallback_to_regex:
                 logger.info("Returning empty list to trigger regex fallback")
+                with self._stats_lock:
+                    self._fallback_count += 1
                 return []
             else:
                 raise RuntimeError(f"LLM parsing failed: {e}") from e
@@ -296,3 +309,34 @@ class UniversalLLMParser(LLMParser):
         old_threshold = self.confidence_threshold
         self.confidence_threshold = threshold
         logger.info(f"Updated confidence threshold: {old_threshold} -> {threshold}")
+
+    def get_fallback_stats(self) -> tuple[int, int, float]:
+        """Get fallback statistics for monitoring.
+
+        Returns:
+            Tuple of (fallback_count, total_count, fallback_rate):
+            - fallback_count: Number of times regex fallback was triggered
+            - total_count: Total number of parse attempts (success + fallback)
+            - fallback_rate: Ratio of fallbacks to total (0.0-1.0)
+
+        Example:
+            >>> parser = UniversalLLMParser(provider)
+            >>> # After some parsing...
+            >>> fallbacks, total, rate = parser.get_fallback_stats()
+            >>> print(f"Fallback rate: {rate:.1%}")
+            Fallback rate: 15.0%
+        """
+        with self._stats_lock:
+            total = self._llm_success_count + self._fallback_count
+            rate = self._fallback_count / total if total > 0 else 0.0
+            return (self._fallback_count, total, rate)
+
+    def reset_fallback_stats(self) -> None:
+        """Reset fallback statistics counters.
+
+        Useful for testing or starting fresh tracking for a new PR.
+        """
+        with self._stats_lock:
+            self._fallback_count = 0
+            self._llm_success_count = 0
+        logger.debug("Reset fallback statistics counters")

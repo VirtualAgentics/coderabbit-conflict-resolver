@@ -1,12 +1,16 @@
 """Tests for ResilientLLMProvider class.
 
 Phase 5 - Issue #222: Circuit Breaker Pattern Implementation
+Phase 5 - Issue #119: Rate limit retry with exponential backoff
 """
 
 import threading
+import time
+from unittest.mock import patch
 
 import pytest
 
+from pr_conflict_resolver.llm.exceptions import LLMRateLimitError
 from pr_conflict_resolver.llm.resilience.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerOpen,
@@ -385,3 +389,217 @@ class TestResilientLLMProviderThreadSafety:
         assert resilient.circuit_state == CircuitState.OPEN
         # Some calls should have been blocked by circuit breaker
         assert len(circuit_open_errors) > 0
+
+
+class TestRateLimitRetry:
+    """Tests for rate limit retry with exponential backoff."""
+
+    def test_retry_on_rate_limit_success_after_retry(self) -> None:
+        """Retry succeeds after rate limit error."""
+        provider = DummyProvider()
+        call_count = 0
+
+        def generate_with_rate_limit(prompt: str, max_tokens: int = 2000) -> str:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise LLMRateLimitError("Rate limit exceeded")
+            return "success"
+
+        provider.generate = generate_with_rate_limit  # type: ignore[method-assign]
+
+        resilient = ResilientLLMProvider(
+            provider,
+            retry_on_rate_limit=True,
+            retry_max_attempts=3,
+            retry_base_delay=0.01,  # Very short for testing
+        )
+
+        with patch("time.sleep"):  # Don't actually sleep
+            result = resilient.generate("test prompt")
+
+        assert result == "success"
+        assert call_count == 3
+
+    def test_retry_exhausted_raises_rate_limit_error(self) -> None:
+        """LLMRateLimitError raised after all retries exhausted."""
+        provider = DummyProvider()
+        provider._generate_error = LLMRateLimitError("Rate limit exceeded")
+
+        resilient = ResilientLLMProvider(
+            provider,
+            retry_on_rate_limit=True,
+            retry_max_attempts=3,
+            retry_base_delay=0.01,
+        )
+
+        with patch("time.sleep"), pytest.raises(LLMRateLimitError):
+            resilient.generate("test prompt")
+
+        # Should have tried 3 times
+        assert provider._call_count == 3
+
+    def test_retry_disabled_raises_immediately(self) -> None:
+        """Rate limit error raises immediately when retry disabled."""
+        provider = DummyProvider()
+        provider._generate_error = LLMRateLimitError("Rate limit exceeded")
+
+        resilient = ResilientLLMProvider(
+            provider,
+            retry_on_rate_limit=False,
+            retry_max_attempts=3,
+        )
+
+        with pytest.raises(LLMRateLimitError):
+            resilient.generate("test prompt")
+
+        # Should have tried only once
+        assert provider._call_count == 1
+
+    def test_exponential_backoff_delays(self) -> None:
+        """Verify exponential backoff delay calculation."""
+        provider = DummyProvider()
+        provider._generate_error = LLMRateLimitError("Rate limit exceeded")
+
+        resilient = ResilientLLMProvider(
+            provider,
+            retry_on_rate_limit=True,
+            retry_max_attempts=3,
+            retry_base_delay=2.0,
+        )
+
+        sleep_calls: list[float] = []
+
+        def track_sleep(seconds: float) -> None:
+            sleep_calls.append(seconds)
+
+        with patch("time.sleep", side_effect=track_sleep), pytest.raises(LLMRateLimitError):
+            resilient.generate("test prompt")
+
+        # Expected delays: 2.0 (attempt 1), 4.0 (attempt 2)
+        assert len(sleep_calls) == 2
+        assert sleep_calls[0] == 2.0  # base_delay * 2^0
+        assert sleep_calls[1] == 4.0  # base_delay * 2^1
+
+    def test_retry_stats_tracking(self) -> None:
+        """Retry statistics are tracked correctly."""
+        provider = DummyProvider()
+        call_count = 0
+
+        def generate_with_rate_limit(prompt: str, max_tokens: int = 2000) -> str:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise LLMRateLimitError("Rate limit exceeded")
+            return "success"
+
+        provider.generate = generate_with_rate_limit  # type: ignore[method-assign]
+
+        resilient = ResilientLLMProvider(
+            provider,
+            retry_on_rate_limit=True,
+            retry_max_attempts=3,
+            retry_base_delay=0.01,
+        )
+
+        with patch("time.sleep"):
+            resilient.generate("test prompt")
+
+        retry_count, total_delay = resilient.get_retry_stats()
+        assert retry_count == 2  # 2 retries before success
+        assert total_delay > 0
+
+    def test_retry_stats_reset(self) -> None:
+        """Retry statistics can be reset."""
+        provider = DummyProvider()
+        resilient = ResilientLLMProvider(provider)
+
+        # Manually set some stats
+        resilient._retry_count = 5
+        resilient._retry_total_delay = 10.0
+
+        resilient.reset_retry_stats()
+
+        count, delay = resilient.get_retry_stats()
+        assert count == 0
+        assert delay == 0.0
+
+    def test_retry_respects_retry_after_header(self) -> None:
+        """Retry uses retry_after from error details if larger than calculated delay."""
+        provider = DummyProvider()
+
+        def generate_with_retry_after(prompt: str, max_tokens: int = 2000) -> str:
+            error = LLMRateLimitError(
+                "Rate limit exceeded",
+                details={"retry_after": 10.0},
+            )
+            raise error
+
+        provider.generate = generate_with_retry_after  # type: ignore[method-assign]
+
+        resilient = ResilientLLMProvider(
+            provider,
+            retry_on_rate_limit=True,
+            retry_max_attempts=2,
+            retry_base_delay=2.0,  # Calculated: 2.0, but retry_after: 10.0
+        )
+
+        sleep_calls: list[float] = []
+
+        def track_sleep(seconds: float) -> None:
+            sleep_calls.append(seconds)
+
+        with patch("time.sleep", side_effect=track_sleep), pytest.raises(LLMRateLimitError):
+            resilient.generate("test prompt")
+
+        # Should use retry_after (10.0) since it's larger than calculated (2.0)
+        assert len(sleep_calls) == 1
+        assert sleep_calls[0] == 10.0
+
+    def test_non_rate_limit_error_not_retried(self) -> None:
+        """Non-rate-limit errors are not retried."""
+        provider = DummyProvider()
+        provider._generate_error = RuntimeError("Some other error")
+
+        resilient = ResilientLLMProvider(
+            provider,
+            retry_on_rate_limit=True,
+            retry_max_attempts=3,
+        )
+
+        with pytest.raises(RuntimeError, match="Some other error"):
+            resilient.generate("test prompt")
+
+        # Should have tried only once
+        assert provider._call_count == 1
+
+    def test_circuit_breaker_open_not_retried(self) -> None:
+        """Circuit breaker open errors are not retried."""
+        provider = DummyProvider()
+
+        circuit_breaker = CircuitBreaker(failure_threshold=1, cooldown_seconds=60.0)
+        # Trip the circuit
+        circuit_breaker._state = CircuitState.OPEN
+        circuit_breaker._last_failure_time = time.time()
+
+        resilient = ResilientLLMProvider(
+            provider,
+            circuit_breaker=circuit_breaker,
+            retry_on_rate_limit=True,
+            retry_max_attempts=3,
+        )
+
+        with pytest.raises(CircuitBreakerOpen):
+            resilient.generate("test prompt")
+
+        # Should not have called provider at all
+        assert provider._call_count == 0
+
+    def test_default_retry_config(self) -> None:
+        """Verify default retry configuration values."""
+        provider = DummyProvider()
+        resilient = ResilientLLMProvider(provider)
+
+        assert resilient.retry_on_rate_limit is True
+        assert resilient.retry_max_attempts == 3
+        assert resilient.retry_base_delay == 2.0

@@ -273,3 +273,77 @@ class CachingProvider:
             >>> print(f"Evicted {evicted} expired entries")
         """
         return self.cache.evict_expired()
+
+    def warm_up(self, entries: list[dict[str, str]] | None = None) -> tuple[int, int]:
+        """Pre-populate cache with entries for cold start optimization.
+
+        This method allows restoring cache state from a previous session or
+        pre-populating with known entries to avoid cold start latency.
+
+        Args:
+            entries: Optional list of cache entries to load. Each entry must have:
+                - prompt: Original prompt text
+                - provider: LLM provider name (e.g., "anthropic", "openai")
+                - model: Model name (e.g., "claude-sonnet-4-5", "gpt-4o")
+                - response: The cached LLM response
+
+                If None, no entries are loaded but the method logs available
+                common patterns.
+
+        Returns:
+            Tuple of (loaded_count, skipped_count):
+                - loaded_count: Number of entries successfully loaded
+                - skipped_count: Number of entries skipped (invalid or duplicates)
+
+        Examples:
+            Load entries from a backup file:
+            >>> import json
+            >>> with open("cache_backup.json") as f:
+            ...     entries = json.load(f)
+            >>> cached = CachingProvider(provider)
+            >>> loaded, skipped = cached.warm_up(entries)
+
+            Get common patterns without loading:
+            >>> cached.warm_up()  # Logs available patterns
+
+        Note:
+            - Entries for different providers/models can be loaded but will only
+              be useful if they match the current provider configuration
+            - Thread-safe operation
+        """
+        if entries is None:
+            # Log available patterns for documentation purposes
+            patterns = self.cache.get_common_patterns()
+            logger.info(
+                f"Cache warm-up called without entries. " f"Common patterns: {len(patterns)}"
+            )
+            for pattern in patterns:
+                logger.debug(f"  Pattern: {pattern}")
+            return (0, 0)
+
+        loaded, skipped = self.cache.warm_cache(entries)
+        logger.info(
+            f"Cache warm-up for {self.provider_name}/{self.model}: "
+            f"loaded={loaded}, skipped={skipped}"
+        )
+        return (loaded, skipped)
+
+    def export_cache(self) -> list[dict[str, str | int | float]]:
+        """Export cache entries for backup or transfer.
+
+        Exports all current cache entries in a format suitable for warm_up().
+
+        Returns:
+            List of cache entry dictionaries (includes timestamp as int/float)
+
+        Examples:
+            >>> cached = CachingProvider(provider)
+            >>> entries = cached.export_cache()
+            >>> import json
+            >>> with open("cache_backup.json", "w") as f:
+            ...     json.dump(entries, f)
+
+        Note:
+            Original prompts are not exported (only hashes) for privacy.
+        """
+        return self.cache.export_entries()
