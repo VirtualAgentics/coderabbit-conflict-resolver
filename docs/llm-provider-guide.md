@@ -182,7 +182,7 @@ pr-resolve apply --owner org --repo repo --pr 123 \
 #### Quick Setup
 
 ```bash
-# Get API key from https://platform.openai.com/api-keys
+# Get API key from <https://platform.openai.com/api-keys>
 
 # Configure resolver
 export CR_LLM_ENABLED="true"
@@ -234,7 +234,7 @@ pr-resolve apply --owner org --repo repo --pr 123 \
 #### Quick Setup
 
 ```bash
-# Get API key from https://console.anthropic.com/settings/keys
+# Get API key from <https://console.anthropic.com/settings/keys>
 
 # Configure resolver
 export CR_LLM_ENABLED="true"
