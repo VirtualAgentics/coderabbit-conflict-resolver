@@ -391,10 +391,16 @@ class PromptCache:
 
         # Write to temp file with secure permissions, then atomically replace
         # This prevents partially-written/corrupted files if interrupted
-        with open(tmp_file, "w", encoding="utf-8") as f:
-            json.dump(entry, f, indent=2)
-        os.chmod(tmp_file, 0o600)
-        os.replace(tmp_file, cache_file)
+        try:
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                json.dump(entry, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.chmod(tmp_file, 0o600)
+            os.replace(tmp_file, cache_file)
+        except Exception:
+            tmp_file.unlink(missing_ok=True)
+            raise
 
         logger.debug(f"Cached response for key {key[:8]}...")
 
@@ -694,14 +700,13 @@ class PromptCache:
 
                     if prompt is None or provider is None or model is None or response is None:
                         missing = [
-                            f
-                            for f, v in [
-                                ("prompt", prompt),
-                                ("provider", provider),
-                                ("model", model),
-                                ("response", response),
-                            ]
-                            if v is None
+                            name
+                            for name, val in zip(
+                                ["prompt", "provider", "model", "response"],
+                                [prompt, provider, model, response],
+                                strict=True,
+                            )
+                            if val is None
                         ]
                         logger.warning(f"Skipping invalid entry: missing/empty fields: {missing}")
                         skipped += 1
