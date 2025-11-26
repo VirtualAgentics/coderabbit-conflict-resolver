@@ -1160,6 +1160,7 @@ If your issue isn't covered here:
    * Ask questions and share solutions
 
 4. **Review documentation:**
+   * [LLM Provider Guide](llm-provider-guide.md)
    * [Getting Started](getting-started.md)
    * [Configuration Guide](configuration.md)
    * [Privacy Architecture](privacy-architecture.md)

@@ -1035,6 +1035,7 @@ See `python scripts/benchmark_llm.py --help` for all options.
 
 ## See Also
 
+* [LLM Provider Guide](llm-provider-guide.md) - Provider comparison and selection guide
 * [Circuit Breaker](circuit-breaker.md) - Resilience pattern for handling provider failures
 * [Metrics Guide](metrics-guide.md) - Understanding LLM metrics and export options
 * [Cost Estimation](cost-estimation.md) - Pre-run cost estimation and budget configuration
