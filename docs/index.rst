@@ -10,9 +10,12 @@ An intelligent, automated conflict resolution system for GitHub PR comments, spe
    getting-started
    architecture
    configuration
+   llm-configuration
+   migration
    conflict-types
    resolution-strategies
    api-reference
+   troubleshooting
    contributing
 
 Quick Start

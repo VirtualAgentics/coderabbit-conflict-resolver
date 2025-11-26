@@ -11,6 +11,9 @@ This guide covers common issues and solutions for the Review Bot Automator, incl
   * [Claude CLI](#claude-cli)
   * [Codex CLI](#codex-cli)
   * [Ollama](#ollama)
+* [Circuit Breaker Issues](#circuit-breaker-issues)
+* [Cost and Budget Issues](#cost-and-budget-issues)
+* [Parallel Processing Issues](#parallel-processing-issues)
 * [Privacy Verification Issues](#privacy-verification-issues)
 * [Performance Issues](#performance-issues)
 * [Installation Issues](#installation-issues)
@@ -514,6 +517,288 @@ Inference is very slow
    # Run GPU detection test
    python -c "from pr_conflict_resolver.llm.providers.gpu_detector import GPUDetector; print(GPUDetector.detect_gpu('<http://localhost:11434'>))"
 
+   ```
+
+## Circuit Breaker Issues
+
+### CircuitBreakerOpen Error
+
+**Problem:** Requests blocked by circuit breaker.
+
+**Symptoms:**
+
+```text
+CircuitBreakerOpen: Circuit breaker is open, retry in 45.2s
+```
+
+**Causes:**
+
+* 5+ consecutive LLM API failures triggered the circuit
+* Provider experiencing outage or rate limiting
+* Network connectivity issues
+
+**Solutions:**
+
+1. **Wait for cooldown:**
+
+   ```bash
+   # Default cooldown is 60 seconds
+   # Check remaining time in error message
+   ```
+
+2. **Check provider status:**
+
+   ```bash
+   # OpenAI
+   curl https://status.openai.com/api/v2/status.json
+
+   # Anthropic
+   curl https://status.anthropic.com/api/v2/status.json
+   ```
+
+3. **Review logs for root cause:**
+
+   ```bash
+   pr-resolve apply 123 --log-level DEBUG
+   # Look for "Circuit breaker opening after X consecutive failures"
+   ```
+
+4. **Adjust threshold if too sensitive:**
+
+   ```bash
+   export CR_LLM_CIRCUIT_BREAKER_THRESHOLD=10  # Default: 5
+   export CR_LLM_CIRCUIT_BREAKER_COOLDOWN=30.0  # Default: 60.0
+   ```
+
+5. **Disable circuit breaker (not recommended):**
+
+   ```bash
+   export CR_LLM_CIRCUIT_BREAKER_ENABLED=false
+   ```
+
+### Circuit Trips Too Often
+
+**Problem:** Circuit breaker triggers on transient failures.
+
+**Solutions:**
+
+1. **Increase threshold:**
+
+   ```yaml
+   llm:
+     circuit_breaker_threshold: 10  # Allow more failures
+   ```
+
+2. **Enable retry first:**
+
+   ```yaml
+   llm:
+     retry_on_rate_limit: true
+     retry_max_attempts: 5
+   ```
+
+3. **Check network stability:**
+
+   ```bash
+   ping api.openai.com
+   ping api.anthropic.com
+   ```
+
+## Cost and Budget Issues
+
+### Budget Exceeded Error
+
+**Problem:** LLM requests blocked due to budget limit.
+
+**Symptoms:**
+
+```text
+ERROR: LLM cost budget exceeded: $5.23 of $5.00 used
+```
+
+**Solutions:**
+
+1. **Increase budget:**
+
+   ```bash
+   export CR_LLM_COST_BUDGET=10.0  # Increase from $5 to $10
+   ```
+
+2. **Check current usage:**
+
+   ```bash
+   pr-resolve apply 123 --llm-enabled --show-metrics
+   # Review "Total cost" in output
+   ```
+
+3. **Use cheaper model:**
+
+   ```bash
+   # Anthropic: Use Haiku instead of Sonnet
+   export CR_LLM_MODEL="claude-haiku-4-20250514"
+
+   # OpenAI: Use mini instead of full GPT-4o
+   export CR_LLM_MODEL="gpt-4o-mini"
+   ```
+
+4. **Enable caching:**
+
+   ```yaml
+   llm:
+     cache_enabled: true  # Reuse responses for identical prompts
+   ```
+
+### Unexpected High Costs
+
+**Problem:** LLM costs higher than expected.
+
+**Solutions:**
+
+1. **Enable metrics to track:**
+
+   ```bash
+   pr-resolve apply 123 --llm-enabled --show-metrics --metrics-output costs.json
+   ```
+
+2. **Review per-provider costs:**
+
+   ```bash
+   cat costs.json | jq '.provider_stats'
+   ```
+
+3. **Check cache hit rate:**
+
+   ```text
+   # Low cache hit rate = more API calls = higher cost
+   # Target: > 30% cache hit rate
+   ```
+
+4. **Use free providers for development:**
+
+   ```bash
+   export CR_LLM_PROVIDER=ollama
+   export CR_LLM_MODEL=qwen2.5-coder:7b
+   ```
+
+### Budget Warning Not Appearing
+
+**Problem:** No warning before budget exceeded.
+
+**Solutions:**
+
+1. **Warning appears at 80% by default:**
+
+   ```text
+   WARNING: LLM cost budget warning: $4.12 of $5.00 used (82.4%)
+   ```
+
+2. **Check log level:**
+
+   ```bash
+   export CR_LOG_LEVEL=INFO  # Warning requires INFO or lower
+   ```
+
+## Parallel Processing Issues
+
+### Race Conditions or Corrupted Output
+
+**Problem:** Parallel processing produces inconsistent results.
+
+**Symptoms:**
+
+* Different results on each run
+* Partial or corrupted output files
+* Mixed content from different files
+
+**Solutions:**
+
+1. **Reduce worker count:**
+
+   ```bash
+   pr-resolve apply 123 --parallel --max-workers 2
+   ```
+
+2. **Disable parallel processing:**
+
+   ```bash
+   pr-resolve apply 123  # Sequential by default
+   # Or explicitly:
+   export CR_PARALLEL=false
+   ```
+
+3. **Check for file conflicts:**
+
+   ```bash
+   # If multiple comments target same file, conflicts may occur
+   pr-resolve analyze 123 --log-level DEBUG
+   ```
+
+### Workers Exhausted or Hanging
+
+**Problem:** Parallel workers timeout or hang.
+
+**Symptoms:**
+
+```text
+Warning: Worker timeout waiting for response
+Processing stalled at X%
+```
+
+**Solutions:**
+
+1. **Reduce workers:**
+
+   ```bash
+   export CR_MAX_WORKERS=2  # Default: 4
+   ```
+
+2. **Check LLM provider health:**
+
+   ```bash
+   # Test provider directly
+   curl http://localhost:11434/api/tags  # Ollama
+   ```
+
+3. **Increase timeout:**
+
+   ```bash
+   # Not configurable via env var - contact support
+   ```
+
+4. **Monitor system resources:**
+
+   ```bash
+   htop  # Check CPU/memory usage
+   ```
+
+### Out of Memory with Parallel Processing
+
+**Problem:** System runs out of memory.
+
+**Solutions:**
+
+1. **Reduce workers:**
+
+   ```bash
+   export CR_MAX_WORKERS=2
+   ```
+
+2. **Use smaller Ollama model:**
+
+   ```bash
+   export CR_LLM_MODEL=llama3.2:3b  # Instead of 70b
+   ```
+
+3. **Process sequentially:**
+
+   ```bash
+   export CR_PARALLEL=false
+   ```
+
+4. **Monitor memory usage:**
+
+   ```bash
+   watch -n 1 free -h
    ```
 
 ## Privacy Verification Issues
