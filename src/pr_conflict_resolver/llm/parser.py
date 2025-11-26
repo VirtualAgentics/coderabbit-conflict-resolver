@@ -22,7 +22,7 @@ from pr_conflict_resolver.llm.cost_tracker import CostStatus, CostTracker
 from pr_conflict_resolver.llm.exceptions import LLMCostExceededError, LLMSecretDetectedError
 from pr_conflict_resolver.llm.prompts import PARSE_COMMENT_PROMPT
 from pr_conflict_resolver.llm.providers.base import LLMProvider
-from pr_conflict_resolver.security.secret_scanner import SecretScanner, get_safe_secret_type_name
+from pr_conflict_resolver.security.secret_scanner import SecretScanner
 
 logger = logging.getLogger(__name__)
 
@@ -151,16 +151,14 @@ class UniversalLLMParser(LLMParser):
         if self.scan_for_secrets:
             findings = SecretScanner.scan_content(comment_body, stop_on_first=True)
             if findings:
-                # Use get_safe_secret_type_name() to sanitize secret types before logging
-                # This breaks CodeQL taint tracking by validating against a known allowlist
-                safe_type = get_safe_secret_type_name(findings[0].secret_type)
+                # Log count only - no tainted secret type data flows to logs
                 logger.error(
-                    "Secret detected in comment body (%s), blocking LLM request - "
+                    "Secret detected in comment body (count=%d), blocking LLM request - "
                     "refusing to send to external API",
-                    safe_type,
+                    len(findings),
                 )
                 raise LLMSecretDetectedError(
-                    f"Secret detected: {findings[0].secret_type}",
+                    "Secret detected in comment content",
                     findings=findings,
                     details={"file_path": file_path, "line_number": line_number},
                 )

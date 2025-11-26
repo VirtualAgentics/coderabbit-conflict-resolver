@@ -33,61 +33,6 @@ SummaryDict: TypeAlias = dict[str, int]
 PatternDef: TypeAlias = tuple[Pattern[str], str, Severity]
 
 
-# Known secret type names that are safe to log
-# These are the TYPE identifiers (e.g., "github_personal_token"), not actual secrets.
-# Used by get_safe_secret_type_name() to break CodeQL's taint tracking while
-# still allowing useful logging for security auditing.
-KNOWN_SECRET_TYPES: frozenset[str] = frozenset(
-    {
-        # GitHub tokens
-        "github_personal_token",
-        "github_oauth_token",
-        "github_server_token",
-        "github_refresh_token",
-        # Cloud provider credentials
-        "aws_access_key",
-        "aws_secret_key",
-        "azure_connection_string",
-        "google_oauth",
-        # API keys
-        "openai_api_key",
-        "slack_token",
-        "generic_api_key",
-        # Tokens and secrets
-        "jwt_token",
-        "private_key",
-        "generic_token",
-        "generic_secret",
-        # Database and passwords
-        "database_url_with_password",
-        "password",
-    }
-)
-
-
-def get_safe_secret_type_name(secret_type: str) -> str:
-    """Return a safe-to-log representation of a secret type identifier.
-
-    This function breaks CodeQL's taint tracking by validating the secret type
-    against a known allowlist. It ensures we only log recognized secret type
-    NAMES (e.g., "github_token"), never actual secret VALUES.
-
-    Args:
-        secret_type: The secret type identifier from SecretFinding.
-
-    Returns:
-        The original secret_type if it's in the known allowlist,
-        otherwise "unknown_type" for safety.
-
-    Example:
-        >>> get_safe_secret_type_name("github_personal_token")
-        'github_personal_token'
-        >>> get_safe_secret_type_name("some_unknown_type")
-        'unknown_type'
-    """
-    return secret_type if secret_type in KNOWN_SECRET_TYPES else "unknown_type"
-
-
 @dataclass(frozen=True, slots=True)
 class SecretFinding:
     """Represents a detected secret.

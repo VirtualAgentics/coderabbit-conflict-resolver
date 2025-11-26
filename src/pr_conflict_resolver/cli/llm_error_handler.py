@@ -23,7 +23,6 @@ from pr_conflict_resolver.llm.exceptions import (
     LLMSecretDetectedError,
     LLMTimeoutError,
 )
-from pr_conflict_resolver.security.secret_scanner import get_safe_secret_type_name
 
 if TYPE_CHECKING:
     from pr_conflict_resolver.config.runtime_config import RuntimeConfig
@@ -107,23 +106,14 @@ def handle_llm_errors(runtime_config: "RuntimeConfig") -> Generator[None, None, 
 
     except LLMSecretDetectedError as e:
         # Security error - secrets detected in content, abort to prevent exfiltration
-        # Use get_safe_secret_type_name() to sanitize secret types before logging/display
-        # This breaks CodeQL taint tracking by validating against a known allowlist
-        safe_types = (
-            ", ".join(sorted(get_safe_secret_type_name(t) for t in e.secret_types))
-            if e.secret_types
-            else "unknown"
-        )
+        # Log count only - no tainted secret type data flows to logs
+        finding_count = len(e.findings) if e.findings else 0
         console.print(
-            f"\n[red]🔒 Security: Secret detected in PR comment ({safe_types}). "
+            f"\n[red]🔒 Security: Secret detected in PR comment (count={finding_count}). "
             "Content blocked from external LLM API.[/red]"
         )
         console.print("[dim]Review the PR comment for sensitive data before retrying.[/dim]")
-        logger.error(
-            "Secret detected, blocked LLM request: types=%s, count=%d",
-            safe_types,
-            len(e.findings),
-        )
+        logger.error("Secret detected, blocked LLM request: count=%d", finding_count)
         raise click.Abort() from e
 
     except LLMAPIError as e:

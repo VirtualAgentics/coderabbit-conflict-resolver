@@ -493,7 +493,8 @@ class TestApplyCommandLLMIntegration:
             # Should display security error message and abort
             assert result.exit_code != 0
             assert "Security" in result.output or "Secret" in result.output
-            assert "github_personal_token" in result.output
+            # Count is logged instead of secret type to avoid CodeQL taint tracking
+            assert "count=1" in result.output
             # Should suggest reviewing PR comment
             assert "blocked" in result.output.lower() or "review" in result.output.lower()
 
@@ -538,10 +539,10 @@ class TestApplyCommandLLMIntegration:
                 ],
             )
 
-            # Should display security error message with both secret types
+            # Should display security error message with count of secrets
+            # (secret types are not logged to avoid CodeQL taint tracking)
             assert result.exit_code != 0
-            assert "github_personal_token" in result.output
-            assert "openai_api_key" in result.output
+            assert "count=2" in result.output
 
 
 class TestMetricsDisplayEdgeCases:
