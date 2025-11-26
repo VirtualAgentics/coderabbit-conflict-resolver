@@ -403,7 +403,7 @@ class RuntimeConfig:
             llm_parallel_parsing=defaults.llm_parallel_parsing,
             llm_parallel_max_workers=defaults.llm_parallel_max_workers,
             llm_rate_limit=defaults.llm_rate_limit,
-            llm_effort=defaults.llm_effort,
+            llm_effort=llm_config.effort,
         )
 
     @classmethod
@@ -539,7 +539,7 @@ class RuntimeConfig:
                 "CR_LLM_PARALLEL_WORKERS", defaults.llm_parallel_max_workers, min_value=1
             ),
             llm_rate_limit=parse_float("CR_LLM_RATE_LIMIT", defaults.llm_rate_limit, min_value=0.1),
-            llm_effort=os.getenv("CR_LLM_EFFORT") or defaults.llm_effort,
+            llm_effort=os.getenv("CR_LLM_EFFORT", "").lower() or defaults.llm_effort,
         )
 
     @classmethod
@@ -853,7 +853,7 @@ class RuntimeConfig:
             llm_parallel_parsing=bool(llm_parallel_parsing),
             llm_parallel_max_workers=parallel_workers,
             llm_rate_limit=rate_limit,
-            llm_effort=str(llm_effort) if llm_effort else None,
+            llm_effort=str(llm_effort).lower() if llm_effort else None,
         )
 
     def merge_with_cli(self, **overrides: Any) -> "RuntimeConfig":  # noqa: ANN401

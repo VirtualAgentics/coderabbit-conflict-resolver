@@ -321,6 +321,12 @@ class TestLLMConfigEffort:
         config = LLMConfig.from_env()
         assert config.effort == "high"
 
+    def test_effort_from_env_normalizes_to_lowercase(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test from_env() normalizes effort to lowercase."""
+        monkeypatch.setenv("CR_LLM_EFFORT", "HIGH")
+        config = LLMConfig.from_env()
+        assert config.effort == "high"  # Should be normalized to lowercase
+
     def test_effort_from_env_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test from_env() with CR_LLM_EFFORT=none."""
         monkeypatch.setenv("CR_LLM_EFFORT", "none")

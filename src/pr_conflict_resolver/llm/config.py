@@ -237,5 +237,5 @@ class LLMConfig:
             retry_on_rate_limit=retry_on_rate_limit,
             retry_max_attempts=retry_max_attempts,
             retry_base_delay=retry_base_delay,
-            effort=os.getenv("CR_LLM_EFFORT"),
+            effort=os.getenv("CR_LLM_EFFORT", "").lower() or None,
         )
