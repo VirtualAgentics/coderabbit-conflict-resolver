@@ -254,7 +254,10 @@ class OpenAIAPIProvider:
 
                 # Add reasoning_effort for o1 models only (not other model families)
                 # See: https://platform.openai.com/docs/guides/reasoning
-                if self.effort is not None and self.model in self.O1_MODELS:
+                # Note: effort="none" means disabled, same as effort=None
+                # Only "low"/"medium"/"high" are valid API values
+                effort_enabled = self.effort is not None and self.effort != "none"
+                if effort_enabled and self.model in self.O1_MODELS:
                     api_kwargs["reasoning_effort"] = self.effort
 
                 response = self.client.chat.completions.create(**api_kwargs)  # type: ignore[call-overload]

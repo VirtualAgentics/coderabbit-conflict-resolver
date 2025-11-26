@@ -314,7 +314,10 @@ class AnthropicAPIProvider:
             try:
                 # Build beta headers (always include prompt caching)
                 beta_features = ["prompt-caching-2024-07-31"]
-                if self.effort is not None:
+                # Note: effort="none" means disabled, same as effort=None
+                # Only "low"/"medium"/"high" are valid API values
+                effort_enabled = self.effort is not None and self.effort != "none"
+                if effort_enabled:
                     beta_features.append("effort-2025-11-24")
 
                 # Build API kwargs
@@ -327,7 +330,8 @@ class AnthropicAPIProvider:
                 }
 
                 # Add output_config with effort if specified (Claude Opus 4.5)
-                if self.effort is not None:
+                # Only send when effort is set to actual level (not "none")
+                if effort_enabled:
                     api_kwargs["extra_body"] = {"output_config": {"effort": self.effort}}
 
                 response = self.client.messages.create(**api_kwargs)  # type: ignore[call-overload]

@@ -883,8 +883,8 @@ class TestAnthropicProviderEffortParameter:
         assert call_args[1]["extra_body"] == {"output_config": {"effort": "medium"}}
 
     @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
-    def test_generate_with_effort_none(self, mock_anthropic_class: Mock) -> None:
-        """Test that effort='none' is passed correctly."""
+    def test_generate_with_effort_none_disables_effort(self, mock_anthropic_class: Mock) -> None:
+        """Test that effort='none' disables effort (does not send to API)."""
         mock_client = MagicMock()
         mock_anthropic_class.return_value = mock_client
 
@@ -904,8 +904,12 @@ class TestAnthropicProviderEffortParameter:
         )
         provider.generate("Test prompt")
 
+        # effort="none" means disabled - should NOT send extra_body to API
+        # Only "low"/"medium"/"high" are valid API values
         call_args = mock_client.messages.create.call_args
-        assert call_args[1]["extra_body"] == {"output_config": {"effort": "none"}}
+        assert "extra_body" not in call_args[1]
+        # Beta header should also NOT include effort beta
+        assert call_args[1]["extra_headers"] == {"anthropic-beta": "prompt-caching-2024-07-31"}
 
     def test_init_with_effort_on_non_opus_model_raises(self) -> None:
         """Test that effort parameter on non-Opus model raises LLMConfigurationError."""
@@ -916,6 +920,11 @@ class TestAnthropicProviderEffortParameter:
         """Test that effort parameter on Haiku model raises LLMConfigurationError."""
         with pytest.raises(LLMConfigurationError, match="only supported for Claude Opus 4.5"):
             AnthropicAPIProvider(api_key="sk-ant-test", model="claude-haiku-4-5", effort="low")
+
+    def test_init_with_invalid_effort_level_raises(self) -> None:
+        """Test that invalid effort level raises LLMConfigurationError."""
+        with pytest.raises(LLMConfigurationError, match="Invalid effort level"):
+            AnthropicAPIProvider(api_key="sk-ant-test", model="claude-opus-4-5", effort="invalid")
 
 
 class TestAnthropicProviderLatencyTracking:

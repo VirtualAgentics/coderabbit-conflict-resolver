@@ -339,6 +339,20 @@ class TestLLMConfigEffort:
         config = LLMConfig.from_env()
         assert config.effort is None
 
+    def test_effort_from_env_strips_whitespace(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test from_env() strips whitespace from effort value."""
+        monkeypatch.setenv("CR_LLM_EFFORT", "  HIGH  ")
+        config = LLMConfig.from_env()
+        assert config.effort == "high"
+
+    def test_effort_from_env_whitespace_only_returns_none(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test from_env() treats whitespace-only effort as None."""
+        monkeypatch.setenv("CR_LLM_EFFORT", "   ")
+        config = LLMConfig.from_env()
+        assert config.effort is None
+
 
 class TestLLMConfigImmutability:
     """Test that LLMConfig is immutable (frozen=True)."""
