@@ -176,7 +176,7 @@ pr-resolve apply --owner org --repo repo --pr 123 \
 **Cons:**
 
 * Requires credit card
-* Costs can add up for high volume
+* Costs can add up for high-volume use
 * Data sent to OpenAI servers
 
 #### Quick Setup
