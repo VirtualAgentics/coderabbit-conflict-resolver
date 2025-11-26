@@ -1480,7 +1480,7 @@ ruff==0.14.6 \
     --hash=sha256:efea3c0f21901a685fff4befda6d61a1bf4cb43de16da87e8226a281d614350b \
     --hash=sha256:ff18134841e5c68f8e5df1999a64429a02d5549036b394fafbe410f886e1989d
     # via -r requirements-dev.in
-SecretStorage==3.5.0 \
+secretstorage==3.5.0 \
     --hash=sha256:0ce65888c0725fcb2c5bc0fdb8e5438eece02c523557ea40ce0703c266248137 \
     --hash=sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be
     # via keyring
