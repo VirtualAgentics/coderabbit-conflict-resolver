@@ -608,10 +608,17 @@ Configure LLM providers using these environment variables:
 | Variable | Type | Default | Description |
 | ---------- | ------ | --------- | ------------- |
 | `CR_LLM_ENABLED` | boolean | `false` | Enable LLM-powered features |
-| `CR_LLM_PROVIDER` | string | `openai` | Provider name (openai, anthropic, claude-cli, codex-cli, ollama) |
+| `CR_LLM_PROVIDER` | string | `claude-cli` | Provider name (openai, anthropic, claude-cli, codex-cli, ollama) |
 | `CR_LLM_MODEL` | string | provider-specific | Model identifier (optional, uses provider defaults) |
 | `CR_LLM_API_KEY` | string | (required for API providers) | API key for openai/anthropic |
 | `CR_LLM_TIMEOUT` | integer | provider-specific | Request timeout in seconds |
+| `CR_LLM_CONFIDENCE_THRESHOLD` | float | `0.5` | Min confidence (0.0-1.0) to accept changes |
+| `CR_LLM_RETRY_ON_RATE_LIMIT` | boolean | `true` | Retry on rate limit errors |
+| `CR_LLM_RETRY_MAX_ATTEMPTS` | integer | `3` | Max retry attempts (>=1) |
+| `CR_LLM_RETRY_BASE_DELAY` | float | `2.0` | Base delay for exponential backoff |
+| `CR_LLM_CIRCUIT_BREAKER_ENABLED` | boolean | `true` | Enable circuit breaker pattern |
+| `CR_LLM_CIRCUIT_BREAKER_THRESHOLD` | integer | `5` | Failures before circuit opens |
+| `CR_LLM_CIRCUIT_BREAKER_COOLDOWN` | float | `60.0` | Seconds before recovery attempt |
 
 **Boolean Values:** Accept `true`/`false`, `1`/`0`, `yes`/`no` (case-insensitive)
 
