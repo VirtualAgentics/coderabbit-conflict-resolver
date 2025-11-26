@@ -33,6 +33,7 @@ class LLMConfig:
         retry_on_rate_limit: Enable automatic retry on rate limit errors (default: True)
         retry_max_attempts: Maximum retry attempts for rate limit errors (default: 3)
         retry_base_delay: Base delay in seconds for exponential backoff (default: 2.0)
+        effort: LLM effort level for speed/cost vs accuracy tradeoff (None, "low", "medium", "high")
 
     Example:
         >>> config = LLMConfig.from_defaults()
@@ -61,6 +62,8 @@ class LLMConfig:
     retry_on_rate_limit: bool = True
     retry_max_attempts: int = 3
     retry_base_delay: float = 2.0
+    # Effort level for speed/cost vs accuracy tradeoff
+    effort: str | None = None
 
     def __post_init__(self) -> None:
         """Validate LLMConfig fields after initialization.
@@ -94,6 +97,14 @@ class LLMConfig:
 
         if self.retry_base_delay <= 0:
             raise ValueError(f"retry_base_delay must be > 0, got {self.retry_base_delay}")
+
+        # Validate effort level
+        valid_efforts = {None, "none", "low", "medium", "high"}
+        if self.effort is not None and self.effort.lower() not in valid_efforts:
+            raise ValueError(
+                f"effort must be one of {{'none', 'low', 'medium', 'high'}}, "
+                f"got '{self.effort}'"
+            )
 
         # Validate that API-based providers have an API key if enabled
         if self.enabled and self.provider in {"openai", "anthropic"} and not self.api_key:
@@ -134,6 +145,7 @@ class LLMConfig:
         - CR_LLM_RETRY_ON_RATE_LIMIT: "true"/"false" (default: true)
         - CR_LLM_RETRY_MAX_ATTEMPTS: Integer value (default: 3)
         - CR_LLM_RETRY_BASE_DELAY: Float value in seconds (default: 2.0)
+        - CR_LLM_EFFORT: LLM effort level (default: None, options: none/low/medium/high)
 
         Returns:
             LLMConfig with values from environment, falling back to defaults
@@ -225,4 +237,5 @@ class LLMConfig:
             retry_on_rate_limit=retry_on_rate_limit,
             retry_max_attempts=retry_max_attempts,
             retry_base_delay=retry_base_delay,
+            effort=os.getenv("CR_LLM_EFFORT"),
         )

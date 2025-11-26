@@ -134,6 +134,7 @@ class AnthropicAPIProvider:
         api_key: str,
         model: str = "claude-sonnet-4-5",
         timeout: int = 60,
+        effort: str | None = None,
     ) -> None:
         """Initialize Anthropic API provider.
 
@@ -141,6 +142,8 @@ class AnthropicAPIProvider:
             api_key: Anthropic API key (starts with sk-ant-)
             model: Model identifier (default: claude-sonnet-4-5 for best value)
             timeout: Request timeout in seconds
+            effort: Effort level for Claude Opus 4.5 ('low', 'medium', 'high')
+                   Controls token efficiency vs response quality tradeoff.
 
         Raises:
             LLMConfigurationError: If api_key is empty or configuration is invalid
@@ -154,6 +157,7 @@ class AnthropicAPIProvider:
         self.client = Anthropic(api_key=api_key, timeout=timeout, max_retries=0)
         self.model = model
         self.timeout = timeout
+        self.effort = effort  # For Claude Opus 4.5 effort parameter
 
         # Token usage tracking (4 types for Anthropic)
         self.total_input_tokens: int = 0
@@ -287,13 +291,25 @@ class AnthropicAPIProvider:
 
             start_time = time.perf_counter()
             try:
-                response = self.client.messages.create(
-                    model=self.model,
-                    messages=[{"role": "user", "content": content_blocks}],  # type: ignore[typeddict-item]
-                    max_tokens=max_tokens,
-                    temperature=0.0,  # Deterministic for consistency
-                    extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
-                )
+                # Build beta headers (always include prompt caching)
+                beta_features = ["prompt-caching-2024-07-31"]
+                if self.effort is not None:
+                    beta_features.append("effort-2025-11-24")
+
+                # Build API kwargs
+                api_kwargs: dict[str, object] = {
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": content_blocks}],
+                    "max_tokens": max_tokens,
+                    "temperature": 0.0,  # Deterministic for consistency
+                    "extra_headers": {"anthropic-beta": ",".join(beta_features)},
+                }
+
+                # Add output_config with effort if specified (Claude Opus 4.5)
+                if self.effort is not None:
+                    api_kwargs["extra_body"] = {"output_config": {"effort": self.effort}}
+
+                response = self.client.messages.create(**api_kwargs)  # type: ignore[call-overload]
             finally:
                 latency = time.perf_counter() - start_time
                 self._last_request_latency = latency

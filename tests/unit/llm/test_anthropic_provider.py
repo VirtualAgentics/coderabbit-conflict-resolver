@@ -732,6 +732,147 @@ class TestAnthropicProviderRetryLogic:
         assert mock_client.messages.create.call_count == 3
 
 
+class TestAnthropicProviderEffortParameter:
+    """Tests for effort parameter support (Claude Opus 4.5)."""
+
+    def test_init_with_effort_none_by_default(self) -> None:
+        """Test that effort is None by default."""
+        provider = AnthropicAPIProvider(api_key="sk-ant-test")
+        assert provider.effort is None
+
+    def test_init_with_effort_parameter(self) -> None:
+        """Test that effort parameter is stored correctly."""
+        provider = AnthropicAPIProvider(api_key="sk-ant-test", effort="high")
+        assert provider.effort == "high"
+
+    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    def test_generate_without_effort_uses_base_beta_header(
+        self, mock_anthropic_class: Mock
+    ) -> None:
+        """Test that only prompt-caching header is used when effort is None."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_text_block = TextBlock(type="text", text="response")
+        mock_response = MagicMock()
+        mock_response.content = [mock_text_block]
+        mock_response.usage = MagicMock(
+            input_tokens=10,
+            output_tokens=5,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
+        mock_client.messages.create.return_value = mock_response
+
+        provider = AnthropicAPIProvider(api_key="sk-ant-test", effort=None)
+        provider.generate("Test prompt")
+
+        # Verify only prompt-caching header is sent
+        call_args = mock_client.messages.create.call_args
+        assert call_args[1]["extra_headers"] == {"anthropic-beta": "prompt-caching-2024-07-31"}
+        # Verify no extra_body for effort
+        assert "extra_body" not in call_args[1]
+
+    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    def test_generate_with_effort_includes_effort_beta_header(
+        self, mock_anthropic_class: Mock
+    ) -> None:
+        """Test that effort beta header is included when effort is set."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_text_block = TextBlock(type="text", text="response")
+        mock_response = MagicMock()
+        mock_response.content = [mock_text_block]
+        mock_response.usage = MagicMock(
+            input_tokens=10,
+            output_tokens=5,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
+        mock_client.messages.create.return_value = mock_response
+
+        provider = AnthropicAPIProvider(api_key="sk-ant-test", effort="high")
+        provider.generate("Test prompt")
+
+        # Verify both beta headers are included
+        call_args = mock_client.messages.create.call_args
+        beta_header = call_args[1]["extra_headers"]["anthropic-beta"]
+        assert "prompt-caching-2024-07-31" in beta_header
+        assert "effort-2025-11-24" in beta_header
+
+    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    def test_generate_with_effort_includes_output_config(self, mock_anthropic_class: Mock) -> None:
+        """Test that output_config with effort is passed via extra_body."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_text_block = TextBlock(type="text", text="response")
+        mock_response = MagicMock()
+        mock_response.content = [mock_text_block]
+        mock_response.usage = MagicMock(
+            input_tokens=10,
+            output_tokens=5,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
+        mock_client.messages.create.return_value = mock_response
+
+        provider = AnthropicAPIProvider(api_key="sk-ant-test", effort="high")
+        provider.generate("Test prompt")
+
+        # Verify extra_body contains output_config with effort
+        call_args = mock_client.messages.create.call_args
+        assert "extra_body" in call_args[1]
+        assert call_args[1]["extra_body"] == {"output_config": {"effort": "high"}}
+
+    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    def test_generate_with_effort_low(self, mock_anthropic_class: Mock) -> None:
+        """Test that effort='low' is passed correctly."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_text_block = TextBlock(type="text", text="response")
+        mock_response = MagicMock()
+        mock_response.content = [mock_text_block]
+        mock_response.usage = MagicMock(
+            input_tokens=10,
+            output_tokens=5,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
+        mock_client.messages.create.return_value = mock_response
+
+        provider = AnthropicAPIProvider(api_key="sk-ant-test", effort="low")
+        provider.generate("Test prompt")
+
+        call_args = mock_client.messages.create.call_args
+        assert call_args[1]["extra_body"] == {"output_config": {"effort": "low"}}
+
+    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    def test_generate_with_effort_medium(self, mock_anthropic_class: Mock) -> None:
+        """Test that effort='medium' is passed correctly."""
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        mock_text_block = TextBlock(type="text", text="response")
+        mock_response = MagicMock()
+        mock_response.content = [mock_text_block]
+        mock_response.usage = MagicMock(
+            input_tokens=10,
+            output_tokens=5,
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=0,
+        )
+        mock_client.messages.create.return_value = mock_response
+
+        provider = AnthropicAPIProvider(api_key="sk-ant-test", effort="medium")
+        provider.generate("Test prompt")
+
+        call_args = mock_client.messages.create.call_args
+        assert call_args[1]["extra_body"] == {"output_config": {"effort": "medium"}}
+
+
 class TestAnthropicProviderLatencyTracking:
     """Tests for latency tracking methods."""
 

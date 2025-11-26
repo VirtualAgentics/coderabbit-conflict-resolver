@@ -91,8 +91,8 @@ class OpenAIAPIProvider:
         "gpt-5-mini": {"input": 0.25, "output": 2.00},
         "gpt-5-nano": {"input": 0.05, "output": 0.40},
         # GPT-4.1 family (April 2025)
-        "gpt-4.1": {"input": 2.00, "output": 6.00},
-        "gpt-4.1-mini": {"input": 0.30, "output": 1.20},
+        "gpt-4.1": {"input": 2.00, "output": 8.00},
+        "gpt-4.1-mini": {"input": 0.40, "output": 1.60},
         "gpt-4.1-nano": {"input": 0.10, "output": 0.40},
         # GPT-4o family (2024)
         "gpt-4o": {"input": 2.50, "output": 10.00},
@@ -108,6 +108,7 @@ class OpenAIAPIProvider:
         api_key: str,
         model: str = "gpt-4o-mini",
         timeout: int = 60,
+        effort: str | None = None,
     ) -> None:
         """Initialize OpenAI API provider.
 
@@ -115,6 +116,8 @@ class OpenAIAPIProvider:
             api_key: OpenAI API key (starts with sk-)
             model: Model identifier (default: gpt-4o-mini for cost efficiency)
             timeout: Request timeout in seconds
+            effort: Reasoning effort level for GPT-5.x models ('none', 'low', 'medium', 'high')
+                   Maps to OpenAI's reasoning_effort parameter.
 
         Raises:
             LLMConfigurationError: If api_key is empty or configuration is invalid
@@ -127,6 +130,7 @@ class OpenAIAPIProvider:
         self.client = OpenAI(api_key=api_key, timeout=timeout)
         self.model = model
         self.timeout = timeout
+        self.effort = effort  # For GPT-5.x reasoning_effort parameter
 
         # Token usage tracking
         self.total_input_tokens = 0
@@ -212,13 +216,20 @@ class OpenAIAPIProvider:
 
             start_time = time.perf_counter()
             try:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=max_tokens,
-                    temperature=0.0,  # Deterministic for consistency
-                    response_format={"type": "json_object"},  # Force JSON output
-                )
+                # Build API kwargs
+                api_kwargs: dict[str, object] = {
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": max_tokens,
+                    "temperature": 0.0,  # Deterministic for consistency
+                    "response_format": {"type": "json_object"},  # Force JSON output
+                }
+
+                # Add reasoning_effort for GPT-5.x models if specified
+                if self.effort is not None:
+                    api_kwargs["reasoning_effort"] = self.effort
+
+                response = self.client.chat.completions.create(**api_kwargs)  # type: ignore[call-overload]
             finally:
                 latency = time.perf_counter() - start_time
                 self._last_request_latency = latency

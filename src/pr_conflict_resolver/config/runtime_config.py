@@ -68,6 +68,7 @@ class RuntimeConfig:
         llm_parallel_parsing: Enable parallel comment parsing for large PRs (default: False).
         llm_parallel_max_workers: Maximum worker threads for parallel parsing (default: 4).
         llm_rate_limit: Maximum requests per second for parallel parsing (default: 10.0).
+        llm_effort: LLM effort level for speed/cost vs accuracy tradeoff (None, low, medium, high).
 
     Example:
         >>> config = RuntimeConfig.from_env()
@@ -95,6 +96,7 @@ class RuntimeConfig:
     llm_parallel_parsing: bool = False
     llm_parallel_max_workers: int = 4
     llm_rate_limit: float = 10.0
+    llm_effort: str | None = None
 
     def __post_init__(self) -> None:
         """Validate configuration after initialization.
@@ -156,6 +158,14 @@ class RuntimeConfig:
         if self.llm_rate_limit < 0.1:
             raise ConfigError(f"llm_rate_limit must be >= 0.1, got {self.llm_rate_limit}")
 
+        # Validate llm_effort (OpenAI accepts 'none', Anthropic doesn't)
+        valid_efforts = {None, "none", "low", "medium", "high"}
+        if self.llm_effort is not None and self.llm_effort.lower() not in valid_efforts:
+            raise ConfigError(
+                f"llm_effort must be one of {{'none', 'low', 'medium', 'high'}}, "
+                f"got '{self.llm_effort}'"
+            )
+
         # Validate that API-based providers have an API key if enabled
         if (
             self.llm_enabled
@@ -199,6 +209,7 @@ class RuntimeConfig:
             llm_parallel_parsing=False,
             llm_parallel_max_workers=4,
             llm_rate_limit=10.0,
+            llm_effort=None,
         )
 
     @classmethod
@@ -330,6 +341,7 @@ class RuntimeConfig:
             llm_parallel_parsing=False,
             llm_parallel_max_workers=4,
             llm_rate_limit=10.0,
+            llm_effort=None,
         )
 
     @classmethod
@@ -391,6 +403,7 @@ class RuntimeConfig:
             llm_parallel_parsing=defaults.llm_parallel_parsing,
             llm_parallel_max_workers=defaults.llm_parallel_max_workers,
             llm_rate_limit=defaults.llm_rate_limit,
+            llm_effort=defaults.llm_effort,
         )
 
     @classmethod
@@ -417,6 +430,7 @@ class RuntimeConfig:
         - CR_LLM_PARALLEL_PARSING: Enable parallel LLM comment parsing (default: "false")
         - CR_LLM_PARALLEL_WORKERS: Max worker threads for LLM parsing (default: "4")
         - CR_LLM_RATE_LIMIT: Max LLM requests per second (default: "10.0")
+        - CR_LLM_EFFORT: LLM effort level (default: None, options: none/low/medium/high)
 
         Returns:
             RuntimeConfig loaded from environment variables.
@@ -525,6 +539,7 @@ class RuntimeConfig:
                 "CR_LLM_PARALLEL_WORKERS", defaults.llm_parallel_max_workers, min_value=1
             ),
             llm_rate_limit=parse_float("CR_LLM_RATE_LIMIT", defaults.llm_rate_limit, min_value=0.1),
+            llm_effort=os.getenv("CR_LLM_EFFORT") or defaults.llm_effort,
         )
 
     @classmethod
@@ -785,6 +800,7 @@ class RuntimeConfig:
                 "parallel_max_workers", defaults.llm_parallel_max_workers
             )
             llm_rate_limit = llm_config.get("rate_limit", defaults.llm_rate_limit)
+            llm_effort = llm_config.get("effort", defaults.llm_effort)
 
             # SECURITY: Reject API keys in configuration files
             # API keys must only be provided via environment variables or CLI flags
@@ -807,6 +823,7 @@ class RuntimeConfig:
             llm_parallel_parsing = defaults.llm_parallel_parsing
             llm_parallel_max_workers = defaults.llm_parallel_max_workers
             llm_rate_limit = defaults.llm_rate_limit
+            llm_effort = defaults.llm_effort
 
         # Validate and convert numeric LLM parallel config values
         try:
@@ -836,6 +853,7 @@ class RuntimeConfig:
             llm_parallel_parsing=bool(llm_parallel_parsing),
             llm_parallel_max_workers=parallel_workers,
             llm_rate_limit=rate_limit,
+            llm_effort=str(llm_effort) if llm_effort else None,
         )
 
     def merge_with_cli(self, **overrides: Any) -> "RuntimeConfig":  # noqa: ANN401
@@ -913,4 +931,5 @@ class RuntimeConfig:
             "llm_parallel_parsing": self.llm_parallel_parsing,
             "llm_parallel_max_workers": self.llm_parallel_max_workers,
             "llm_rate_limit": self.llm_rate_limit,
+            "llm_effort": self.llm_effort,
         }

@@ -15,6 +15,7 @@ This guide covers advanced LLM configuration features including configuration fi
 ## Table of Contents
 
 * [Configuration File Support](#configuration-file-support)
+* [LLM Effort Level](#llm-effort-level)
 * [LLM Presets](#llm-presets)
 * [Environment Variable Interpolation](#environment-variable-interpolation)
 * [Configuration Precedence](#configuration-precedence)
@@ -101,6 +102,73 @@ pr-resolve apply 123 --config config.toml
 | `llm.confidence_threshold` | float | `0.5` | Minimum LLM confidence (0.0-1.0) required to accept changes |
 | `llm.cost_budget` | float | `null` | Cost budget configuration (advisory only, not currently enforced). This field allows users to express intended spending limits and serves as a placeholder for future enforcement/alerts (see [Sub-Issue #225](../planning/ROADMAP.md)). |
 | `llm.ollama_base_url` | string | `http://localhost:11434` | Ollama server URL (Ollama only) |
+| `llm.effort` | string | `null` | Effort level for speed/cost vs accuracy tradeoff (`none`, `low`, `medium`, `high`) |
+
+## LLM Effort Level
+
+The `--llm-effort` option controls the speed/cost vs accuracy tradeoff for LLM providers that support extended reasoning capabilities.
+
+### Effort Levels
+
+| Level | Description | Use Case |
+| ------- | ------------- | ---------- |
+| `none` | Fastest, minimal reasoning | Quick parsing, cost-sensitive |
+| `low` | Light reasoning | Balanced speed/accuracy |
+| `medium` | Moderate reasoning | Complex comments |
+| `high` | Most thorough reasoning | Maximum accuracy, complex parsing |
+
+### Provider Support
+
+| Provider | Parameter | Notes |
+| ---------- | ----------- | ------- |
+| **OpenAI** | `reasoning_effort` | Supported on GPT-5.x models |
+| **Anthropic** | `effort` | Supported on Claude Opus 4.5 |
+| **Ollama** | Not supported | Uses standard inference |
+| **Claude CLI** | Not supported | Uses standard inference |
+| **Codex CLI** | Not supported | Uses standard inference |
+
+### Usage
+
+**CLI flag:**
+
+```bash
+# Fast parsing (minimal reasoning)
+pr-resolve apply 123 --llm-effort none
+
+# Maximum accuracy (thorough reasoning)
+pr-resolve apply 123 --llm-effort high
+
+# With analyze command
+pr-resolve analyze --pr 123 --owner myorg --repo myrepo --llm-effort medium
+```
+
+**Environment variable:**
+
+```bash
+export CR_LLM_EFFORT=medium
+pr-resolve apply 123
+```
+
+**Configuration file:**
+
+```yaml
+llm:
+  enabled: true
+  provider: anthropic
+  model: claude-opus-4-5
+  api_key: ${ANTHROPIC_API_KEY}
+  effort: high  # Maximum reasoning for complex parsing
+```
+
+### Cost Considerations
+
+Higher effort levels typically increase:
+
+* Response latency (more reasoning time)
+* Token usage (reasoning tokens counted)
+* Per-request cost
+
+For cost-sensitive deployments, use `none` or `low` effort levels. Reserve `high` for complex parsing tasks where accuracy is critical.
 
 ## LLM Presets
 
