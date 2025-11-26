@@ -411,57 +411,6 @@ class TomlHandler(BaseHandler):
 
         return lines
 
-    def _smart_merge_toml(
-        self, original: dict[str, Any], suggestion: dict[str, Any], start_line: int, end_line: int
-    ) -> dict[str, Any]:
-        """Merge two TOML mappings by applying suggestion top-level keys onto the original.
-
-        .. deprecated:: 0.1.0
-           This method is deprecated and will be removed in version 0.2.0 or within 2 releases.
-           It is no longer used by `apply_change`, which now uses line-based targeted replacement
-           to preserve formatting and comments.
-
-        **Migration Guide for External Callers:**
-
-        - **Recommended**: Use `apply_change(path, content, start_line, end_line)` which performs
-          line-based targeted replacement and preserves all formatting and comments. This is the
-          standard approach for applying changes to TOML files.
-
-        - If you need compatibility with the current behavior or have concerns about the timeline,
-          please open an issue at https://github.com/VirtualAgentics/review-bot-automator/issues
-          to discuss your use case.
-
-        The suggestion's top-level keys overwrite or add to the original mapping; nested tables
-        are not merged recursively. The start_line and end_line parameters are accepted for API
-        compatibility but do not affect the merge behavior.
-
-        Args:
-            original (dict[str, Any]): Original TOML data as a mapping.
-            suggestion (dict[str, Any]): Suggested TOML data to apply on top of the original.
-            start_line (int): Starting line of the change (ignored).
-            end_line (int): Ending line of the change (ignored).
-
-        Returns:
-            dict[str, Any]: A new mapping containing the merged TOML data.
-
-        Warns:
-            DeprecationWarning: Raised to alert callers that this method is deprecated.
-        """
-        warnings.warn(
-            "`_smart_merge_toml` is deprecated and will be removed in version 0.2.0 "
-            "or within 2 releases. Use `apply_change(path, content, start_line, end_line)` "
-            "for applying changes to TOML files. See the docstring for migration guidance or "
-            "open an issue if you need compatibility.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        # For TOML, we typically want to merge at the top level
-        result = original.copy()
-        for key, value in suggestion.items():
-            result[key] = value
-        return result
-
     def _is_temp_file(self, path: Path, tempdir: Path) -> bool:
         """Check if a path is within the system temporary directory.
 
