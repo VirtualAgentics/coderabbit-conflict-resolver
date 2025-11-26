@@ -497,6 +497,9 @@ class TestApplyCommandLLMIntegration:
             assert "count=1" in result.output
             # Should suggest reviewing PR comment
             assert "blocked" in result.output.lower() or "review" in result.output.lower()
+            # Negative assertions: secret type and matched text should NOT leak to output
+            assert "github_personal_token" not in result.output
+            assert "ghp_" not in result.output
 
     def test_apply_handles_secret_detected_error_multiple_types(
         self, cli_runner: CliRunner
@@ -543,6 +546,11 @@ class TestApplyCommandLLMIntegration:
             # (secret types are not logged to avoid CodeQL taint tracking)
             assert result.exit_code != 0
             assert "count=2" in result.output
+            # Negative assertions: secret types and matched text should NOT leak to output
+            assert "github_personal_token" not in result.output
+            assert "openai_api_key" not in result.output
+            assert "ghp_" not in result.output
+            assert "sk-" not in result.output
 
 
 class TestMetricsDisplayEdgeCases:

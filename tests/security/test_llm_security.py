@@ -10,6 +10,7 @@ Tests for secure LLM operations including:
 import os
 import stat
 import string
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -214,6 +215,9 @@ class TestCircuitBreakerSecurity:
 class TestMetricsExportSecurity:
     """Tests for metrics export file permissions."""
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="POSIX permissions not supported on Windows"
+    )
     def test_json_export_restricted_permissions(self) -> None:
         """JSON export files have 0600 permissions."""
         aggregator = MetricsAggregator()
@@ -231,6 +235,9 @@ class TestMetricsExportSecurity:
             permissions = stat.S_IMODE(os.stat(path).st_mode)
             assert permissions == 0o600
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="POSIX permissions not supported on Windows"
+    )
     def test_csv_export_restricted_permissions(self) -> None:
         """CSV export files have 0600 permissions."""
         aggregator = MetricsAggregator()
