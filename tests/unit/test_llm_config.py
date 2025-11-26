@@ -304,11 +304,11 @@ class TestLLMConfigEffort:
             assert config.effort == effort
 
     def test_effort_case_insensitive_validation(self) -> None:
-        """Test that effort validation is case insensitive."""
+        """Test that effort validation is case insensitive and normalizes to lowercase."""
         for effort in ["LOW", "Medium", "HIGH", "None"]:
-            # Should not raise
+            # Should not raise and should normalize to lowercase
             config = LLMConfig(effort=effort)
-            assert config.effort == effort
+            assert config.effort == effort.lower()
 
     def test_effort_invalid_value_raises_error(self) -> None:
         """Test that invalid effort values raise ValueError."""

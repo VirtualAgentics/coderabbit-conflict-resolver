@@ -99,13 +99,17 @@ class LLMConfig:
         if self.retry_base_delay <= 0:
             raise ValueError(f"retry_base_delay must be > 0, got {self.retry_base_delay}")
 
-        # Validate effort level
-        valid_efforts = {"none", "low", "medium", "high"}
-        if self.effort is not None and self.effort.lower() not in valid_efforts:
-            raise ValueError(
-                f"effort must be one of {{'none', 'low', 'medium', 'high'}}, "
-                f"got '{self.effort}'"
-            )
+        # Normalize and validate effort level
+        if self.effort is not None:
+            normalized_effort = self.effort.lower()
+            valid_efforts = {"none", "low", "medium", "high"}
+            if normalized_effort not in valid_efforts:
+                raise ValueError(
+                    "effort must be one of {'none', 'low', 'medium', 'high'}, "
+                    f"got '{self.effort}'"
+                )
+            # dataclass is frozen, so use object.__setattr__
+            object.__setattr__(self, "effort", normalized_effort)
 
         # Validate that API-based providers have an API key if enabled
         if self.enabled and self.provider in {"openai", "anthropic"} and not self.api_key:
@@ -238,5 +242,5 @@ class LLMConfig:
             retry_on_rate_limit=retry_on_rate_limit,
             retry_max_attempts=retry_max_attempts,
             retry_base_delay=retry_base_delay,
-            effort=os.getenv("CR_LLM_EFFORT", "").lower() or None,
+            effort=(os.getenv("CR_LLM_EFFORT", "").strip().lower() or None),
         )

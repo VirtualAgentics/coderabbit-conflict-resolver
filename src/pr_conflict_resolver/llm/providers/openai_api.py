@@ -113,6 +113,9 @@ class OpenAIAPIProvider:
         "o1-mini-2024-09-12",
     }
 
+    # Valid effort levels
+    VALID_EFFORT_LEVELS: ClassVar[set[str]] = {"none", "low", "medium", "high"}
+
     def __init__(
         self,
         api_key: str,
@@ -142,6 +145,13 @@ class OpenAIAPIProvider:
             raise LLMConfigurationError(
                 f"effort parameter is only supported for o1 models, " f"got model='{model}'",
                 details={"model": model, "effort": effort},
+            )
+
+        # Validate effort value (defense-in-depth for callers bypassing LLMConfig)
+        if effort is not None and effort not in self.VALID_EFFORT_LEVELS:
+            raise LLMConfigurationError(
+                f"Invalid effort level '{effort}', must be one of {self.VALID_EFFORT_LEVELS}",
+                details={"effort": effort, "valid_levels": list(self.VALID_EFFORT_LEVELS)},
             )
 
         self.client = OpenAI(api_key=api_key, timeout=timeout)
