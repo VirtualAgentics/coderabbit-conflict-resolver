@@ -353,13 +353,21 @@ class PromptCache:
         with self._lock:
             self._set_unlocked(key, response, metadata)
 
-    def _set_unlocked(self, key: str, response: str, metadata: dict[str, str]) -> None:
+    def _set_unlocked(
+        self,
+        key: str,
+        response: str,
+        metadata: dict[str, str],
+        *,
+        skip_eviction: bool = False,
+    ) -> None:
         """Internal set implementation without locking (caller must hold lock).
 
         Args:
             key: SHA256 cache key
             response: LLM response to cache
             metadata: Must include prompt, provider, and model
+            skip_eviction: If True, skip cache size check and eviction (for bulk ops)
         """
         # Extract and validate prompt (required for prompt_hash)
         prompt = metadata.get("prompt")
@@ -370,6 +378,7 @@ class PromptCache:
         prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
         cache_file = self.cache_dir / f"{key}.json"
+        tmp_file = cache_file.with_suffix(".json.tmp")
 
         # Create cache entry
         entry = {
@@ -380,22 +389,31 @@ class PromptCache:
             "prompt_hash": prompt_hash,
         }
 
-        # Write to file with secure permissions
-        with open(cache_file, "w", encoding="utf-8") as f:
-            json.dump(entry, f, indent=2)
-
-        # Set file permissions to 0600 (user read/write only)
-        os.chmod(cache_file, 0o600)
+        # Write to temp file with secure permissions, then atomically replace
+        # This prevents partially-written/corrupted files if interrupted
+        try:
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                json.dump(entry, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.chmod(tmp_file, 0o600)
+            os.replace(tmp_file, cache_file)
+        except Exception:
+            tmp_file.unlink(missing_ok=True)
+            raise
 
         logger.debug(f"Cached response for key {key[:8]}...")
 
-        # Check if eviction needed
-        cache_size = self._get_cache_size_unlocked()
-        if cache_size > self.max_size_bytes:
-            # Calculate target size (90% of max to reduce frequent evictions)
-            target_size = int(self.max_size_bytes * _EVICTION_TARGET_RATIO)
-            evicted = self._evict_lru_unlocked(target_size)
-            logger.info(f"Cache exceeded {self.max_size_bytes} bytes, evicted {evicted} entries")
+        # Check if eviction needed (skip during bulk operations for O(n) instead of O(n²))
+        if not skip_eviction:
+            cache_size = self._get_cache_size_unlocked()
+            if cache_size > self.max_size_bytes:
+                # Calculate target size (90% of max to reduce frequent evictions)
+                target_size = int(self.max_size_bytes * _EVICTION_TARGET_RATIO)
+                evicted = self._evict_lru_unlocked(target_size)
+                logger.info(
+                    f"Cache exceeded {self.max_size_bytes} bytes, evicted {evicted} entries"
+                )
 
     def evict_expired(self) -> int:
         """Remove all expired cache entries based on TTL.
@@ -612,3 +630,200 @@ class PromptCache:
             with contextlib.suppress(OSError):
                 total_size += cache_file.stat().st_size
         return total_size
+
+    @staticmethod
+    def _validate_field(entry: dict[str, str], field: str) -> str | None:
+        """Validate and return field value or None if invalid.
+
+        Args:
+            entry: Dictionary to extract field from
+            field: Field name to validate
+
+        Returns:
+            Stripped string value if valid, None if missing/empty/whitespace-only
+        """
+        value = entry.get(field)
+        if not isinstance(value, str) or not value.strip():
+            return None
+        return value
+
+    def warm_cache(self, entries: list[dict[str, str]]) -> tuple[int, int]:
+        """Pre-populate cache with pre-computed entries for cold start optimization.
+
+        This method allows importing previously cached responses to avoid cold start
+        latency. Useful for:
+        - Restoring cache after container restart
+        - Sharing cache across team members
+        - Pre-populating test environments
+
+        Args:
+            entries: List of cache entry dictionaries. Each entry must contain:
+                - prompt: Original prompt text
+                - provider: LLM provider name (e.g., "anthropic", "openai")
+                - model: Model name (e.g., "claude-sonnet-4-5", "gpt-4o")
+                - response: The cached LLM response
+
+        Returns:
+            Tuple of (loaded_count, skipped_count):
+                - loaded_count: Number of entries successfully loaded
+                - skipped_count: Number of entries skipped (invalid or already cached)
+
+        Examples:
+            >>> cache = PromptCache()
+            >>> entries = [
+            ...     {
+            ...         "prompt": "Fix the bug",
+            ...         "provider": "anthropic",
+            ...         "model": "claude-sonnet-4-5",
+            ...         "response": "[]",
+            ...     }
+            ... ]
+            >>> loaded, skipped = cache.warm_cache(entries)
+            >>> print(f"Loaded {loaded} entries, skipped {skipped}")
+
+        Note:
+            - Existing cache entries are NOT overwritten (skip duplicates)
+            - Invalid entries are logged and skipped
+            - Thread-safe operation
+        """
+        loaded = 0
+        skipped = 0
+
+        with self._lock:
+            for entry in entries:
+                try:
+                    # Validate required fields using helper (DRY + type narrowing)
+                    prompt = self._validate_field(entry, "prompt")
+                    provider = self._validate_field(entry, "provider")
+                    model = self._validate_field(entry, "model")
+                    response = self._validate_field(entry, "response")
+
+                    if prompt is None or provider is None or model is None or response is None:
+                        missing = [
+                            name
+                            for name, val in zip(
+                                ["prompt", "provider", "model", "response"],
+                                [prompt, provider, model, response],
+                                strict=True,
+                            )
+                            if val is None
+                        ]
+                        logger.warning(f"Skipping invalid entry: missing/empty fields: {missing}")
+                        skipped += 1
+                        continue
+
+                    # Compute cache key (type narrowed to str after None checks)
+                    key = self.compute_key(prompt, provider, model)
+                    cache_file = self.cache_dir / f"{key}.json"
+
+                    # Skip if already cached (don't overwrite existing entries)
+                    if cache_file.exists():
+                        logger.debug(f"Skipping existing cache entry {key[:8]}...")
+                        skipped += 1
+                        continue
+
+                    # Store entry (skip per-entry eviction for O(n) bulk load)
+                    self._set_unlocked(
+                        key,
+                        response,
+                        {"prompt": prompt, "provider": provider, "model": model},
+                        skip_eviction=True,
+                    )
+                    loaded += 1
+
+                except (ValueError, TypeError, KeyError) as e:
+                    logger.warning(f"Failed to warm cache entry: {e}")
+                    skipped += 1
+
+            # Single eviction check after bulk load (O(n) instead of O(n²))
+            if loaded > 0:
+                cache_size = self._get_cache_size_unlocked()
+                if cache_size > self.max_size_bytes:
+                    target_size = int(self.max_size_bytes * _EVICTION_TARGET_RATIO)
+                    evicted = self._evict_lru_unlocked(target_size)
+                    logger.info(f"Cache warming evicted {evicted} LRU entries after bulk load")
+
+        logger.info(f"Cache warming complete: loaded={loaded}, skipped={skipped}")
+        return (loaded, skipped)
+
+    def export_entries(self) -> list[dict[str, str | int | float]]:
+        """Export all cache entries for backup or transfer.
+
+        Exports cache entries for analytics and backup purposes only.
+        Note: Entries contain prompt_hash (not original prompts) and cannot
+        be re-imported via warm_cache() which requires original prompts.
+
+        Returns:
+            List of cache entry dictionaries with:
+                - prompt_hash: SHA256 hash of original prompt
+                - provider: LLM provider name
+                - model: Model name
+                - response: The cached LLM response
+                - timestamp: Unix timestamp (float/int)
+
+        Examples:
+            >>> cache = PromptCache()
+            >>> entries = cache.export_entries()
+            >>> # Save to file for later analysis or backup
+            >>> import json
+            >>> with open("cache_backup.json", "w") as f:
+            ...     json.dump(entries, f)
+
+        Note:
+            - Thread-safe operation
+            - Expired entries are included (check timestamp if needed)
+            - Original prompts are not exported (privacy by design)
+            - Exported entries cannot be re-imported via warm_cache() since
+              original prompts are not stored; use for analytics/backup only
+        """
+        entries = []
+
+        with self._lock:
+            for cache_file in self.cache_dir.glob("*.json"):
+                try:
+                    with open(cache_file, encoding="utf-8") as f:
+                        data = json.load(f)
+
+                    entries.append(
+                        {
+                            "prompt_hash": data.get("prompt_hash", ""),
+                            "provider": data.get("provider", ""),
+                            "model": data.get("model", ""),
+                            "response": data.get("response", ""),
+                            "timestamp": data.get("timestamp", 0),
+                        }
+                    )
+                except (OSError, json.JSONDecodeError, KeyError) as e:
+                    logger.warning(f"Failed to export cache entry {cache_file.name}: {e}")
+
+        logger.info(f"Exported {len(entries)} cache entries")
+        return entries
+
+    @staticmethod
+    def get_common_patterns() -> list[str]:
+        """Get common prompt pattern prefixes used in this application.
+
+        Returns prompt template prefixes that are commonly used, which can help
+        with cache analysis and optimization planning.
+
+        Returns:
+            List of common prompt pattern descriptions
+
+        Examples:
+            >>> patterns = PromptCache.get_common_patterns()
+            >>> for pattern in patterns:
+            ...     print(f"- {pattern}")
+
+        Note:
+            These patterns describe the prompt templates, not full prompts.
+            Actual prompts contain dynamic content (file paths, line numbers, etc.)
+
+            Maintenance: Update this list when adding new prompt templates to
+            the parsing system.
+        """
+        return [
+            "PARSE_COMMENT_PROMPT - Extracts code changes from CodeRabbit review comments",
+            "Diff block parsing - Handles unified diff format with @@ headers",
+            "Suggestion block parsing - Handles markdown suggestion blocks",
+            "Natural language parsing - Extracts changes from prose descriptions",
+        ]

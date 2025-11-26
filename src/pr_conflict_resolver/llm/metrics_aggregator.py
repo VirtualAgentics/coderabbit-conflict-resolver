@@ -88,6 +88,8 @@ class MetricsAggregator:
         self._pending: dict[str, dict[str, Any]] = {}
         self._lock = threading.Lock()
         self._pr_info: dict[str, Any] | None = None
+        self._fallback_count: int = 0
+        self._fallback_total: int = 0
 
     def set_pr_info(self, owner: str, repo: str, pr_number: int) -> None:
         """Set PR metadata for metrics context.
@@ -112,6 +114,27 @@ class MetricsAggregator:
         """
         with self._lock:
             return self._pr_info.copy() if self._pr_info else None
+
+    def set_fallback_stats(self, fallback_count: int, total_count: int) -> None:
+        """Set fallback statistics from parser.
+
+        Args:
+            fallback_count: Number of times regex fallback was triggered.
+            total_count: Total number of parse attempts.
+        """
+        with self._lock:
+            self._fallback_count = fallback_count
+            self._fallback_total = total_count
+
+    def get_fallback_stats(self) -> tuple[int, int, float]:
+        """Get fallback statistics.
+
+        Returns:
+            Tuple of (fallback_count, total_count, fallback_rate).
+        """
+        with self._lock:
+            rate = self._fallback_count / self._fallback_total if self._fallback_total > 0 else 0.0
+            return (self._fallback_count, self._fallback_total, rate)
 
     def start_request(
         self,
@@ -283,6 +306,9 @@ class MetricsAggregator:
         )
         cache_savings = len(cache_hits) * avg_non_cache_cost
 
+        # Get fallback stats (thread-safe via lock inside method)
+        fallback_count, _fallback_total, fallback_rate = self.get_fallback_stats()
+
         return AggregatedMetrics(
             provider_stats=provider_stats,
             latency_p50=self._safe_percentile(all_latencies, 50),
@@ -297,6 +323,8 @@ class MetricsAggregator:
             cost_per_comment=cost_per_comment,
             cache_hit_rate=cache_hit_rate,
             cache_savings=cache_savings,
+            fallback_count=fallback_count,
+            fallback_rate=fallback_rate,
         )
 
     def export_json(self, path: Path, include_requests: bool = False) -> None:
@@ -331,6 +359,8 @@ class MetricsAggregator:
                     "cost_per_comment": metrics.cost_per_comment,
                     "cache_hit_rate": metrics.cache_hit_rate,
                     "cache_savings": metrics.cache_savings,
+                    "fallback_count": metrics.fallback_count,
+                    "fallback_rate": metrics.fallback_rate,
                 },
                 "provider_stats": {
                     name: _provider_stats_to_dict(stats)
@@ -430,6 +460,8 @@ class MetricsAggregator:
             f"p99={metrics.latency_p99:.3f}s",
             f"Total cost: ${metrics.total_cost:.4f}",
             f"Cache hit rate: {metrics.cache_hit_rate * 100:.1f}%",
+            f"Fallback rate: {metrics.fallback_rate * 100:.1f}% "
+            f"({metrics.fallback_count} fallbacks)",
         ]
 
         if metrics.provider_stats:
@@ -447,6 +479,8 @@ class MetricsAggregator:
         with self._lock:
             self._requests.clear()
             self._pending.clear()
+            self._fallback_count = 0
+            self._fallback_total = 0
 
     def _calculate_provider_stats(self, requests: list[RequestMetrics]) -> ProviderStats:
         """Calculate aggregated stats for a list of requests.

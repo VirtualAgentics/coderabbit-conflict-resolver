@@ -1133,3 +1133,172 @@ class TestClearOperation:
 
             stats = cache.get_stats()
             assert stats.entry_count == 0
+
+
+class TestCacheWarming:
+    """Test cache warming functionality for cold start optimization."""
+
+    def test_warm_cache_loads_valid_entries(self) -> None:
+        """Test that warm_cache loads valid entries."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+
+            entries = [
+                {
+                    "prompt": "Fix the bug",
+                    "provider": "anthropic",
+                    "model": "claude-sonnet-4-5",
+                    "response": "[]",
+                },
+                {
+                    "prompt": "Apply changes",
+                    "provider": "openai",
+                    "model": "gpt-4o",
+                    "response": '[{"file_path": "test.py"}]',
+                },
+            ]
+
+            loaded, skipped = cache.warm_cache(entries)
+
+            assert loaded == 2
+            assert skipped == 0
+            assert cache.get_stats().entry_count == 2
+
+    def test_warm_cache_skips_invalid_entries(self) -> None:
+        """Test that warm_cache skips entries with missing fields."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+
+            entries = [
+                {"prompt": "Missing fields"},  # Missing provider, model, response
+                {
+                    "prompt": "Valid entry",
+                    "provider": "anthropic",
+                    "model": "claude-sonnet-4-5",
+                    "response": "[]",
+                },
+            ]
+
+            loaded, skipped = cache.warm_cache(entries)
+
+            assert loaded == 1
+            assert skipped == 1
+
+    def test_warm_cache_skips_duplicates(self) -> None:
+        """Test that warm_cache skips entries that already exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+
+            # Pre-populate with one entry
+            key = cache.compute_key("Existing prompt", "anthropic", "claude-sonnet-4-5")
+            cache.set(
+                key,
+                "existing response",
+                {
+                    "prompt": "Existing prompt",
+                    "provider": "anthropic",
+                    "model": "claude-sonnet-4-5",
+                },
+            )
+
+            entries = [
+                {
+                    "prompt": "Existing prompt",  # Already in cache
+                    "provider": "anthropic",
+                    "model": "claude-sonnet-4-5",
+                    "response": "new response",
+                },
+                {
+                    "prompt": "New prompt",
+                    "provider": "anthropic",
+                    "model": "claude-sonnet-4-5",
+                    "response": "[]",
+                },
+            ]
+
+            loaded, skipped = cache.warm_cache(entries)
+
+            assert loaded == 1
+            assert skipped == 1
+            # Original response should be preserved
+            assert cache.get(key) == "existing response"
+
+    def test_warm_cache_empty_list(self) -> None:
+        """Test that warm_cache handles empty list."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+
+            loaded, skipped = cache.warm_cache([])
+
+            assert loaded == 0
+            assert skipped == 0
+
+    def test_export_entries_returns_all_entries(self) -> None:
+        """Test that export_entries returns all cache entries."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+
+            # Add some entries
+            for i in range(3):
+                key = cache.compute_key(f"prompt{i}", "anthropic", "claude-sonnet-4-5")
+                cache.set(
+                    key,
+                    f"response{i}",
+                    {"prompt": f"prompt{i}", "provider": "anthropic", "model": "claude-sonnet-4-5"},
+                )
+
+            entries = cache.export_entries()
+
+            assert len(entries) == 3
+            for entry in entries:
+                assert "prompt_hash" in entry
+                assert "provider" in entry
+                assert "model" in entry
+                assert "response" in entry
+                assert "timestamp" in entry
+
+    def test_export_entries_empty_cache(self) -> None:
+        """Test that export_entries returns empty list for empty cache."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+
+            entries = cache.export_entries()
+
+            assert entries == []
+
+    def test_get_common_patterns_returns_list(self) -> None:
+        """Test that get_common_patterns returns list of patterns."""
+        patterns = PromptCache.get_common_patterns()
+
+        assert isinstance(patterns, list)
+        assert len(patterns) > 0
+        for pattern in patterns:
+            assert isinstance(pattern, str)
+            assert len(pattern) > 0
+
+    def test_warm_cache_thread_safe(self) -> None:
+        """Test that warm_cache is thread-safe."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+
+            def warmer(batch_id: int) -> None:
+                entries = [
+                    {
+                        "prompt": f"prompt{batch_id}_{i}",
+                        "provider": "anthropic",
+                        "model": "claude-sonnet-4-5",
+                        "response": f"response{batch_id}_{i}",
+                    }
+                    for i in range(10)
+                ]
+                cache.warm_cache(entries)
+
+            threads = [threading.Thread(target=warmer, args=(i,)) for i in range(5)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+
+            # Should have loaded all unique entries
+            stats = cache.get_stats()
+            assert stats.entry_count == 50  # 5 batches * 10 entries

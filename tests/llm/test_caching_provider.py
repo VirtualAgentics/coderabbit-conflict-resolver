@@ -725,3 +725,103 @@ class TestCachingProviderEviction:
             evicted = cached.evict_expired()
             assert evicted == 1
             assert cached.get_cache_stats().entry_count == 0
+
+
+class TestCachingProviderWarmUp:
+    """Tests for cache warm-up functionality."""
+
+    def test_warm_up_with_none_entries_logs_patterns(self) -> None:
+        """Test warm_up(None) logs common patterns and returns (0, 0)."""
+        mock_provider = Mock()
+        mock_provider.model = "test-model"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            cached = CachingProvider(mock_provider, cache)
+
+            loaded, skipped = cached.warm_up(None)
+
+            assert loaded == 0
+            assert skipped == 0
+
+    def test_warm_up_with_valid_entries_returns_counts(self) -> None:
+        """Test warm_up(entries) loads entries and returns counts."""
+        mock_provider = Mock()
+        mock_provider.model = "test-model"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            cached = CachingProvider(mock_provider, cache)
+
+            entries = [
+                {
+                    "prompt": "Test prompt 1",
+                    "provider": "anthropic",
+                    "model": "claude-sonnet-4-5",
+                    "response": '{"changes": []}',
+                },
+                {
+                    "prompt": "Test prompt 2",
+                    "provider": "anthropic",
+                    "model": "claude-sonnet-4-5",
+                    "response": '{"changes": []}',
+                },
+            ]
+            loaded, skipped = cached.warm_up(entries)
+
+            assert loaded == 2
+            assert skipped == 0
+            assert cached.get_cache_stats().entry_count == 2
+
+    def test_warm_up_with_empty_list_returns_zero(self) -> None:
+        """Test warm_up([]) returns (0, 0)."""
+        mock_provider = Mock()
+        mock_provider.model = "test-model"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            cached = CachingProvider(mock_provider, cache)
+
+            loaded, skipped = cached.warm_up([])
+
+            assert loaded == 0
+            assert skipped == 0
+
+
+class TestCachingProviderExportCache:
+    """Tests for cache export functionality."""
+
+    def test_export_cache_returns_list(self) -> None:
+        """Test export_cache() returns a list."""
+        mock_provider = Mock()
+        mock_provider.model = "test-model"
+        mock_provider.generate.return_value = '{"changes": []}'
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            cached = CachingProvider(mock_provider, cache)
+
+            # Add an entry
+            cached.generate("test prompt")
+
+            # Export
+            entries = cached.export_cache()
+
+            assert isinstance(entries, list)
+            assert len(entries) == 1
+            assert "response" in entries[0]
+            assert "provider" in entries[0]
+            assert "model" in entries[0]
+
+    def test_export_cache_empty_cache_returns_empty_list(self) -> None:
+        """Test export_cache() returns empty list for empty cache."""
+        mock_provider = Mock()
+        mock_provider.model = "test-model"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache = PromptCache(cache_dir=Path(tmpdir))
+            cached = CachingProvider(mock_provider, cache)
+
+            entries = cached.export_cache()
+
+            assert entries == []

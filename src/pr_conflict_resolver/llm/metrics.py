@@ -381,6 +381,8 @@ class AggregatedMetrics:
     cost_per_comment: float = 0.0
     cache_hit_rate: float = 0.0
     cache_savings: float = 0.0
+    fallback_count: int = 0
+    fallback_rate: float = 0.0
 
     def __post_init__(self) -> None:
         """Validate aggregated metrics values and ensure immutability."""
@@ -411,5 +413,9 @@ class AggregatedMetrics:
             )
         if self.cache_savings < 0:
             raise ValueError(f"cache_savings must be >= 0, got {self.cache_savings}")
+        if self.fallback_count < 0:
+            raise ValueError(f"fallback_count must be >= 0, got {self.fallback_count}")
+        if not 0.0 <= self.fallback_rate <= 1.0:
+            raise ValueError(f"fallback_rate must be between 0.0 and 1.0, got {self.fallback_rate}")
         # All validations passed - wrap provider_stats in MappingProxyType
         object.__setattr__(self, "provider_stats", MappingProxyType(dict(self.provider_stats)))

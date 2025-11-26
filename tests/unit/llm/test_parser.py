@@ -481,3 +481,104 @@ class TestUniversalLLMParserEdgeCases:
         assert len(changes) == 2
         assert changes[0].risk_level == "low"
         assert changes[1].risk_level == "high"
+
+
+class TestUniversalLLMParserFallbackStats:
+    """Test fallback statistics tracking."""
+
+    def test_initial_fallback_stats_zero(self) -> None:
+        """Test that initial fallback stats are zero."""
+        mock_provider = MagicMock(spec=LLMProvider)
+        parser = UniversalLLMParser(mock_provider)
+
+        fallback_count, total_count, rate = parser.get_fallback_stats()
+
+        assert fallback_count == 0
+        assert total_count == 0
+        assert rate == 0.0
+
+    def test_successful_parse_increments_success_count(self) -> None:
+        """Test that successful parsing increments success count."""
+        mock_provider = MagicMock(spec=LLMProvider)
+        mock_provider.generate.return_value = "[]"
+        mock_provider.get_total_cost.return_value = 0.0
+
+        parser = UniversalLLMParser(mock_provider)
+        parser.parse_comment("Fix this", file_path="src/test.py")
+
+        fallback_count, total_count, rate = parser.get_fallback_stats()
+
+        assert fallback_count == 0
+        assert total_count == 1
+        assert rate == 0.0
+
+    def test_failed_parse_with_fallback_increments_fallback_count(self) -> None:
+        """Test that failed parsing increments fallback count."""
+        mock_provider = MagicMock(spec=LLMProvider)
+        mock_provider.generate.side_effect = RuntimeError("LLM failed")
+
+        parser = UniversalLLMParser(mock_provider, fallback_to_regex=True)
+        result = parser.parse_comment("Fix this", file_path="src/test.py")
+
+        assert result == []  # Empty list for fallback
+        fallback_count, total_count, rate = parser.get_fallback_stats()
+
+        assert fallback_count == 1
+        assert total_count == 1
+        assert rate == 1.0
+
+    def test_fallback_rate_calculation(self) -> None:
+        """Test that fallback rate is calculated correctly."""
+        mock_provider = MagicMock(spec=LLMProvider)
+        mock_provider.get_total_cost.return_value = 0.0
+
+        # First call succeeds
+        mock_provider.generate.return_value = "[]"
+        parser = UniversalLLMParser(mock_provider, fallback_to_regex=True)
+        parser.parse_comment("Fix this", file_path="src/test.py")
+
+        # Second call fails (triggers fallback)
+        mock_provider.generate.side_effect = RuntimeError("LLM failed")
+        parser.parse_comment("Fix that", file_path="src/other.py")
+
+        fallback_count, total_count, rate = parser.get_fallback_stats()
+
+        assert fallback_count == 1
+        assert total_count == 2
+        assert rate == 0.5  # 1 fallback / 2 total = 50%
+
+    def test_reset_fallback_stats(self) -> None:
+        """Test that reset_fallback_stats clears counters."""
+        mock_provider = MagicMock(spec=LLMProvider)
+        mock_provider.generate.return_value = "[]"
+        mock_provider.get_total_cost.return_value = 0.0
+
+        parser = UniversalLLMParser(mock_provider)
+        parser.parse_comment("Fix this", file_path="src/test.py")
+
+        # Verify stats are non-zero
+        _, total_count, _ = parser.get_fallback_stats()
+        assert total_count == 1
+
+        # Reset and verify
+        parser.reset_fallback_stats()
+        fallback_count, total_count, rate = parser.get_fallback_stats()
+
+        assert fallback_count == 0
+        assert total_count == 0
+        assert rate == 0.0
+
+    def test_invalid_json_triggers_fallback(self) -> None:
+        """Test that invalid JSON response triggers fallback count."""
+        mock_provider = MagicMock(spec=LLMProvider)
+        mock_provider.generate.return_value = "not valid json"
+        mock_provider.get_total_cost.return_value = 0.0
+
+        parser = UniversalLLMParser(mock_provider, fallback_to_regex=True)
+        parser.parse_comment("Fix this", file_path="src/test.py")
+
+        fallback_count, total_count, rate = parser.get_fallback_stats()
+
+        assert fallback_count == 1
+        assert total_count == 1
+        assert rate == 1.0
