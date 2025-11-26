@@ -751,7 +751,7 @@ class PromptCache:
                             "timestamp": data.get("timestamp", 0),
                         }
                     )
-                except Exception as e:
+                except (OSError, json.JSONDecodeError, KeyError) as e:
                     logger.warning(f"Failed to export cache entry {cache_file.name}: {e}")
 
         logger.info(f"Exported {len(entries)} cache entries")
