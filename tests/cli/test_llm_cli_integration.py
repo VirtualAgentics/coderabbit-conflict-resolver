@@ -1083,6 +1083,98 @@ class TestAnalyzeCommandLLMPreset:
             assert result.exit_code != 0
             assert "Invalid preset configuration" in result.output
 
+    def test_analyze_handles_secret_detected_error(self, cli_runner: CliRunner) -> None:
+        """Test analyze command handles LLMSecretDetectedError (aborts with security message)."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            mock_resolver = mock_resolver_class.return_value
+            # Create mock findings for the error
+            mock_finding = SecretFinding(
+                secret_type="github_personal_token",  # noqa: S106
+                matched_text="ghp_****...",
+                line_number=1,
+                column=10,
+                severity=Severity.HIGH,
+            )
+            mock_resolver.analyze_conflicts.side_effect = LLMSecretDetectedError(
+                "Secret detected in PR comment",
+                findings=[mock_finding],
+            )
+
+            result = cli_runner.invoke(
+                cli,
+                [
+                    "analyze",
+                    "--pr",
+                    "123",
+                    "--owner",
+                    "testowner",
+                    "--repo",
+                    "testrepo",
+                ],
+            )
+
+            # Should display security error message and abort
+            assert result.exit_code != 0
+            assert "Security" in result.output or "Secret" in result.output
+            # Count is logged instead of secret type to avoid CodeQL taint tracking
+            assert "count=1" in result.output
+            # Should suggest reviewing PR comment
+            assert "blocked" in result.output.lower() or "review" in result.output.lower()
+            # Negative assertions: secret type and matched text should NOT leak to output
+            assert "github_personal_token" not in result.output
+            assert "ghp_" not in result.output
+
+    def test_analyze_handles_secret_detected_error_multiple_types(
+        self, cli_runner: CliRunner
+    ) -> None:
+        """Test analyze command handles LLMSecretDetectedError with multiple secret types."""
+        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+            mock_resolver = mock_resolver_class.return_value
+            # Create mock findings with multiple secret types
+            findings = [
+                SecretFinding(
+                    secret_type="github_personal_token",  # noqa: S106
+                    matched_text="ghp_****...",
+                    line_number=1,
+                    column=10,
+                    severity=Severity.HIGH,
+                ),
+                SecretFinding(
+                    secret_type="openai_api_key",  # noqa: S106
+                    matched_text="sk-****...",
+                    line_number=2,
+                    column=60,
+                    severity=Severity.HIGH,
+                ),
+            ]
+            mock_resolver.analyze_conflicts.side_effect = LLMSecretDetectedError(
+                "Multiple secrets detected in PR comment",
+                findings=findings,
+            )
+
+            result = cli_runner.invoke(
+                cli,
+                [
+                    "analyze",
+                    "--pr",
+                    "456",
+                    "--owner",
+                    "testowner",
+                    "--repo",
+                    "testrepo",
+                ],
+            )
+
+            # Should display security error message with count of secrets
+            # (secret types are not logged to avoid CodeQL taint tracking)
+            assert result.exit_code != 0
+            assert "count=2" in result.output
+            # Negative assertions: secret types and matched text should NOT leak to output
+            assert "github_personal_token" not in result.output
+            assert "openai_api_key" not in result.output
+            assert "ghp_" not in result.output
+            assert "sk-" not in result.output
+
 
 class TestDisplayAggregatedMetrics:
     """Tests for _display_aggregated_metrics() function."""

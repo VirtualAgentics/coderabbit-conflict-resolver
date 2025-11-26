@@ -357,6 +357,7 @@ class TestSecretPatternCoverage:
             parser.parse_comment(comment_body)
 
         assert "aws_access_key" in str(exc_info.value)
+        assert not provider.generate_called
 
     def test_parser_blocks_private_key(self) -> None:
         """Parser blocks private keys."""
@@ -374,6 +375,7 @@ class TestSecretPatternCoverage:
             parser.parse_comment(comment_body)
 
         assert "private_key" in str(exc_info.value)
+        assert not provider.generate_called
 
     def test_parser_blocks_jwt_token(self) -> None:
         """Parser blocks JWT tokens."""
@@ -388,6 +390,7 @@ class TestSecretPatternCoverage:
             parser.parse_comment(comment_body)
 
         assert "jwt_token" in str(exc_info.value)
+        assert not provider.generate_called
 
 
 class TestLLMSecretDetectedException:
