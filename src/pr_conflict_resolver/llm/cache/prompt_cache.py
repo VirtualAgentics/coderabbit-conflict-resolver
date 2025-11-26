@@ -664,16 +664,16 @@ class PromptCache:
                     model = entry.get("model")
                     response = entry.get("response")
 
-                    # Validate required fields exist and are non-empty strings
+                    # Validate required fields exist and are non-empty/non-whitespace strings
                     if not (
                         isinstance(prompt, str)
-                        and prompt
+                        and prompt.strip()
                         and isinstance(provider, str)
-                        and provider
+                        and provider.strip()
                         and isinstance(model, str)
-                        and model
+                        and model.strip()
                         and isinstance(response, str)
-                        and response
+                        and response.strip()
                     ):
                         logger.warning("Skipping invalid warm cache entry: missing required fields")
                         skipped += 1
@@ -697,7 +697,7 @@ class PromptCache:
                     )
                     loaded += 1
 
-                except Exception as e:
+                except (ValueError, TypeError, KeyError) as e:
                     logger.warning(f"Failed to warm cache entry: {e}")
                     skipped += 1
 
@@ -775,6 +775,9 @@ class PromptCache:
         Note:
             These patterns describe the prompt templates, not full prompts.
             Actual prompts contain dynamic content (file paths, line numbers, etc.)
+
+            Maintenance: Update this list when adding new prompt templates to
+            the parsing system.
         """
         return [
             "PARSE_COMMENT_PROMPT - Extracts code changes from CodeRabbit review comments",

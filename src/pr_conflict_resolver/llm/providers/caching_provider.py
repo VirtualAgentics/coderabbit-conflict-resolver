@@ -329,7 +329,9 @@ class CachingProvider:
     def export_cache(self) -> list[dict[str, str | int | float]]:
         """Export cache entries for backup or transfer.
 
-        Exports all current cache entries in a format suitable for warm_up().
+        Exports all current cache entries for analytics and backup purposes.
+        Note that exported entries contain prompt_hash (not original prompts)
+        and cannot be directly re-imported via warm_up().
 
         Returns:
             List of cache entry dictionaries (includes timestamp as int/float)
