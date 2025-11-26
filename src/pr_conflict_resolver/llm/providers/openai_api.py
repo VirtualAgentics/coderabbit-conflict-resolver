@@ -322,7 +322,7 @@ class OpenAIAPIProvider:
 
         Note:
             Cost is calculated using MODEL_PRICING table. If model is not
-            found, returns 0.0. Pricing is current as of Nov 2024.
+            found, returns 0.0. Pricing is current as of Nov 2025.
         """
         return self._calculate_cost(self.total_input_tokens, self.total_output_tokens)
 
