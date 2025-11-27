@@ -52,10 +52,22 @@ jobs:
       - name: Validate wheel import
         run: python scripts/validate_wheel.py
 
+      - name: Move metadata.json out of dist
+        run: |
+          # PyPI publish expects only .whl and .tar.gz files in dist/
+          # Move metadata.json to a separate location for GitHub Release
+          mkdir -p release-assets
+          mv dist/metadata.json release-assets/ || true
+
       - name: Publish to PyPI with attestations
         uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # release/v1
         with:
           attestations: true  # Sigstore attestations for OpenSSF Scorecard
+
+      - name: Move metadata.json back for GitHub Release
+        run: |
+          # Restore metadata.json to dist/ for GitHub Release asset upload
+          mv release-assets/metadata.json dist/ || true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v2.4.2
