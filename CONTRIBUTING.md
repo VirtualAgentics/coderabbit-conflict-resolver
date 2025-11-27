@@ -359,9 +359,11 @@ make security   # Security checks
 
 ### Python Code Style
 
+This project follows **[PEP 8](https://peps.python.org/pep-0008/)** style guidelines, enforced automatically via:
+
 * **Formatting**: Use [Black](https://black.readthedocs.io/) with line length 100
-* **Linting**: Use [Ruff](https://docs.astral.sh/ruff/) for fast linting
-* **Type hints**: Use [MyPy](https://mypy.readthedocs.io/) for type checking
+* **Linting**: Use [Ruff](https://docs.astral.sh/ruff/) for fast linting (includes PEP 8 rules)
+* **Type hints**: Use [MyPy](https://mypy.readthedocs.io/) for strict type checking
 * **Imports**: Sort imports with `ruff` (handled automatically)
 
 ### Markdown Documentation Style
@@ -387,6 +389,17 @@ make security   # Security checks
 * **Documentation**: Add docstrings for all public functions and classes
 
 ### Testing
+
+#### Testing Policy (Mandatory)
+
+**All new functionality MUST include tests.** This is a formal project policy:
+
+* New features require corresponding unit tests
+* Bug fixes require regression tests to prevent recurrence
+* PRs without adequate test coverage will not be merged
+* Minimum 80% statement coverage is strictly enforced in CI
+
+#### Testing Guidelines
 
 * **Unit tests**: Test individual components in isolation
 * **Integration tests**: Test component interactions

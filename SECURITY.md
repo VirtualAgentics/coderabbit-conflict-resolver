@@ -132,6 +132,37 @@ Review Bot Automator implements multiple layers of security controls:
 - **Bandit**: Python security linting
 - **pip-audit**: Dependency vulnerability scanning
 
+### Release Signing (SLSA Provenance)
+
+All releases are cryptographically signed using **SLSA Level 3** provenance:
+
+- **Signing mechanism**: [SLSA GitHub Generator](https://github.com/slsa-framework/slsa-github-generator) generates cryptographic provenance attestations
+- **Provenance file**: Each release includes a `.intoto.jsonl` provenance file
+- **Verification**: Users can verify release integrity using [slsa-verifier](https://github.com/slsa-framework/slsa-verifier)
+
+**How to verify a release:**
+
+```bash
+# Install slsa-verifier
+go install github.com/slsa-framework/slsa-verifier/v2/cli/slsa-verifier@latest
+
+# Download release and provenance from GitHub Releases
+# Verify the artifact
+slsa-verifier verify-artifact \
+  review_bot_automator-2.0.1-py3-none-any.whl \
+  --provenance-path multiple.intoto.jsonl \
+  --source-uri github.com/VirtualAgentics/review-bot-automator
+```
+
+**Why SLSA instead of GPG?**
+
+- SLSA provenance is automatically generated in CI (no manual key management)
+- Proves the artifact was built from the claimed source repository
+- Provides stronger supply chain security guarantees
+- Supported by PyPI and major package registries
+
+See `.github/workflows/release.yml` for implementation details.
+
 ## Secure Usage Guidelines
 
 ### Best Practices for Users
