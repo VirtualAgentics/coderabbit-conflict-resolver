@@ -1,0 +1,116 @@
+name: Version Bump
+
+on:
+  push:
+    branches:
+      - main
+
+# Prevent concurrent version bumps - queue them instead
+concurrency:
+  group: version-bump
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    # Skip if:
+    # - Commit is from this workflow (prevent infinite loop via [skip bump])
+    # - PR was from Renovate bot
+    # - Commit message indicates dependency update (chore(deps) or deps:)
+    if: |
+      !contains(github.event.head_commit.message, '[skip bump]') &&
+      !contains(github.event.head_commit.message, 'chore(deps)') &&
+      !startsWith(github.event.head_commit.message, 'deps:') &&
+      github.event.head_commit.author.name != 'renovate[bot]'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Get PR info from merge commit
+        id: pr
+        run: |
+          # Extract PR title and number from squash merge commit message
+          # Format is typically: "PR Title (#123)"
+          COMMIT_MSG=$(git log -1 --pretty=%s)
+
+          # Extract PR number (last occurrence of #digits)
+          PR_NUM=$(echo "$COMMIT_MSG" | grep -oE '#[0-9]+' | tail -1 | tr -d '#' || echo "")
+
+          # Extract PR title (everything before the PR number reference)
+          PR_TITLE=$(echo "$COMMIT_MSG" | sed 's/ (#[0-9]*)$//')
+
+          echo "title=$PR_TITLE" >> $GITHUB_OUTPUT
+          echo "number=$PR_NUM" >> $GITHUB_OUTPUT
+          echo "Extracted: title='$PR_TITLE', number='$PR_NUM'"
+
+      - name: Bump version
+        id: bump
+        run: |
+          python scripts/bump_version.py
+          NEW_VERSION=$(grep -oP 'version = "\K[^"]+' pyproject.toml)
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Bumped to version: $NEW_VERSION"
+
+      - name: Update CHANGELOG
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          PR_TITLE="${{ steps.pr.outputs.title }}"
+          PR_NUM="${{ steps.pr.outputs.number }}"
+          DATE=$(date +%Y-%m-%d)
+
+          # Create changelog entry with or without PR link
+          if [ -n "$PR_NUM" ]; then
+            ENTRY="* ${PR_TITLE} (#${PR_NUM})"
+          else
+            ENTRY="* ${PR_TITLE}"
+          fi
+
+          echo "Adding CHANGELOG entry: $ENTRY"
+
+          # Insert new version section after [Unreleased]
+          # Using a temp file approach for reliable multi-line insertion
+          awk -v ver="$NEW_VERSION" -v date="$DATE" -v entry="$ENTRY" '
+            /^## \[Unreleased\]/ {
+              print
+              print ""
+              print "## [" ver "] - " date
+              print ""
+              print "### Changed"
+              print ""
+              print entry
+              next
+            }
+            { print }
+          ' CHANGELOG.md > CHANGELOG.tmp && mv CHANGELOG.tmp CHANGELOG.md
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add pyproject.toml src/review_bot_automator/__init__.py CHANGELOG.md
+          git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }} [skip bump]"
+          git push
+
+      - name: Summary
+        run: |
+          echo "## Version Bump Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**New Version:** ${{ steps.bump.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ steps.pr.outputs.title }}" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ steps.pr.outputs.number }}" ]; then
+            echo "**PR:** #${{ steps.pr.outputs.number }}" >> $GITHUB_STEP_SUMMARY
+          fi
