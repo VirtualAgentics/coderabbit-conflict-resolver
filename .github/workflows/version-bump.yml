@@ -7,7 +7,7 @@ on:
 
 # Prevent concurrent version bumps - queue them instead
 concurrency:
-  group: version-bump
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -68,21 +68,10 @@ jobs:
 
       - name: Update CHANGELOG
         run: |
-          # Validate CHANGELOG.md exists and has required header
-          if [ ! -f CHANGELOG.md ]; then
-            echo "ERROR: CHANGELOG.md not found"
-            exit 1
-          fi
-
-          if ! grep -q "^## \[Unreleased\]" CHANGELOG.md; then
-            echo "ERROR: CHANGELOG.md missing '## [Unreleased]' header"
-            exit 1
-          fi
-
-          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
           PR_TITLE="${{ steps.pr.outputs.title }}"
           PR_NUM="${{ steps.pr.outputs.number }}"
           DATE=$(date +%Y-%m-%d)
+          VERSION="${{ steps.bump.outputs.new_version }}"
 
           # Create changelog entry with or without PR link
           if [ -n "$PR_NUM" ]; then
@@ -93,38 +82,37 @@ jobs:
 
           echo "Adding CHANGELOG entry: $ENTRY"
 
-          # Insert new version section after [Unreleased]
-          # Using a temp file approach for reliable multi-line insertion
-          awk -v ver="$NEW_VERSION" -v date="$DATE" -v entry="$ENTRY" '
-            /^## \[Unreleased\]/ {
-              print
-              print ""
-              print "## [" ver "] - " date
-              print ""
-              print "### Changed"
-              print ""
-              print entry
-              next
-            }
-            { print }
-          ' CHANGELOG.md > CHANGELOG.tmp && mv CHANGELOG.tmp CHANGELOG.md
+          python scripts/bump_version.py --changelog \
+            --version "$VERSION" \
+            --date "$DATE" \
+            --entry "$ENTRY"
 
       - name: Commit and push
+        env:
+          NEW_VER: ${{ steps.bump.outputs.new_version }}
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.email \
+            "github-actions[bot]@users.noreply.github.com"
 
-          git add pyproject.toml src/review_bot_automator/__init__.py CHANGELOG.md
-          git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }} [skip bump]"
+          git add pyproject.toml CHANGELOG.md \
+            src/review_bot_automator/__init__.py
+          git commit -m "chore: bump version to ${NEW_VER} [skip bump]"
           git push
 
       - name: Summary
+        env:
+          NEW_VER: ${{ steps.bump.outputs.new_version }}
+          PR_TITLE: ${{ steps.pr.outputs.title }}
+          PR_NUM: ${{ steps.pr.outputs.number }}
         run: |
-          echo "## Version Bump Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**New Version:** ${{ steps.bump.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Triggered by:** ${{ steps.pr.outputs.title }}" >> $GITHUB_STEP_SUMMARY
-          if [ -n "${{ steps.pr.outputs.number }}" ]; then
-            echo "**PR:** #${{ steps.pr.outputs.number }}" >> $GITHUB_STEP_SUMMARY
-          fi
+          {
+            echo "## Version Bump Complete"
+            echo ""
+            echo "**New Version:** ${NEW_VER}"
+            echo ""
+            echo "**Triggered by:** ${PR_TITLE}"
+            if [ -n "${PR_NUM}" ]; then
+              echo "**PR:** #${PR_NUM}"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
