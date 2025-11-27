@@ -874,6 +874,7 @@ When reporting bugs, please include:
 * **Actual behavior**: What actually happened
 * **Environment**: OS, Python version, package version
 * **Screenshots**: If applicable
+* **Language**: Please submit bug reports in English
 
 ### Feature Requests
 
