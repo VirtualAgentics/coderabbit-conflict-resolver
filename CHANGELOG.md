@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2025-11-27
+
+### Added
+
+* **SLSA Provenance**: Release workflow now generates `.intoto.jsonl` SLSA provenance files for OpenSSF Scorecard Signed-Releases compliance (#265)
+
+### Changed
+
+* **Release Workflow**: Refactored from 1 job to 4 jobs (build, provenance, publish, release) to enable SLSA provenance generation
+
+### Removed
+
+* **Auto Version-Bump**: Removed automatic version-bump workflow due to branch protection limitations (#267)
+
 ## [2.0.0] - 2025-11-27
 
 ### Breaking Changes
