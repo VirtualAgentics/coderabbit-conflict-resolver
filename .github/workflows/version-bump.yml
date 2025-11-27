@@ -16,6 +16,7 @@ permissions:
 jobs:
   bump:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write  # Required for committing version bump
     # Skip if:
@@ -67,6 +68,17 @@ jobs:
 
       - name: Update CHANGELOG
         run: |
+          # Validate CHANGELOG.md exists and has required header
+          if [ ! -f CHANGELOG.md ]; then
+            echo "ERROR: CHANGELOG.md not found"
+            exit 1
+          fi
+
+          if ! grep -q "^## \[Unreleased\]" CHANGELOG.md; then
+            echo "ERROR: CHANGELOG.md missing '## [Unreleased]' header"
+            exit 1
+          fi
+
           NEW_VERSION="${{ steps.bump.outputs.new_version }}"
           PR_TITLE="${{ steps.pr.outputs.title }}"
           PR_NUM="${{ steps.pr.outputs.number }}"

@@ -14,6 +14,7 @@ Output:
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -28,7 +29,7 @@ def get_current_version() -> str:
     Raises:
         ValueError: If version cannot be found in pyproject.toml
     """
-    pyproject = Path("pyproject.toml").read_text()
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
     match = re.search(r'^version\s*=\s*"(\d+\.\d+\.\d+)"', pyproject, re.MULTILINE)
     if not match:
         raise ValueError("Could not find version in pyproject.toml")
@@ -43,8 +44,14 @@ def bump_patch(version: str) -> str:
 
     Returns:
         New version string with incremented patch (e.g., "2.0.1")
+
+    Raises:
+        ValueError: If version format is invalid
     """
-    major, minor, patch = version.split(".")
+    parts = version.split(".")
+    if len(parts) != 3 or not all(p.isdigit() for p in parts):
+        raise ValueError(f"Invalid version format: {version} (expected X.Y.Z)")
+    major, minor, patch = parts
     return f"{major}.{minor}.{int(patch) + 1}"
 
 
@@ -56,9 +63,9 @@ def update_pyproject(old_version: str, new_version: str) -> None:
         new_version: New version to set
     """
     path = Path("pyproject.toml")
-    content = path.read_text()
+    content = path.read_text(encoding="utf-8")
     updated = content.replace(f'version = "{old_version}"', f'version = "{new_version}"')
-    path.write_text(updated)
+    path.write_text(updated, encoding="utf-8")
 
 
 def update_init(old_version: str, new_version: str) -> None:
@@ -69,9 +76,9 @@ def update_init(old_version: str, new_version: str) -> None:
         new_version: New version to set
     """
     path = Path("src/review_bot_automator/__init__.py")
-    content = path.read_text()
+    content = path.read_text(encoding="utf-8")
     updated = content.replace(f'__version__ = "{old_version}"', f'__version__ = "{new_version}"')
-    path.write_text(updated)
+    path.write_text(updated, encoding="utf-8")
 
 
 def main() -> int:
@@ -90,9 +97,11 @@ def main() -> int:
         # Print version change for human readers
         print(f"{current} -> {new}")
 
-        # Output new version for GitHub Actions (using new GITHUB_OUTPUT format)
-        # Note: ::set-output is deprecated, but kept for backward compatibility
-        print(f"::set-output name=new_version::{new}")
+        # Output new version for GitHub Actions
+        github_output = os.getenv("GITHUB_OUTPUT")
+        if github_output:
+            with open(github_output, "a", encoding="utf-8") as f:
+                f.write(f"new_version={new}\n")
 
         return 0
     except Exception as e:
