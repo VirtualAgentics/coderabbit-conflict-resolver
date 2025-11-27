@@ -125,7 +125,7 @@ This document establishes the Security Incident Response Plan for the Review Bot
 * Creates private security advisory
 * Allows for coordinated disclosure
 
-**Email**: <<security@virtualagentics.com>>
+**Email**: <<bdc@virtualagentics.ai>>
 
 * Use for sensitive disclosures
 * Include detailed reproduction steps
@@ -139,9 +139,9 @@ This document establishes the Security Incident Response Plan for the Review Bot
 
 #### Contacts
 
-* **Security Team**: <security@virtualagentics.com>
+* **Security Team**: <bdc@virtualagentics.ai>
 * **Project Maintainers**: Listed in CODEOWNERS file
-* **Emergency**: <security@virtualagentics.com> (24/7 monitoring)
+* **Emergency**: <bdc@virtualagentics.ai> (24/7 monitoring)
 
 ---
 
@@ -457,7 +457,7 @@ Use CVSS v3.1 scoring (<https://www.first.org/cvss/calculator/3.1>):
 #### Security Team
 
 * Slack: #security-incidents (if available)
-* Email: <security@virtualagentics.com>
+* Email: <bdc@virtualagentics.ai>
 * GitHub: Private security advisory
 
 #### Maintainers
@@ -620,7 +620,7 @@ All users are encouraged to upgrade immediately.
 
 * **GitHub Security Advisories**: Primary tracking system
 * **Issue Tracker**: For public, non-sensitive issues
-* **Email**: <security@virtualagentics.com>
+* **Email**: <bdc@virtualagentics.ai>
 
 ### Analysis Tools
 
@@ -662,9 +662,9 @@ All users are encouraged to upgrade immediately.
 
 #### Internal
 
-* Security Team Lead: <security@virtualagentics.com>
+* Security Team Lead: <bdc@virtualagentics.ai>
 * Project Maintainers: Listed in CODEOWNERS
-* Emergency Contact: <security@virtualagentics.com> (24/7)
+* Emergency Contact: <bdc@virtualagentics.ai> (24/7)
 
 #### External
 
@@ -753,7 +753,7 @@ All users are encouraged to upgrade immediately.
 
 #### Security Team
 
-* Email: <security@virtualagentics.com>
+* Email: <bdc@virtualagentics.ai>
 * Response Time: < 1 hour for CRITICAL
 
 #### GitHub Support

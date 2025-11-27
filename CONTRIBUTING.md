@@ -6,6 +6,61 @@ Thank you for your interest in contributing to Review Bot Automator! This docume
 
 This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
 
+## Developer Certificate of Origin (DCO)
+
+This project uses the [Developer Certificate of Origin (DCO)](https://developercertificate.org/) to ensure that contributors have the right to submit their contributions.
+
+### What is the DCO?
+
+The DCO is a lightweight way for contributors to certify that they wrote or otherwise have the right to submit the code they are contributing. The full text is available at <https://developercertificate.org/>.
+
+### How to Sign Off
+
+You must sign off your commits by adding a `Signed-off-by` line to your commit messages:
+
+```text
+This is my commit message
+
+Signed-off-by: Your Name <your.email@example.com>
+```
+
+You can do this automatically by using the `-s` or `--signoff` flag when committing:
+
+```bash
+git commit -s -m "Your commit message"
+```
+
+### Configuring Git for Sign-Off
+
+Ensure your Git configuration has your correct name and email:
+
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "your.email@example.com"
+```
+
+### What If I Forgot to Sign Off?
+
+If you've already made commits without sign-off, you can amend the most recent commit:
+
+```bash
+git commit --amend -s --no-edit
+git push --force-with-lease
+```
+
+For multiple commits, you may need to rebase:
+
+```bash
+git rebase -i HEAD~N  # where N is the number of commits
+# Mark commits as 'edit', then for each:
+git commit --amend -s --no-edit
+git rebase --continue
+```
+
+## Governance
+
+This project follows a Benevolent Dictator governance model. See [GOVERNANCE.md](GOVERNANCE.md) for details on decision-making, roles, and project continuity.
+
 ## Getting Started
 
 ### Development Setup

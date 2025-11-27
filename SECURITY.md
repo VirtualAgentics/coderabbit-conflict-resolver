@@ -23,7 +23,7 @@ Please report security vulnerabilities through the following channels:
    - Click "Report a vulnerability"
    - Fill out the private report form
 
-2. **Email**: Send details to <security@virtualagentics.com>
+2. **Email**: Send details to <bdc@virtualagentics.ai>
    - Use a descriptive subject line
    - Include detailed steps to reproduce
    - Provide your contact information
@@ -224,7 +224,7 @@ Review Bot Automator includes several security features:
 
 For security-related questions or concerns:
 
-- **Email**: <security@virtualagentics.com>
+- **Email**: <bdc@virtualagentics.ai>
 - **GitHub**: Use private vulnerability reporting
 - **Response Time**: We aim to respond within 48 hours
 
