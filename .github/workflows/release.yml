@@ -7,19 +7,20 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false  # Never cancel ongoing releases - could leave PyPI in inconsistent state
+  cancel-in-progress: false  # Never cancel ongoing releases
 
 permissions:
   contents: read
 
 jobs:
-  release:
+  # Job 1: Build packages and generate SLSA hashes
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
     permissions:
-      contents: write  # Required to create GitHub releases and upload assets
-      id-token: write  # Required for trusted publishing to PyPI (OIDC)
-      attestations: write  # Required for Sigstore attestations
+      contents: read
 
     steps:
       - name: Record job start time
@@ -36,7 +37,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --require-hashes -r .github/requirements-bootstrap.txt
+          python -m pip install --require-hashes \
+            -r .github/requirements-bootstrap.txt
           python -m pip install --require-hashes -r requirements-dev.txt
           python -m pip install -e . --no-deps
 
@@ -52,22 +54,73 @@ jobs:
       - name: Validate wheel import
         run: python scripts/validate_wheel.py
 
-      - name: Move metadata.json out of dist
+      - name: Generate artifact hashes for SLSA provenance
+        id: hash
         run: |
-          # PyPI publish expects only .whl and .tar.gz files in dist/
-          # Move metadata.json to a separate location for GitHub Release
-          mkdir -p release-assets
-          mv dist/metadata.json release-assets/ || true
+          cd dist
+          sha256sum *.whl *.tar.gz | base64 -w0 > ../hashes.txt
+          echo "hashes=$(cat ../hashes.txt)" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dist
+          path: dist/
+          retention-days: 5
+
+  # Job 2: Generate SLSA provenance (reusable workflow for security)
+  provenance:
+    needs: [build]
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    # SLSA generator MUST use @vX.Y.Z tags, not SHA (per their docs)
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: "${{ needs.build.outputs.hashes }}"
+      upload-assets: true
+
+  # Job 3: Publish to PyPI with Sigstore attestations
+  publish:
+    needs: [build, provenance]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write  # OIDC for PyPI trusted publishing
+      attestations: write  # Sigstore attestations
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: dist
+          path: dist/
+
+      - name: Remove metadata.json before PyPI upload
+        run: rm -f dist/metadata.json
 
       - name: Publish to PyPI with attestations
         uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # release/v1
         with:
-          attestations: true  # Sigstore attestations for OpenSSF Scorecard
+          attestations: true
 
-      - name: Move metadata.json back for GitHub Release
-        run: |
-          # Restore metadata.json to dist/ for GitHub Release asset upload
-          mv release-assets/metadata.json dist/ || true
+  # Job 4: Create GitHub Release with all assets
+  release:
+    needs: [build, provenance, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: dist
+          path: dist/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v2.4.2
@@ -84,7 +137,17 @@ jobs:
             ## Installation
 
             ```bash
-            python -m pip install review-bot-automator
+            pip install review-bot-automator
+            ```
+
+            ## Verification
+
+            This release includes SLSA provenance. Verify with:
+            ```bash
+            slsa-verifier verify-artifact \
+              review_bot_automator-*.whl \
+              --provenance-path *.intoto.jsonl \
+              --source-uri github.com/VirtualAgentics/review-bot-automator
             ```
 
             ## Documentation
@@ -96,68 +159,16 @@ jobs:
           files: dist/*
 
       - name: Generate release summary
-        if: always()
         run: |
-          END_TIME=$(date +%s)
-          START_TIME=${{ steps.job-start.outputs.start_time }}
-          DURATION=$((END_TIME - START_TIME))
-          DURATION_MIN=$((DURATION / 60))
-          DURATION_SEC=$((DURATION % 60))
-
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Release Tag:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Release Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Job Duration:** ${DURATION_MIN}m ${DURATION_SEC}s" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Package information
-          if [ -f dist/metadata.json ]; then
-            PACKAGE_NAME=$(python -c "import json; print(json.load(open('dist/metadata.json'))['package']['name'])" 2>/dev/null || echo "unknown")
-            PACKAGE_VERSION=$(python -c "import json; print(json.load(open('dist/metadata.json'))['package']['version'])" 2>/dev/null || echo "unknown")
-            echo "### Package Details" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Package Name:** $PACKAGE_NAME" >> $GITHUB_STEP_SUMMARY
-            echo "**Package Version:** $PACKAGE_VERSION" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          # Build artifacts
-          echo "### Build Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
-
-          for file in dist/*.whl dist/*.tar.gz; do
-            if [ -f "$file" ]; then
-              SIZE=$(du -h "$file" | cut -f1)
-              FILENAME=$(basename "$file")
-              echo "| $FILENAME | $SIZE |" >> $GITHUB_STEP_SUMMARY
-            fi
-          done
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Release steps
-          echo "### Release Steps Completed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Package built" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Package validated with twine" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Build metadata generated" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Wheel import validated" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Published to PyPI with Sigstore attestations" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ GitHub Release created" >> $GITHUB_STEP_SUMMARY
-
-      - name: Notify on failure
-        if: failure()
-        run: |
-          echo "::error::Release workflow failed for tag ${{ github.ref_name }}"
-          echo "## ❌ Release Failed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The release workflow for **${{ github.ref_name }}** has failed." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Please check the workflow logs for details:" >> $GITHUB_STEP_SUMMARY
-          echo "- Review failed steps above" >> $GITHUB_STEP_SUMMARY
-          echo "- Check PyPI publish logs if package upload failed" >> $GITHUB_STEP_SUMMARY
-          echo "- Verify PyPI Trusted Publishing is configured correctly" >> $GITHUB_STEP_SUMMARY
-          echo "- Ensure package version is unique (not already published)" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Release Summary"
+            echo ""
+            echo "**Release Tag:** ${{ github.ref_name }}"
+            echo ""
+            echo "### Release Steps Completed"
+            echo ""
+            echo "- Package built and validated"
+            echo "- SLSA provenance generated (.intoto.jsonl)"
+            echo "- Published to PyPI with Sigstore attestations"
+            echo "- GitHub Release created"
+          } >> "$GITHUB_STEP_SUMMARY"
