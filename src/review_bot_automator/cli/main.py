@@ -11,6 +11,7 @@ from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 from rich.table import Table
 
+from review_bot_automator import __version__
 from review_bot_automator.cli.config_loader import load_runtime_config
 from review_bot_automator.cli.llm_error_handler import handle_llm_errors
 from review_bot_automator.config.presets import PresetConfig
@@ -33,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 
 @click.group()
-@click.version_option(version="0.1.0")
+@click.version_option(version=__version__)
 def cli() -> None:
     """Create the main Click command-line interface for the Review Bot Automator.
 
