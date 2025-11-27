@@ -13,10 +13,10 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-from pr_conflict_resolver.core.models import FileType
-from pr_conflict_resolver.core.resolver import ConflictResolver
-from pr_conflict_resolver.llm.base import LLMParser, ParsedChange
-from pr_conflict_resolver.llm.parallel_parser import CommentInput, ParallelLLMParser
+from review_bot_automator.core.models import FileType
+from review_bot_automator.core.resolver import ConflictResolver
+from review_bot_automator.llm.base import LLMParser, ParsedChange
+from review_bot_automator.llm.parallel_parser import CommentInput, ParallelLLMParser
 
 
 def _parsed_change(path: str = "test.py", line: int = 10) -> ParsedChange:

@@ -7,7 +7,7 @@ import os
 
 import pytest
 
-from pr_conflict_resolver.llm.config import LLMConfig
+from review_bot_automator.llm.config import LLMConfig
 
 
 class TestLLMConfigDefaults:
@@ -196,7 +196,7 @@ class TestLLMConfigFromEnv:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test from_env() with invalid CR_LLM_MAX_TOKENS raises ConfigError."""
-        from pr_conflict_resolver.config.exceptions import ConfigError
+        from review_bot_automator.config.exceptions import ConfigError
 
         monkeypatch.setenv("CR_LLM_MAX_TOKENS", "invalid")
 
@@ -215,7 +215,7 @@ class TestLLMConfigFromEnv:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test from_env() with invalid CR_LLM_COST_BUDGET raises ConfigError."""
-        from pr_conflict_resolver.config.exceptions import ConfigError
+        from review_bot_automator.config.exceptions import ConfigError
 
         monkeypatch.setenv("CR_LLM_COST_BUDGET", "invalid")
 
@@ -266,7 +266,7 @@ class TestLLMConfigFromEnv:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test from_env() with invalid CR_LLM_RETRY_MAX_ATTEMPTS raises ConfigError."""
-        from pr_conflict_resolver.config.exceptions import ConfigError
+        from review_bot_automator.config.exceptions import ConfigError
 
         monkeypatch.setenv("CR_LLM_RETRY_MAX_ATTEMPTS", "invalid")
         with pytest.raises(ConfigError, match="CR_LLM_RETRY_MAX_ATTEMPTS must be a valid integer"):
@@ -282,7 +282,7 @@ class TestLLMConfigFromEnv:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test from_env() with invalid CR_LLM_RETRY_BASE_DELAY raises ConfigError."""
-        from pr_conflict_resolver.config.exceptions import ConfigError
+        from review_bot_automator.config.exceptions import ConfigError
 
         monkeypatch.setenv("CR_LLM_RETRY_BASE_DELAY", "invalid")
         with pytest.raises(ConfigError, match="CR_LLM_RETRY_BASE_DELAY must be a valid float"):

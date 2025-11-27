@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from pr_conflict_resolver.llm.providers.openai_api import OpenAIAPIProvider
+from review_bot_automator.llm.providers.openai_api import OpenAIAPIProvider
 
 from ._helpers import guarded_call, require_env_var
 

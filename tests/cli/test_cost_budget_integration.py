@@ -9,9 +9,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from pr_conflict_resolver.cli.main import cli
-from pr_conflict_resolver.config.runtime_config import ApplicationMode
-from pr_conflict_resolver.llm.cost_tracker import CostTracker
+from review_bot_automator.cli.main import cli
+from review_bot_automator.config.runtime_config import ApplicationMode
+from review_bot_automator.llm.cost_tracker import CostTracker
 
 
 class TestCostBudgetCLIOption:
@@ -25,7 +25,7 @@ class TestCostBudgetCLIOption:
     @pytest.fixture
     def mock_resolver(self) -> Generator[MagicMock, None, None]:
         """Create mock ConflictResolver."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock:
+        with patch("review_bot_automator.cli.main.ConflictResolver") as mock:
             resolver_instance = MagicMock()
             resolver_instance.analyze_conflicts.return_value = []
             mock.return_value = resolver_instance
@@ -34,7 +34,7 @@ class TestCostBudgetCLIOption:
     @pytest.fixture
     def mock_provider(self) -> Generator[MagicMock, None, None]:
         """Create mock LLM provider."""
-        with patch("pr_conflict_resolver.llm.factory.create_provider") as mock:
+        with patch("review_bot_automator.llm.factory.create_provider") as mock:
             provider_instance = MagicMock()
             provider_instance.get_total_cost.return_value = 0.0
             mock.return_value = provider_instance
@@ -127,8 +127,8 @@ class TestCostTrackerCreation:
 
     def test_cost_tracker_created_with_budget(self, mock_provider: MagicMock) -> None:
         """CostTracker is created when budget is set."""
-        from pr_conflict_resolver.cli.main import _create_llm_parser
-        from pr_conflict_resolver.config.runtime_config import RuntimeConfig
+        from review_bot_automator.cli.main import _create_llm_parser
+        from review_bot_automator.config.runtime_config import RuntimeConfig
 
         config = RuntimeConfig(
             mode=ApplicationMode.ALL,
@@ -144,7 +144,7 @@ class TestCostTrackerCreation:
             llm_cost_budget=5.00,
         )
 
-        with patch("pr_conflict_resolver.llm.factory.create_provider", return_value=mock_provider):
+        with patch("review_bot_automator.llm.factory.create_provider", return_value=mock_provider):
             _, tracker = _create_llm_parser(config)
 
         assert tracker is not None
@@ -152,8 +152,8 @@ class TestCostTrackerCreation:
 
     def test_cost_tracker_not_created_without_budget(self, mock_provider: MagicMock) -> None:
         """CostTracker is None when no budget is set."""
-        from pr_conflict_resolver.cli.main import _create_llm_parser
-        from pr_conflict_resolver.config.runtime_config import RuntimeConfig
+        from review_bot_automator.cli.main import _create_llm_parser
+        from review_bot_automator.config.runtime_config import RuntimeConfig
 
         config = RuntimeConfig(
             mode=ApplicationMode.ALL,
@@ -169,16 +169,16 @@ class TestCostTrackerCreation:
             llm_cost_budget=None,
         )
 
-        with patch("pr_conflict_resolver.llm.factory.create_provider", return_value=mock_provider):
+        with patch("review_bot_automator.llm.factory.create_provider", return_value=mock_provider):
             _, tracker = _create_llm_parser(config)
 
         assert tracker is None
 
     def test_parser_receives_cost_tracker(self, mock_provider: MagicMock) -> None:
         """Parser is initialized with CostTracker."""
-        from pr_conflict_resolver.cli.main import _create_llm_parser
-        from pr_conflict_resolver.config.runtime_config import RuntimeConfig
-        from pr_conflict_resolver.llm.parser import UniversalLLMParser
+        from review_bot_automator.cli.main import _create_llm_parser
+        from review_bot_automator.config.runtime_config import RuntimeConfig
+        from review_bot_automator.llm.parser import UniversalLLMParser
 
         config = RuntimeConfig(
             mode=ApplicationMode.ALL,
@@ -194,7 +194,7 @@ class TestCostTrackerCreation:
             llm_cost_budget=10.00,
         )
 
-        with patch("pr_conflict_resolver.llm.factory.create_provider", return_value=mock_provider):
+        with patch("review_bot_automator.llm.factory.create_provider", return_value=mock_provider):
             parser, tracker = _create_llm_parser(config)
 
         assert parser is not None
@@ -203,9 +203,9 @@ class TestCostTrackerCreation:
 
     def test_parallel_parser_receives_cost_tracker(self, mock_provider: MagicMock) -> None:
         """ParallelLLMParser is initialized with CostTracker."""
-        from pr_conflict_resolver.cli.main import _create_llm_parser
-        from pr_conflict_resolver.config.runtime_config import RuntimeConfig
-        from pr_conflict_resolver.llm.parallel_parser import ParallelLLMParser
+        from review_bot_automator.cli.main import _create_llm_parser
+        from review_bot_automator.config.runtime_config import RuntimeConfig
+        from review_bot_automator.llm.parallel_parser import ParallelLLMParser
 
         config = RuntimeConfig(
             mode=ApplicationMode.ALL,
@@ -222,7 +222,7 @@ class TestCostTrackerCreation:
             llm_parallel_parsing=True,
         )
 
-        with patch("pr_conflict_resolver.llm.factory.create_provider", return_value=mock_provider):
+        with patch("review_bot_automator.llm.factory.create_provider", return_value=mock_provider):
             parser, tracker = _create_llm_parser(config)
 
         assert isinstance(parser, ParallelLLMParser)
@@ -234,8 +234,8 @@ class TestCostBudgetEnforcement:
 
     def test_parser_raises_when_budget_exceeded(self) -> None:
         """Parser raises LLMCostExceededError when budget exceeded."""
-        from pr_conflict_resolver.llm.exceptions import LLMCostExceededError
-        from pr_conflict_resolver.llm.parser import UniversalLLMParser
+        from review_bot_automator.llm.exceptions import LLMCostExceededError
+        from review_bot_automator.llm.parser import UniversalLLMParser
 
         # Create tracker that's already at budget
         tracker = CostTracker(budget=1.0)
@@ -257,7 +257,7 @@ class TestCostBudgetEnforcement:
 
     def test_parser_tracks_cost_after_call(self) -> None:
         """Parser tracks cost after successful LLM call."""
-        from pr_conflict_resolver.llm.parser import UniversalLLMParser
+        from review_bot_automator.llm.parser import UniversalLLMParser
 
         tracker = CostTracker(budget=10.0)
         mock_provider = MagicMock()
@@ -279,9 +279,9 @@ class TestCostBudgetErrorHandling:
 
     def test_error_handler_does_not_abort(self) -> None:
         """Error handler allows graceful degradation (no abort)."""
-        from pr_conflict_resolver.cli.llm_error_handler import handle_llm_errors
-        from pr_conflict_resolver.config.runtime_config import RuntimeConfig
-        from pr_conflict_resolver.llm.exceptions import LLMCostExceededError
+        from review_bot_automator.cli.llm_error_handler import handle_llm_errors
+        from review_bot_automator.config.runtime_config import RuntimeConfig
+        from review_bot_automator.llm.exceptions import LLMCostExceededError
 
         config = RuntimeConfig(
             mode=ApplicationMode.ALL,
@@ -313,7 +313,7 @@ class TestCostBudgetErrorHandling:
 
     def test_error_includes_cost_details(self) -> None:
         """LLMCostExceededError includes cost details in message."""
-        from pr_conflict_resolver.llm.exceptions import LLMCostExceededError
+        from review_bot_automator.llm.exceptions import LLMCostExceededError
 
         error = LLMCostExceededError(
             "Budget exceeded",

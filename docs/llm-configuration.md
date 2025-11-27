@@ -579,7 +579,7 @@ See the [Ollama Setup Guide](ollama-setup.md) for comprehensive documentation.
 Enable automatic model downloads in Python code:
 
 ```python
-from pr_conflict_resolver.llm.providers.ollama import OllamaProvider
+from review_bot_automator.llm.providers.ollama import OllamaProvider
 
 # Auto-download enabled - model will be downloaded if not available
 provider = OllamaProvider(
@@ -831,7 +831,7 @@ Prevents cascading failures by temporarily disabling failing providers:
 Pre-populate the cache for cold start optimization:
 
 ```python
-from pr_conflict_resolver.llm.cache.prompt_cache import PromptCache
+from review_bot_automator.llm.cache.prompt_cache import PromptCache
 
 cache = PromptCache()
 entries = [
@@ -857,7 +857,7 @@ print(f"Loaded {loaded} entries, skipped {skipped}")
 **Via CachingProvider:**
 
 ```python
-from pr_conflict_resolver.llm.providers.caching_provider import CachingProvider
+from review_bot_automator.llm.providers.caching_provider import CachingProvider
 
 cached_provider = CachingProvider(base_provider)
 loaded, skipped = cached_provider.warm_up(entries)

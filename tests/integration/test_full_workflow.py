@@ -4,14 +4,14 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from pr_conflict_resolver import ConflictResolver, PresetConfig
+from review_bot_automator import ConflictResolver, PresetConfig
 
 
 @pytest.mark.integration
 class TestFullWorkflow:
     """Test the complete conflict resolution workflow."""
 
-    @patch("pr_conflict_resolver.core.resolver.GitHubCommentExtractor")
+    @patch("review_bot_automator.core.resolver.GitHubCommentExtractor")
     def test_analyze_conflicts_workflow(self, mock_extractor: Mock) -> None:
         """Test the complete conflict analysis workflow."""
         # Mock GitHub extractor
@@ -49,7 +49,7 @@ class TestFullWorkflow:
         assert conflict.severity in ["low", "medium", "high"]
         assert conflict.overlap_percentage > 0
 
-    @patch("pr_conflict_resolver.core.resolver.GitHubCommentExtractor")
+    @patch("review_bot_automator.core.resolver.GitHubCommentExtractor")
     def test_resolve_conflicts_workflow(self, mock_extractor: Mock) -> None:
         """Test the complete conflict resolution workflow."""
         # Mock GitHub extractor
@@ -77,7 +77,7 @@ class TestFullWorkflow:
         assert isinstance(result.resolutions, list)
         assert isinstance(result.conflicts, list)
 
-    @patch("pr_conflict_resolver.core.resolver.GitHubCommentExtractor")
+    @patch("review_bot_automator.core.resolver.GitHubCommentExtractor")
     def test_no_conflicts_workflow(self, mock_extractor: Mock) -> None:
         """Test workflow with no conflicts."""
         # Mock GitHub extractor with no comments
@@ -92,7 +92,7 @@ class TestFullWorkflow:
         # Verify no conflicts
         assert len(conflicts) == 0
 
-    @patch("pr_conflict_resolver.core.resolver.GitHubCommentExtractor")
+    @patch("review_bot_automator.core.resolver.GitHubCommentExtractor")
     def test_multiple_file_conflicts(self, mock_extractor: Mock) -> None:
         """Test workflow with conflicts in multiple files."""
         # Mock GitHub extractor with comments for multiple files
@@ -145,7 +145,7 @@ class TestFullWorkflow:
         assert "package.json" in file_paths
         assert "config.yaml" in file_paths
 
-    @patch("pr_conflict_resolver.core.resolver.GitHubCommentExtractor")
+    @patch("review_bot_automator.core.resolver.GitHubCommentExtractor")
     def test_priority_based_resolution(self, mock_extractor: Mock) -> None:
         """Test priority-based conflict resolution."""
         # Mock GitHub extractor with comments of different priorities
@@ -179,7 +179,7 @@ class TestFullWorkflow:
         assert result.conflict_count >= 0
         assert 0 <= result.success_rate <= 100
 
-    @patch("pr_conflict_resolver.core.resolver.GitHubCommentExtractor")
+    @patch("review_bot_automator.core.resolver.GitHubCommentExtractor")
     def test_error_handling(self, mock_extractor: Mock) -> None:
         """Test error handling in the workflow."""
         # Mock GitHub extractor to raise an exception
@@ -192,7 +192,7 @@ class TestFullWorkflow:
         with pytest.raises(RuntimeError):
             resolver.analyze_conflicts("owner", "repo", 123)
 
-    @patch("pr_conflict_resolver.core.resolver.GitHubCommentExtractor")
+    @patch("review_bot_automator.core.resolver.GitHubCommentExtractor")
     def test_different_configurations(self, mock_extractor: Mock) -> None:
         """
         Verify analyze_conflicts runs without error across preset configurations.

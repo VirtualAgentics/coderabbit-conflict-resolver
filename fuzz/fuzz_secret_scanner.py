@@ -33,10 +33,10 @@ import atheris
 
 # Import SecretScanner - wrapped in try/except for graceful failure
 try:
-    from pr_conflict_resolver.security.secret_scanner import SecretScanner
+    from review_bot_automator.security.secret_scanner import SecretScanner
 except ImportError as e:
     print(f"[-] Failed to import SecretScanner: {e}")
-    print("[!] Make sure pr-conflict-resolver is installed: pip install -e .")
+    print("[!] Make sure review-bot-automator is installed: pip install -e .")
     sys.exit(1)
 
 

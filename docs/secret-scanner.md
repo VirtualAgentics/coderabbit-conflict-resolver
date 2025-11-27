@@ -124,7 +124,7 @@ security:
 ## Programmatic Usage
 
 ```python
-from pr_conflict_resolver.security.secret_scanner import SecretScanner
+from review_bot_automator.security.secret_scanner import SecretScanner
 
 scanner = SecretScanner()
 

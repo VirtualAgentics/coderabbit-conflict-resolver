@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from pr_conflict_resolver import SecretScanner
+from review_bot_automator import SecretScanner
 
 
 def make_token(prefix: str, suffix_length: int = 36, charset: str | None = None) -> str:
@@ -497,7 +497,7 @@ class TestSecretScannerLogging:
         """Test debug logging when secret scanning is disabled."""
         caplog.set_level("DEBUG")
 
-        from pr_conflict_resolver.security.config import SecurityConfig
+        from review_bot_automator.security.config import SecurityConfig
 
         # Create config with scanning disabled
         config = SecurityConfig(enable_secret_scanning=False)

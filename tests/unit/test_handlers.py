@@ -4,13 +4,15 @@ import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import cast
 from unittest.mock import patch
 
 import pytest
 
-from pr_conflict_resolver import FileType, JsonHandler, TomlHandler, YamlHandler
-from pr_conflict_resolver.core.models import Change, Conflict
-from pr_conflict_resolver.handlers.base import BaseHandler
+from review_bot_automator import FileType, JsonHandler, TomlHandler, YamlHandler
+from review_bot_automator.core.models import Change, Conflict
+from review_bot_automator.handlers.base import BaseHandler
+from review_bot_automator.handlers.yaml_handler import YAMLValue
 
 
 class MockTaggedObject:
@@ -148,7 +150,7 @@ class TestYamlHandler:
         assert handler.can_handle("test.json") is False
         assert handler.can_handle("test.txt") is False
 
-    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", False)
+    @patch("review_bot_automator.handlers.yaml_handler.YAML_AVAILABLE", False)
     def test_yaml_not_available(self) -> None:
         """Test behavior when ruamel.yaml is not available."""
         handler = YamlHandler()
@@ -157,7 +159,7 @@ class TestYamlHandler:
         assert valid is False
         assert "not available" in msg
 
-    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
+    @patch("review_bot_automator.handlers.yaml_handler.YAML_AVAILABLE", True)
     def test_validate_change(self) -> None:
         """Test change validation."""
         handler = YamlHandler()
@@ -173,7 +175,10 @@ class TestYamlHandler:
         """Test key extraction."""
         handler = YamlHandler()
 
-        data = {"key1": "value1", "key2": {"nested1": "value2", "nested2": ["item1", "item2"]}}
+        data: YAMLValue = {
+            "key1": "value1",
+            "key2": {"nested1": "value2", "nested2": ["item1", "item2"]},
+        }
 
         keys = handler._extract_keys(data)
 
@@ -192,7 +197,7 @@ class TestYamlHandler:
         handler = YamlHandler()
 
         # Create deeply nested structure
-        data = {
+        data: YAMLValue = {
             "level1": {
                 "level2": {
                     "level3": {
@@ -228,7 +233,7 @@ class TestYamlHandler:
             "key: !!python/name:os.system",
         ],
     )
-    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
+    @patch("review_bot_automator.handlers.yaml_handler.YAML_AVAILABLE", True)
     def test_validate_change_dangerous_tags(self, dangerous_yaml: str) -> None:
         """Test validation rejects dangerous YAML tags."""
         handler = YamlHandler()
@@ -237,7 +242,7 @@ class TestYamlHandler:
         assert valid is False
         assert "dangerous Python object tags" in msg
 
-    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
+    @patch("review_bot_automator.handlers.yaml_handler.YAML_AVAILABLE", True)
     @pytest.mark.parametrize("control_char", ["\x00", "\x01", "\x1f"])
     def test_validate_change_dangerous_characters(self, control_char: str) -> None:
         """Test validation rejects dangerous control characters."""
@@ -263,7 +268,7 @@ class TestYamlHandler:
             "nested": {"another_dangerous": MockTaggedObject("!!python/name")},
         }
 
-        assert handler._contains_dangerous_tags(dangerous_data) is True
+        assert handler._contains_dangerous_tags(cast(YAMLValue, dangerous_data)) is True
 
     def test_contains_dangerous_tags_nested_list(self) -> None:
         """Test _contains_dangerous_tags with nested lists."""
@@ -275,7 +280,7 @@ class TestYamlHandler:
             ["nested", MockTaggedObject("!!python/module")],
         ]
 
-        assert handler._contains_dangerous_tags(dangerous_data) is True
+        assert handler._contains_dangerous_tags(cast(YAMLValue, dangerous_data)) is True
 
     def test_detect_conflicts_unparseable_content(self) -> None:
         """Test detect_conflicts with unparseable change content."""
@@ -310,7 +315,7 @@ class TestYamlHandler:
         # The unparseable change is skipped, leaving only one valid change
         assert conflicts == [], "No conflicts expected for single parseable change"
 
-    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
+    @patch("review_bot_automator.handlers.yaml_handler.YAML_AVAILABLE", True)
     def test_apply_change_invalid_path(self) -> None:
         """Test apply_change with invalid file path (security rejection)."""
         handler = YamlHandler()
@@ -324,23 +329,27 @@ class TestYamlHandler:
         handler = YamlHandler()
 
         # Test empty dictionary
-        empty_dict: dict[str, object] = {}
+        empty_dict: YAMLValue = {}
         keys = handler._extract_keys(empty_dict)
         assert keys == []
 
         # Test empty list
-        data_with_empty_list: dict[str, list[object]] = {"key": []}
+        data_with_empty_list: YAMLValue = {"key": []}
         keys = handler._extract_keys(data_with_empty_list)
         assert "key" in keys
         assert "key[0]" not in keys  # No items in empty list
 
         # Test dictionary with empty nested structures
-        data_with_empty_nested = {"empty_dict": {}, "empty_list": [], "normal_key": "value"}
+        data_with_empty_nested: YAMLValue = {
+            "empty_dict": {},
+            "empty_list": [],
+            "normal_key": "value",
+        }
         keys = handler._extract_keys(data_with_empty_nested)
         expected_keys = ["empty_dict", "empty_list", "normal_key"]
         assert set(expected_keys) <= set(keys)
 
-    @patch("pr_conflict_resolver.handlers.yaml_handler.YAML_AVAILABLE", True)
+    @patch("review_bot_automator.handlers.yaml_handler.YAML_AVAILABLE", True)
     def test_yaml_anchors_and_aliases(self) -> None:
         """Test YAML with anchors/aliases."""
         handler = YamlHandler()
@@ -359,7 +368,7 @@ class TestYamlHandler:
             assert "Valid YAML" in msg
 
             # Test key extraction with anchors/aliases
-            data = {"anchor": "&ref", "alias": "*ref"}
+            data: YAMLValue = {"anchor": "&ref", "alias": "*ref"}
             keys = handler._extract_keys(data)
             assert "anchor" in keys
             assert "alias" in keys
@@ -377,7 +386,7 @@ class TestTomlHandler:
         assert handler.can_handle("test.json") is False
         assert handler.can_handle("test.txt") is False
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", False)
+    @patch("review_bot_automator.handlers.toml_handler.TOML_READ_AVAILABLE", False)
     def test_toml_not_available(self) -> None:
         """Test behavior when TOML_READ_AVAILABLE is False."""
         handler = TomlHandler()
@@ -551,7 +560,7 @@ class TestTomlHandler:
         # Path validation is performed in apply_change
         assert valid is True  # TOML content is valid
 
-    @patch("pr_conflict_resolver.handlers.toml_handler.TOML_READ_AVAILABLE", False)
+    @patch("review_bot_automator.handlers.toml_handler.TOML_READ_AVAILABLE", False)
     def test_validate_change_toml_not_available(self) -> None:
         """Test validate_change when TOML is not available."""
         handler = TomlHandler()

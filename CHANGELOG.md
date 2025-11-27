@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2025-11-26
+
+### Breaking Changes
+
+* **Package Renamed**: `pr-conflict-resolver` → `review-bot-automator`
+  * PyPI package name changed
+  * Python module renamed: `pr_conflict_resolver` → `review_bot_automator`
+  * All imports must be updated
+
 ### Added
 
 #### Testing Infrastructure
@@ -37,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Structured prompt engineering system with examples
   * Confidence threshold filtering (default: 0.7) for high-quality change extraction
   * Comprehensive test suite for LLM components (15+ tests)
-  * New LLM package: `pr_conflict_resolver.llm` with modular architecture
+  * New LLM package: `review_bot_automator.llm` with modular architecture
 * **V2.0 Phase 1**: LLM-Powered Comment Parsing with OpenAI Provider (PR #122, Issue #115)
   * `OpenAIAPIProvider` implementation with official OpenAI Python SDK
   * Automatic retry logic with exponential backoff for transient failures (3 retries: 2s, 4s, 8s)

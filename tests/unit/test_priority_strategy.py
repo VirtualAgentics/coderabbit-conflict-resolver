@@ -1,6 +1,6 @@
 """Test the priority strategy."""
 
-from pr_conflict_resolver import Change, Conflict, FileType, PriorityStrategy
+from review_bot_automator import Change, Conflict, FileType, PriorityStrategy
 
 
 class TestPriorityStrategy:

@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-- `src/pr_conflict_resolver/`: CLI (`cli/`), conflict engine (`analysis/`, `core/`), file handlers, LLM providers (`llm/`, prompt cache, provider factory), security utilities.
+- `src/review_bot_automator/`: CLI (`cli/`), conflict engine (`analysis/`, `core/`), file handlers, LLM providers (`llm/`, prompt cache, provider factory), security utilities.
 - `tests/`: unit/integration/llm/security + fuzz targets; fixtures in `tests/fixtures/`; mark `slow`/`integration`/`fuzz`.
 - Supporting assets: `docs/`, `examples/`, `scripts/` (hooks, cleanup, model setup), `requirements*.txt` for hash-pinned deps, `Makefile` for common tasks.
 
@@ -23,7 +23,7 @@
 
 ## Testing Guidelines
 
-- Pytest strict with ≥80% coverage (`--cov=src/pr_conflict_resolver`); HTML report in `htmlcov/`.
+- Pytest strict with ≥80% coverage (`--cov=src/review_bot_automator`); HTML report in `htmlcov/`.
 - Keep fast cases in unit; integration/llm/security/fuzz in their folders; fixtures in `tests/fixtures/`.
 - Use markers `slow`, `integration`, `fuzz`; Hypothesis profiles via `HYPOTHESIS_PROFILE`.
 - LLM integration defaults: OpenAI/Anthropic require env keys; Ollama uses `OLLAMA_MODEL_NAME` (default `llama2:7b`)—pull the model before running.

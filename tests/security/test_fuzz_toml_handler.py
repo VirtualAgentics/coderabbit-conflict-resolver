@@ -19,7 +19,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from pr_conflict_resolver.handlers.toml_handler import TomlHandler
+from review_bot_automator.handlers.toml_handler import TomlHandler
 
 # =============================================================================
 # TOML Validation Fuzzing

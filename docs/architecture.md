@@ -8,7 +8,7 @@ The Review Bot Automator is designed as a modular, extensible system that can in
 
 ### 1. Comment Parser & Extractor
 
-**Location**: `src/pr_conflict_resolver/integrations/`
+**Location**: `src/review_bot_automator/integrations/`
 
 Responsible for:
 
@@ -25,7 +25,7 @@ Responsible for:
 
 ### 2. Conflict Detection Engine
 
-**Location**: `src/pr_conflict_resolver/analysis/`
+**Location**: `src/review_bot_automator/analysis/`
 
 Analyzes comments for potential conflicts:
 
@@ -42,7 +42,7 @@ Analyzes comments for potential conflicts:
 
 ### 3. File-Type Handlers
 
-**Location**: `src/pr_conflict_resolver/handlers/`
+**Location**: `src/review_bot_automator/handlers/`
 
 Specialized handlers for different file types:
 
@@ -60,7 +60,7 @@ Specialized handlers for different file types:
 
 ### 4. Priority System
 
-**Location**: `src/pr_conflict_resolver/core/`
+**Location**: `src/review_bot_automator/core/`
 
 Determines priority levels for different change types:
 
@@ -78,7 +78,7 @@ Determines priority levels for different change types:
 
 ### 5. Resolution Strategies
 
-**Location**: `src/pr_conflict_resolver/strategies/`
+**Location**: `src/review_bot_automator/strategies/`
 
 Implements different conflict resolution strategies:
 
@@ -97,7 +97,7 @@ Implements different conflict resolution strategies:
 
 ### 6. Application Engine
 
-**Location**: `src/pr_conflict_resolver/core/`
+**Location**: `src/review_bot_automator/core/`
 
 Applies resolved changes to files:
 
@@ -114,7 +114,7 @@ Applies resolved changes to files:
 
 ### 7. Reporting & Metrics
 
-**Location**: `src/pr_conflict_resolver/core/`
+**Location**: `src/review_bot_automator/core/`
 
 Generates reports and tracks metrics:
 

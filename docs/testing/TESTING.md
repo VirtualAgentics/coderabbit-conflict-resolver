@@ -100,7 +100,7 @@ import pytest
 
 def test_github_comment_extraction() -> None:
     """Test GitHub comment extraction with mocked API."""
-    with patch('pr_conflict_resolver.integrations.github.requests.get') as mock_get:
+    with patch('review_bot_automator.integrations.github.requests.get') as mock_get:
         mock_get.return_value.json.return_value = {"comments": []}
 
         extractor = GitHubCommentExtractor("owner", "repo", 123)
@@ -632,7 +632,7 @@ pytest --durations=10
 
 #### Import Errors
 
-**Error:** `ModuleNotFoundError: No module named 'pr_conflict_resolver'`
+**Error:** `ModuleNotFoundError: No module named 'review_bot_automator'`
 
 **Solutions:**
 

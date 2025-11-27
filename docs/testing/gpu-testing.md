@@ -62,7 +62,7 @@ pr-resolve --version
    ```bash
    export PYTHONLOGLEVEL=DEBUG
    python -c "
-   from pr_conflict_resolver.llm.providers.ollama import OllamaProvider
+   from review_bot_automator.llm.providers.ollama import OllamaProvider
    provider = OllamaProvider(model='qwen2.5-coder:7b')
    "
 
@@ -75,14 +75,14 @@ pr-resolve --version
 **With GPU**:
 
 ```text
-INFO:pr_conflict_resolver.llm.providers.ollama:GPU detected: NVIDIA RTX 4090 (24GB VRAM)
+INFO:review_bot_automator.llm.providers.ollama:GPU detected: NVIDIA RTX 4090 (24GB VRAM)
 
 ```
 
 **Without GPU**:
 
 ```text
-INFO:pr_conflict_resolver.llm.providers.ollama:GPU not detected, using CPU inference
+INFO:review_bot_automator.llm.providers.ollama:GPU not detected, using CPU inference
 
 ```
 
@@ -160,7 +160,7 @@ INFO:pr_conflict_resolver.llm.providers.ollama:GPU not detected, using CPU infer
 
    ```bash
    python -c "
-   from pr_conflict_resolver.llm.providers.gpu_detector import GPUDetector
+   from review_bot_automator.llm.providers.gpu_detector import GPUDetector
    gpu = GPUDetector.detect_gpu('http://localhost:11434')
    print(f'Available: {gpu.available}')
    print(f'Type: {gpu.gpu_type}')
@@ -206,7 +206,7 @@ VRAM Total: 24576MB
 
    ```bash
    python -c "
-   from pr_conflict_resolver.llm.providers.gpu_detector import GPUDetector
+   from review_bot_automator.llm.providers.gpu_detector import GPUDetector
    gpu = GPUDetector.detect_gpu('http://localhost:11434')
    print(f'Available: {gpu.available}')
    print(f'Type: {gpu.gpu_type}')
@@ -249,7 +249,7 @@ Model: AMD GPU (ROCm)
 
    ```bash
    python -c "
-   from pr_conflict_resolver.llm.providers.gpu_detector import GPUDetector
+   from review_bot_automator.llm.providers.gpu_detector import GPUDetector
    gpu = GPUDetector.detect_gpu('http://localhost:11434')
    print(f'Available: {gpu.available}')
    print(f'Type: {gpu.gpu_type}')
@@ -295,7 +295,7 @@ Model: Apple M3 Max (Metal)
 
    ```bash
    python -c "
-   from pr_conflict_resolver.llm.providers.gpu_detector import GPUDetector
+   from review_bot_automator.llm.providers.gpu_detector import GPUDetector
    gpu = GPUDetector.detect_gpu('http://localhost:11434')
    print(f'Available: {gpu.available}')
    print(f'Type: {gpu.gpu_type}')
@@ -354,7 +354,7 @@ Model: None
 
    ```bash
    python -c "
-   from pr_conflict_resolver.llm.providers.gpu_detector import GPUDetector
+   from review_bot_automator.llm.providers.gpu_detector import GPUDetector
    gpu = GPUDetector._detect_from_ollama_ps('http://localhost:11434', timeout=5)
    print(f'GPU Type: {gpu.gpu_type}')
    print(f'Model: {gpu.model_name}')
@@ -382,7 +382,7 @@ Model: None
 
    ```bash
    python -c "
-   from pr_conflict_resolver.llm.providers.gpu_detector import GPUDetector
+   from review_bot_automator.llm.providers.gpu_detector import GPUDetector
    import logging
    logging.basicConfig(level=logging.DEBUG)
 
@@ -416,7 +416,7 @@ Model: None
 ```bash
 python -c "
 import time
-from pr_conflict_resolver.llm.providers.gpu_detector import GPUDetector
+from review_bot_automator.llm.providers.gpu_detector import GPUDetector
 
 start = time.time()
 gpu = GPUDetector.detect_gpu('http://localhost:11434')
@@ -450,7 +450,7 @@ GPU Type: NVIDIA  (or AMD/Apple/CPU)
 
 ```bash
 python -c "
-from pr_conflict_resolver.llm.providers.ollama import OllamaProvider
+from review_bot_automator.llm.providers.ollama import OllamaProvider
 
 # Initialize provider
 provider = OllamaProvider(model='qwen2.5-coder:7b')
@@ -641,7 +641,7 @@ pr-resolve --version
 
 # Run with debug logs
 PYTHONLOGLEVEL=DEBUG python -c "
-from pr_conflict_resolver.llm.providers.ollama import OllamaProvider
+from review_bot_automator.llm.providers.ollama import OllamaProvider
 provider = OllamaProvider(model='qwen2.5-coder:7b')
 print(f'GPU Info: {provider.gpu_info}')
 "

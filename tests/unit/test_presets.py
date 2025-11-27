@@ -1,6 +1,6 @@
-"""Unit tests for configuration presets in pr_conflict_resolver.config.presets."""
+"""Unit tests for configuration presets in review_bot_automator.config.presets."""
 
-from pr_conflict_resolver import PresetConfig
+from review_bot_automator import PresetConfig
 
 
 def test_conservative_preset_keys() -> None:

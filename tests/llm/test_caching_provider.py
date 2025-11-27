@@ -13,8 +13,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from pr_conflict_resolver.llm.cache.prompt_cache import PromptCache
-from pr_conflict_resolver.llm.providers.caching_provider import CachingProvider
+from review_bot_automator.llm.cache.prompt_cache import PromptCache
+from review_bot_automator.llm.providers.caching_provider import CachingProvider
 
 
 class TestCachingProviderCacheHit:

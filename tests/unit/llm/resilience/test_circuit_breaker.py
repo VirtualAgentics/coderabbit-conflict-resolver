@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pr_conflict_resolver.llm.resilience.circuit_breaker import (
+from review_bot_automator.llm.resilience.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerOpen,
     CircuitState,

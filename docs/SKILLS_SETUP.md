@@ -256,7 +256,7 @@ allowed-tools: ["mcp__github__pull_request_read", "Read", "Write", "Grep"]
 
 # Use LLM provider (Anthropic/OpenAI/Ollama)
 
-from pr_conflict_resolver.llm import get_parser
+from review_bot_automator.llm import get_parser
 
 parser = get_parser(provider="anthropic")
 changes = parser.parse_comment(comment_body)
@@ -306,7 +306,7 @@ def backoff_request(func, max_retries=3):
 ## References
 
 * [GitHub API docs](https://docs.github.com/rest)
-* Project parsing code: `src/pr_conflict_resolver/llm/parser.py`
+* Project parsing code: `src/review_bot_automator/llm/parser.py`
 ```
 
 **Time to create**: 2-3 hours
@@ -350,7 +350,7 @@ def mock_ollama_available():
         yield mock_list
 
 def test_ollama_provider_available(mock_ollama_available):
-    from pr_conflict_resolver.llm.factory import get_provider
+    from review_bot_automator.llm.factory import get_provider
     provider = get_provider("ollama")
     assert provider.is_available()
 
@@ -393,7 +393,7 @@ OLLAMA_RESPONSE = {
 
 def test_provider_cost_calculation():
     """Test cost tracking across providers."""
-    from pr_conflict_resolver.llm.providers import AnthropicProvider, OpenAIProvider
+    from review_bot_automator.llm.providers import AnthropicProvider, OpenAIProvider
 
     # Anthropic pricing
     anthropic = AnthropicProvider(model="claude-sonnet-4-5")
@@ -418,7 +418,7 @@ import pytest
 @pytest.mark.parametrize("provider_name", ["anthropic", "openai", "ollama"])
 def test_provider_latency(provider_name, benchmark):
     """Benchmark provider response time."""
-    from pr_conflict_resolver.llm.factory import get_provider
+    from review_bot_automator.llm.factory import get_provider
 
     provider = get_provider(provider_name)
     test_prompt = "Parse this CodeRabbit comment: ..."
@@ -437,7 +437,7 @@ def test_provider_latency(provider_name, benchmark):
 
 def test_provider_failover():
     """Test automatic failover to backup provider."""
-    from pr_conflict_resolver.llm.factory import get_provider_with_fallback
+    from review_bot_automator.llm.factory import get_provider_with_fallback
 
     # Primary: Anthropic, Fallback: OpenAI
     provider = get_provider_with_fallback(
@@ -454,7 +454,7 @@ def test_provider_failover():
 
 ## References
 
-* Provider implementations: `src/pr_conflict_resolver/llm/providers/`
+* Provider implementations: `src/review_bot_automator/llm/providers/`
 * Test fixtures: `tests/fixtures/llm_responses.py`
 * Issue #129: Ollama provider validation
 ```
@@ -617,8 +617,8 @@ def evaluate_strategy(strategy_name, decisions):
 
 ## References
 
-* Priority strategy: `src/pr_conflict_resolver/strategies/priority_strategy.py`
-* Conflict models: `src/pr_conflict_resolver/core/models.py`
+* Priority strategy: `src/review_bot_automator/strategies/priority_strategy.py`
+* Conflict models: `src/review_bot_automator/core/models.py`
 * Future ML roadmap: `docs/planning/ROADMAP.md`
 ```
 
@@ -647,7 +647,7 @@ Ask Claude: "Profile resolver.py for bottlenecks"
 
 ```
 
-Claude will invoke `/python-development:python-performance-optimization src/pr_conflict_resolver/core/resolver.py`
+Claude will invoke `/python-development:python-performance-optimization src/review_bot_automator/core/resolver.py`
 
 ### LLM Application Development
 
@@ -658,7 +658,7 @@ Ask Claude: "Optimize LLM prompts for parsing CodeRabbit comments"
 
 ```
 
-Claude will invoke `/llm-application-dev:prompt-optimization src/pr_conflict_resolver/llm/prompts/`
+Claude will invoke `/llm-application-dev:prompt-optimization src/review_bot_automator/llm/prompts/`
 
 **Evaluate providers:**
 

@@ -1,7 +1,7 @@
 """Test conflict detection functionality."""
 
-from pr_conflict_resolver.analysis.conflict_detector import ConflictDetector
-from pr_conflict_resolver.core.models import Change, FileType
+from review_bot_automator.analysis.conflict_detector import ConflictDetector
+from review_bot_automator.core.models import Change, FileType
 
 
 def test_detect_exact_overlap() -> None:

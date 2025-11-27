@@ -24,13 +24,13 @@ from anthropic import (
 )
 from anthropic.types import TextBlock
 
-from pr_conflict_resolver.llm.exceptions import (
+from review_bot_automator.llm.exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
     LLMConfigurationError,
 )
-from pr_conflict_resolver.llm.providers.anthropic_api import AnthropicAPIProvider
-from pr_conflict_resolver.llm.providers.base import LLMProvider
+from review_bot_automator.llm.providers.anthropic_api import AnthropicAPIProvider
+from review_bot_automator.llm.providers.base import LLMProvider
 
 
 def create_mock_anthropic_error(error_class: type, message: str) -> Any:  # noqa: ANN401
@@ -106,7 +106,7 @@ class TestAnthropicProviderInitialization:
         provider = AnthropicAPIProvider(api_key="sk-ant-test")
         assert provider.timeout == 60
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_init_sets_max_retries_to_zero(self, mock_anthropic_class: Mock) -> None:
         """Test that client is created with max_retries=0."""
         AnthropicAPIProvider(api_key="sk-ant-test")
@@ -118,7 +118,7 @@ class TestAnthropicProviderInitialization:
 class TestAnthropicProviderTokenCounting:
     """Test token counting using Anthropic's API."""
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_count_tokens_simple_text(self, mock_anthropic_class: Mock) -> None:
         """Test counting tokens for simple text."""
         mock_client = MagicMock()
@@ -134,7 +134,7 @@ class TestAnthropicProviderTokenCounting:
         assert count == 10
         mock_client.messages.count_tokens.assert_called_once()
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_count_tokens_empty_string(self, mock_anthropic_class: Mock) -> None:
         """Test counting tokens for empty string."""
         mock_client = MagicMock()
@@ -149,7 +149,7 @@ class TestAnthropicProviderTokenCounting:
 
         assert count == 0
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_count_tokens_none_raises(self, mock_anthropic_class: Mock) -> None:
         """Test that None text raises ValueError."""
         mock_client = MagicMock()
@@ -159,7 +159,7 @@ class TestAnthropicProviderTokenCounting:
         with pytest.raises(ValueError, match="Text cannot be None"):
             provider.count_tokens(None)  # type: ignore
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_count_tokens_fallback_on_error(
         self, mock_anthropic_class: Mock, caplog: pytest.LogCaptureFixture
     ) -> None:
@@ -369,7 +369,7 @@ class TestAnthropicProviderCostCalculation:
 class TestAnthropicProviderGenerate:
     """Test text generation with mocked API."""
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_success(self, mock_anthropic_class: Mock) -> None:
         """Test successful generation."""
         mock_client = MagicMock()
@@ -395,7 +395,7 @@ class TestAnthropicProviderGenerate:
         assert provider.total_input_tokens == 10
         assert provider.total_output_tokens == 5
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_empty_prompt_raises(self, mock_anthropic_class: Mock) -> None:
         """Test that empty prompt raises ValueError."""
         mock_client = MagicMock()
@@ -405,7 +405,7 @@ class TestAnthropicProviderGenerate:
         with pytest.raises(ValueError, match="Prompt cannot be empty"):
             provider.generate("")
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_invalid_max_tokens_raises(self, mock_anthropic_class: Mock) -> None:
         """Test that invalid max_tokens raises ValueError."""
         mock_client = MagicMock()
@@ -415,7 +415,7 @@ class TestAnthropicProviderGenerate:
         with pytest.raises(ValueError, match="max_tokens must be positive"):
             provider.generate("Test prompt", max_tokens=0)
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_uses_zero_temperature(self, mock_anthropic_class: Mock) -> None:
         """Test that generation uses temperature=0 for determinism."""
         mock_client = MagicMock()
@@ -441,7 +441,7 @@ class TestAnthropicProviderGenerate:
         call_args = mock_client.messages.create.call_args
         assert call_args[1]["temperature"] == 0.0
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_empty_response_raises(self, mock_anthropic_class: Mock) -> None:
         """Test that empty response from API raises error."""
         mock_client = MagicMock()
@@ -461,7 +461,7 @@ class TestAnthropicProviderGenerate:
         with pytest.raises(LLMAPIError, match="empty response"):
             provider.generate("Test prompt")
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_tracks_cache_tokens(self, mock_anthropic_class: Mock) -> None:
         """Test that cache tokens are tracked correctly."""
         mock_client = MagicMock()
@@ -486,7 +486,7 @@ class TestAnthropicProviderGenerate:
         assert provider.total_cache_write_tokens == 100
         assert provider.total_cache_read_tokens == 50
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_sends_prompt_caching_header(self, mock_anthropic_class: Mock) -> None:
         """Test that prompt caching beta header is sent with API requests."""
         mock_client = MagicMock()
@@ -512,7 +512,7 @@ class TestAnthropicProviderGenerate:
         call_args = mock_client.messages.create.call_args
         assert call_args[1]["extra_headers"] == {"anthropic-beta": "prompt-caching-2024-07-31"}
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_splits_prompt_with_context_marker(self, mock_anthropic_class: Mock) -> None:
         """Test that prompts with context marker are split into cached + uncached blocks."""
         mock_client = MagicMock()
@@ -555,7 +555,7 @@ class TestAnthropicProviderGenerate:
         assert "File: test.py" in content_blocks[1]["text"]
         assert "cache_control" not in content_blocks[1]
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_no_split_without_context_marker(self, mock_anthropic_class: Mock) -> None:
         """Test that prompts without context marker are sent as single cached block."""
         mock_client = MagicMock()
@@ -584,7 +584,7 @@ class TestAnthropicProviderGenerate:
         assert content_blocks[0]["type"] == "text"
         assert "cache_control" in content_blocks[0]
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_handles_empty_prefix_gracefully(self, mock_anthropic_class: Mock) -> None:
         """Test that prompts starting with context marker don't create empty cached blocks."""
         mock_client = MagicMock()
@@ -621,7 +621,7 @@ class TestAnthropicProviderGenerate:
 class TestAnthropicProviderRetryLogic:
     """Test retry logic for transient failures."""
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_retries_on_rate_limit(self, mock_anthropic_class: Mock) -> None:
         """Test that generation retries on rate limit error."""
         mock_client = MagicMock()
@@ -649,7 +649,7 @@ class TestAnthropicProviderRetryLogic:
         assert result == "success"
         assert mock_client.messages.create.call_count == 2
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_retries_on_connection_error(self, mock_anthropic_class: Mock) -> None:
         """Test that generation retries on connection error."""
         mock_client = MagicMock()
@@ -677,7 +677,7 @@ class TestAnthropicProviderRetryLogic:
         assert result == "success"
         assert mock_client.messages.create.call_count == 2
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_no_retry_on_auth_error(self, mock_anthropic_class: Mock) -> None:
         """Test that generation does NOT retry on authentication error."""
         mock_client = MagicMock()
@@ -693,7 +693,7 @@ class TestAnthropicProviderRetryLogic:
         # Should only try once (no retry on auth errors)
         assert mock_client.messages.create.call_count == 1
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_no_retry_on_api_error(self, mock_anthropic_class: Mock) -> None:
         """Test that generation does NOT retry on general API error."""
         mock_client = MagicMock()
@@ -709,7 +709,7 @@ class TestAnthropicProviderRetryLogic:
         # Should only try once (no retry on API errors)
         assert mock_client.messages.create.call_count == 1
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_exhausts_retries(self, mock_anthropic_class: Mock) -> None:
         """Test that generation raises LLMAPIError after 3 retry attempts."""
         mock_client = MagicMock()
@@ -747,7 +747,7 @@ class TestAnthropicProviderEffortParameter:
         )
         assert provider.effort == "high"
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_without_effort_uses_base_beta_header(
         self, mock_anthropic_class: Mock
     ) -> None:
@@ -775,7 +775,7 @@ class TestAnthropicProviderEffortParameter:
         # Verify no extra_body for effort
         assert "extra_body" not in call_args[1]
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_with_effort_includes_effort_beta_header(
         self, mock_anthropic_class: Mock
     ) -> None:
@@ -805,7 +805,7 @@ class TestAnthropicProviderEffortParameter:
         assert "prompt-caching-2024-07-31" in beta_header
         assert "effort-2025-11-24" in beta_header
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_with_effort_includes_output_config(self, mock_anthropic_class: Mock) -> None:
         """Test that output_config with effort is passed via extra_body."""
         mock_client = MagicMock()
@@ -832,7 +832,7 @@ class TestAnthropicProviderEffortParameter:
         assert "extra_body" in call_args[1]
         assert call_args[1]["extra_body"] == {"output_config": {"effort": "high"}}
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_with_effort_low(self, mock_anthropic_class: Mock) -> None:
         """Test that effort='low' is passed correctly."""
         mock_client = MagicMock()
@@ -857,7 +857,7 @@ class TestAnthropicProviderEffortParameter:
         call_args = mock_client.messages.create.call_args
         assert call_args[1]["extra_body"] == {"output_config": {"effort": "low"}}
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_with_effort_medium(self, mock_anthropic_class: Mock) -> None:
         """Test that effort='medium' is passed correctly."""
         mock_client = MagicMock()
@@ -882,7 +882,7 @@ class TestAnthropicProviderEffortParameter:
         call_args = mock_client.messages.create.call_args
         assert call_args[1]["extra_body"] == {"output_config": {"effort": "medium"}}
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_generate_with_effort_none_disables_effort(self, mock_anthropic_class: Mock) -> None:
         """Test that effort='none' disables effort (does not send to API)."""
         mock_client = MagicMock()
@@ -935,7 +935,7 @@ class TestAnthropicProviderLatencyTracking:
         provider = AnthropicAPIProvider(api_key="sk-ant-test")
         assert provider.get_last_request_latency() is None
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_get_last_request_latency_after_request(self, mock_anthropic_class: Mock) -> None:
         """Returns latency value after a successful request."""
         mock_client = MagicMock()
@@ -964,7 +964,7 @@ class TestAnthropicProviderLatencyTracking:
         provider = AnthropicAPIProvider(api_key="sk-ant-test")
         assert provider.get_all_latencies() == []
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_get_all_latencies_accumulates(self, mock_anthropic_class: Mock) -> None:
         """Returns list of all request latencies after multiple requests."""
         mock_client = MagicMock()
@@ -989,7 +989,7 @@ class TestAnthropicProviderLatencyTracking:
         assert len(latencies) == 2
         assert all(lat >= 0 for lat in latencies)
 
-    @patch("pr_conflict_resolver.llm.providers.anthropic_api.Anthropic")
+    @patch("review_bot_automator.llm.providers.anthropic_api.Anthropic")
     def test_reset_latency_tracking(self, mock_anthropic_class: Mock) -> None:
         """Clears latencies and resets last_request_latency to None."""
         mock_client = MagicMock()

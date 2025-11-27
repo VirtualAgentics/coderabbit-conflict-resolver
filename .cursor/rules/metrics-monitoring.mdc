@@ -1,7 +1,7 @@
 ---
 title: Metrics & Monitoring Guidelines
 description: Metrics collection patterns, success rate tracking, latency tracking, cost tracking, and export formats
-globs: ["src/pr_conflict_resolver/core/**/*.py", "src/pr_conflict_resolver/llm/**/*.py"]
+globs: ["src/review_bot_automator/core/**/*.py", "src/review_bot_automator/llm/**/*.py"]
 alwaysApply: false
 ---
 

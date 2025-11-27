@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from pr_conflict_resolver.config.runtime_config import ApplicationMode, RuntimeConfig
+from review_bot_automator.config.runtime_config import ApplicationMode, RuntimeConfig
 
 
 class TestFromLLMEnabledFactory:
@@ -260,7 +260,7 @@ class TestProviderDocstring:
         """Test that codex-cli is a valid provider."""
         # This implicitly tests that the docstring was updated
         # If codex-cli wasn't in the valid providers list, this would fail validation
-        from pr_conflict_resolver.llm.config import LLMConfig
+        from review_bot_automator.llm.config import LLMConfig
 
         config = LLMConfig(provider="codex-cli")
         assert config.provider == "codex-cli"
@@ -271,7 +271,7 @@ class TestLLMInitTypeAnnotation:
 
     def test_llm_init_all_is_list_of_str(self) -> None:
         """Test that llm.__all__ is properly typed as list[str]."""
-        from pr_conflict_resolver.llm import __all__
+        from review_bot_automator.llm import __all__
 
         # Verify __all__ exists and is a list
         assert isinstance(__all__, list)

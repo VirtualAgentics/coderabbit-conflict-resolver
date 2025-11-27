@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from pr_conflict_resolver.utils.version_utils import validate_version_constraint
+from review_bot_automator.utils.version_utils import validate_version_constraint
 
 # Type alias for JSON dictionaries
 JSONDict = dict[str, object]

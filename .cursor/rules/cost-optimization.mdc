@@ -1,7 +1,7 @@
 ---
 title: Cost Optimization Guidelines
 description: Token counting, cost calculation, caching patterns, and budget management for LLM operations
-globs: ["src/pr_conflict_resolver/llm/**/*.py"]
+globs: ["src/review_bot_automator/llm/**/*.py"]
 alwaysApply: false
 ---
 

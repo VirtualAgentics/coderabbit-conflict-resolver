@@ -109,8 +109,8 @@ pr-resolve apply 123 \
 #!/usr/bin/env python3
 """Custom use case script template."""
 
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.config import PresetConfig
+from review_bot_automator import ConflictResolver
+from review_bot_automator.config import PresetConfig
 
 def main():
     resolver = ConflictResolver(config=PresetConfig.BALANCED)

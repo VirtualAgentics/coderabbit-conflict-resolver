@@ -11,7 +11,7 @@ alwaysApply: false
 ### Extract Common Logic
 When the same logic appears in 2+ files, extract to a utility module:
 
-1. **Create utility module:** `src/pr_conflict_resolver/utils/<domain>.py`
+1. **Create utility module:** `src/review_bot_automator/utils/<domain>.py`
 2. **Module structure:**
    ```python
    """Brief module description.

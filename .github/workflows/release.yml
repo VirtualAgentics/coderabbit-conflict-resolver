@@ -6,8 +6,8 @@ on:
       - "v*"
 
 concurrency:
-  group: release-${{ github.ref_name }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false  # Never cancel ongoing releases - could leave PyPI in inconsistent state
 
 permissions:
   contents: read
@@ -18,7 +18,8 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write  # Required to create GitHub releases and upload assets
-      id-token: write  # Required for trusted publishing to PyPI
+      id-token: write  # Required for trusted publishing to PyPI (OIDC)
+      attestations: write  # Required for Sigstore attestations
 
     steps:
       - name: Record job start time
@@ -51,11 +52,10 @@ jobs:
       - name: Validate wheel import
         run: python scripts/validate_wheel.py
 
-      - name: Publish to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: twine upload dist/*
+      - name: Publish to PyPI with attestations
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # release/v1
+        with:
+          attestations: true  # Sigstore attestations for OpenSSF Scorecard
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v2.4.2
@@ -72,7 +72,7 @@ jobs:
             ## Installation
 
             ```bash
-            python -m pip install pr-conflict-resolver
+            python -m pip install review-bot-automator
             ```
 
             ## Documentation
@@ -133,7 +133,7 @@ jobs:
           echo "- ✅ Package validated with twine" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Build metadata generated" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Wheel import validated" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Published to PyPI" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Published to PyPI with Sigstore attestations" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ GitHub Release created" >> $GITHUB_STEP_SUMMARY
 
       - name: Notify on failure
@@ -147,5 +147,5 @@ jobs:
           echo "Please check the workflow logs for details:" >> $GITHUB_STEP_SUMMARY
           echo "- Review failed steps above" >> $GITHUB_STEP_SUMMARY
           echo "- Check PyPI publish logs if package upload failed" >> $GITHUB_STEP_SUMMARY
-          echo "- Verify PYPI_API_TOKEN secret is configured correctly" >> $GITHUB_STEP_SUMMARY
+          echo "- Verify PyPI Trusted Publishing is configured correctly" >> $GITHUB_STEP_SUMMARY
           echo "- Ensure package version is unique (not already published)" >> $GITHUB_STEP_SUMMARY

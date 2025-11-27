@@ -91,7 +91,7 @@ CircuitBreakerOpen: Circuit breaker is open, retry in 45.2s
 ### Programmatic Handling
 
 ```python
-from pr_conflict_resolver.llm.resilience.circuit_breaker import (
+from review_bot_automator.llm.resilience.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerOpen,
     CircuitState,

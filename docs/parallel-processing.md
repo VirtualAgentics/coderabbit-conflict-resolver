@@ -303,8 +303,8 @@ pr-resolve apply --pr 123 --owner myorg --repo myrepo --config config.yaml
 #### Using ConflictResolver
 
 ```python
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.config import PresetConfig
+from review_bot_automator import ConflictResolver
+from review_bot_automator.config import PresetConfig
 
 # Initialize resolver
 resolver = ConflictResolver(config=PresetConfig.BALANCED)
@@ -326,7 +326,7 @@ print(f"Time: {results.elapsed_time:.2f}s")
 #### Using apply_changes Directly
 
 ```python
-from pr_conflict_resolver import ConflictResolver
+from review_bot_automator import ConflictResolver
 
 resolver = ConflictResolver()
 

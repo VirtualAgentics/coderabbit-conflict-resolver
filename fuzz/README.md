@@ -100,7 +100,7 @@ When fuzzing finds a crash:
 
 This infrastructure is **OSS-Fuzz compatible**. To migrate (post-v0.2.0):
 
-1. Copy files to `oss-fuzz/projects/pr-conflict-resolver/`
+1. Copy files to `oss-fuzz/projects/review-bot-automator/`
 2. Add `project.yaml` configuration
 3. Submit PR to [google/oss-fuzz](https://github.com/google/oss-fuzz)
 

@@ -6,7 +6,8 @@ We release patches for security vulnerabilities in the following versions:
 
 | Version | Supported |
 | ------- | ------------------ |
-| 0.1.x | :white_check_mark: |
+| 2.x | :white_check_mark: |
+| 0.1.x | :x: (pre-release, upgrade to 2.x) |
 | < 0.1 | :x: |
 
 ## Reporting a Vulnerability
@@ -89,28 +90,28 @@ Review Bot Automator implements multiple layers of security controls:
 
 ### Core Security Components
 
-1. **InputValidator** (`src/pr_conflict_resolver/security/input_validator.py`)
+1. **InputValidator** (`src/review_bot_automator/security/input_validator.py`)
    - Path traversal prevention
    - File path validation and normalization
    - URL validation (GitHub API)
    - Content validation (JSON, YAML, TOML)
    - Symlink detection and rejection
 
-2. **SecretScanner** (`src/pr_conflict_resolver/security/secret_scanner.py`)
+2. **SecretScanner** (`src/review_bot_automator/security/secret_scanner.py`)
    - 14+ secret pattern types detected
    - GitHub tokens, AWS keys, OpenAI API keys
    - JWT tokens, private keys, database credentials
    - False positive filtering
    - Pre-commit secret scanning
 
-3. **SecureFileHandler** (`src/pr_conflict_resolver/security/secure_file_handler.py`)
+3. **SecureFileHandler** (`src/review_bot_automator/security/secure_file_handler.py`)
    - Atomic file operations (os.replace)
    - File permission preservation
    - TOCTOU prevention
    - Rollback capabilities
    - Workspace containment enforcement
 
-4. **SecurityConfig** (`src/pr_conflict_resolver/security/config.py`)
+4. **SecurityConfig** (`src/review_bot_automator/security/config.py`)
    - Secure defaults configuration
    - Feature toggles for security controls
    - Configurable security policies
@@ -159,7 +160,7 @@ For developers and contributors, see:
 pytest tests/security/ -v
 
 # Run with coverage
-pytest tests/security/ --cov=src/pr_conflict_resolver/security
+pytest tests/security/ --cov=src/review_bot_automator/security
 
 # Run fuzzing locally
 docker run --rm -v $(pwd):/src gcr.io/oss-fuzz-base/base-builder-python \

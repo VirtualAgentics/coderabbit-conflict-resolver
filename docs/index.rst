@@ -26,14 +26,14 @@ Install the package:
 
 .. code-block:: bash
 
-   pip install pr-conflict-resolver
+   pip install review-bot-automator
 
 Basic usage:
 
 .. code-block:: python
 
-   from pr_conflict_resolver import ConflictResolver
-   from pr_conflict_resolver.config import PresetConfig
+   from review_bot_automator import ConflictResolver
+   from review_bot_automator.config import PresetConfig
 
    resolver = ConflictResolver(config=PresetConfig.BALANCED)
    results = resolver.resolve_pr_conflicts(

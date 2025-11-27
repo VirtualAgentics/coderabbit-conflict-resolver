@@ -330,7 +330,7 @@ The auto-download feature automatically downloads models when they're not availa
 **Via Python API**:
 
 ```python
-from pr_conflict_resolver.llm.providers.ollama import OllamaProvider
+from review_bot_automator.llm.providers.ollama import OllamaProvider
 
 # Auto-download enabled
 provider = OllamaProvider(

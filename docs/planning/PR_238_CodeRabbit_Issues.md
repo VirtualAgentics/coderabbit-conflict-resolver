@@ -22,7 +22,7 @@ This document lists all 8 actionable CodeRabbit review comments from PR #238 tha
 
 ### Issue 2: Duplicated LLM Parser Initialization Logic
 
-**File**: `src/pr_conflict_resolver/cli/main.py` (lines 489-495, 503-529, 921-928, 936-962)
+**File**: `src/review_bot_automator/cli/main.py` (lines 489-495, 503-529, 921-928, 936-962)
 
 - **Severity**: 🧹 Nitpick | 🔵 Trivial
 - **Problem**: LLM parser creation logic is duplicated across `analyze` and `apply` commands
@@ -31,7 +31,7 @@ This document lists all 8 actionable CodeRabbit review comments from PR #238 tha
 
 ### Issue 3: Missing Env Var Documentation and Config File Error Handling
 
-**File**: `src/pr_conflict_resolver/config/runtime_config.py` (lines 98-117, 388-406, 468-479, 746-805)
+**File**: `src/review_bot_automator/config/runtime_config.py` (lines 98-117, 388-406, 468-479, 746-805)
 
 - **Severity**: 🧹 Nitpick | 🔵 Trivial
 - **Problem 1**: `from_env` docstring missing new env vars: `CR_LLM_PARALLEL_PARSING`, `CR_LLM_PARALLEL_WORKERS`, `CR_LLM_RATE_LIMIT`
@@ -58,7 +58,7 @@ This document lists all 8 actionable CodeRabbit review comments from PR #238 tha
 
 ### Issue 4: Duplicated Regex Fallback Logic
 
-**File**: `src/pr_conflict_resolver/core/resolver.py` (lines 144-197, 256-365, 374-430)
+**File**: `src/review_bot_automator/core/resolver.py` (lines 144-197, 256-365, 374-430)
 
 - **Severity**: 🧹 Nitpick | 🔵 Trivial
 - **Problem**: `_extract_changes_sequential` duplicates regex parsing logic that exists in `_extract_changes_with_regex_fallback`
@@ -76,7 +76,7 @@ This document lists all 8 actionable CodeRabbit review comments from PR #238 tha
 
 ### Issue 5: Progress Callback Called Inside Lock
 
-**File**: `src/pr_conflict_resolver/llm/parallel_parser.py` (lines 172-296)
+**File**: `src/review_bot_automator/llm/parallel_parser.py` (lines 172-296)
 
 - **Severity**: 🧹 Nitpick | 🔵 Trivial
 - **Problem**: `progress_callback` is invoked while holding `completed_lock`, which keeps lock held during potentially heavy callback work
@@ -96,7 +96,7 @@ This document lists all 8 actionable CodeRabbit review comments from PR #238 tha
 
 ### Issue 6: _parse_sequential Error Semantics Don't Match parse_comment
 
-**File**: `src/pr_conflict_resolver/llm/parallel_parser.py` (lines 297-307, 309-357)
+**File**: `src/review_bot_automator/llm/parallel_parser.py` (lines 297-307, 309-357)
 
 - **Severity**: ⚠️ Potential issue | 🟡 Minor
 - **Problem**: `_parse_sequential` swallows all exceptions and returns `[]`, but `parse_comment` may raise when `fallback_to_regex=False`
@@ -128,7 +128,7 @@ This document lists all 8 actionable CodeRabbit review comments from PR #238 tha
 
 ### CodeQL Issues
 
-- **File**: `src/pr_conflict_resolver/llm/parallel_parser.py` lines 50, 55
+- **File**: `src/review_bot_automator/llm/parallel_parser.py` lines 50, 55
 - **Problem**: "Statement has no effect" warnings for `...` in Protocol definition
 - **Fix**: Add `# noqa: B018` or similar suppression comment
 

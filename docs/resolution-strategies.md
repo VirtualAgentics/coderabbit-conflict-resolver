@@ -41,7 +41,7 @@ Result: Apply security fix, skip formatting
 **Configuration:**
 
 ```python
-from pr_conflict_resolver import PriorityStrategy
+from review_bot_automator import PriorityStrategy
 
 strategy = PriorityStrategy(config={
     "priority_rules": {
@@ -230,7 +230,7 @@ config = PresetConfig.SEMANTIC
 You can implement custom resolution strategies:
 
 ```python
-from pr_conflict_resolver.core.models import Conflict, Resolution
+from review_bot_automator.core.models import Conflict, Resolution
 
 class CustomStrategy:
     """Custom resolution strategy."""

@@ -168,10 +168,10 @@ This document captures the GitHub setup process for the Review Bot Automator pro
 
 **Modules Implemented**:
 
-1. `src/pr_conflict_resolver/security/input_validator.py` (194/198 statements, 98%)
-2. `src/pr_conflict_resolver/security/secret_scanner.py` (111/113 statements, 98%)
-3. `src/pr_conflict_resolver/security/secure_file_handler.py` (95/96 statements, 97%)
-4. `src/pr_conflict_resolver/security/config.py` (35/42 statements, 76%)
+1. `src/review_bot_automator/security/input_validator.py` (194/198 statements, 98%)
+2. `src/review_bot_automator/security/secret_scanner.py` (111/113 statements, 98%)
+3. `src/review_bot_automator/security/secure_file_handler.py` (95/96 statements, 97%)
+4. `src/review_bot_automator/security/config.py` (35/42 statements, 76%)
 
 **Documentation Created**:
 

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from pr_conflict_resolver.handlers.toml_handler import TomlHandler
+from review_bot_automator.handlers.toml_handler import TomlHandler
 
 
 class TestTomlFormattingPreservation:

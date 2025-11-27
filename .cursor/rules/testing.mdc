@@ -104,7 +104,7 @@ def sample_conflict():
 Mock external dependencies:
 
 ```python
-@patch('pr_conflict_resolver.integrations.github.GitHubCommentExtractor.fetch_pr_comments')
+@patch('review_bot_automator.integrations.github.GitHubCommentExtractor.fetch_pr_comments')
 def test_resolve_pr_conflicts(mock_fetch):
     """Test PR conflict resolution with mocked GitHub API."""
     mock_fetch.return_value = sample_comments
@@ -212,7 +212,7 @@ Mock LLM providers in unit tests:
 ```python
 from unittest.mock import MagicMock, patch
 
-@patch("pr_conflict_resolver.llm.providers.openai_api.OpenAIAPIProvider")
+@patch("review_bot_automator.llm.providers.openai_api.OpenAIAPIProvider")
 def test_parser_with_mocked_provider(mock_provider_class):
     """Test parser with mocked OpenAI provider."""
     mock_provider = MagicMock()
@@ -250,7 +250,7 @@ Test retry behavior:
 
 ```python
 from unittest.mock import patch, side_effect
-from pr_conflict_resolver.llm.exceptions import LLMTimeoutError
+from review_bot_automator.llm.exceptions import LLMTimeoutError
 
 def test_retry_on_timeout():
     """Test that provider retries on timeout."""

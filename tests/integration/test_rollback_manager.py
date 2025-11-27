@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from pr_conflict_resolver.core.rollback import RollbackError, RollbackManager
+from review_bot_automator.core.rollback import RollbackError, RollbackManager
 
 
 class TestRollbackManagerIntegration:

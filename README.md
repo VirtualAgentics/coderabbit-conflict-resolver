@@ -68,7 +68,7 @@ When multiple PR review comments suggest overlapping changes to the same file, t
 ### Installation
 
 ```bash
-pip install pr-conflict-resolver
+pip install review-bot-automator
 ```
 
 ### Basic Usage
@@ -163,8 +163,8 @@ pr-resolve apply --owner VirtualAgentics --repo my-repo --pr 123
 ### Python API
 
 ```python
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.config import PresetConfig
+from review_bot_automator import ConflictResolver
+from review_bot_automator.config import PresetConfig
 
 resolver = ConflictResolver(config=PresetConfig.BALANCED)
 results = resolver.resolve_pr_conflicts(
@@ -423,7 +423,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 📊 Project Status
 
-**Current Version**: 0.1.0 (Alpha)
+**Current Version**: 2.0.0
 
 **Roadmap**:
 
@@ -568,12 +568,19 @@ pr-resolve apply --llm-preset ollama-local --owner VirtualAgentics --repo my-rep
 
 ### Backward Compatibility Guarantee
 
-✅ **Zero Breaking Changes** - All v1.x code works unchanged in v2.0
+✅ **Runtime Behavior Preserved** - v2.0 maintains full compatibility for CLI and API usage
 
 - LLM parsing **disabled by default** (opt-in via `--llm` flag)
 - Automatic **fallback to regex** if LLM fails
 - v1.x CLI commands **work identically**
-- v1.x Python API **unchanged**
+- v1.x Python API **behavior unchanged**
+
+⚠️ **Package Rename**: v2.0 renamed the package from `pr-conflict-resolver` to `review-bot-automator`. Update your imports and dependencies:
+
+- Import: `from review_bot_automator import ...` (was `pr_conflict_resolver`)
+- Dependency: `review-bot-automator` in requirements.txt (was `pr-conflict-resolver`)
+
+See [Migration Guide](docs/migration.md) for details.
 
 ### Enhanced Change Metadata
 

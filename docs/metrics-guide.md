@@ -170,7 +170,7 @@ savings = cache_hits × avg_non_cache_cost
 Use the `MetricsAggregator` class for custom integrations:
 
 ```python
-from pr_conflict_resolver.llm.metrics_aggregator import MetricsAggregator
+from review_bot_automator.llm.metrics_aggregator import MetricsAggregator
 from pathlib import Path
 
 # Create aggregator

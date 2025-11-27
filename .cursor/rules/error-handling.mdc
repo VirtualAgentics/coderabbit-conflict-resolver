@@ -1,7 +1,7 @@
 ---
 title: Error Handling Guidelines
 description: LLM-specific exceptions, retry logic, circuit breaker pattern, error context, and fallback strategies
-globs: ["src/pr_conflict_resolver/llm/**/*.py", "src/pr_conflict_resolver/**/*.py"]
+globs: ["src/review_bot_automator/llm/**/*.py", "src/review_bot_automator/**/*.py"]
 alwaysApply: false
 ---
 
@@ -14,7 +14,7 @@ alwaysApply: false
 Use the standard LLM exception hierarchy from `llm/exceptions.py`:
 
 ```python
-from pr_conflict_resolver.llm.exceptions import (
+from review_bot_automator.llm.exceptions import (
     LLMError,                    # Base exception
     LLMProviderError,            # Provider-level failures
     LLMAPIError,                 # API communication failures

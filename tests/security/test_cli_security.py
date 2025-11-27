@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 import pytest
 from click.testing import CliRunner
 
-from pr_conflict_resolver.cli.main import MAX_GITHUB_USERNAME_LENGTH, cli
+from review_bot_automator.cli.main import MAX_GITHUB_USERNAME_LENGTH, cli
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +29,7 @@ def _stub_github(monkeypatch: pytest.MonkeyPatch) -> None:
         return []
 
     monkeypatch.setattr(
-        "pr_conflict_resolver.integrations.github.GitHubCommentExtractor.fetch_pr_comments",
+        "review_bot_automator.integrations.github.GitHubCommentExtractor.fetch_pr_comments",
         _no_comments,
         raising=True,
     )
@@ -476,7 +476,7 @@ class TestOutputSanitization:
 class TestCommandSuccessPaths:
     """Test successful command execution paths."""
 
-    @patch("pr_conflict_resolver.core.resolver.ConflictResolver.analyze_conflicts")
+    @patch("review_bot_automator.core.resolver.ConflictResolver.analyze_conflicts")
     def test_analyze_command_success_path(self, mock_analyze: Mock) -> None:
         """Test analyze command success path."""
         mock_analyze.return_value = []
@@ -487,10 +487,10 @@ class TestCommandSuccessPaths:
         assert result.exit_code == 0
         assert "No conflicts detected" in result.output
 
-    @patch("pr_conflict_resolver.core.resolver.ConflictResolver.analyze_conflicts")
+    @patch("review_bot_automator.core.resolver.ConflictResolver.analyze_conflicts")
     def test_analyze_command_with_conflicts(self, mock_analyze: Mock) -> None:
         """Test analyze command with conflicts."""
-        from pr_conflict_resolver.core.models import Change, Conflict, FileType
+        from review_bot_automator.core.models import Change, Conflict, FileType
 
         mock_conflict = Conflict(
             file_path="test.py",
@@ -518,10 +518,10 @@ class TestCommandSuccessPaths:
         assert result.exit_code == 0
         assert "Found 1 conflicts" in result.output
 
-    @patch("pr_conflict_resolver.core.resolver.ConflictResolver.resolve_pr_conflicts")
+    @patch("review_bot_automator.core.resolver.ConflictResolver.resolve_pr_conflicts")
     def test_apply_command_success_path(self, mock_resolve: Mock) -> None:
         """Test apply command success path."""
-        from pr_conflict_resolver.core.models import ResolutionResult
+        from review_bot_automator.core.models import ResolutionResult
 
         mock_result = ResolutionResult(
             applied_count=5,
@@ -540,10 +540,10 @@ class TestCommandSuccessPaths:
         assert "Skipped: 2 conflicts" in result.output
         assert "Success rate: 71.4%" in result.output
 
-    @patch("pr_conflict_resolver.core.resolver.ConflictResolver.analyze_conflicts")
+    @patch("review_bot_automator.core.resolver.ConflictResolver.analyze_conflicts")
     def test_simulate_command_success_path(self, mock_analyze: Mock) -> None:
         """Test simulate command success path."""
-        from pr_conflict_resolver.core.models import Change, Conflict, FileType
+        from review_bot_automator.core.models import Change, Conflict, FileType
 
         mock_conflict = Conflict(
             file_path="test.py",

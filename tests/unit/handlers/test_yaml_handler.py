@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from pr_conflict_resolver.core.models import Change, FileType
-from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
+from review_bot_automator.core.models import Change, FileType
+from review_bot_automator.handlers.yaml_handler import YamlHandler
 
 
 def test_yaml_can_handle_extensions() -> None:

@@ -148,7 +148,7 @@ pip install new-package
 
 ```bash
 source .venv/bin/activate
-mypy src/pr_conflict_resolver/analysis/conflict_detector.py
+mypy src/review_bot_automator/analysis/conflict_detector.py
 pytest tests/unit/test_conflict_detector.py -v
 black --check src/
 ruff check src/ --fix

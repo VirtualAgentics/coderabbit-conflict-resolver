@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pr_conflict_resolver.utils.path_utils import resolve_file_path
+from review_bot_automator.utils.path_utils import resolve_file_path
 
 
 def test_resolve_relative_and_absolute_contained(tmp_path: Path) -> None:

@@ -2,7 +2,7 @@
 
 import pytest
 
-from pr_conflict_resolver.security.config import SecurityConfig
+from review_bot_automator.security.config import SecurityConfig
 
 
 class TestSecurityConfigDefaults:

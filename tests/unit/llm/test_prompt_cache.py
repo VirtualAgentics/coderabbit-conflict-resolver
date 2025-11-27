@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from pr_conflict_resolver.llm.cache import PromptCache
+from review_bot_automator.llm.cache import PromptCache
 
 
 class TestCacheInitialization:

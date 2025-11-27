@@ -10,8 +10,8 @@ import os
 import pytest
 import requests
 
-from pr_conflict_resolver.llm.exceptions import LLMAPIError, LLMConfigurationError
-from pr_conflict_resolver.llm.providers.ollama import OllamaProvider
+from review_bot_automator.llm.exceptions import LLMAPIError, LLMConfigurationError
+from review_bot_automator.llm.providers.ollama import OllamaProvider
 
 from ._helpers import guarded_call, handle_provider_exception
 

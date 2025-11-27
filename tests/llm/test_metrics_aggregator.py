@@ -17,12 +17,12 @@ from pathlib import Path
 
 import pytest
 
-from pr_conflict_resolver.llm.metrics import (
+from review_bot_automator.llm.metrics import (
     AggregatedMetrics,
     ProviderStats,
     RequestMetrics,
 )
-from pr_conflict_resolver.llm.metrics_aggregator import MetricsAggregator
+from review_bot_automator.llm.metrics_aggregator import MetricsAggregator
 
 
 class TestRequestMetrics:

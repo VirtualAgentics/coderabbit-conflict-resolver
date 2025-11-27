@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from pr_conflict_resolver.llm.cost_tracker import CostStatus, CostTracker
+from review_bot_automator.llm.cost_tracker import CostStatus, CostTracker
 
 
 class TestCostStatus:

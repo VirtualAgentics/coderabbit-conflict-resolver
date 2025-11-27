@@ -19,7 +19,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from pr_conflict_resolver.handlers.json_handler import JsonHandler
+from review_bot_automator.handlers.json_handler import JsonHandler
 
 # =============================================================================
 # Hypothesis Strategies for JSON

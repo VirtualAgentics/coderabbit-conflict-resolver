@@ -13,13 +13,13 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from pr_conflict_resolver.llm.exceptions import (
+from review_bot_automator.llm.exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
     LLMConfigurationError,
 )
-from pr_conflict_resolver.llm.providers.base import LLMProvider
-from pr_conflict_resolver.llm.providers.codex_cli import CodexCLIProvider
+from review_bot_automator.llm.providers.base import LLMProvider
+from review_bot_automator.llm.providers.codex_cli import CodexCLIProvider
 
 
 class TestCodexCLIProviderProtocol:

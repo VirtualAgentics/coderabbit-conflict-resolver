@@ -9,8 +9,8 @@ Complete API reference for Review Bot Automator.
 Main class for conflict resolution operations.
 
 ```python
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.config import PresetConfig
+from review_bot_automator import ConflictResolver
+from review_bot_automator.config import PresetConfig
 
 resolver = ConflictResolver(config=PresetConfig.BALANCED)
 
@@ -141,7 +141,7 @@ Resolve all conflicts in a pull request and return results.
 **Example:**
 
 ```python
-from pr_conflict_resolver.config.runtime_config import ApplicationMode
+from review_bot_automator.config.runtime_config import ApplicationMode
 
 # Apply only conflicting changes with rollback
 results = resolver.resolve_pr_conflicts(
@@ -252,7 +252,7 @@ print(f"Non-conflicting: {len(non_conflicting)}")
 Manages git-based rollback checkpoints for safe change application.
 
 ```python
-from pr_conflict_resolver.core.rollback import RollbackManager
+from review_bot_automator.core.rollback import RollbackManager
 
 rollback_manager = RollbackManager(workspace_root="/path/to/repo")
 
@@ -325,7 +325,7 @@ with RollbackManager(workspace_root="/path/to/repo") as rollback:
 Runtime configuration with multiple source support (defaults, file, env, CLI).
 
 ```python
-from pr_conflict_resolver.config.runtime_config import RuntimeConfig, ApplicationMode
+from review_bot_automator.config.runtime_config import RuntimeConfig, ApplicationMode
 
 # Load from defaults
 config = RuntimeConfig.from_defaults()
@@ -462,7 +462,7 @@ config = config.merge_with_cli(
 Enumeration of application modes.
 
 ```python
-from pr_conflict_resolver.config.runtime_config import ApplicationMode
+from review_bot_automator.config.runtime_config import ApplicationMode
 
 ApplicationMode.ALL  # Apply both conflicting and non-conflicting changes (default)
 ApplicationMode.CONFLICTS_ONLY  # Apply only conflicting changes
@@ -474,8 +474,8 @@ ApplicationMode.DRY_RUN  # Analyze without applying changes
 **Usage:**
 
 ```python
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.config.runtime_config import ApplicationMode
+from review_bot_automator import ConflictResolver
+from review_bot_automator.config.runtime_config import ApplicationMode
 
 resolver = ConflictResolver()
 results = resolver.resolve_pr_conflicts(
@@ -492,7 +492,7 @@ results = resolver.resolve_pr_conflicts(
 Enumeration of supported file types.
 
 ```python
-from pr_conflict_resolver.core.models import FileType
+from review_bot_automator.core.models import FileType
 
 FileType.JSON  # JSON files
 FileType.YAML  # YAML files
@@ -523,7 +523,7 @@ class Change:
 **Example:**
 
 ```python
-from pr_conflict_resolver.core.models import Change, FileType
+from review_bot_automator.core.models import Change, FileType
 
 change = Change(
     path="config.json",
@@ -604,7 +604,7 @@ class ResolutionResult:
 Abstract base class for all file handlers.
 
 ```python
-from pr_conflict_resolver.handlers.base import BaseHandler
+from review_bot_automator.handlers.base import BaseHandler
 
 ```
 
@@ -641,7 +641,7 @@ Restore a file from backup.
 Handler for JSON files.
 
 ```python
-from pr_conflict_resolver.handlers.json_handler import JsonHandler
+from review_bot_automator.handlers.json_handler import JsonHandler
 
 handler = JsonHandler()
 
@@ -658,7 +658,7 @@ Extends `BaseHandler` with JSON-specific logic:
 Handler for YAML files.
 
 ```python
-from pr_conflict_resolver.handlers.yaml_handler import YamlHandler
+from review_bot_automator.handlers.yaml_handler import YamlHandler
 
 handler = YamlHandler()
 
@@ -675,7 +675,7 @@ Extends `BaseHandler` with YAML-specific logic:
 Handler for TOML files.
 
 ```python
-from pr_conflict_resolver.handlers.toml_handler import TomlHandler
+from review_bot_automator.handlers.toml_handler import TomlHandler
 
 handler = TomlHandler()
 
@@ -694,7 +694,7 @@ Extends `BaseHandler` with TOML-specific logic:
 Priority-based resolution strategy.
 
 ```python
-from pr_conflict_resolver.strategies.priority_strategy import PriorityStrategy
+from review_bot_automator.strategies.priority_strategy import PriorityStrategy
 
 strategy = PriorityStrategy(config={
     "priority_rules": {
@@ -726,7 +726,7 @@ Resolve a conflict using priority rules.
 Extract comments from GitHub PRs.
 
 ```python
-from pr_conflict_resolver.integrations.github import GitHubCommentExtractor
+from review_bot_automator.integrations.github import GitHubCommentExtractor
 
 extractor = GitHubCommentExtractor(token="your_token")
 
@@ -773,7 +773,7 @@ for comment in comments:
 Predefined configuration presets.
 
 ```python
-from pr_conflict_resolver.config import PresetConfig
+from review_bot_automator.config import PresetConfig
 
 # Available presets
 PresetConfig.CONSERVATIVE
@@ -788,7 +788,7 @@ PresetConfig.SEMANTIC
 ### Text Utilities
 
 ```python
-from pr_conflict_resolver.utils.text import normalize_content
+from review_bot_automator.utils.text import normalize_content
 
 normalized = normalize_content("some  content\n\nwith   spaces")
 
@@ -832,8 +832,8 @@ Simulate conflict resolution without applying changes.
 ### Basic Usage
 
 ```python
-from pr_conflict_resolver import ConflictResolver
-from pr_conflict_resolver.config import PresetConfig
+from review_bot_automator import ConflictResolver
+from review_bot_automator.config import PresetConfig
 
 # Initialize resolver
 resolver = ConflictResolver(config=PresetConfig.BALANCED)
@@ -867,8 +867,8 @@ resolver = ConflictResolver(config=custom_config)
 ### Custom Handler
 
 ```python
-from pr_conflict_resolver.handlers.base import BaseHandler
-from pr_conflict_resolver.core.models import Change, Conflict
+from review_bot_automator.handlers.base import BaseHandler
+from review_bot_automator.core.models import Change, Conflict
 
 class CustomHandler(BaseHandler):
     def can_handle(self, file_path: str) -> bool:
@@ -891,7 +891,7 @@ class CustomHandler(BaseHandler):
 ### Custom Strategy
 
 ```python
-from pr_conflict_resolver.core.models import Conflict, Resolution
+from review_bot_automator.core.models import Conflict, Resolution
 
 class CustomStrategy:
     def resolve(self, conflict: Conflict) -> Resolution:
@@ -915,7 +915,7 @@ The LLM module provides AI-powered parsing of CodeRabbit review comments. This e
 Protocol defining the interface for all LLM providers. All 5 providers implement this protocol.
 
 ```python
-from pr_conflict_resolver.llm.providers.base import LLMProvider
+from review_bot_automator.llm.providers.base import LLMProvider
 
 ```
 
@@ -966,7 +966,7 @@ All 5 providers are production-ready:
 **Example:**
 
 ```python
-from pr_conflict_resolver.llm.providers.ollama import OllamaProvider
+from review_bot_automator.llm.providers.ollama import OllamaProvider
 
 provider = OllamaProvider(
     model="llama3.3:70b",
@@ -981,7 +981,7 @@ response = provider.generate("Explain Python decorators", max_tokens=500)
 Intermediate representation of a change parsed by an LLM.
 
 ```python
-from pr_conflict_resolver.llm.base import ParsedChange
+from review_bot_automator.llm.base import ParsedChange
 
 @dataclass
 class ParsedChange:
@@ -1017,7 +1017,7 @@ change = ParsedChange(
 Abstract base class for LLM-powered comment parsers.
 
 ```python
-from pr_conflict_resolver.llm.base import LLMParser
+from review_bot_automator.llm.base import LLMParser
 
 ```
 
@@ -1042,7 +1042,7 @@ Parse a GitHub comment using the LLM provider.
 Create providers using the factory function:
 
 ```python
-from pr_conflict_resolver.llm.factory import create_provider
+from review_bot_automator.llm.factory import create_provider
 
 # Create Ollama provider
 provider = create_provider({
@@ -1064,7 +1064,7 @@ provider = create_provider({
 File-based caching system for LLM responses to reduce costs.
 
 ```python
-from pr_conflict_resolver.llm.cache.prompt_cache import PromptCache
+from review_bot_automator.llm.cache.prompt_cache import PromptCache
 
 cache = PromptCache(
     cache_dir=".llm-cache",

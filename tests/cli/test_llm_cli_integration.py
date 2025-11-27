@@ -10,15 +10,15 @@ from unittest.mock import Mock, patch
 import pytest
 from click.testing import CliRunner
 
-from pr_conflict_resolver.cli.main import (
+from review_bot_automator.cli.main import (
     _display_aggregated_metrics,
     _display_llm_metrics,
     _export_metrics,
     cli,
 )
-from pr_conflict_resolver.config.exceptions import ConfigError
-from pr_conflict_resolver.config.runtime_config import ApplicationMode
-from pr_conflict_resolver.llm.exceptions import (
+from review_bot_automator.config.exceptions import ConfigError
+from review_bot_automator.config.runtime_config import ApplicationMode
+from review_bot_automator.llm.exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
     LLMConfigurationError,
@@ -27,9 +27,9 @@ from pr_conflict_resolver.llm.exceptions import (
     LLMSecretDetectedError,
     LLMTimeoutError,
 )
-from pr_conflict_resolver.llm.metrics import LLMMetrics
-from pr_conflict_resolver.llm.metrics_aggregator import MetricsAggregator
-from pr_conflict_resolver.security.secret_scanner import SecretFinding, Severity
+from review_bot_automator.llm.metrics import LLMMetrics
+from review_bot_automator.llm.metrics_aggregator import MetricsAggregator
+from review_bot_automator.security.secret_scanner import SecretFinding, Severity
 
 
 def _populate_runtime_config_mock(cfg: Mock) -> Mock:
@@ -203,7 +203,7 @@ class TestApplyCommandLLMIntegration:
 
     def test_apply_displays_metrics_on_success(self, cli_runner: CliRunner) -> None:
         """Test apply command displays LLM metrics when available."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class:
             # Mock resolver to return result with metrics
             mock_resolver = mock_resolver_class.return_value
             mock_result = Mock(
@@ -243,7 +243,7 @@ class TestApplyCommandLLMIntegration:
 
     def test_apply_handles_none_llm_metrics_gracefully(self, cli_runner: CliRunner) -> None:
         """Test apply command succeeds when llm_metrics is None (no LLM parsing used)."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class:
             # Mock resolver to return result WITHOUT metrics (regex parsing scenario)
             mock_resolver = mock_resolver_class.return_value
             mock_result = Mock(
@@ -279,7 +279,7 @@ class TestApplyCommandLLMIntegration:
 
     def test_apply_handles_auth_error(self, cli_runner: CliRunner) -> None:
         """Test apply command handles LLM authentication errors."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
             mock_resolver.resolve_pr_conflicts.side_effect = LLMAuthenticationError(
                 "Invalid API key"
@@ -304,7 +304,7 @@ class TestApplyCommandLLMIntegration:
 
     def test_apply_handles_rate_limit_error(self, cli_runner: CliRunner) -> None:
         """Test apply command handles LLM rate limit errors."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
             mock_resolver.resolve_pr_conflicts.side_effect = LLMRateLimitError(
                 "Rate limit exceeded"
@@ -329,7 +329,7 @@ class TestApplyCommandLLMIntegration:
 
     def test_apply_handles_timeout_error(self, cli_runner: CliRunner) -> None:
         """Test apply command handles LLM timeout errors."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
             mock_resolver.resolve_pr_conflicts.side_effect = LLMTimeoutError("Request timed out")
 
@@ -352,7 +352,7 @@ class TestApplyCommandLLMIntegration:
 
     def test_apply_handles_config_error(self, cli_runner: CliRunner) -> None:
         """Test apply command handles LLM configuration errors."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
             mock_resolver.resolve_pr_conflicts.side_effect = LLMConfigurationError(
                 "Invalid model name"
@@ -379,7 +379,7 @@ class TestApplyCommandLLMIntegration:
 
     def test_apply_handles_api_error(self, cli_runner: CliRunner) -> None:
         """Test apply command handles generic LLM API errors."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
             mock_resolver.resolve_pr_conflicts.side_effect = LLMAPIError("Service unavailable")
 
@@ -402,7 +402,7 @@ class TestApplyCommandLLMIntegration:
 
     def test_apply_handles_error_with_none_llm_provider(self, cli_runner: CliRunner) -> None:
         """Test error handlers correctly handle llm_provider=None without AttributeError."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
             mock_resolver.resolve_pr_conflicts.side_effect = LLMAuthenticationError(
                 "Authentication failed"
@@ -435,7 +435,7 @@ class TestApplyCommandLLMIntegration:
 
     def test_apply_handles_parsing_error(self, cli_runner: CliRunner) -> None:
         """Test apply command handles LLM parsing errors with warning (non-aborting)."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
             mock_resolver.resolve_pr_conflicts.side_effect = LLMParsingError(
                 "Failed to parse LLM response"
@@ -462,7 +462,7 @@ class TestApplyCommandLLMIntegration:
 
     def test_apply_handles_secret_detected_error(self, cli_runner: CliRunner) -> None:
         """Test apply command handles LLMSecretDetectedError (aborts with security message)."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
             # Create mock findings for the error
             mock_finding = SecretFinding(
@@ -505,7 +505,7 @@ class TestApplyCommandLLMIntegration:
         self, cli_runner: CliRunner
     ) -> None:
         """Test apply command handles LLMSecretDetectedError with multiple secret types."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
             # Create mock findings with multiple secret types
             findings = [
@@ -641,9 +641,9 @@ class TestApplyCommandLLMPreset:
     ) -> None:
         """Test apply command with various --llm-preset options."""
         with (
-            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class,
             patch(
-                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
+                "review_bot_automator.cli.config_loader.RuntimeConfig.from_preset",
                 return_value=mock_preset_config,
             ) as mock_from_preset,
         ):
@@ -682,9 +682,9 @@ class TestApplyCommandLLMPreset:
     ) -> None:
         """Test that individual --llm-* flags override preset values."""
         with (
-            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class,
             patch(
-                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
+                "review_bot_automator.cli.config_loader.RuntimeConfig.from_preset",
                 return_value=mock_preset_config,
             ) as mock_from_preset,
         ):
@@ -734,9 +734,9 @@ class TestApplyCommandLLMPreset:
     ) -> None:
         """Test that --config preset takes priority over --llm-preset."""
         with (
-            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class,
             patch(
-                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset"
+                "review_bot_automator.cli.config_loader.RuntimeConfig.from_preset"
             ) as mock_from_preset,
         ):
             mock_resolver = mock_resolver_class.return_value
@@ -799,9 +799,9 @@ class TestApplyCommandLLMPreset:
     ) -> None:
         """Test apply command accepts preset names case-insensitively."""
         with (
-            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class,
             patch(
-                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
+                "review_bot_automator.cli.config_loader.RuntimeConfig.from_preset",
                 return_value=mock_preset_config,
             ) as mock_from_preset,
         ):
@@ -839,7 +839,7 @@ class TestApplyCommandLLMPreset:
     def test_apply_preset_loading_error(self, cli_runner: CliRunner) -> None:
         """Test that preset loading errors are handled gracefully."""
         with patch(
-            "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
+            "review_bot_automator.cli.config_loader.RuntimeConfig.from_preset",
             side_effect=ConfigError("Invalid preset configuration"),
         ):
             result = cli_runner.invoke(
@@ -887,9 +887,9 @@ class TestAnalyzeCommandLLMPreset:
     ) -> None:
         """Test analyze command with various --llm-preset options."""
         with (
-            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class,
             patch(
-                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
+                "review_bot_automator.cli.config_loader.RuntimeConfig.from_preset",
                 return_value=mock_preset_config,
             ) as mock_from_preset,
         ):
@@ -922,9 +922,9 @@ class TestAnalyzeCommandLLMPreset:
     ) -> None:
         """Test that individual --llm-* flags override preset values."""
         with (
-            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class,
             patch(
-                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
+                "review_bot_automator.cli.config_loader.RuntimeConfig.from_preset",
                 return_value=mock_preset_config,
             ) as mock_from_preset,
         ):
@@ -968,9 +968,9 @@ class TestAnalyzeCommandLLMPreset:
     ) -> None:
         """Test that --config preset takes priority over --llm-preset."""
         with (
-            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class,
             patch(
-                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset"
+                "review_bot_automator.cli.config_loader.RuntimeConfig.from_preset"
             ) as mock_from_preset,
         ):
             mock_resolver = mock_resolver_class.return_value
@@ -1027,9 +1027,9 @@ class TestAnalyzeCommandLLMPreset:
     ) -> None:
         """Test analyze command accepts preset names case-insensitively."""
         with (
-            patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class,
+            patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class,
             patch(
-                "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
+                "review_bot_automator.cli.config_loader.RuntimeConfig.from_preset",
                 return_value=mock_preset_config,
             ) as mock_from_preset,
         ):
@@ -1061,7 +1061,7 @@ class TestAnalyzeCommandLLMPreset:
     def test_analyze_preset_loading_error(self, cli_runner: CliRunner) -> None:
         """Test that preset loading errors are handled gracefully."""
         with patch(
-            "pr_conflict_resolver.cli.config_loader.RuntimeConfig.from_preset",
+            "review_bot_automator.cli.config_loader.RuntimeConfig.from_preset",
             side_effect=ConfigError("Invalid preset configuration"),
         ):
             result = cli_runner.invoke(
@@ -1085,7 +1085,7 @@ class TestAnalyzeCommandLLMPreset:
 
     def test_analyze_handles_secret_detected_error(self, cli_runner: CliRunner) -> None:
         """Test analyze command handles LLMSecretDetectedError (aborts with security message)."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
             # Create mock findings for the error
             mock_finding = SecretFinding(
@@ -1128,7 +1128,7 @@ class TestAnalyzeCommandLLMPreset:
         self, cli_runner: CliRunner
     ) -> None:
         """Test analyze command handles LLMSecretDetectedError with multiple secret types."""
-        with patch("pr_conflict_resolver.cli.main.ConflictResolver") as mock_resolver_class:
+        with patch("review_bot_automator.cli.main.ConflictResolver") as mock_resolver_class:
             mock_resolver = mock_resolver_class.return_value
             # Create mock findings with multiple secret types
             findings = [
@@ -1181,7 +1181,7 @@ class TestDisplayAggregatedMetrics:
 
     def test_display_aggregated_metrics_basic(self, capsys: pytest.CaptureFixture[str]) -> None:
         """Display aggregated metrics with provider stats and verify output content."""
-        from pr_conflict_resolver.llm.metrics import RequestMetrics
+        from review_bot_automator.llm.metrics import RequestMetrics
 
         aggregator = MetricsAggregator()
         # Add some requests via record_request
@@ -1240,7 +1240,7 @@ class TestExportMetrics:
         """Export metrics to JSON format."""
         import json
 
-        from pr_conflict_resolver.llm.metrics import RequestMetrics
+        from review_bot_automator.llm.metrics import RequestMetrics
 
         aggregator = MetricsAggregator()
         # Add a request via record_request
@@ -1268,7 +1268,7 @@ class TestExportMetrics:
 
     def test_export_metrics_csv(self, tmp_path: Path) -> None:
         """Export metrics to CSV format."""
-        from pr_conflict_resolver.llm.metrics import RequestMetrics
+        from review_bot_automator.llm.metrics import RequestMetrics
 
         aggregator = MetricsAggregator()
         metrics = RequestMetrics(
@@ -1297,7 +1297,7 @@ class TestExportMetrics:
         """Export metrics with full detail level."""
         import json
 
-        from pr_conflict_resolver.llm.metrics import RequestMetrics
+        from review_bot_automator.llm.metrics import RequestMetrics
 
         aggregator = MetricsAggregator()
         metrics = RequestMetrics(
@@ -1328,7 +1328,7 @@ class TestExportMetrics:
         """Export metrics with unsupported file extension defaults to JSON."""
         import json
 
-        from pr_conflict_resolver.llm.metrics import RequestMetrics
+        from review_bot_automator.llm.metrics import RequestMetrics
 
         aggregator = MetricsAggregator()
         metrics = RequestMetrics(
