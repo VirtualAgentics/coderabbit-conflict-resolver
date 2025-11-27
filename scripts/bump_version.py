@@ -70,10 +70,17 @@ def update_pyproject(old_version: str, new_version: str) -> None:
     Args:
         old_version: Current version to replace
         new_version: New version to set
+
+    Raises:
+        ValueError: If version string not found (prevents silent desync)
     """
     path = Path("pyproject.toml")
     content = path.read_text(encoding="utf-8")
     updated = content.replace(f'version = "{old_version}"', f'version = "{new_version}"')
+    if updated == content:
+        raise ValueError(
+            f'Version {old_version} not found in {path} as `version = "{old_version}"`'
+        )
     path.write_text(updated, encoding="utf-8")
 
 
@@ -83,9 +90,14 @@ def update_init(old_version: str, new_version: str) -> None:
     Args:
         old_version: Current version to replace
         new_version: New version to set
+
+    Raises:
+        ValueError: If version string not found (prevents silent desync)
     """
     content = INIT_PATH.read_text(encoding="utf-8")
     updated = content.replace(f'__version__ = "{old_version}"', f'__version__ = "{new_version}"')
+    if updated == content:
+        raise ValueError(f'__version__ = "{old_version}" not found in {INIT_PATH}')
     INIT_PATH.write_text(updated, encoding="utf-8")
 
 
@@ -156,7 +168,11 @@ def bump_version() -> tuple[str, str]:
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command line arguments."""
+    """Parse command line arguments.
+
+    Returns:
+        Parsed command-line arguments.
+    """
     parser = argparse.ArgumentParser(
         description="Bump patch version and optionally update CHANGELOG"
     )

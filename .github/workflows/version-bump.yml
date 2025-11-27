@@ -5,10 +5,10 @@ on:
     branches:
       - main
 
-# Prevent concurrent version bumps - queue them instead
+# Prevent overlapping version bumps
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
