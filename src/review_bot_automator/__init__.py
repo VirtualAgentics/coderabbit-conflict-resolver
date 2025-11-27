@@ -3,7 +3,7 @@
 An intelligent, automated conflict resolution system for GitHub PR comments.
 """
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 __author__ = "VirtualAgentics"
 __email__ = "bdc@virtualagentics.ai"
 
