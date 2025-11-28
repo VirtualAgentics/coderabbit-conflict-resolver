@@ -499,9 +499,9 @@ httpx==0.28.1 \
     #   -r requirements.txt
     #   anthropic
     #   openai
-hypothesis==6.148.2 \
-    --hash=sha256:07e65d34d687ddff3e92a3ac6b43966c193356896813aec79f0a611c5018f4b1 \
-    --hash=sha256:bf8ddc829009da73b321994b902b1964bcc3e5c3f0ed9a1c1e6a1631ab97c5fa
+hypothesis==6.148.3 \
+    --hash=sha256:bd81221740d8658473060ad900dc831f889f156fdb41210ba2f47cfad10a66ed \
+    --hash=sha256:e7dd193da9800234ec5e1541c1eddde4bddff49b53faf690ba68a0af55a7abb3
     # via -r requirements-dev.in
 id==1.5.0 \
     --hash=sha256:292cb8a49eacbbdbce97244f47a97b4c62540169c976552e497fd57df0734c1d \
