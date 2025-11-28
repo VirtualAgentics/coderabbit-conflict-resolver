@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Base strategy interface for conflict resolution.
 
 This module provides the abstract base class that all resolution strategies must implement.

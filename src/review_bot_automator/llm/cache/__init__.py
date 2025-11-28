@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Prompt caching module for LLM cost reduction.
 
 This module provides file-based caching for LLM responses with TTL expiration

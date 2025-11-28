@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Git-based rollback manager for safe change application.
 
 This module provides the RollbackManager class for creating checkpoints and rolling back

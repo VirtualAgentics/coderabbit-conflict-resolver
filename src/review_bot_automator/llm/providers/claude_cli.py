@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Claude CLI provider implementation.
 
 This module provides the Claude CLI integration for LLM text generation.

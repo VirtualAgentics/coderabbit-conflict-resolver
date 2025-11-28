@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Runtime configuration management with environment variable and file support.
 
 This module provides the RuntimeConfig system for managing application configuration

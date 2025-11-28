@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Resilience patterns for LLM providers.
 
 This package provides resilience patterns to handle transient failures and protect

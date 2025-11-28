@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Caching wrapper for LLM providers.
 
 This module provides a transparent caching layer that wraps any LLMProvider

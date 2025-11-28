@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Path resolution utilities for consistent file path handling across handlers."""
 
 import os

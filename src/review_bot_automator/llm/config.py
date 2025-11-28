@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """LLM configuration management for parsing CodeRabbit comments.
 
 This module provides configuration data structures for LLM integration.

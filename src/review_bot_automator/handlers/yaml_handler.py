@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """YAML handler for applying CodeRabbit suggestions with AST validation.
 
 This handler provides YAML-aware suggestion application with structure validation

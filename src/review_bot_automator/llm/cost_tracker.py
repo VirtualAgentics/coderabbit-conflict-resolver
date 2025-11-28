@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Cost tracking and budget enforcement for LLM operations.
 
 This module provides thread-safe cost tracking with configurable budget

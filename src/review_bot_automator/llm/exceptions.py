@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Exception hierarchy for LLM-powered parsing module.
 
 This module defines a clear exception hierarchy for LLM parsing errors,

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Security configuration for the Review Bot Automator.
 
 This module provides centralized security configuration with three preset

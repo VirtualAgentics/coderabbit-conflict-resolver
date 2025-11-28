@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """LLM provider implementations.
 
 This package contains provider-specific implementations for different LLM services.

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """JSON handler for applying CodeRabbit suggestions with AST validation.
 
 This handler provides JSON-aware suggestion application with duplicate key detection,

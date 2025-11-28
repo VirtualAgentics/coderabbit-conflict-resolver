@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Codex CLI provider implementation.
 
 This module provides the Codex CLI integration for LLM text generation.

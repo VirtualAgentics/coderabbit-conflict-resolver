@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """TOML handler for applying CodeRabbit suggestions with AST validation.
 
 This handler provides TOML-aware suggestion application with structure validation.

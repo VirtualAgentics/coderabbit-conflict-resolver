@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Constants for LLM integration.
 
 This module defines shared constants used across the LLM integration components.

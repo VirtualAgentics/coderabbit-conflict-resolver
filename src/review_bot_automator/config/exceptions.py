@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Configuration exceptions for PR Conflict Resolver.
 
 This module contains exception classes used across the configuration system,

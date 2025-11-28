@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Configuration presets for different use cases."""
 
 from typing import Any, ClassVar

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Data models for the conflict resolution system.
 
 This module contains the core data classes used throughout the system
