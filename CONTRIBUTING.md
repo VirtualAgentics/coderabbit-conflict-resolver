@@ -558,13 +558,107 @@ When creating a pull request, please include:
 * **Breaking changes**: Any breaking changes and migration steps
 * **Related issues**: Link to related issues
 
-### Review Process
+### Code Review Standards
 
-1. **Automated checks** must pass (CI/CD pipeline)
-2. **Code review** by maintainers
-3. **Testing** on multiple environments
-4. **Documentation** review
-5. **Approval** from at least one maintainer
+All pull requests require code review before merging. This section documents our review process, expectations, and standards.
+
+#### Review Checklist
+
+Reviewers should verify the following aspects of each PR:
+
+##### Code Quality
+
+* Code is readable and follows project style guidelines
+* Logic is clear and maintainable
+* No unnecessary complexity or duplication
+* Appropriate error handling
+* No hardcoded values that should be configurable
+
+##### Test Coverage
+
+* New functionality includes corresponding tests
+* Bug fixes include regression tests
+* All tests pass (verified by CI)
+* Coverage is maintained or improved (≥80% required)
+
+##### Security Considerations
+
+* No secrets, credentials, or API keys in code
+* Input validation for user-provided data
+* No SQL injection, XSS, or command injection vulnerabilities
+* Dependencies are from trusted sources
+* Security-sensitive changes reviewed by security-aware maintainer
+
+##### Documentation
+
+* Public APIs have docstrings
+* Complex logic has inline comments
+* README updated if user-facing changes
+* CHANGELOG updated for notable changes
+
+##### Performance
+
+* No obvious performance regressions
+* Efficient algorithms for data processing
+* No unnecessary network calls or file I/O
+
+#### Review Turnaround Expectations
+
+* **Initial response**: Within 48 hours (acknowledgment or first review)
+* **Full review**: Within 1 week for standard PRs
+* **Security fixes**: Same-day review priority
+* **Simple fixes** (typos, docs): Within 24 hours
+
+If you haven't received a response within these timeframes, feel free to ping maintainers.
+
+#### Approval Requirements
+
+**Required review** (1 maintainer approval minimum):
+
+* New features
+* Bug fixes
+* Breaking changes
+* Security-related changes
+* Changes to CI/CD workflows
+
+**Optional review** (can merge after CI passes):
+
+* Documentation-only changes (no code)
+* Dependency updates via Renovate (if automerge enabled)
+* Automated formatting fixes
+
+#### How to Review
+
+**Approving a PR:**
+
+* Use GitHub's "Approve" option when the PR meets all criteria
+* Add a brief comment summarizing what you verified
+* The PR can be merged once approved and CI passes
+
+**Requesting Changes:**
+
+* Use "Request changes" for issues that must be addressed before merge
+* Be specific about what needs to change and why
+* Provide suggestions or examples when possible
+* The author must address feedback and request re-review
+
+**Commenting Without Blocking:**
+
+* Use "Comment" for suggestions, questions, or non-blocking feedback
+* Prefix optional suggestions with "nit:" or "optional:"
+* Use this for style preferences that aren't project standards
+
+#### Conflict Resolution
+
+When reviewers and authors disagree:
+
+1. **Discussion**: Attempt to resolve through PR comments
+2. **Clarification**: Author explains rationale; reviewer explains concerns
+3. **Compromise**: Find a middle ground that satisfies both parties
+4. **Escalation**: If unresolved, escalate to project lead (see [GOVERNANCE.md](GOVERNANCE.md))
+5. **Final decision**: Project lead makes final call for technical disputes
+
+The goal is collaborative improvement, not gatekeeping. Reviewers should be constructive, and authors should be receptive to feedback.
 
 ## GitHub Actions Workflow Concurrency
 

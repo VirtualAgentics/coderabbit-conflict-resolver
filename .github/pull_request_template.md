@@ -1,5 +1,7 @@
 # Pull Request
 
+> 📖 **Review Standards**: See [Code Review Standards](../CONTRIBUTING.md#code-review-standards) for reviewer guidelines.
+
 ## Summary
 
 <!-- Brief description of what this PR accomplishes -->
