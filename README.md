@@ -22,6 +22,7 @@
   <br>
   <!-- Security & Compliance -->
   <a href="https://securityscorecards.dev/viewer/?uri=github.com/VirtualAgentics/review-bot-automator"><img src="https://api.securityscorecards.dev/projects/github.com/VirtualAgentics/review-bot-automator/badge" alt="OpenSSF Scorecard"></a>
+  <a href="https://www.bestpractices.dev/projects/11473"><img src="https://www.bestpractices.dev/projects/11473/badge" alt="OpenSSF Best Practices"></a>
   <a href="https://coderabbit.ai"><img src="https://img.shields.io/coderabbit/prs/github/VirtualAgentics/review-bot-automator?utm_source=oss&utm_medium=github&utm_campaign=VirtualAgentics%2Freview-bot-automator&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews" alt="CodeRabbit Reviews"></a>
   <br>
   <!-- Project Info -->

@@ -36,7 +36,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at [INSERT CONTACT METHOD]. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at <bdc@virtualagentics.ai>. All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the reporter of any incident.
 
@@ -72,7 +72,7 @@ Community leaders will follow these Community Impact Guidelines in determining t
 
 For questions or concerns about this Code of Conduct, please contact:
 
-* **Email**: <conduct@virtualagentics.com>
+* **Email**: <bdc@virtualagentics.ai>
 * **GitHub**: Create a private issue or contact the maintainers directly
 * **Discord/Community Chat**: Contact moderators in the community chat
 

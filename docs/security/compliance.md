@@ -556,7 +556,7 @@ This document maps the Review Bot Automator's security controls to industry stan
 
 For compliance inquiries, audits, or evidence requests:
 
-* **Email**: <security@virtualagentics.com>
+* **Email**: <bdc@virtualagentics.ai>
 * **Response Time**: 2 business days
 * **Documentation**: Available in repository
 

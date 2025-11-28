@@ -50,9 +50,9 @@ For general questions, community discussions, and sharing ideas:
 
 For security issues or private matters:
 
-* **Security Issues**: <security@virtualagentics.com>
-* **General Support**: <support@virtualagentics.com>
-* **Code of Conduct**: <conduct@virtualagentics.com>
+* **Security Issues**: <bdc@virtualagentics.ai>
+* **General Support**: <bdc@virtualagentics.ai>
+* **Code of Conduct**: <bdc@virtualagentics.ai>
 
 ## How to Ask for Help
 
@@ -152,7 +152,7 @@ For critical security issues:
 
 1. **Do not create public issues**
 2. **Use private vulnerability reporting** on GitHub
-3. **Email <security@virtualagentics.com>**
+3. **Email <bdc@virtualagentics.ai>**
 4. **Include detailed information** about the security issue
 
 ## Thank You
