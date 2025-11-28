@@ -98,7 +98,7 @@ Review Bot Automator implements multiple layers of security controls:
    - Symlink detection and rejection
 
 2. **SecretScanner** (`src/review_bot_automator/security/secret_scanner.py`)
-   - 14+ secret pattern types detected
+   - 17 secret pattern types detected
    - GitHub tokens, AWS keys, OpenAI API keys
    - JWT tokens, private keys, database credentials
    - False positive filtering

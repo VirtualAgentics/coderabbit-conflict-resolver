@@ -93,7 +93,7 @@ pytest tests/security/test_secret_scanner.py::TestSecretPatternDetection -v
 
 ```
 
-**Tested Secret Types** (14+ patterns):
+**Tested Secret Types** (17 patterns):
 
 * GitHub tokens (personal, OAuth, server, refresh)
 * AWS keys (access key, secret key)
@@ -223,7 +223,7 @@ docker run --rm -v $(pwd):/src clusterfuzzlite-build bash -c \
 #### 3. fuzz_secret_scanner.py
 
 * **Tests**: `SecretScanner.scan_content()`, `has_secrets()`, `_is_false_positive()`, `_redact_secret()`, `scan_content_generator()`
-* **Coverage**: ReDoS vulnerabilities (14+ regex patterns), Unicode edge cases, false positive logic, redaction safety
+* **Coverage**: ReDoS vulnerabilities (17 regex patterns), Unicode edge cases, false positive logic, redaction safety
 * **Focus**: Regular expression denial of service, secret detection edge cases
 * **Max length**: 10KB per input (prevent timeout)
 * **Key Vulnerabilities Tested**:

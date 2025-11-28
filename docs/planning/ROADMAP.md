@@ -55,7 +55,7 @@ Transform the Review Bot Automator into a production-ready, professional system 
 * **Security Architecture**: Comprehensive threat model, security principles documented
 * **Input Validation**: `input_validator.py` with path traversal prevention, file validation
 * **Secure File Handling**: `secure_file_handler.py` with atomic operations, permission preservation
-* **Secret Detection**: `secret_scanner.py` with 14+ secret pattern types
+* **Secret Detection**: `secret_scanner.py` with 17 secret pattern types
 * **Security Configuration**: `config.py` with secure defaults
 * **Security Testing**: 95%+ coverage on security modules, comprehensive test suite
 * **CI/CD Security**: `.github/workflows/security.yml` with 7+ scanning tools (CodeQL, Trivy, TruffleHog, Bandit, pip-audit, OpenSSF Scorecard)

@@ -410,7 +410,7 @@ os.replace(temp_path, file_path)  # Atomic operation
 
 **Mitigations**:
 
-* ✅ **IMPLEMENTED**: `SecretScanner` with 14+ pattern types (secret_scanner.py:73-140)
+* ✅ **IMPLEMENTED**: `SecretScanner` with 17 pattern types (secret_scanner.py:73-140)
 * ✅ Pre-application secret scanning
 * ✅ False positive filtering
 * ✅ TruffleHog scanning in CI/CD
@@ -616,7 +616,7 @@ if original_mode is not None:
 
 * ✅ **IMPLEMENTED**: `SecretScanner.scan_content()` before LLM calls (parser.py:147-158)
 * ✅ **IMPLEMENTED**: `LLMSecretDetectedError` raised when secrets detected
-* ✅ 25+ secret detection patterns covering major providers
+* ✅ 17 secret detection patterns covering major providers
 * ✅ Configurable `scan_for_secrets` parameter (default: True)
 
 **Residual Risk**: LOW (comprehensive pre-LLM secret scanning)

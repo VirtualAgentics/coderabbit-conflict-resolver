@@ -14,7 +14,7 @@ Coverage:
 - scan_content_generator(): Generator semantics and early exit
 
 Bugs to find:
-- ReDoS vulnerabilities in 14+ regex patterns (catastrophic backtracking)
+- ReDoS vulnerabilities in 17 regex patterns (catastrophic backtracking)
 - Unicode edge cases (normalization, surrogates, combining characters)
 - Null byte injection (\x00) in secrets
 - Boundary conditions (empty strings, extremely long inputs)

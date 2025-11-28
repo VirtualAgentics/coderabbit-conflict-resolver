@@ -432,7 +432,7 @@ MIT License - see [LICENSE](LICENSE) for details.
   - ✅ 0.1: Security Architecture Design
   - ✅ 0.2: Input Validation & Sanitization
   - ✅ 0.3: Secure File Handling
-  - ✅ 0.4: Secret Detection (14+ patterns)
+  - ✅ 0.4: Secret Detection (17 patterns)
   - ✅ 0.5: Security Testing Suite (95%+ coverage)
   - ✅ 0.6: Security Configuration
   - ✅ 0.7: CI/CD Security Scanning (7+ tools)
@@ -497,7 +497,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 - **ClusterFuzzLite**: Continuous fuzzing (3 fuzz targets, ASan + UBSan)
 - **Test Coverage**: 82.35% overall, 95%+ for security modules
 - **Security Scanning**: CodeQL, Trivy, TruffleHog, Bandit, pip-audit, OpenSSF Scorecard
-- **Secret Detection**: 14+ pattern types (GitHub tokens, AWS keys, API keys, etc.)
+- **Secret Detection**: 17 pattern types (GitHub tokens, AWS keys, API keys, etc.)
 - **Documentation**: Comprehensive security documentation (threat model, incident response, compliance)
 
 ## 🚀 LLM Features (v2.0 Architecture)

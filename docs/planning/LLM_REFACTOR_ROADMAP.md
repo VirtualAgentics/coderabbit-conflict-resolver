@@ -169,7 +169,7 @@ These modules work perfectly and need NO changes:
 | -------- | --------- | ----- | -------- |
 | `security/input_validator.py` | Path traversal prevention, validation | 596 | ✅ Keep |
 | `security/secure_file_handler.py` | Atomic file ops, permissions | 222 | ✅ Keep |
-| `security/secret_scanner.py` | Secret detection (14+ patterns) | 410 | ✅ Keep |
+| `security/secret_scanner.py` | Secret detection (17 patterns) | 410 | ✅ Keep |
 | `security/config.py` | Security configuration | 191 | ✅ Keep |
 | `handlers/json_handler.py` | JSON file manipulation | 465 | ✅ Keep |
 | `handlers/yaml_handler.py` | YAML file manipulation | 487 | ✅ Keep |
