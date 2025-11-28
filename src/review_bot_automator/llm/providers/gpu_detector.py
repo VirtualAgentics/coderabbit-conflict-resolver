@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """GPU detection and hardware acceleration status for Ollama.
 
 This module provides utilities to detect GPU availability, type, and VRAM

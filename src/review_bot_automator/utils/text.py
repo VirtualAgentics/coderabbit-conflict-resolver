@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Text utility functions for conflict resolution.
 
 This module provides common text manipulation utilities used across

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Parallel LLM comment parser implementation.
 
 This module provides parallel processing capabilities for LLM comment parsing,

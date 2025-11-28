@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Abstract base classes and protocols for LLM providers.
 
 This module defines the core interfaces that all LLM providers must implement,

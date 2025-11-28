@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """OpenAI API provider implementation.
 
 This module provides the OpenAI API integration for LLM-powered comment parsing.

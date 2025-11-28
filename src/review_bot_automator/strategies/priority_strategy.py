@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Priority-based resolution strategy.
 
 This module provides the PriorityStrategy class that resolves conflicts

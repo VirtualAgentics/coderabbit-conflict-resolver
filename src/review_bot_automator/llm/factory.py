@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """LLM Provider Factory and Selection Logic.
 
 This module provides factory functions for creating and validating LLM provider

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """LLM configuration presets for zero-config setup.
 
 This module provides predefined LLM configurations that allow users to quickly

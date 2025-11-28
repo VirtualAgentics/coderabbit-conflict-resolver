@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Ollama API provider implementation.
 
 This module provides the Ollama HTTP API integration for local LLM inference.

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Base prompt template for parsing CodeRabbit review comments.
 
 This module contains the main prompt used to extract structured code changes

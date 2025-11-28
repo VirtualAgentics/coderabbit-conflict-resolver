@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Error handling utilities for LLM operations.
 
 This module provides user-friendly error messages and troubleshooting guidance

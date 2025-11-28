@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Benchmarking utilities for LLM provider performance comparison.
 
 This package provides tools for benchmarking and comparing the performance

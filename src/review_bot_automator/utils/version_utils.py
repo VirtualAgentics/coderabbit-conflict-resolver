@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Version validation utilities for dependency constraint checking.
 
 This module provides functions to validate version constraints in requirements

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Configuration loading utilities for CLI commands.
 
 This module provides shared configuration loading logic for CLI commands.

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """LLM error handling utilities for CLI commands.
 
 This module provides shared error handling for LLM operations across CLI commands.

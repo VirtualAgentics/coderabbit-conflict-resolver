@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Prompt templates and examples for LLM-based comment parsing.
 
 This package contains the prompt engineering system for parsing CodeRabbit

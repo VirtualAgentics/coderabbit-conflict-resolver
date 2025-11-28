@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Base data structures and interfaces for LLM-based parsing.
 
 This module provides foundational data structures and abstract interfaces for

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """File-based prompt caching with TTL and LRU eviction.
 
 This module implements a thread-safe file-based cache for LLM responses to achieve

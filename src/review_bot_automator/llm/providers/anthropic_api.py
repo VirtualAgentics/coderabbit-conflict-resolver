@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Anthropic API provider implementation.
 
 This module provides the Anthropic API integration for LLM-powered comment parsing.

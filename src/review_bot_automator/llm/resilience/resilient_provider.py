@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Resilient LLM provider wrapper with circuit breaker protection.
 
 This module provides a transparent wrapper for LLM providers that adds

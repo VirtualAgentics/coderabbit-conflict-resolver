@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Universal LLM-powered comment parser.
 
 This module implements the core parsing logic that uses LLM providers to extract

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Metrics aggregation for LLM provider performance tracking.
 
 This module provides the MetricsAggregator class for collecting, aggregating,

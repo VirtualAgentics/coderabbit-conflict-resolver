@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Conflict detection and analysis functionality.
 
 This module provides the ConflictDetector class that analyzes changes

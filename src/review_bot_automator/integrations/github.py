@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """GitHub integration for fetching PR comments and metadata.
 
 This module provides the GitHubCommentExtractor class that fetches

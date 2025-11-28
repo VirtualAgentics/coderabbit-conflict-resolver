@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Few-shot examples for LLM prompt engineering.
 
 This module provides curated examples demonstrating how to parse different

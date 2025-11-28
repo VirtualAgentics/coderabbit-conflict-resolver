@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Core benchmarking utilities for LLM provider performance testing.
 
 This module contains the core functionality for benchmarking LLM providers,

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Secure file handling utilities for atomic operations and rollback."""
 
 import logging

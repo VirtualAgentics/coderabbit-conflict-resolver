@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Core conflict resolution logic extracted and generalized from ContextForge Memory.
 
 This module provides the main ConflictResolver class that handles intelligent

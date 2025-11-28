@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """LLM metrics tracking for cost and performance monitoring.
 
 This module provides data structures for tracking LLM usage metrics including

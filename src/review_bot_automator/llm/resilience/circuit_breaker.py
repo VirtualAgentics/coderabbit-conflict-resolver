@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 VirtualAgentics
 """Circuit breaker pattern for LLM provider resilience.
 
 This module implements the circuit breaker pattern to protect against cascading
