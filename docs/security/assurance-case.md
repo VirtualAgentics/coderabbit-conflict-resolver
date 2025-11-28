@@ -60,7 +60,7 @@ This document provides a formal security assurance case for the Review Bot Autom
 │  ┌─────────────────────────────────────────────────────────────────────┐    │
 │  │                      SecretScanner                                   │    │
 │  │  - scan_content()          - scan_file()                            │    │
-│  │  - has_secrets()           - 24 detection patterns                  │    │
+│  │  - has_secrets()           - 17 detection patterns                  │    │
 │  │                                                                      │    │
 │  │  Implementation: src/review_bot_automator/security/secret_scanner.py│    │
 │  └─────────────────────────────────────────────────────────────────────┘    │
@@ -108,7 +108,7 @@ This document provides a formal security assurance case for the Review Bot Autom
 | ID | Requirement | Implementation | Verification |
 |----|-------------|----------------|--------------|
 | **SR-01** | Path traversal prevention | `InputValidator.validate_file_path()` | Unit tests, fuzzing |
-| **SR-02** | Secret detection before writes | `SecretScanner.scan_content()` | Unit tests, 24 patterns |
+| **SR-02** | Secret detection before writes | `SecretScanner.scan_content()` | Unit tests, 17 patterns |
 | **SR-03** | Safe parsing (no code execution) | `yaml.safe_load()`, strict JSON | Unit tests, fuzzing |
 | **SR-04** | Atomic file operations | `os.replace()`, tempfile | Unit tests |
 | **SR-05** | Workspace containment | `resolve_file_path(enforce_containment=True)` | Unit tests |
@@ -316,7 +316,7 @@ with tempfile.NamedTemporaryFile(
 | 5 | CWE-352 | CSRF | N/A - No web interface | Not applicable | N/A |
 | 6 | CWE-434 | Unrestricted Upload | File type validation | Extension checks | ✅ |
 | 7 | CWE-862 | Missing Authorization | Workspace containment | `enforce_containment=True` | ✅ |
-| 8 | CWE-798 | Hard-coded Credentials | Secret detection | SecretScanner (24 patterns) | ✅ |
+| 8 | CWE-798 | Hard-coded Credentials | Secret detection | SecretScanner (17 patterns) | ✅ |
 | 9 | CWE-94 | Code Injection | Safe parsers, no eval() | `yaml.safe_load()` | ✅ |
 | 10 | CWE-20 | Improper Input Validation | Comprehensive validation | InputValidator class | ✅ |
 | 11 | CWE-78 | OS Command Injection | No shell execution | No subprocess from suggestions | ✅ |
@@ -375,7 +375,7 @@ def validate_file_path(
 #### Secret Detection
 
 ```python
-# secret_scanner.py:73-139 - 24 patterns
+# secret_scanner.py:73-140 - 17 patterns
 PATTERNS = [
     (r'ghp_[a-zA-Z0-9]{36}', 'GitHub Personal Access Token'),
     (r'gho_[a-zA-Z0-9]{36}', 'GitHub OAuth Token'),

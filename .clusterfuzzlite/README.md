@@ -260,7 +260,7 @@ pip install --dry-run PyYAML==6.0.3 ruamel.yaml==0.18.16
 All fuzz targets are located in the `/fuzz` directory:
 
 1. **`fuzz_input_validator.py`**: Tests input validation and sanitization
-2. **`fuzz_secret_scanner.py`**: Tests secret detection (14+ patterns, ReDoS)
+2. **`fuzz_secret_scanner.py`**: Tests secret detection (17 patterns, ReDoS)
 3. **`fuzz_handlers.py`**: Tests JSON, YAML, TOML parsing
 
 **Coverage**: Each target runs with Address Sanitizer (ASan) and Undefined Behavior Sanitizer (UBSan)

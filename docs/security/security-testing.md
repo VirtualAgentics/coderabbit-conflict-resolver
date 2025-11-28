@@ -93,7 +93,7 @@ pytest tests/security/test_secret_scanner.py::TestSecretPatternDetection -v
 
 ```
 
-**Tested Secret Types** (14+ patterns):
+**Tested Secret Types** (17 patterns):
 
 * GitHub tokens (personal, OAuth, server, refresh)
 * AWS keys (access key, secret key)

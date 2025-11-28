@@ -742,7 +742,7 @@ This security architecture established the foundation for secure development of 
 
 * **Input validation and sanitization** (path traversal prevention, content validation)
 * **Secure file handling** (atomic operations, permission preservation, rollback)
-* **Secret detection** (14+ pattern types, pre-commit scanning)
+* **Secret detection** (17 pattern types, pre-commit scanning)
 * **Security testing** (95%+ coverage, continuous fuzzing, SAST/DAST)
 * **Security configuration** (secure defaults, feature toggles)
 * **CI/CD security scanning** (7+ integrated tools)

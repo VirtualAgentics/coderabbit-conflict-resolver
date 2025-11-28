@@ -23,7 +23,7 @@ GitHub PR Comment → Secret Scanner → PARSE_COMMENT_PROMPT → LLM API → JS
 
 1. **Secret Scanning (Pre-LLM)**
    * All comment bodies are scanned for secrets BEFORE being sent to external LLM APIs
-   * Uses `SecretScanner.scan_content()` with 24 detection patterns
+   * Uses `SecretScanner.scan_content()` with 17 detection patterns
    * Raises `LLMSecretDetectedError` if secrets detected
    * Prevents accidental exfiltration of credentials to external services
 
