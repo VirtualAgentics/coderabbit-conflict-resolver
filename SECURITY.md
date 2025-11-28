@@ -150,8 +150,9 @@ go install github.com/slsa-framework/slsa-verifier/v2/cli/slsa-verifier@latest
 # Verify the artifact
 slsa-verifier verify-artifact \
   review_bot_automator-2.0.1-py3-none-any.whl \
-  --provenance-path multiple.intoto.jsonl \
-  --source-uri github.com/VirtualAgentics/review-bot-automator
+  --provenance-path review_bot_automator-2.0.1-py3-none-any.whl.intoto.jsonl \
+  --source-uri github.com/VirtualAgentics/review-bot-automator \
+  --source-tag v2.0.1
 ```
 
 **Why SLSA instead of GPG?**

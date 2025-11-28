@@ -125,7 +125,7 @@ This document establishes the Security Incident Response Plan for the Review Bot
 * Creates private security advisory
 * Allows for coordinated disclosure
 
-**Email**: <<bdc@virtualagentics.ai>>
+**Email**: <bdc@virtualagentics.ai>
 
 * Use for sensitive disclosures
 * Include detailed reproduction steps
