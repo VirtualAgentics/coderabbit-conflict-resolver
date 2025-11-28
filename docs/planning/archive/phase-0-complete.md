@@ -138,7 +138,7 @@ class SecureFileHandler:
 
 **Delivered**:
 
-* Secret pattern detection (14+ types)
+* Secret pattern detection (17 types)
 * Content scanning for accidental secret exposure
 * Regex-based pattern matching
 * Redacted output for logging safety
