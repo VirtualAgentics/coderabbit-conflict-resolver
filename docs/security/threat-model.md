@@ -616,7 +616,7 @@ if original_mode is not None:
 
 * ✅ **IMPLEMENTED**: `SecretScanner.scan_content()` before LLM calls (parser.py:147-158)
 * ✅ **IMPLEMENTED**: `LLMSecretDetectedError` raised when secrets detected
-* ✅ 25+ secret detection patterns covering major providers
+* ✅ 24 secret detection patterns covering major providers
 * ✅ Configurable `scan_for_secrets` parameter (default: True)
 
 **Residual Risk**: LOW (comprehensive pre-LLM secret scanning)

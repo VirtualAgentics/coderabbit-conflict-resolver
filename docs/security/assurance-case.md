@@ -60,7 +60,7 @@ This document provides a formal security assurance case for the Review Bot Autom
 │  ┌─────────────────────────────────────────────────────────────────────┐    │
 │  │                      SecretScanner                                   │    │
 │  │  - scan_content()          - scan_file()                            │    │
-│  │  - has_secrets()           - 25+ detection patterns                 │    │
+│  │  - has_secrets()           - 24 detection patterns                  │    │
 │  │                                                                      │    │
 │  │  Implementation: src/review_bot_automator/security/secret_scanner.py│    │
 │  └─────────────────────────────────────────────────────────────────────┘    │
